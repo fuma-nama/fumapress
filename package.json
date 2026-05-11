@@ -1,0 +1,25 @@
+{
+  "name": "root",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "oxlint",
+    "lint:format": "oxfmt --check",
+    "format": "oxfmt",
+    "types:check": "turbo run types:check",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "turbo": "^2.9.12",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@9.6.0"
+}
