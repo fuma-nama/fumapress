@@ -1,5 +1,14 @@
 # fumapress
 
+## 0.2.2
+
+### Patch Changes
+
+- cd4aaa9: Allow strict typed adapter & plugin APIs
+- cd4aaa9: Allow layout `render()` option without `body` output
+- cd4aaa9: Support `providerProps` option in `createRootLayout()`
+- cd4aaa9: Support `getMdxComponents()` option in Fumadocs MDX adapter
+
 ## 0.2.1
 
 ### Patch Changes
