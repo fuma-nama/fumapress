@@ -64,6 +64,7 @@
     "waku": "1.0.0-alpha.10"
   },
   "peerDependencies": {
+    "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-mdx": "^15.0.0",
     "react": "^19.2.0",
@@ -72,6 +73,9 @@
     "waku": "1.0.0-alpha.9"
   },
   "peerDependenciesMeta": {
+    "@types/mdx": {
+      "optional": true
+    },
     "fumadocs-mdx": {
       "optional": true
     },

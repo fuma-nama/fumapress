@@ -19,7 +19,7 @@ import { unstable_notFound } from "waku/router/server";
 
 export interface DocsLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (
-    this: AppContext<C>,
+    this: AppContext<C> & { lang?: string },
     page: C["loaderConfig"]["page"],
   ) => Awaitable<Partial<DocsLayoutRenderData>>;
 }
@@ -39,17 +39,19 @@ export interface DocsLayoutContextData {
 }
 
 export function createDocsLayout<C extends ConfigContext = ConfigContext>({
-  render = async function defaultRender(page) {
+  render,
+}: DocsLayoutOptions<C> = {}): Layouts<C>["page"] {
+  async function defaultRender(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     let body: ReactNode | undefined;
     let toc: TOCItemType[] | undefined;
 
     for (const adapter of this.adapters) {
-      body = await adapter["core:render-body"]?.call(this as unknown as AppContext, page);
+      body = await adapter["core:render-body"]?.call(this, page);
       if (body !== undefined) break;
     }
 
     for (const adapter of this.adapters) {
-      toc = await adapter["core:render-toc"]?.call(this as unknown as AppContext, page);
+      toc = await adapter["core:render-toc"]?.call(this, page);
       if (toc !== undefined) break;
     }
 
@@ -59,9 +61,9 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     return {
       body,
       pageProps: { toc },
-    };
-  },
-}: DocsLayoutOptions<C> = {}): Layouts<C>["page"] {
+    } satisfies Partial<DocsLayoutRenderData>;
+  }
+
   return async function Layout(props) {
     const {
       slugs,
@@ -73,10 +75,11 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
-    let result = (await render.call(props, page)) as DocsLayoutRenderData;
-    result.layoutProps ??= {
-      tree: source.getPageTree(lang),
-      ...baseOptions(props),
+    const _raw = await (render ?? defaultRender).call(props, page);
+    let result: DocsLayoutRenderData = {
+      ..._raw,
+      body: _raw.body === undefined ? (await defaultRender.call(props, page)).body : _raw.body,
+      layoutProps: { tree: source.getPageTree(lang), ...(_raw.layoutProps ?? baseOptions(props)) },
     };
 
     if (layoutData?.renderers) {

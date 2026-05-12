@@ -24,7 +24,7 @@ export function createRouter<C extends ConfigContext>(
     const context: AppContext<C> = parseConfig(rawConfig);
 
     for (const plugin of context.plugins) {
-      plugin.init?.call(context as unknown as AppContext);
+      plugin.init?.call(context);
     }
 
     return {
@@ -65,7 +65,7 @@ export function createRouter<C extends ConfigContext>(
 
       await base(fns);
       for (const plugin of context.plugins) {
-        await plugin.createPages?.call(context as unknown as AppContext, fns);
+        await plugin.createPages?.call(context, fns);
       }
 
       const defaultRenderMode = context.mode === "dynamic" ? "dynamic" : "static";

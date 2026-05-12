@@ -23,9 +23,9 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   loader: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
 
   site?: SiteConfig;
-  plugins?: ServerPlugin[] | ((ctx: AppContext<C>) => ServerPlugin[]);
+  plugins?: ServerPlugin[] | ((ctx: AppContext<C>) => ServerPlugin<C>[]);
   /** adapter for content sources, use `fumadocs-mdx` if not specified */
-  adapters?: Adapter[];
+  adapters?: Adapter[] | ((ctx: AppContext<C>) => Adapter<C>[]);
 
   i18n?: I18nConfig;
 

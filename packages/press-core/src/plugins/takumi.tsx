@@ -17,7 +17,7 @@ export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
 
 export function takumiPlugin<C extends ConfigContext = ConfigContext>(
   options: TakumiOptions<C> = {},
-): ServerPlugin {
+): ServerPlugin<C> {
   const {
     generate = async function generateDefault(page) {
       const { generate } = await import("fumadocs-ui/og/takumi");
@@ -68,7 +68,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
           );
           if (!page) unstable_notFound();
 
-          const { node, options } = await generate.call(this as unknown as AppContext<C>, page);
+          const { node, options } = await generate.call(this, page);
           return new ImageResponse(node, {
             width,
             height,

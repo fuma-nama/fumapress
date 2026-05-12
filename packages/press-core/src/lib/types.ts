@@ -1,6 +1,6 @@
+import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
-import type { Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { ReactNode } from "react";
 import type { createPages } from "waku";
@@ -8,21 +8,30 @@ import type { createPages } from "waku";
 export type Awaitable<T> = T | Promise<T>;
 
 /** allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually */
-export interface Adapter {
-  "core:get-text"?: (this: AppContext, page: Page) => Awaitable<string | undefined>;
+export interface Adapter<C extends ConfigContext = ConfigContext> {
+  "core:get-text"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<string | undefined>;
   "core:get-structured-data"?: (
-    this: AppContext,
-    page: Page,
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
   ) => Awaitable<StructuredData | undefined>;
-  "core:render-body"?: (this: AppContext, page: Page) => Awaitable<ReactNode>;
-  "core:render-toc"?: (this: AppContext, page: Page) => Awaitable<TOCItemType[] | undefined>;
+  "core:render-body"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<ReactNode>;
+  "core:render-toc"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<TOCItemType[] | undefined>;
 }
 
-export interface ServerPlugin {
+export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   /** receive & modify context */
-  init?: (this: AppContext) => void;
+  init?: (this: AppContext<C>) => void;
 
-  createPages?: (this: AppContext, fns: RouteFns) => Awaitable<void>;
+  createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 }
 
 export type RouteFns = Parameters<Parameters<typeof createPages>[0]>[0] & {

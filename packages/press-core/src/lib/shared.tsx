@@ -13,8 +13,8 @@ import type { RootProviderProps } from "fumadocs-ui/provider/waku";
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
   getLoader: () => Awaitable<LoaderOutput<C["loaderConfig"]>>;
-  plugins: ServerPlugin[];
-  adapters: Adapter[];
+  plugins: ServerPlugin<C>[];
+  adapters: Adapter<C>[];
 
   /** always `undefined`, easier way to infer types */
   $context: C;
@@ -25,7 +25,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   data: AppContextData & Record<string, unknown>;
 
   i18nConfig?: I18nConfig;
-  metaConfig?: Config["meta"];
+  metaConfig?: Config<C>["meta"];
   siteConfig: {
     name: string;
     git?: {
@@ -51,13 +51,13 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
 
       return config.loader;
     },
-    plugins: Array.isArray(config.plugins) ? config.plugins : [],
-    adapters: config.adapters ?? [fumadocsMdx()],
+    plugins: Array.isArray(config.plugins) ? (config.plugins as unknown as ServerPlugin<C>[]) : [],
+    adapters: (config.adapters ?? [fumadocsMdx()]) as never,
     $context: undefined as never,
     data: {},
     i18nConfig: config.i18n,
     mode: config.mode ?? "default",
-    metaConfig: config.meta as Config["meta"],
+    metaConfig: config.meta as Config<C>["meta"],
     siteConfig: {
       name: config.site?.name ?? "Fumapress",
       git: config.site?.git
@@ -76,11 +76,14 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
   return context;
 }
 
-export function renderRootMeta(context: AppContext): ReactNode {
+export function renderRootMeta<C extends ConfigContext>(context: AppContext<C>): ReactNode {
   return context.metaConfig?.root?.call(context);
 }
 
-export function renderPageMeta(page: Page, context: AppContext): ReactNode {
+export function renderPageMeta<C extends ConfigContext>(
+  page: C["loaderConfig"]["page"],
+  context: AppContext<C>,
+): ReactNode {
   return (
     <>
       <title>{page.data.title}</title>
@@ -94,7 +97,10 @@ export function renderPageMeta(page: Page, context: AppContext): ReactNode {
   );
 }
 
-export function getGitHubFileUrl(ctx: AppContext, absolutePath: string): string | undefined {
+export function getGitHubFileUrl<C extends ConfigContext>(
+  ctx: AppContext<C>,
+  absolutePath: string,
+): string | undefined {
   const { git } = ctx.siteConfig;
   if (!git) return;
 
@@ -104,7 +110,7 @@ export function getGitHubFileUrl(ctx: AppContext, absolutePath: string): string 
   return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
 }
 
-export function baseOptions(ctx: AppContext): BaseLayoutProps {
+export function baseOptions<C extends ConfigContext>(ctx: AppContext<C>): BaseLayoutProps {
   const { name, git } = ctx.siteConfig;
 
   return {

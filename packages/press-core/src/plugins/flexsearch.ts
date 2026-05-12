@@ -2,7 +2,6 @@ import type { Index } from "fumadocs-core/search/flexsearch";
 import type { Awaitable, ServerPlugin } from "@/lib/types";
 import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
-import StaticSearchDialog from "@/components/flexsearch-static";
 
 export interface FlexsearchOptions<C extends ConfigContext = ConfigContext> {
   buildIndex?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => Awaitable<Index>;
@@ -11,10 +10,7 @@ export interface FlexsearchOptions<C extends ConfigContext = ConfigContext> {
 export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
   buildIndex = async function buildIndexDefault(page) {
     for (const adapter of this.adapters) {
-      const structuredData = await adapter["core:get-structured-data"]?.call(
-        this as unknown as AppContext,
-        page,
-      );
+      const structuredData = await adapter["core:get-structured-data"]?.call(this, page);
 
       if (structuredData !== undefined) {
         return {
@@ -29,14 +25,14 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to flexsearchPlugin()");
   },
-}: FlexsearchOptions<C> = {}): ServerPlugin {
+}: FlexsearchOptions<C> = {}): ServerPlugin<C> {
   return {
     init() {
       if (this.mode === "static") {
         const hooks = (this.data["core:provider"] ??= []);
-        hooks.push((props) => {
+        hooks.push(async (props) => {
           props.search ??= {};
-          props.search.SearchDialog ??= StaticSearchDialog;
+          props.search.SearchDialog ??= (await import("@/components/flexsearch-static")).default;
           return props;
         });
       }
@@ -44,7 +40,7 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
     async createPages({ createApiIsomorphic }) {
       const { flexsearchFromSource } = await import("fumadocs-core/search/flexsearch");
       const server = flexsearchFromSource(this.getLoader, {
-        buildIndex: buildIndex.bind(this as unknown as AppContext<C>),
+        buildIndex: buildIndex.bind(this),
       });
 
       createApiIsomorphic({

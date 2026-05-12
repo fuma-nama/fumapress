@@ -63,7 +63,7 @@ export function createRouteHandler<C extends ConfigContext>(
     ].join("\n"),
     pageToIndex = async function (page): Promise<PageDocument | null> {
       for (const adapter of this.adapters) {
-        const txt = await adapter["core:get-text"]?.call(this as unknown as AppContext, page);
+        const txt = await adapter["core:get-text"]?.call(this, page);
 
         if (txt !== undefined) {
           return {

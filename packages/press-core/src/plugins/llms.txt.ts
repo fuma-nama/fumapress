@@ -10,11 +10,11 @@ export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
 
 export function llmsPlugin<C extends ConfigContext = ConfigContext>(
   options: LLMsOptions<C> = {},
-): ServerPlugin {
+): ServerPlugin<C> {
   const {
     getLLMText: _getLLMText = async function getLLMTextDefault(page) {
       for (const adapter of this.adapters) {
-        const txt = await adapter["core:get-text"]?.call(this as unknown as AppContext, page);
+        const txt = await adapter["core:get-text"]?.call(this, page);
 
         if (txt !== undefined) {
           return `# ${page.data.title} (${page.url})\n\n${txt}`;
@@ -36,7 +36,7 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
     },
     async createPages({ createApiIsomorphic }) {
       const defaultRenderMode = this.mode === "dynamic" ? "dynamic" : "static";
-      const getLLMText = _getLLMText.bind(this as unknown as AppContext<C>);
+      const getLLMText = _getLLMText.bind(this);
 
       createApiIsomorphic({
         render: defaultRenderMode,

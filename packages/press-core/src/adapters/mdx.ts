@@ -1,9 +1,23 @@
 import { createElement } from "react";
-import type { Adapter } from "@/lib/types";
+import type { Adapter, Awaitable } from "@/lib/types";
 import type { AsyncDocCollectionEntry, DocCollectionEntry } from "fumadocs-mdx/runtime/server";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
+import type { MDXComponents, MDXContent } from "mdx/types";
+import type { ConfigContext } from "@/config";
+import type { AppContext } from "@/lib/shared";
 
-export function fumadocsMdx(): Adapter {
+export interface MdxAdapterOptions<C extends ConfigContext = ConfigContext> {
+  getMdxComponents?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<MDXComponents>;
+}
+
+export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
+  options?: MdxAdapterOptions<C>,
+): Adapter<C> {
+  const getMdxComponents = options?.getMdxComponents;
+
   return {
     async "core:get-text"(page) {
       if (isAsyncEntry(page.data) || isSyncEntry(page.data)) {
@@ -17,25 +31,25 @@ export function fumadocsMdx(): Adapter {
       }
     },
     async "core:render-body"(page) {
+      let body: MDXContent;
+
       if (isSyncEntry(page.data)) {
-        return createElement(page.data.body, {
-          components: {
-            ...defaultMdxComponents,
-            a: createRelativeLink(await this.getLoader(), page),
-          },
-        });
-      }
+        body = page.data.body;
+      } else if (isAsyncEntry(page.data)) {
+        body = (await page.data.load()).body;
+      } else return;
 
-      if (isAsyncEntry(page.data)) {
-        const { body } = await page.data.load();
-
-        return createElement(body, {
-          components: {
-            ...defaultMdxComponents,
-            a: createRelativeLink(await this.getLoader(), page),
-          },
-        });
-      }
+      return createElement(
+        body,
+        getMdxComponents
+          ? await getMdxComponents.call(this, page)
+          : {
+              components: {
+                ...defaultMdxComponents,
+                a: createRelativeLink(await this.getLoader(), page),
+              },
+            },
+      );
     },
     async "core:render-toc"(page) {
       if (isSyncEntry(page.data)) return page.data.toc;

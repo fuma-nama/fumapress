@@ -10,10 +10,7 @@ export interface OramaSearchOptions<C extends ConfigContext = ConfigContext> {
 export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
   buildIndex = async function buildIndexDefault(page) {
     for (const adapter of this.adapters) {
-      const structuredData = await adapter["core:get-structured-data"]?.call(
-        this as unknown as AppContext,
-        page,
-      );
+      const structuredData = await adapter["core:get-structured-data"]?.call(this, page);
 
       if (structuredData !== undefined) {
         return {
@@ -28,7 +25,7 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to oramaSearchPlugin()");
   },
-}: OramaSearchOptions<C> = {}): ServerPlugin {
+}: OramaSearchOptions<C> = {}): ServerPlugin<C> {
   return {
     init() {
       if (this.mode === "static") {
@@ -43,7 +40,7 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
     async createPages({ createApiIsomorphic }) {
       const { createFromSource } = await import("fumadocs-core/search/server");
       const server = createFromSource(this.getLoader, {
-        buildIndex: buildIndex.bind(this as unknown as AppContext<C>),
+        buildIndex: buildIndex.bind(this),
       });
 
       createApiIsomorphic({

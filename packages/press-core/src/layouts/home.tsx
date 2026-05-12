@@ -27,15 +27,17 @@ export interface HomeLayoutContextData {
 }
 
 export function createHomeLayout<C extends ConfigContext = ConfigContext>({
-  render = async function renderDefault(page) {
+  render,
+}: HomeLayoutOptions<C>): Layouts<C>["page"] {
+  async function renderDefault(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     for (const adapter of this.adapters) {
-      const body = await adapter["core:render-body"]?.call(this as unknown as AppContext, page);
-      if (body !== undefined) return { body };
+      const body = await adapter["core:render-body"]?.call(this, page);
+      if (body !== undefined) return { body } satisfies Partial<HomeLayoutRenderData>;
     }
 
     throw new Error("[Fumapress] Please specify the `render` option in createHomeLayout()");
-  },
-}: HomeLayoutOptions<C>): Layouts<C>["page"] {
+  }
+
   return async function Layout(props) {
     const {
       slugs,
@@ -47,8 +49,11 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
-    let result = (await render.call(props, page)) as HomeLayoutRenderData;
-    result.layoutProps ??= baseOptions(props);
+    const _raw = await (render ?? renderDefault).call(props, page);
+    let result: HomeLayoutRenderData = {
+      body: _raw.body === undefined ? (await renderDefault.call(props, page)).body : _raw.body,
+      layoutProps: _raw.layoutProps ?? baseOptions(props),
+    };
 
     if (layoutData?.renderers) {
       const renderCtx = { page };

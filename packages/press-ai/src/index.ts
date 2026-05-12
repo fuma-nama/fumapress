@@ -9,7 +9,7 @@ export interface AIOptions<C extends ConfigContext = ConfigContext> extends AIRo
 
 export function aiPlugin<C extends ConfigContext = ConfigContext>(
   options: AIOptions<C>,
-): ServerPlugin {
+): ServerPlugin<C> {
   const { configureUI = true } = options;
   return {
     init() {
@@ -24,7 +24,7 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
       }
     },
     createPages({ createApi }) {
-      const { onRequest } = createRouteHandler(options, this as never);
+      const { onRequest } = createRouteHandler(options, this);
 
       if (this.mode === "static") {
         throw new Error(

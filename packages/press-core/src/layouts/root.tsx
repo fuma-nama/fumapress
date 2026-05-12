@@ -4,14 +4,22 @@ import styles from "virtual:root.css?inline";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
 import { renderRootMeta } from "@/lib/shared";
 
-export function createRootLayout<C extends ConfigContext = ConfigContext>(): Layouts<C>["root"] {
+export interface RootLayoutOptions {
+  providerProps?: RootProviderProps;
+}
+
+export function createRootLayout<C extends ConfigContext = ConfigContext>(
+  options?: RootLayoutOptions,
+): Layouts<C>["root"] {
   return async function (props) {
     const { children, lang, i18nConfig, data } = props;
     const hooks = data["core:provider"];
-    let providerProps: RootProviderProps = {};
+    let providerProps: RootProviderProps = {
+      ...options?.providerProps,
+    };
 
     if (i18nConfig) {
-      providerProps.i18n = {
+      providerProps.i18n ??= {
         locale: lang,
         locales: Object.entries(i18nConfig.languages).map(([k, v]) => ({
           name: v.displayName,
