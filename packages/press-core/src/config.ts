@@ -1,15 +1,15 @@
-import type { AppContext } from './lib/shared';
-import type { LoaderConfig, LoaderOutput } from 'fumadocs-core/source';
-import type { Awaitable, ServerPlugin, Adapter } from '@/lib/types';
-import type { TranslationsOption } from 'fumadocs-ui/contexts/i18n';
-import type { I18nConfig as CoreI18nConfig } from 'fumadocs-core/i18n';
-import type { ReactNode } from 'react';
+import type { AppContext } from "./lib/shared";
+import type { LoaderConfig, LoaderOutput } from "fumadocs-core/source";
+import type { Awaitable, ServerPlugin, Adapter } from "@/lib/types";
+import type { TranslationsOption } from "fumadocs-ui/contexts/i18n";
+import type { I18nConfig as CoreI18nConfig } from "fumadocs-core/i18n";
+import type { ReactNode } from "react";
 
 export interface ConfigContext {
   loaderConfig: LoaderConfig;
 }
 
-export type BuildMode = 'static' | 'dynamic' | 'default';
+export type BuildMode = "static" | "dynamic" | "default";
 
 export interface Config<C extends ConfigContext = ConfigContext> {
   /**
@@ -20,7 +20,7 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   mode?: BuildMode;
 
   /** the default content loader */
-  loader: LoaderOutput<C['loaderConfig']> | (() => Awaitable<LoaderOutput<C['loaderConfig']>>);
+  loader: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
 
   site?: SiteConfig;
   plugins?: ServerPlugin[] | ((ctx: AppContext<C>) => ServerPlugin[]);
@@ -34,7 +34,7 @@ export interface Config<C extends ConfigContext = ConfigContext> {
     root?: (this: AppContext<C>) => ReactNode;
 
     /** render meta tags for page */
-    page?: (this: AppContext<C>, page: C['loaderConfig']['page']) => ReactNode;
+    page?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => ReactNode;
   };
 }
 

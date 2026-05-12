@@ -6,11 +6,11 @@ import {
   Tool,
   tool,
   type UIMessage,
-} from 'ai';
-import { z } from 'zod';
-import { Document, type MergedDocumentSearchResults, type DocumentData } from 'flexsearch';
-import type { AppContext, ConfigContext } from 'fumapress';
-import type { LoaderOutput } from 'fumadocs-core/source';
+} from "ai";
+import { z } from "zod";
+import { Document, type MergedDocumentSearchResults, type DocumentData } from "flexsearch";
+import type { AppContext, ConfigContext } from "fumapress";
+import type { LoaderOutput } from "fumadocs-core/source";
 
 export interface PageDocument extends DocumentData {
   url: string;
@@ -44,7 +44,7 @@ export interface AIRouteOptions<C extends ConfigContext = ConfigContext> {
   systemPrompt?: string;
   pageToIndex?: (
     this: AppContext<C>,
-    page: C['loaderConfig']['page'],
+    page: C["loaderConfig"]["page"],
   ) => PageDocument | null | Promise<PageDocument | null>;
 }
 
@@ -57,21 +57,21 @@ export function createRouteHandler<C extends ConfigContext>(
     model,
     systemPrompt = [
       `You are an AI assistant for "${siteConfig.name}" documentation site.`,
-      'Use the `search` tool to retrieve relevant docs context before answering when needed.',
-      'The `search` tool returns raw JSON results from documentation. Use those results to ground your answer and cite sources as markdown links using the document `url` field when available.',
-      'If you cannot find the answer in search results, say you do not know and suggest a better search query.',
-    ].join('\n'),
+      "Use the `search` tool to retrieve relevant docs context before answering when needed.",
+      "The `search` tool returns raw JSON results from documentation. Use those results to ground your answer and cite sources as markdown links using the document `url` field when available.",
+      "If you cannot find the answer in search results, say you do not know and suggest a better search query.",
+    ].join("\n"),
     pageToIndex = async function (page): Promise<PageDocument | null> {
       for (const adapter of this.adapters) {
-        const txt = await adapter['core:get-text']?.call(this as unknown as AppContext, page);
+        const txt = await adapter["core:get-text"]?.call(this as unknown as AppContext, page);
 
         if (txt !== undefined) {
           return {
-            title: page.data.title ?? '',
-            description: page.data.description ?? '',
+            title: page.data.title ?? "",
+            description: page.data.description ?? "",
             url: page.url,
             content: txt,
-            locale: page.locale ?? '',
+            locale: page.locale ?? "",
           };
         }
       }
@@ -81,16 +81,16 @@ export function createRouteHandler<C extends ConfigContext>(
   } = options;
 
   const searchServers = new WeakMap<
-    LoaderOutput<C['loaderConfig']>,
+    LoaderOutput<C["loaderConfig"]>,
     ReturnType<typeof createSearchServer>
   >();
 
   async function createSearchServer(source: LoaderOutput) {
     const search = new Document<PageDocument>({
       document: {
-        id: 'url',
-        index: ['title', 'description', 'content'],
-        tag: ['locale'],
+        id: "url",
+        index: ["title", "description", "content"],
+        tag: ["locale"],
         store: true,
       },
     });
@@ -106,7 +106,7 @@ export function createRouteHandler<C extends ConfigContext>(
 
   const searchTool: SearchTool = tool({
     description:
-      'Search the docs content and return raw JSON results.\nIt will always return search results in the preferred locale selected by user.',
+      "Search the docs content and return raw JSON results.\nIt will always return search results in the preferred locale selected by user.",
     inputSchema: z.object({
       query: z.string(),
       limit: z.number().int().min(1).max(100).default(10),
@@ -151,11 +151,11 @@ export function createRouteHandler<C extends ConfigContext>(
           search: searchTool,
         },
         convertDataPart(part) {
-          if (part.type === 'data-client') {
+          if (part.type === "data-client") {
             locale = part.data.locale;
 
             return {
-              type: 'text',
+              type: "text",
               text: `[Client Context: ${JSON.stringify(part.data)}]`,
             };
           }
@@ -164,7 +164,7 @@ export function createRouteHandler<C extends ConfigContext>(
       experimental_context: {
         locale,
       },
-      toolChoice: 'auto',
+      toolChoice: "auto",
     });
 
     return result.toUIMessageStreamResponse();

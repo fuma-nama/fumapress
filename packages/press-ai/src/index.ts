@@ -1,6 +1,6 @@
-import { type AIRouteOptions, createRouteHandler } from './api';
-import type { ConfigContext, ServerPlugin } from 'fumapress';
-import { createElement } from 'react';
+import { type AIRouteOptions, createRouteHandler } from "./api";
+import type { ConfigContext, ServerPlugin } from "fumapress";
+import { createElement } from "react";
 
 export interface AIOptions<C extends ConfigContext = ConfigContext> extends AIRouteOptions<C> {
   /** @default true */
@@ -14,10 +14,10 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
   return {
     init() {
       if (configureUI) {
-        this.data['core:docs-layout'] ??= {};
-        const renderers = (this.data['core:docs-layout'].renderers ??= []);
+        this.data["core:docs-layout"] ??= {};
+        const renderers = (this.data["core:docs-layout"].renderers ??= []);
         renderers.push(async (data) => {
-          const { DefaultComponent } = await import('./components/default');
+          const { DefaultComponent } = await import("./components/default");
           data.layoutProps.children = [data.layoutProps.children, createElement(DefaultComponent)];
           return data;
         });
@@ -26,15 +26,15 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
     createPages({ createApi }) {
       const { onRequest } = createRouteHandler(options, this as never);
 
-      if (this.mode === 'static') {
+      if (this.mode === "static") {
         throw new Error(
           "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static'",
         );
       }
 
       createApi({
-        path: '/api/ai',
-        render: 'dynamic',
+        path: "/api/ai",
+        render: "dynamic",
         handlers: {
           POST: onRequest,
         },
@@ -43,4 +43,4 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
   };
 }
 
-export type { SearchTool, AIRouteOptions, ChatUIMessage } from './api';
+export type { SearchTool, AIRouteOptions, ChatUIMessage } from "./api";

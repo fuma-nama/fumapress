@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync } from "node:fs";
+import { join, dirname } from "node:path";
 
 /**
  * Returns the absolute path to the root directory of the current git repository.
@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 export function getGitRootDir(startDir = process.cwd()): string | null {
   let dir = startDir;
   while (true) {
-    if (existsSync(join(dir, '.git'))) {
+    if (existsSync(join(dir, ".git"))) {
       return dir;
     }
     const parent = dirname(dir);

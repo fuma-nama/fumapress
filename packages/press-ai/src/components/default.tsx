@@ -1,7 +1,7 @@
-import { cn } from '@/lib/cn';
-import { buttonVariants } from 'fumadocs-ui/components/ui/button';
-import { MessageCircleIcon } from 'lucide-react';
-import { AISearch, AISearchPanel, AISearchTrigger } from './search';
+import { cn } from "@/lib/cn";
+import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { MessageCircleIcon } from "lucide-react";
+import { AISearch, AISearchPanel, AISearchTrigger } from "./search";
 
 export function DefaultComponent() {
   return (
@@ -11,8 +11,8 @@ export function DefaultComponent() {
         position="float"
         className={cn(
           buttonVariants({
-            variant: 'secondary',
-            className: 'text-fd-muted-foreground rounded-2xl',
+            variant: "secondary",
+            className: "text-fd-muted-foreground rounded-2xl",
           }),
         )}
       >

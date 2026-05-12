@@ -1,14 +1,14 @@
-import type { Awaitable, ServerPlugin } from '@/lib/types';
-import { unstable_notFound } from 'waku/router/server';
-import type { ReactNode } from 'react';
-import type { ConfigContext } from '@/config';
-import type { AppContext } from '@/lib/shared';
-import { ImageResponse, type ImageResponseOptions } from '@takumi-rs/image-response';
+import type { Awaitable, ServerPlugin } from "@/lib/types";
+import { unstable_notFound } from "waku/router/server";
+import type { ReactNode } from "react";
+import type { ConfigContext } from "@/config";
+import type { AppContext } from "@/lib/shared";
+import { ImageResponse, type ImageResponseOptions } from "@takumi-rs/image-response";
 
 export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
   generate?: (
     this: AppContext<C>,
-    page: C['loaderConfig']['page'],
+    page: C["loaderConfig"]["page"],
   ) => Awaitable<{
     node: ReactNode;
     options?: Partial<ImageResponseOptions>;
@@ -20,7 +20,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
 ): ServerPlugin {
   const {
     generate = async function generateDefault(page) {
-      const { generate } = await import('fumadocs-ui/og/takumi');
+      const { generate } = await import("fumadocs-ui/og/takumi");
 
       return {
         node: generate({
@@ -36,7 +36,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
 
   return {
     init() {
-      const hooks = (this.data['core:page-meta'] ??= []);
+      const hooks = (this.data["core:page-meta"] ??= []);
       hooks.push((page) => {
         return (
           <>
@@ -49,13 +49,13 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
       });
     },
     async createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === 'dynamic' ? 'dynamic' : 'static';
+      const renderMode = this.mode === "dynamic" ? "dynamic" : "static";
 
       createApiIsomorphic({
         render: renderMode,
-        path: this.i18nConfig ? '/[lang]/[...slugs]' : '/[...slugs]',
+        path: this.i18nConfig ? "/[lang]/[...slugs]" : "/[...slugs]",
         staticPaths:
-          renderMode === 'static'
+          renderMode === "static"
             ? (await this.getLoader())
                 .getPages()
                 .map((page) => slugsToImagePath(page.slugs, page.locale).segments)
@@ -73,7 +73,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
             width,
             height,
             ...options,
-            format: 'webp',
+            format: "webp",
           });
         },
       });
@@ -84,9 +84,9 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
 function slugsToImagePath(slugs: string[], lang?: string) {
   const segments = [...slugs];
   if (segments.length === 0) {
-    segments.push('index.webp');
+    segments.push("index.webp");
   } else {
-    segments[segments.length - 1] += '.webp';
+    segments[segments.length - 1] += ".webp";
   }
 
   if (lang) {
@@ -95,7 +95,7 @@ function slugsToImagePath(slugs: string[], lang?: string) {
 
   return {
     segments,
-    url: `/${segments.join('/')}`,
+    url: `/${segments.join("/")}`,
   };
 }
 
@@ -103,8 +103,8 @@ function imagePathToSlugs(segs: string[]) {
   const slugs = [...segs];
   if (slugs.length === 0) return slugs;
 
-  slugs[slugs.length - 1] = slugs[slugs.length - 1]!.replace(/\.webp$/, '');
-  if (slugs.length === 1 && slugs[0] === 'index') slugs.pop();
+  slugs[slugs.length - 1] = slugs[slugs.length - 1]!.replace(/\.webp$/, "");
+  if (slugs.length === 1 && slugs[0] === "index") slugs.pop();
 
   return slugs;
 }

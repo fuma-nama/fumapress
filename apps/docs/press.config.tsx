@@ -1,24 +1,24 @@
-import { defineConfig } from 'fumapress';
-import { llmsPlugin } from 'fumapress/plugins/llms.txt';
-import { takumiPlugin } from 'fumapress/plugins/takumi';
-import { loader } from 'fumadocs-core/source';
-import { docs } from './.source/server';
-import { lucideIconsPlugin } from 'fumadocs-core/source/plugins/lucide-icons';
-import { fumadocsMdx } from 'fumapress/adapters/mdx';
-import { flexsearchPlugin } from 'fumapress/plugins/flexsearch';
+import { defineConfig } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { takumiPlugin } from "fumapress/plugins/takumi";
+import { loader } from "fumadocs-core/source";
+import { docs } from "./.source/server";
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 
 export default defineConfig({
-  mode: 'static',
+  mode: "static",
   loader: loader(docs.toFumadocsSource(), {
-    baseUrl: '/',
+    baseUrl: "/",
     plugins: [lucideIconsPlugin()],
   }),
   site: {
-    name: 'Fumapress',
+    name: "Fumapress",
     git: {
-      user: 'fuma-nama',
-      branch: 'dev',
-      repo: 'fumadocs',
+      user: "fuma-nama",
+      branch: "dev",
+      repo: "fumadocs",
     },
   },
   meta: {

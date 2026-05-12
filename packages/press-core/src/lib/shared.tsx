@@ -1,18 +1,18 @@
-import type { BuildMode, Config, ConfigContext, I18nConfig } from '@/config';
-import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import { getGitRootDir } from './fs';
-import path from 'node:path';
-import type { LoaderOutput, Page } from 'fumadocs-core/source';
-import type { Awaitable, Adapter, ServerPlugin } from './types';
-import type { DocsLayoutContextData } from '@/layouts/docs';
-import { createElement, Fragment, type ReactNode } from 'react';
-import type { HomeLayoutContextData } from '@/layouts/home';
-import { fumadocsMdx } from '@/adapters/mdx';
-import type { RootProviderProps } from 'fumadocs-ui/provider/waku';
+import type { BuildMode, Config, ConfigContext, I18nConfig } from "@/config";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { getGitRootDir } from "./fs";
+import path from "node:path";
+import type { LoaderOutput, Page } from "fumadocs-core/source";
+import type { Awaitable, Adapter, ServerPlugin } from "./types";
+import type { DocsLayoutContextData } from "@/layouts/docs";
+import { Fragment, type ReactNode } from "react";
+import type { HomeLayoutContextData } from "@/layouts/home";
+import { fumadocsMdx } from "@/adapters/mdx";
+import type { RootProviderProps } from "fumadocs-ui/provider/waku";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
-  getLoader: () => Awaitable<LoaderOutput<C['loaderConfig']>>;
+  getLoader: () => Awaitable<LoaderOutput<C["loaderConfig"]>>;
   plugins: ServerPlugin[];
   adapters: Adapter[];
 
@@ -25,7 +25,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   data: AppContextData & Record<string, unknown>;
 
   i18nConfig?: I18nConfig;
-  metaConfig?: Config['meta'];
+  metaConfig?: Config["meta"];
   siteConfig: {
     name: string;
     git?: {
@@ -38,16 +38,16 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
 }
 
 export interface AppContextData {
-  'core:page-meta'?: ((page: Page) => ReactNode)[];
-  'core:docs-layout'?: DocsLayoutContextData;
-  'core:home-layout'?: HomeLayoutContextData;
-  'core:provider'?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
+  "core:page-meta"?: ((page: Page) => ReactNode)[];
+  "core:docs-layout"?: DocsLayoutContextData;
+  "core:home-layout"?: HomeLayoutContextData;
+  "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
 }
 
 export function parseConfig<C extends ConfigContext>(config: Config<C>): AppContext<C> {
   const context: AppContext<C> = {
     getLoader() {
-      if (typeof config.loader === 'function') return config.loader();
+      if (typeof config.loader === "function") return config.loader();
 
       return config.loader;
     },
@@ -56,10 +56,10 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
     $context: undefined as never,
     data: {},
     i18nConfig: config.i18n,
-    mode: config.mode ?? 'default',
-    metaConfig: config.meta as Config['meta'],
+    mode: config.mode ?? "default",
+    metaConfig: config.meta as Config["meta"],
     siteConfig: {
-      name: config.site?.name ?? 'Fumapress',
+      name: config.site?.name ?? "Fumapress",
       git: config.site?.git
         ? {
             ...config.site.git,
@@ -69,7 +69,7 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
     },
   };
 
-  if (typeof config.plugins === 'function') {
+  if (typeof config.plugins === "function") {
     context.plugins = config.plugins(context);
   }
 
@@ -87,7 +87,7 @@ export function renderPageMeta(page: Page, context: AppContext): ReactNode {
       <meta property="og:title" content={page.data.title} />
       {page.data.description && <meta property="og:description" content={page.data.description} />}
       {context.metaConfig?.page?.call(context, page)}
-      {context.data['core:page-meta']?.map((hook, i) => (
+      {context.data["core:page-meta"]?.map((hook, i) => (
         <Fragment key={i}>{hook(page)}</Fragment>
       ))}
     </>
@@ -98,8 +98,8 @@ export function getGitHubFileUrl(ctx: AppContext, absolutePath: string): string 
   const { git } = ctx.siteConfig;
   if (!git) return;
 
-  const p = path.relative(git.rootDir, absolutePath).replaceAll(path.sep, '/');
-  if (p.startsWith('../')) return;
+  const p = path.relative(git.rootDir, absolutePath).replaceAll(path.sep, "/");
+  if (p.startsWith("../")) return;
 
   return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
 }

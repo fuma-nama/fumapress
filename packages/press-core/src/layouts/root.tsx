@@ -1,13 +1,13 @@
-import type { Layouts } from '@/router';
-import type { ConfigContext } from '@/config';
-import styles from 'virtual:root.css?inline';
-import { RootProvider, type RootProviderProps } from 'fumadocs-ui/provider/waku';
-import { renderRootMeta } from '@/lib/shared';
+import type { Layouts } from "@/router";
+import type { ConfigContext } from "@/config";
+import styles from "virtual:root.css?inline";
+import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
+import { renderRootMeta } from "@/lib/shared";
 
-export function createRootLayout<C extends ConfigContext = ConfigContext>(): Layouts<C>['root'] {
+export function createRootLayout<C extends ConfigContext = ConfigContext>(): Layouts<C>["root"] {
   return async function (props) {
     const { children, lang, i18nConfig, data } = props;
-    const hooks = data['core:provider'];
+    const hooks = data["core:provider"];
     let providerProps: RootProviderProps = {};
 
     if (i18nConfig) {
@@ -28,7 +28,7 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(): Lay
     }
 
     return (
-      <html lang={lang ?? 'en'} suppressHydrationWarning>
+      <html lang={lang ?? "en"} suppressHydrationWarning>
         <head>
           <style>{styles}</style>
           {renderRootMeta(props)}
