@@ -11,7 +11,10 @@ export interface HomeLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
-  ) => Awaitable<Partial<HomeLayoutRenderData>>;
+  ) => Awaitable<{
+    body?: ReactNode;
+    layoutProps?: Partial<HomeLayoutProps>;
+  }>;
 }
 
 export interface HomeLayoutRenderData {

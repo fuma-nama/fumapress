@@ -21,7 +21,12 @@ export interface DocsLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (
     this: AppContext<C> & { lang?: string },
     page: C["loaderConfig"]["page"],
-  ) => Awaitable<Partial<DocsLayoutRenderData>>;
+  ) => Awaitable<{
+    markdownUrl?: string;
+    body?: ReactNode;
+    layoutProps?: Partial<DocsLayoutProps>;
+    pageProps?: DocsPageProps;
+  }>;
 }
 
 export interface DocsLayoutRenderData {
