@@ -6,10 +6,10 @@
     "Docs",
     "Fumadocs"
   ],
-  "homepage": "https://fumadocs.dev",
+  "homepage": "https://press.fumadocs.dev",
   "license": "MIT",
   "author": "Fuma Nama",
-  "repository": "github:fuma-nama/fumadocs",
+  "repository": "github:fuma-nama/fumapress",
   "files": [
     "dist",
     "css"
