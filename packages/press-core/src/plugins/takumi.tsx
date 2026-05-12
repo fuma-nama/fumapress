@@ -38,9 +38,15 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
     init() {
       const hooks = (this.data["core:page-meta"] ??= []);
       hooks.push((page) => {
+        const pathname = slugsToImagePath(page.slugs, page.locale).url;
         return (
           <>
-            <meta property="og:image" content={slugsToImagePath(page.slugs, page.locale).url} />
+            <meta
+              property="og:image"
+              content={
+                this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname
+              }
+            />
             <meta property="og:image:width" content={`${width}`} />
             <meta property="og:image:height" content={`${height}`} />
             <meta property="twitter:card" content="summary_large_image" />

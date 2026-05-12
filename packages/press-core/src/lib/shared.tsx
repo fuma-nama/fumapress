@@ -28,6 +28,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   metaConfig?: Config<C>["meta"];
   siteConfig: {
     name: string;
+    baseUrl?: string;
     git?: {
       user: string;
       repo: string;
@@ -60,6 +61,7 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
     metaConfig: config.meta as Config<C>["meta"],
     siteConfig: {
       name: config.site?.name ?? "Fumapress",
+      baseUrl: config.site?.baseUrl,
       git: config.site?.git
         ? {
             ...config.site.git,

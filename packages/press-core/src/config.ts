@@ -59,6 +59,9 @@ export function coreI18n(i18n: I18nConfig): CoreI18nConfig {
 }
 
 export interface SiteConfig {
+  /** full URL of app, used for metadata generation*/
+  baseUrl?: string;
+
   name?: string;
   git?: {
     user: string;
