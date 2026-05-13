@@ -1,5 +1,13 @@
 # @fumapress/ai
 
+## 0.2.4
+
+### Patch Changes
+
+- d19df8b: fix build
+- Updated dependencies [d19df8b]
+  - fumapress@0.2.4
+
 ## 0.2.3
 
 ### Patch Changes
