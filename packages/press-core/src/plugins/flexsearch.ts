@@ -25,7 +25,7 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to flexsearchPlugin()");
   },
-}: FlexsearchOptions<C> = {}): ServerPlugin<C> {
+}: FlexsearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
   return {
     init() {
       if (this.mode === "static") {

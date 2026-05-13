@@ -1,38 +1,37 @@
 import * as waku from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
-import { type ComponentType, createElement, type ReactNode } from "react";
-import type { Config, ConfigContext } from "./config";
+import { createElement } from "react";
+import type { Config, ConfigContext, Layouts } from "./config";
 import { unstable_redirect } from "waku/router/server";
 import { RouteFns } from "./lib/types";
 
 export type RouterOptions<C extends ConfigContext = ConfigContext> = Partial<Layouts<C>>;
 
-export interface Layouts<C extends ConfigContext = ConfigContext> {
-  root: ComponentType<AppContext<C> & { lang?: string; children: ReactNode }>;
-  page: ComponentType<AppContext<C> & { lang?: string; slugs: string[] }>;
-  notFound: ComponentType<AppContext<C> & { lang?: string }>;
-}
-
 export function createRouter<C extends ConfigContext>(
-  rawConfig: Config<C>,
-  options: RouterOptions<NoInfer<C>> = {},
+  userConfig: Config<C>,
+  routerOptions?: RouterOptions<NoInfer<C>>,
 ): {
   extend: typeof waku.createPages;
   createPages: () => ReturnType<typeof waku.createPages>;
 } {
   async function init(): Promise<{ context: AppContext<C> } & Layouts<C>> {
-    const context: AppContext<C> = parseConfig(rawConfig);
+    const context: AppContext<C> = parseConfig(userConfig);
 
     for (const plugin of context.plugins) {
       plugin.init?.call(context);
     }
 
+    const layouts = {
+      ...userConfig.layouts,
+      ...routerOptions,
+    } as Partial<Layouts<C>>;
+
     return {
       context,
-      root: options.root ?? (await import("./layouts/root")).createRootLayout<C>(),
-      page: options.page ?? (await import("./layouts/docs")).createDocsLayout<C>(),
+      root: layouts?.root ?? (await import("./layouts/root")).createRootLayout<C>(),
+      page: layouts.page ?? (await import("./layouts/docs")).createDocsLayout<C>(),
       notFound:
-        options.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
+        layouts.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
     };
   }
 

@@ -1,7 +1,6 @@
-import { ConfigContext } from "@/config";
+import type { ConfigContext, Layouts } from "@/config";
 import { AppContext, baseOptions, getGitHubFileUrl, renderPageMeta } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
-import { Layouts } from "@/router";
 import type { Page } from "fumadocs-core/source";
 import { TOCItemType } from "fumadocs-core/toc";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
@@ -45,7 +44,7 @@ export interface DocsLayoutContextData {
 
 export function createDocsLayout<C extends ConfigContext = ConfigContext>({
   render,
-}: DocsLayoutOptions<C> = {}): Layouts<C>["page"] {
+}: DocsLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   async function defaultRender(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     let body: ReactNode | undefined;
     let toc: TOCItemType[] | undefined;

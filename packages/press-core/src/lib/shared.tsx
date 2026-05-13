@@ -46,13 +46,13 @@ export interface AppContextData {
 }
 
 export function parseConfig<C extends ConfigContext>(config: Config<C>): AppContext<C> {
-  const context: AppContext<C> = {
+  return {
     getLoader() {
       if (typeof config.loader === "function") return config.loader();
 
       return config.loader;
     },
-    plugins: Array.isArray(config.plugins) ? (config.plugins as unknown as ServerPlugin<C>[]) : [],
+    plugins: (config.plugins ?? []) as never,
     adapters: (config.adapters ?? [fumadocsMdx()]) as never,
     $context: undefined as never,
     data: {},
@@ -70,12 +70,6 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
         : undefined,
     },
   };
-
-  if (typeof config.plugins === "function") {
-    context.plugins = config.plugins(context);
-  }
-
-  return context;
 }
 
 export function renderRootMeta<C extends ConfigContext>(context: AppContext<C>): ReactNode {

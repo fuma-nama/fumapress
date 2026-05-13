@@ -1,7 +1,6 @@
-import type { ConfigContext } from "@/config";
+import type { ConfigContext, Layouts } from "@/config";
 import { type AppContext, baseOptions, renderPageMeta } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
-import type { Layouts } from "@/router";
 import type { Page } from "fumadocs-core/source";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
 import type { ReactNode } from "react";
@@ -31,7 +30,7 @@ export interface HomeLayoutContextData {
 
 export function createHomeLayout<C extends ConfigContext = ConfigContext>({
   render,
-}: HomeLayoutOptions<C>): Layouts<C>["page"] {
+}: HomeLayoutOptions<NoInfer<C>>): Layouts<C>["page"] {
   async function renderDefault(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     for (const adapter of this.adapters) {
       const body = await adapter["core:render-body"]?.call(this, page);

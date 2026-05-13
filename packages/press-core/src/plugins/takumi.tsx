@@ -16,7 +16,7 @@ export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
 }
 
 export function takumiPlugin<C extends ConfigContext = ConfigContext>(
-  options: TakumiOptions<C> = {},
+  options: TakumiOptions<NoInfer<C>> = {},
 ): ServerPlugin<C> {
   const {
     generate = async function generateDefault(page) {

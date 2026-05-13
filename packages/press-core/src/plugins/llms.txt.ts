@@ -9,7 +9,7 @@ export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
 }
 
 export function llmsPlugin<C extends ConfigContext = ConfigContext>(
-  options: LLMsOptions<C> = {},
+  options: LLMsOptions<NoInfer<C>> = {},
 ): ServerPlugin<C> {
   const {
     getLLMText: _getLLMText = async function getLLMTextDefault(page) {

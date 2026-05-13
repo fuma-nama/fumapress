@@ -25,7 +25,7 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to oramaSearchPlugin()");
   },
-}: OramaSearchOptions<C> = {}): ServerPlugin<C> {
+}: OramaSearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
   return {
     init() {
       if (this.mode === "static") {

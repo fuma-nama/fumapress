@@ -1,5 +1,4 @@
-import type { Layouts } from "@/router";
-import type { ConfigContext, I18nConfig } from "@/config";
+import type { Layouts, ConfigContext, I18nConfig } from "@/config";
 import styles from "virtual:root.css?inline";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
 import { renderRootMeta } from "@/lib/shared";
