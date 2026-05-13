@@ -16,7 +16,7 @@ export default defineConfig({
   }),
   site: {
     name: "Fumapress",
-    baseUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+    baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
     git: {
       user: "fuma-nama",
       branch: "dev",
