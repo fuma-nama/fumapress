@@ -1,0 +1,44 @@
+{
+  "name": "create-fumapress",
+  "version": "0.0.1",
+  "description": "Initialize a Fumapress app",
+  "keywords": [
+    "Docs",
+    "Fumadocs"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "bin": {
+    "create-fumapress": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "css"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsdown --watch",
+    "build": "tsdown",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.4.0",
+    "commander": "^14.0.3",
+    "tinyexec": "^1.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "tsdown": "0.22.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -44,7 +44,10 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
   notFound: ComponentType<AppContext<C> & { lang?: string }>;
 }
 
-export interface I18nConfig<Lang extends string = string> {
+export interface I18nConfig<Lang extends string = string> extends Pick<
+  CoreI18nConfig<NoInfer<Lang>>,
+  "fallbackLanguage" | "parser"
+> {
   /** locale code -> language info */
   languages: {
     [K in Lang]: {
@@ -115,6 +118,8 @@ export function defineI18nConfig<Lang extends string>(
     toCore() {
       return {
         defaultLanguage: this.defaultLanguage,
+        fallbackLanguage: this.fallbackLanguage,
+        parser: this.parser,
         languages: Object.keys(this.languages) as Lang[],
       };
     },
