@@ -6,6 +6,7 @@ import { cancel, confirm, intro, isCancel, log, outro, text } from "@clack/promp
 import { Command } from "commander";
 import { x } from "tinyexec";
 import * as versionsPkg from "../../create-fumapress-versions/package.json";
+import * as corePkg from "../../press-core/package.json";
 
 type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
@@ -232,7 +233,7 @@ function getPackageJson(name: string) {
       start: "waku start",
       "types:check": "fumadocs-mdx && tsc --noEmit",
     },
-    dependencies: versionsPkg.dependencies,
+    dependencies: { ...versionsPkg.dependencies, fumapress: corePkg.version },
     devDependencies: versionsPkg.devDependencies,
   };
 }

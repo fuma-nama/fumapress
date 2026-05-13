@@ -6,7 +6,7 @@
     "fumadocs-core": "^16.8.10",
     "fumadocs-mdx": "^15.0.4",
     "fumadocs-ui": "^16.8.10",
-    "fumapress": "^0.2.2",
+    "fumapress": "workspace:*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-server-dom-webpack": "^19.2.6",
