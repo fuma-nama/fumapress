@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 export interface ConfigContext {
   loaderConfig: LoaderConfig;
+  lang: string;
 }
 
 export type BuildMode = "static" | "dynamic" | "default";
@@ -27,7 +28,7 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   /** adapter for content sources, use `fumadocs-mdx` if not specified */
   adapters?: Adapter[] | ((ctx: AppContext<C>) => Adapter<C>[]);
 
-  i18n?: I18nConfig;
+  i18n?: I18nConfig<C["lang"]>;
 
   meta?: {
     /** render meta tags for any pages */
@@ -38,23 +39,22 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   };
 }
 
-export interface I18nConfig {
+export interface I18nConfig<Lang extends string = string> {
   /** locale code -> language info */
-  languages: Record<
-    string,
-    {
+  languages: {
+    [K in Lang]: {
       displayName: string;
       translations?: TranslationsOption;
-    }
-  >;
-  defaultLanguage: string;
+    };
+  };
+  defaultLanguage: NoInfer<Lang>;
 }
 
 /** convert Fumapress i18n config to core i18n config */
-export function coreI18n(i18n: I18nConfig): CoreI18nConfig {
+export function coreI18n<Lang extends string>(i18n: I18nConfig<Lang>): CoreI18nConfig<Lang> {
   return {
     defaultLanguage: i18n.defaultLanguage,
-    languages: Object.keys(i18n.languages),
+    languages: Object.keys(i18n.languages) as Lang[],
   };
 }
 
@@ -73,10 +73,15 @@ export interface SiteConfig {
   };
 }
 
-export function defineConfig<C extends LoaderConfig>(
+export function defineConfig<C extends LoaderConfig, L extends string = string>(
   config: Config<{
     loaderConfig: C;
+    lang: L;
   }>,
-): Config<{ loaderConfig: C }> {
+): Config<{ loaderConfig: C; lang: L }> {
+  return config;
+}
+
+export function defineI18nConfig<Lang extends string>(config: I18nConfig<Lang>): I18nConfig<Lang> {
   return config;
 }

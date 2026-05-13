@@ -33,7 +33,7 @@ export interface DocsLayoutRenderData {
   markdownUrl?: string;
   body: ReactNode;
   layoutProps: DocsLayoutProps;
-  pageProps?: DocsPageProps;
+  pageProps: DocsPageProps;
 }
 
 export interface DocsLayoutContextData {
@@ -81,11 +81,30 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     if (!page) unstable_notFound();
 
     const _raw = await (render ?? defaultRender).call(props, page);
-    let result: DocsLayoutRenderData = {
-      ..._raw,
-      body: _raw.body === undefined ? (await defaultRender.call(props, page)).body : _raw.body,
-      layoutProps: { tree: source.getPageTree(lang), ...(_raw.layoutProps ?? baseOptions(props)) },
-    };
+    let result: DocsLayoutRenderData;
+
+    if (_raw.body === undefined || _raw.pageProps === undefined) {
+      const _default = await defaultRender.call(props, page);
+      result = {
+        markdownUrl: _raw.markdownUrl,
+        pageProps: _raw.pageProps ?? _default.pageProps,
+        body: _raw.body ?? _default.body,
+        layoutProps: {
+          tree: source.getPageTree(lang),
+          ...(_raw.layoutProps ?? baseOptions(props)),
+        },
+      };
+    } else {
+      result = {
+        body: _raw.body,
+        pageProps: _raw.pageProps,
+        markdownUrl: _raw.markdownUrl,
+        layoutProps: {
+          tree: source.getPageTree(lang),
+          ...(_raw.layoutProps ?? baseOptions(props)),
+        },
+      };
+    }
 
     if (layoutData?.renderers) {
       const renderCtx = { page };
@@ -99,7 +118,8 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
         {renderPageMeta(page, props)}
         {result.layoutProps.children}
         <DocsPage {...result.pageProps}>
-          {result.pageProps?.children}
+          {result.pageProps.children}
+
           <DocsTitle>{page.data.title}</DocsTitle>
           <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
           <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">

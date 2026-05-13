@@ -24,7 +24,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
    */
   data: AppContextData & Record<string, unknown>;
 
-  i18nConfig?: I18nConfig;
+  i18nConfig?: I18nConfig<C["lang"]>;
   metaConfig?: Config<C>["meta"];
   siteConfig: {
     name: string;

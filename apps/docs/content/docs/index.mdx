@@ -188,12 +188,12 @@ This will force Fumapress to build all routes as static.
 To configure internationalization, define an i18n config:
 
 ```ts title="press.config.ts"
-import { coreI18n, defineConfig, type I18nConfig } from "fumapress";
+import { coreI18n, defineConfig, defineI18nConfig } from "fumapress";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 
 // [!code ++:14]
-const i18n: I18nConfig = {
+const i18n = defineI18nConfig({
   languages: {
     cn: {
       displayName: "Chinese",
@@ -206,7 +206,7 @@ const i18n: I18nConfig = {
     },
   },
   defaultLanguage: "en",
-};
+});
 
 export default defineConfig({
   loader: loader(docs.toFumadocsSource(), {

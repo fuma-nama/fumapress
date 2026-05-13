@@ -4,3 +4,8 @@ packages:
 allowBuilds:
   esbuild: false
   sharp: false
+minimumReleaseAgeExclude:
+  - "fumadocs-*"
+  - "@fumadocs/*"
+  - "next"
+  - "@next/*"

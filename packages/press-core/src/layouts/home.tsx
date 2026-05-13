@@ -67,7 +67,6 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
 
     return (
       <HomeLayout {...result.layoutProps}>
-        {result.layoutProps.children}
         {renderPageMeta(page, props)}
         {result.body}
       </HomeLayout>
