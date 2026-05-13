@@ -1,0 +1,46 @@
+---
+title: Plugins
+description: Extend Fumapress via plugins.
+icon: Blocks
+---
+
+## Overview
+
+Plugins allow you to customize Fumapress and encapsulate the complexity into a plugin.
+
+```tsx title="my-plugin.tsx"
+import type { ConfigContext, ServerPlugin } from "fumapress";
+
+export function myPlugin<C extends ConfigContext = ConfigContext>(): ServerPlugin<C> {
+  return {
+    init() {
+      // access internal hooks
+      this.data["core:docs-layout"] ??= {};
+      const renderers = (this.data["core:docs-layout"].renderers ??= []);
+      renderers.push((data) => {
+        // add element below page body
+        data.body = (
+          <>
+            {data.body}
+            <div>Hello World</div>
+          </>
+        );
+        return data;
+      });
+    },
+    createPages({ createApi }) {
+      // customize router
+      createApi({
+        path: "/api/hello-world",
+        render: "dynamic",
+        handlers: {
+          POST: async (req) => {
+            console.log(req);
+            return new Response("I love Fumapress");
+          },
+        },
+      });
+    },
+  };
+}
+```

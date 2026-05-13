@@ -4,8 +4,6 @@ description: Turn your content into a website.
 icon: Rocket
 ---
 
-import { File, Files, Folder } from "fumadocs-ui/components/files";
-
 ## What is Fumapress?
 
 Fumapress is a site generator powered by [Fumadocs](https://fumadocs.dev) & [Waku](https://waku.gg), as compared to Fumadocs, it manages more features such as routing, while being more opinionated.
@@ -19,7 +17,7 @@ Since the app is still a Waku.js app, you can easily transition to a full Fumado
 Install the dependencies:
 
 ```npm
-npm i waku fumapress fumadocs-ui fumadocs-core fumadocs-mdx react react-dom
+npm i waku fumapress fumadocs-ui fumadocs-core fumadocs-mdx react react-dom react-server-dom-webpack
 
 npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript -D
 ```
@@ -60,7 +58,7 @@ export const docs = defineDocs({
 });
 ```
 
-```ts tab="press.config.ts"
+```ts tab="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
@@ -77,11 +75,33 @@ export default defineConfig({
   site: {
     name: "Fumapress",
   },
+})
   // extend via plugins
-  plugins: [flexsearchPlugin(), llmsPlugin(), takumiPlugin()],
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   // use different content sources
-  adapters: [fumadocsMdx()],
-});
+  .useAdapters(fumadocsMdx());
+```
+
+```json tab="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["dom", "dom.iterable", "ES2023"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true
+  },
+  "exclude": ["node_modules", "dist"]
+}
 ```
 
 Add scripts:
@@ -117,146 +137,15 @@ description: Hello World
 This is my first document.
 ```
 
-### Custom Styles
+## Learn More
 
-Create a `src/app.css` file:
+Since Fumapress is based on Fumadocs, you can see the following for shared knowledge in authoring content with Fumadocs.
 
-```css title="src/app.css"
-@import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
-@import "fumadocs-ui/css/preset.css";
-@import "fumapress/css/preset.css";
-
-/* add your styles below */
-```
-
-It will be automatically loaded, you can restart the dev server if there's one running.
-
-### Custom Routing & UI
-
-The routing config is optional, you can create one if needed.
-
-```tsx title="src/waku.server.tsx"
-import adapter from "waku/adapters/default";
-// your press.config.ts file
-import pressConfig from "../press.config";
-import { createRouter } from "fumapress/router";
-import { createDocsLayout } from "fumapress/layouts/docs";
-
-const router = createRouter(pressConfig, {
-  // customize layout for pages
-  page: createDocsLayout(),
-});
-
-export default adapter(router.createPages());
-```
-
-See the [Waku Config-based Routing](https://waku.gg/#routing) section if you want to create custom routes.
-
-```tsx title="src/waku.server.tsx"
-import adapter from "waku/adapters/default";
-
-const pages = router.extend(async ({ createPage }) => [
-  // note: root element is already created by Fumapress
-  createPage({
-    render: "dynamic",
-    path: "/hello-world",
-  }),
-]);
-
-export default adapter(pages);
-```
-
-### Render Mode
-
-By default, Fumapress build both static & dynamic routes. If you plan to deploy it to a CDN as a static site, you need to specify a render mode.
-
-```ts title="press.config.ts"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  // ...
-  // [!code ++]
-  renderMode: "static",
-});
-```
-
-This will force Fumapress to build all routes as static.
-
-### Internationalization
-
-To configure internationalization, define an i18n config:
-
-```ts title="press.config.ts"
-import { coreI18n, defineConfig, defineI18nConfig } from "fumapress";
-import { loader } from "fumadocs-core/source";
-import { docs } from "./.source/server";
-
-// [!code ++:14]
-const i18n = defineI18nConfig({
-  languages: {
-    cn: {
-      displayName: "Chinese",
-      translations: {
-        // add your translations
-      },
-    },
-    en: {
-      displayName: "English",
-    },
-  },
-  defaultLanguage: "en",
-});
-
-export default defineConfig({
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-    // [!code ++]
-    i18n: coreI18n(i18n),
-  }),
-
-  // [!code ++]
-  i18n,
-});
-```
-
-Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
-
-<Files>
-  <Folder name="content" defaultOpen>
-    <File name="meta.json" />
-    <File name="meta.cn.json" />
-    <File name="get-started.mdx" />
-    <File name="get-started.cn.mdx" />
-  </Folder>
-</Files>
-
-### Meta
-
-To add meta tags, you can leverage the `meta` config.
-
-Before specifying it, it's better to rename your `press.config.ts` to `press.config.tsx` for JSX syntax.
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  // [!code ++:16]
-  meta: {
-    root() {
-      return (
-        <>
-          <meta property="og:type" content="website" />
-          {/* you can use it for link tags as well */}
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
-            rel="stylesheet"
-          />
-        </>
-      );
-    },
-  },
-});
-```
+<Cards>
+  <Card href="https://fumadocs.dev/docs/markdown" title="Markdown Syntax">
+    An introduction to the supported Markdown syntax of Fumapress.
+  </Card>
+  <Card href="https://fumadocs.dev/docs/page-conventions" title="Page Slugs & Page Tree">
+    An introduction to the auto-generated sidebar items of Fumapress.
+  </Card>
+</Cards>

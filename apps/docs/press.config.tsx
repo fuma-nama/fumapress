@@ -6,6 +6,7 @@ import { docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+import { createDocsLayout } from "fumapress/layouts/docs";
 
 export default defineConfig({
   mode: "static",
@@ -43,6 +44,41 @@ export default defineConfig({
       );
     },
   },
-  plugins: [flexsearchPlugin(), llmsPlugin(), takumiPlugin()],
-  adapters: [fumadocsMdx()],
-});
+})
+  .useAdapters(fumadocsMdx())
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .useLayouts({
+    page: createDocsLayout({
+      async render(page) {
+        return {
+          layoutProps: {
+            nav: {
+              title: (
+                <>
+                  <img
+                    src="/logo.png"
+                    width={64}
+                    height={64}
+                    className="size-8 rounded-full shadow-md shadow-black mb-1"
+                  />
+                  <span>
+                    <span className="font-mono uppercase border-b-2 border-fd-primary">
+                      Fumapress
+                    </span>
+                    <br />
+                    <span className="font-normal text-fd-muted-foreground text-xs">
+                      The site generator
+                    </span>
+                  </span>
+                </>
+              ),
+            },
+          },
+          pageProps: {
+            toc: (await page.data.load()).toc,
+            tableOfContent: { style: "clerk" },
+          },
+        };
+      },
+    }),
+  });

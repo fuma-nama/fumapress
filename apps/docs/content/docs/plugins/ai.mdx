@@ -1,0 +1,36 @@
+---
+title: AI Plugin
+description: Add "Ask AI" to your Fumapress app.
+---
+
+## Installation
+
+```npm
+npm i @fumapress/ai
+```
+
+Add the plugin,
+it requires a `model` option, set this to an AI model you prefer (e.g. GPT).
+
+```npm
+npm i @ai-sdk/openai
+```
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { openai } from "@ai-sdk/openai";
+// [!code ++]
+import { aiPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+})
+  // [!code highlight:5]
+  .usePlugins(
+    aiPlugin({
+      model: openai("gpt-5"),
+    }),
+  );
+```
+
+See [AI SDK](https://ai-sdk.dev/docs/foundations/providers-and-models) docs for all available models.

@@ -1,0 +1,55 @@
+---
+title: Internationalization
+description: Internationalize your Fumapress app.
+icon: Languages
+---
+
+import { File, Files, Folder } from "fumadocs-ui/components/files";
+
+## Setup
+
+To configure internationalization, define an i18n config:
+
+```ts title="press.config.ts"
+import { defineConfig, defineI18nConfig } from "fumapress";
+import { loader } from "fumadocs-core/source";
+import { docs } from "./.source/server";
+
+// [!code ++:14]
+const i18n = defineI18nConfig({
+  languages: {
+    cn: {
+      displayName: "Chinese",
+      translations: {
+        // add your translations
+      },
+    },
+    en: {
+      displayName: "English",
+    },
+  },
+  defaultLanguage: "en",
+});
+
+export default defineConfig({
+  loader: loader(docs.toFumadocsSource(), {
+    baseUrl: "/",
+    // [!code ++]
+    i18n: i18n.toCore(),
+  }),
+
+  // [!code ++]
+  i18n,
+});
+```
+
+Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
+
+<Files>
+  <Folder name="content" defaultOpen>
+    <File name="meta.json" />
+    <File name="meta.cn.json" />
+    <File name="get-started.mdx" />
+    <File name="get-started.cn.mdx" />
+  </Folder>
+</Files>
