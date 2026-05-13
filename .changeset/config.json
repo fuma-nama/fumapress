@@ -3,7 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [
-    ["fumapress", "@fumapress/ai"],
+    ["fumapress", "@fumapress/ai", "@fumapress/feedback"],
     ["create-fumapress", "create-fumapress-versions"]
   ],
   "linked": [],
