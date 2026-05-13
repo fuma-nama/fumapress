@@ -39,13 +39,18 @@ async function chunkedAll<O>(promises: (O | Promise<O>)[]): Promise<O[]> {
   return out;
 }
 
+type Awaitable<T> = T | Promise<T>;
+
 export interface AIRouteOptions<C extends ConfigContext = ConfigContext> {
   model: LanguageModel;
   systemPrompt?: string;
   pageToIndex?: (
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
-  ) => PageDocument | null | Promise<PageDocument | null>;
+  ) => Awaitable<PageDocument | null>;
+
+  /** you can add logic for ratelimiting, validation etc.  */
+  beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
 export function createRouteHandler<C extends ConfigContext>(
@@ -55,6 +60,7 @@ export function createRouteHandler<C extends ConfigContext>(
   const { getLoader, siteConfig } = ctx;
   const {
     model,
+    beforeRequest,
     systemPrompt = [
       `You are an AI assistant for "${siteConfig.name}" documentation site.`,
       "Use the `search` tool to retrieve relevant docs context before answering when needed.",
@@ -136,6 +142,11 @@ export function createRouteHandler<C extends ConfigContext>(
   });
 
   async function onRequest(req: Request) {
+    if (beforeRequest) {
+      const res = await beforeRequest(req);
+      if (res) return res;
+    }
+
     const reqJson: { messages: ChatUIMessage[] } = await req.json();
     let locale: string | null = null;
 

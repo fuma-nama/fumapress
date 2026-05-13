@@ -8,7 +8,7 @@ export interface AIOptions<C extends ConfigContext = ConfigContext> extends AIRo
 }
 
 export function aiPlugin<C extends ConfigContext = ConfigContext>(
-  options: AIOptions<C>,
+  options: AIOptions<NoInfer<C>>,
 ): ServerPlugin<C> {
   const { configureUI = true } = options;
   return {
