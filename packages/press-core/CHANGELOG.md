@@ -1,5 +1,13 @@
 # fumapress
 
+## 0.2.3
+
+### Patch Changes
+
+- f79e5e1: Typed i18n config
+- a84430c: Support chained functions for config
+- 6878adf: Reduce peer dependencies & make `vite` optional.
+
 ## 0.2.2
 
 ### Patch Changes
