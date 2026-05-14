@@ -37,6 +37,17 @@ export default defineConfig({
 The `onPageFeedbackAction` & `onTextFeedbackAction` options are [Server Functions](https://react.dev/reference/rsc/server-functions#usage) to be called by client.
 They receive the user feedback, you can define the flow afterwards (e.g. storing that in your analytics platform).
 
+Finally, initialize the `src/app.css` file and add the following:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/feedback/css/preset.css";
+```
+
 ### GitHub integration
 
 <Callout type="warn" title="Prefer other platforms if possible">
@@ -83,3 +94,48 @@ They receive the user feedback, you can define the flow afterwards (e.g. storing
    ```
 
    Create a `Feedback` category in your GitHub Discussions, the bot will forward user feedbacks in the specified category.
+
+### Email integration
+
+Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays on the server; the browser only calls your app’s feedback routes.
+
+<Callout type="warn" title="Protect your inbox">
+  Email is easy to abuse. Combine this with your own rate limiting, bot checks, or IP rules using
+  the `beforeRequest` hook, and monitor Resend delivery and bounces in their dashboard.
+</Callout>
+
+1. Create a Resend account and [create an API key](https://resend.com/api-keys).
+2. Store it as a **private** environment variable (never commit it or expose it to the client).
+
+   ```dotenv
+   RESEND_API_KEY=re_...
+   ```
+
+3. Configure a [verified sending domain](https://resend.com/docs/dashboard/domains/introduction) in Resend, and use a `from` address on that domain in production.
+4. Use the email plugin:
+
+   ```tsx title="press.config.tsx"
+   import { defineConfig } from "fumapress";
+   // [!code ++]
+   import { emailFeedbackPlugin } from "@fumapress/feedback/email";
+
+   export default defineConfig({
+     // ...
+   })
+     // [!code highlight:9]
+     .usePlugins(
+       emailFeedbackPlugin({
+         apiKey: import.meta.env.RESEND_API_KEY,
+         from: "Docs <feedback@yourdomain.com>",
+         to: "team@yourdomain.com",
+         // optional: subject lines become `${subjectPrefix} /path`
+         subjectPrefix: "[Docs feedback]",
+       }),
+     );
+   ```
+
+   `to` may be a single address or an array.
+
+<Callout type="warn" title="Do not enable the GitHub and email integrations at the same time">
+  Both plugins register `/api/feedback/page` and `/api/feedback/text`, this will cause conflicts.
+</Callout>

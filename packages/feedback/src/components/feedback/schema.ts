@@ -19,6 +19,7 @@ export const pageFeedback = z.object({
 
 export const actionResponse = z.object({
   githubUrl: z.optional(z.string()),
+  emailSent: z.optional(z.boolean()),
 });
 
 export type BlockFeedback = z.infer<typeof blockFeedback>;
