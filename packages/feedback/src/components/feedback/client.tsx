@@ -1,8 +1,8 @@
-'use client';
-import { cn } from '../../lib/cn';
-import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react-dom';
-import { buttonVariants } from '../ui/button';
-import { CornerDownRightIcon, ThumbsDown, ThumbsUp } from 'lucide-react';
+"use client";
+import { cn } from "../../lib/cn";
+import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
+import { buttonVariants } from "../ui/button";
+import { CornerDownRightIcon, ThumbsDown, ThumbsUp } from "lucide-react";
 import {
   type HTMLAttributes,
   type ReactNode,
@@ -12,9 +12,9 @@ import {
   useRef,
   useState,
   useTransition,
-} from 'react';
-import { Collapsible, CollapsibleContent } from '../ui/collapsible';
-import { cva } from 'class-variance-authority';
+} from "react";
+import { Collapsible, CollapsibleContent } from "../ui/collapsible";
+import { cva } from "class-variance-authority";
 import {
   actionResponse,
   blockFeedback,
@@ -22,17 +22,17 @@ import {
   type ActionResponse,
   type BlockFeedback,
   type PageFeedback,
-} from './schema';
-import { z } from 'zod/mini';
-import { usePathname } from 'fumadocs-core/framework';
+} from "./schema";
+import { z } from "zod/mini";
+import { usePathname } from "fumadocs-core/framework";
 
 const rateButtonVariants = cva(
-  'inline-flex items-center gap-2 px-3 py-2 rounded-full font-medium border text-sm [&_svg]:size-4 disabled:cursor-not-allowed',
+  "inline-flex items-center gap-2 px-3 py-2 rounded-full font-medium border text-sm [&_svg]:size-4 disabled:cursor-not-allowed",
   {
     variants: {
       active: {
-        true: 'bg-fd-accent text-fd-accent-foreground [&_svg]:fill-current',
-        false: 'text-fd-muted-foreground',
+        true: "bg-fd-accent text-fd-accent-foreground [&_svg]:fill-current",
+        false: "text-fd-muted-foreground",
       },
     },
   },
@@ -59,8 +59,8 @@ export function Feedback({
     const result = pageFeedbackResult.safeParse(v);
     return result.success ? result.data : null;
   });
-  const [opinion, setOpinion] = useState<'good' | 'bad' | null>(null);
-  const [message, setMessage] = useState('');
+  const [opinion, setOpinion] = useState<"good" | "bad" | null>(null);
+  const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
   function submit(e?: SyntheticEvent) {
@@ -78,7 +78,7 @@ export function Feedback({
         response,
         ...feedback,
       });
-      setMessage('');
+      setMessage("");
       setOpinion(null);
     });
 
@@ -101,11 +101,11 @@ export function Feedback({
           disabled={previous !== null}
           className={cn(
             rateButtonVariants({
-              active: activeOpinion === 'good',
+              active: activeOpinion === "good",
             }),
           )}
           onClick={() => {
-            setOpinion('good');
+            setOpinion("good");
           }}
         >
           <ThumbsUp />
@@ -115,11 +115,11 @@ export function Feedback({
           disabled={previous !== null}
           className={cn(
             rateButtonVariants({
-              active: activeOpinion === 'bad',
+              active: activeOpinion === "bad",
             }),
           )}
           onClick={() => {
-            setOpinion('bad');
+            setOpinion("bad");
           }}
         >
           <ThumbsDown />
@@ -131,26 +131,28 @@ export function Feedback({
           <div className="px-3 py-6 flex flex-col items-center gap-3 bg-fd-card text-fd-muted-foreground text-sm text-center rounded-xl">
             <p>Thank you for your feedback!</p>
             <div className="flex flex-row items-center gap-2">
-              <a
-                href={previous.response?.githubUrl}
-                rel="noreferrer noopener"
-                target="_blank"
-                className={cn(
-                  buttonVariants({
-                    color: 'primary',
-                  }),
-                  'text-xs',
-                )}
-              >
-                View on GitHub
-              </a>
+              {previous.response?.githubUrl && (
+                <a
+                  href={previous.response.githubUrl}
+                  rel="noreferrer noopener"
+                  target="_blank"
+                  className={cn(
+                    buttonVariants({
+                      color: "primary",
+                    }),
+                    "text-xs",
+                  )}
+                >
+                  View on GitHub
+                </a>
+              )}
 
               <button
                 className={cn(
                   buttonVariants({
-                    color: 'secondary',
+                    color: "secondary",
                   }),
-                  'text-xs',
+                  "text-xs",
                 )}
                 onClick={() => {
                   setOpinion(previous.opinion);
@@ -171,14 +173,14 @@ export function Feedback({
               className="border rounded-lg bg-fd-secondary text-fd-secondary-foreground p-3 resize-none focus-visible:outline-none placeholder:text-fd-muted-foreground"
               placeholder="Leave your feedback..."
               onKeyDown={(e) => {
-                if (!e.shiftKey && e.key === 'Enter') {
+                if (!e.shiftKey && e.key === "Enter") {
                   submit(e);
                 }
               }}
             />
             <button
               type="submit"
-              className={cn(buttonVariants({ color: 'outline' }), 'w-fit px-3')}
+              className={cn(buttonVariants({ color: "outline" }), "w-fit px-3")}
               disabled={isPending}
             >
               Submit
@@ -202,7 +204,7 @@ export interface FeedbackTextProps {
  */
 export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
   const [popup, _setPopup] = useState<{
-    mode: 'tooltip' | 'expanded';
+    mode: "tooltip" | "expanded";
     blockId: string;
     selection: string;
     range: Range;
@@ -211,30 +213,30 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { refs, floatingStyles } = useFloating({
     open: popup !== null,
-    placement: 'bottom',
+    placement: "bottom",
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
 
   function expandPopup() {
-    if (popup?.mode !== 'tooltip') return;
+    if (popup?.mode !== "tooltip") return;
 
     const highlight = new Highlight(popup.range);
-    CSS.highlights.set('fd-feedback-text', highlight);
+    CSS.highlights.set("fd-feedback-text", highlight);
 
-    _setPopup({ ...popup, mode: 'expanded' });
+    _setPopup({ ...popup, mode: "expanded" });
   }
 
   function closePopup() {
-    if (popup?.mode === 'expanded') {
-      CSS.highlights.delete('fd-feedback-text');
+    if (popup?.mode === "expanded") {
+      CSS.highlights.delete("fd-feedback-text");
     }
 
     _setPopup(null);
   }
 
   const updateSelectionPopover = useEffectEvent(() => {
-    if (popup && popup.mode === 'expanded') return;
+    if (popup && popup.mode === "expanded") return;
 
     const container = containerRef.current;
     const selection = window.getSelection();
@@ -252,7 +254,7 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
 
     const selectionText = selection.toString().trim();
     // also prevent cross-paragraph selection
-    if (selectionText.length === 0 || selectionText.includes('\n')) {
+    if (selectionText.length === 0 || selectionText.includes("\n")) {
       closePopup();
       return;
     }
@@ -274,12 +276,12 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
       contextElement: container,
     });
 
-    _setPopup({ mode: 'tooltip', range, selection: selectionText, blockId });
+    _setPopup({ mode: "tooltip", range, selection: selectionText, blockId });
   });
 
   const closeOnEscape = useEffectEvent((event: KeyboardEvent) => {
     if (popup === null) return;
-    if (event.key === 'Escape') closePopup();
+    if (event.key === "Escape") closePopup();
   });
 
   const closeOnPointerDown = useEffectEvent((event: PointerEvent) => {
@@ -288,7 +290,7 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
 
     if (
       refs.floating.current?.contains(target) ||
-      (popup.mode === 'tooltip' && containerRef.current?.contains(target))
+      (popup.mode === "tooltip" && containerRef.current?.contains(target))
     ) {
       return;
     }
@@ -308,14 +310,14 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
       });
     }
 
-    document.addEventListener('selectionchange', scheduleSelectionPopover);
-    document.addEventListener('keydown', closeOnEscape);
-    document.addEventListener('pointerdown', closeOnPointerDown);
+    document.addEventListener("selectionchange", scheduleSelectionPopover);
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("pointerdown", closeOnPointerDown);
 
     return () => {
-      document.removeEventListener('keydown', closeOnEscape);
-      document.removeEventListener('pointerdown', closeOnPointerDown);
-      document.removeEventListener('selectionchange', scheduleSelectionPopover);
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("selectionchange", scheduleSelectionPopover);
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
   }, []);
@@ -333,17 +335,17 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
         <div
           ref={refs.setFloating}
           className={cn(
-            'not-prose z-40 text-sm bg-fd-popover text-fd-popover-foreground border overflow-hidden shadow-lg rounded-xl w-30 h-9.5 box-content transition-[width,height]',
-            popup.mode === 'expanded' ? 'w-[300px] h-32 max-w-[98vw]' : 'select-none',
+            "not-prose z-40 text-sm bg-fd-popover text-fd-popover-foreground border overflow-hidden shadow-lg rounded-xl w-30 h-9.5 box-content transition-[width,height]",
+            popup.mode === "expanded" ? "w-[300px] h-32 max-w-[98vw]" : "select-none",
           )}
           style={floatingStyles}
         >
-          {popup.mode === 'tooltip' ? (
+          {popup.mode === "tooltip" ? (
             <div className="w-30 h-9.5 p-1">
               <button
                 className={cn(
-                  buttonVariants({ variant: 'ghost', size: 'sm' }),
-                  'size-full gap-1.5',
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "size-full gap-1.5",
                 )}
                 onClick={expandPopup}
               >
@@ -357,7 +359,7 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
               selection={popup.selection}
               onSendAction={onSendAction}
               onClose={closePopup}
-              container={{ className: 'p-2 w-[300px] h-32 max-w-[98vw] animate-fd-fade-in' }}
+              container={{ className: "p-2 w-[300px] h-32 max-w-[98vw] animate-fd-fade-in" }}
             />
           )}
         </div>
@@ -385,7 +387,7 @@ function FeedbackTextForm({
     if (result.success) return result.data;
     return null;
   });
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
   function submit(e?: SyntheticEvent) {
@@ -402,7 +404,7 @@ function FeedbackTextForm({
         response,
         ...feedback,
       });
-      setMessage('');
+      setMessage("");
     });
 
     e?.preventDefault();
@@ -413,32 +415,34 @@ function FeedbackTextForm({
       <div
         {...container}
         className={cn(
-          'flex flex-col items-center justify-center gap-2 text-fd-muted-foreground text-center',
+          "flex flex-col items-center justify-center gap-2 text-fd-muted-foreground text-center",
           container.className,
         )}
       >
         <p>Thank you for your feedback!</p>
         <div className="flex flex-row items-center gap-2">
-          <a
-            href={previous.response?.githubUrl}
-            rel="noreferrer noopener"
-            target="_blank"
-            className={cn(
-              buttonVariants({
-                color: 'primary',
-              }),
-              'text-xs',
-            )}
-          >
-            View on GitHub
-          </a>
+          {previous.response?.githubUrl && (
+            <a
+              href={previous.response.githubUrl}
+              rel="noreferrer noopener"
+              target="_blank"
+              className={cn(
+                buttonVariants({
+                  color: "primary",
+                }),
+                "text-xs",
+              )}
+            >
+              View on GitHub
+            </a>
+          )}
 
           <button
             className={cn(
               buttonVariants({
-                color: 'secondary',
+                color: "secondary",
               }),
-              'text-xs',
+              "text-xs",
             )}
             onClick={() => {
               setPrevious(null);
@@ -453,7 +457,7 @@ function FeedbackTextForm({
   return (
     <form
       {...container}
-      className={cn('flex flex-col gap-2', container.className)}
+      className={cn("flex flex-col gap-2", container.className)}
       onSubmit={submit}
     >
       <textarea
@@ -464,7 +468,7 @@ function FeedbackTextForm({
         className="border rounded-lg bg-fd-secondary text-fd-secondary-foreground p-3 resize-none focus-visible:outline-none placeholder:text-fd-muted-foreground"
         placeholder="Leave your feedback..."
         onKeyDown={(e) => {
-          if (!e.shiftKey && e.key === 'Enter') {
+          if (!e.shiftKey && e.key === "Enter") {
             submit(e);
           }
         }}
@@ -472,7 +476,7 @@ function FeedbackTextForm({
       <div className="grid grid-cols-2 gap-2 mt-auto">
         <button
           type="submit"
-          className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'gap-1.5')}
+          className={cn(buttonVariants({ variant: "primary", size: "sm" }), "gap-1.5")}
           disabled={isPending}
         >
           <CornerDownRightIcon className="size-4" />
@@ -480,7 +484,7 @@ function FeedbackTextForm({
         </button>
         <button
           type="button"
-          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'gap-1.5')}
+          className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "gap-1.5")}
           disabled={isPending}
           onClick={onClose}
         >

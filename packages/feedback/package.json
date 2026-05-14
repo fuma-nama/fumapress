@@ -1,7 +1,6 @@
 {
   "name": "@fumapress/feedback",
   "version": "0.2.4",
-  "private": true,
   "description": "Feedback integration for Fumapress",
   "keywords": [
     "Docs",
@@ -19,6 +18,8 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
+    "./adapters/github": "./dist/adapters/github.mjs",
+    "./schema": "./dist/schema.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"
   },
@@ -38,6 +39,7 @@
     "fumadocs-ui": "^16.8.10",
     "fumapress": "workspace:*",
     "lucide-react": "^1.14.0",
+    "octokit": "^5.0.5",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.4.3"
   },

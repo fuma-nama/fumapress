@@ -1,5 +1,6 @@
 import { type AIRouteOptions, createRouteHandler } from "./api";
 import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { DocsLayoutContextData } from "fumapress/layouts/docs";
 
 export interface AIOptions<C extends ConfigContext = ConfigContext> extends AIRouteOptions<C> {
   /** @default true */
@@ -10,22 +11,28 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
   options: AIOptions<NoInfer<C>>,
 ): ServerPlugin<C> {
   const { configureUI = true } = options;
+
+  function initRenderers(ctxData: DocsLayoutContextData) {
+    const renderers = (ctxData.renderers ??= []);
+
+    renderers.push(async (data) => {
+      const { DefaultComponent } = await import("./components/default");
+      const transformers = (data.layoutProps.children ??= []);
+      transformers.push((children) => (
+        <>
+          {children}
+          <DefaultComponent />
+        </>
+      ));
+      return data;
+    });
+  }
+
   return {
     init() {
       if (configureUI) {
-        this.data["core:docs-layout"] ??= {};
-        const renderers = (this.data["core:docs-layout"].renderers ??= []);
-        renderers.push(async (data) => {
-          const { DefaultComponent } = await import("./components/default");
-          const transformers = (data.layoutProps.children ??= []);
-          transformers.push((children) => (
-            <>
-              {children}
-              <DefaultComponent />
-            </>
-          ));
-          return data;
-        });
+        initRenderers((this.data["core:docs-layout"] ??= {}));
+        initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
       }
     },
     createPages({ createApi }) {

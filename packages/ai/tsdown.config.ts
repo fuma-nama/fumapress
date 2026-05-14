@@ -6,7 +6,7 @@ import path from "node:path";
 export default defineConfig({
   target: "es2023",
   format: "esm",
-  entry: ["src/index.ts", "src/components/search.tsx"],
+  entry: ["src/index.tsx", "src/components/search.tsx"],
   dts: {
     sourcemap: false,
   },

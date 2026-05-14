@@ -1,4 +1,4 @@
-import { z } from 'zod/mini';
+import { z } from "zod/mini";
 
 export const blockFeedback = z.object({
   /** full URL of page where fired */
@@ -11,7 +11,7 @@ export const blockFeedback = z.object({
 });
 
 export const pageFeedback = z.object({
-  opinion: z.enum(['good', 'bad']),
+  opinion: z.enum(["good", "bad"]),
   /** full URL of page where fired */
   url: z.string(),
   message: z.string(),
