@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.2.5
+
+### Patch Changes
+
+- 266b3f5: Support children transformer
+
 ## 0.2.4
 
 ### Patch Changes
