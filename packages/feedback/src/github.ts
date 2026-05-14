@@ -1,7 +1,7 @@
 import { App, Octokit } from "octokit";
 import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
 import type { ConfigContext, ServerPlugin } from "fumapress";
-import { feedbackPlugin } from "..";
+import { feedbackPlugin } from ".";
 import { onPageFeedbackAction, onTextFeedbackAction } from "./github.client";
 
 export interface GitHubFeedbackPluginOptions {

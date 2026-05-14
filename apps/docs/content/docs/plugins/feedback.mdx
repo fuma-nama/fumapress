@@ -1,0 +1,85 @@
+---
+title: Feedback
+description: Collect feedback from your Fumapress app.
+---
+
+## Installation
+
+```npm
+npm i @fumapress/feedback
+```
+
+Add the plugin:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { feedbackPlugin } from "@fumapress/feedback";
+
+export default defineConfig({
+  // ...
+})
+  // [!code highlight:12]
+  .usePlugins(
+    feedbackPlugin({
+      onPageFeedbackAction(data) {
+        "use server";
+        // ...
+      },
+      onTextFeedbackAction(data) {
+        "use server";
+        // ...
+      },
+    }),
+  );
+```
+
+The `onPageFeedbackAction` & `onTextFeedbackAction` options are [Server Functions](https://react.dev/reference/rsc/server-functions#usage) to be called by client.
+They receive the user feedback, you can define the flow afterwards (e.g. storing that in your analytics platform).
+
+### GitHub integration
+
+<Callout type="warn" title="Prefer other platforms if possible">
+  GitHub is not an analytics platform, it does not offer features like spam filtering.
+</Callout>
+
+1. Create your own GitHub App and obtain its app ID and private key.
+2. Store them as **private** environment variables, **do not** share it.
+
+   ```dotenv
+   GITHUB_APP_ID=...
+   GITHUB_PRIVATE_KEY=...
+   ```
+
+   <Callout>
+     You can also use stronger methods like Key Vault, see [GitHub
+     docs](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)
+     for managing private keys.
+   </Callout>
+
+3. Use the integration plugin:
+
+   ```tsx title="press.config.tsx"
+   import { defineConfig } from "fumapress";
+   // [!code ++]
+   import { githubFeedbackPlugin } from "@fumapress/feedback/github";
+
+   export default defineConfig({
+     // ...
+   })
+     // [!code highlight:12]
+     .usePlugins(
+       githubFeedbackPlugin({
+         appId: import.meta.env.GITHUB_APP_ID,
+         privateKey: import.meta.env.GITHUB_PRIVATE_KEY,
+         // your repository info, e.g.
+         storage: {
+           owner: "fuma-nama",
+           repo: "fumapress",
+           category: "Feedback",
+         },
+       }),
+     );
+   ```
+
+   Create a `Feedback` category in your GitHub Discussions, the bot will forward user feedbacks in the specified category.

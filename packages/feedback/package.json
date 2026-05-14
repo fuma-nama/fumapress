@@ -18,7 +18,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
-    "./adapters/github": "./dist/adapters/github.mjs",
+    "./github": "./dist/github.mjs",
     "./schema": "./dist/schema.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"

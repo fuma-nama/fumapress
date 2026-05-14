@@ -34,3 +34,14 @@ export default defineConfig({
 ```
 
 See [AI SDK](https://ai-sdk.dev/docs/foundations/providers-and-models) docs for all available models.
+
+Finally, initialize the `src/app.css` file and add the following:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/ai/css/preset.css";
+```
