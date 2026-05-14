@@ -6,7 +6,7 @@ import { cancel, confirm, intro, isCancel, log, outro, text } from "@clack/promp
 import { Command } from "commander";
 import { x } from "tinyexec";
 import * as versionsPkg from "../../create-fumapress-versions/package.json";
-import * as corePkg from "../../press-core/package.json";
+import * as corePkg from "../../core/package.json";
 
 type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
