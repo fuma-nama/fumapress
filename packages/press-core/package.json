@@ -22,6 +22,7 @@
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./layouts/docs": "./dist/layouts/docs.js",
     "./layouts/home": "./dist/layouts/home.js",
+    "./layouts/notebook": "./dist/layouts/notebook.js",
     "./layouts/root": "./dist/layouts/root.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",

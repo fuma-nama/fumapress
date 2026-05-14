@@ -9,7 +9,7 @@ export default defineConfig({
   entry: [
     "src/{index,vite,router}.ts",
     "src/{plugins,adapters}/*",
-    "src/layouts/{docs,home,root}.tsx",
+    "src/layouts/{docs,home,root,notebook}.tsx",
   ],
   unbundle: true,
   platform: "neutral",

@@ -4,7 +4,7 @@ import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku"
 import { renderRootMeta } from "@/lib/shared";
 
 export interface RootLayoutOptions {
-  providerProps?: RootProviderProps;
+  providerProps?: Omit<RootProviderProps, "children">;
 }
 
 export function createRootLayout<C extends ConfigContext = ConfigContext>(

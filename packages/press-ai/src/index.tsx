@@ -1,6 +1,5 @@
 import { type AIRouteOptions, createRouteHandler } from "./api";
 import type { ConfigContext, ServerPlugin } from "fumapress";
-import { createElement } from "react";
 
 export interface AIOptions<C extends ConfigContext = ConfigContext> extends AIRouteOptions<C> {
   /** @default true */
@@ -18,7 +17,13 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
         const renderers = (this.data["core:docs-layout"].renderers ??= []);
         renderers.push(async (data) => {
           const { DefaultComponent } = await import("./components/default");
-          data.layoutProps.children = [data.layoutProps.children, createElement(DefaultComponent)];
+          const transformers = (data.layoutProps.children ??= []);
+          transformers.push((children) => (
+            <>
+              {children}
+              <DefaultComponent />
+            </>
+          ));
           return data;
         });
       }

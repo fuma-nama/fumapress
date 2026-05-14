@@ -9,8 +9,8 @@ import {
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
-import { TOCItemType } from "fumadocs-core/toc";
-import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import type { TOCItemType } from "fumadocs-core/toc";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
 import {
   MarkdownCopyButton,
   ViewOptionsPopover,
@@ -20,11 +20,11 @@ import {
   DocsBody,
   type DocsPageProps,
   PageLastUpdate,
-} from "fumadocs-ui/layouts/docs/page";
+} from "fumadocs-ui/layouts/notebook/page";
 import type { ReactNode } from "react";
 import { unstable_notFound } from "waku/router/server";
 
-export interface DocsLayoutOptions<C extends ConfigContext = ConfigContext> {
+export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (
     this: AppContext<C> & { lang?: string },
     page: C["loaderConfig"]["page"],
@@ -37,7 +37,7 @@ export interface DocsLayoutOptions<C extends ConfigContext = ConfigContext> {
   }>;
 }
 
-export interface DocsLayoutRenderData {
+export interface NotebookLayoutRenderData {
   markdownUrl?: string;
   lastModified?: Date | null;
   body: ReactNode;
@@ -45,16 +45,16 @@ export interface DocsLayoutRenderData {
   pageProps: TransformChildren<DocsPageProps>;
 }
 
-export interface DocsLayoutContextData {
+export interface NotebookLayoutContextData {
   renderers?: ((
     this: { page: Page },
-    data: DocsLayoutRenderData,
-  ) => Awaitable<DocsLayoutRenderData>)[];
+    data: NotebookLayoutRenderData,
+  ) => Awaitable<NotebookLayoutRenderData>)[];
 }
 
-export function createDocsLayout<C extends ConfigContext = ConfigContext>({
+export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
   render,
-}: DocsLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
+}: NotebookLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   async function defaultRender(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     let body: ReactNode | undefined;
     let toc: TOCItemType[] | undefined;
@@ -70,12 +70,12 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     }
 
     if (body === undefined)
-      throw new Error("[Fumapress] Please specify the `render` option in createDocsLayout()");
+      throw new Error("[Fumapress] Please specify the `render` option in createNotebookLayout()");
 
     return {
       body,
       pageProps: { toc },
-    } satisfies Partial<DocsLayoutRenderData>;
+    } satisfies Partial<NotebookLayoutRenderData>;
   }
 
   return async function Layout(props) {
@@ -83,14 +83,14 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
       slugs,
       lang,
       getLoader,
-      data: { "core:docs-layout": layoutData },
+      data: { "core:notebook-layout": layoutData },
     } = props;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
     const _raw = await (render ?? defaultRender).call(props, page);
-    let result: DocsLayoutRenderData;
+    let result: NotebookLayoutRenderData;
 
     if (_raw.body === undefined || _raw.pageProps === undefined) {
       const _default = await defaultRender.call(props, page);

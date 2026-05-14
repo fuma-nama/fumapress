@@ -5,10 +5,11 @@ import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPlugin } from "./types";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import { Fragment, type ReactNode } from "react";
+import { ComponentType, Fragment, type ReactNode } from "react";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import { fumadocsMdx } from "@/adapters/mdx";
 import type { RootProviderProps } from "fumadocs-ui/provider/waku";
+import type { NotebookLayoutContextData } from "@/layouts/notebook";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -40,6 +41,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
 
 export interface AppContextData {
   "core:page-meta"?: ((page: Page) => ReactNode)[];
+  "core:notebook-layout"?: NotebookLayoutContextData;
   "core:docs-layout"?: DocsLayoutContextData;
   "core:home-layout"?: HomeLayoutContextData;
   "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
@@ -106,7 +108,7 @@ export function getGitHubFileUrl<C extends ConfigContext>(
   return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
 }
 
-export function baseOptions<C extends ConfigContext>(ctx: AppContext<C>): BaseLayoutProps {
+export function baseOptions<C extends ConfigContext>(ctx: AppContext<C>) {
   const { name, git } = ctx.siteConfig;
 
   return {
@@ -114,5 +116,27 @@ export function baseOptions<C extends ConfigContext>(ctx: AppContext<C>): BaseLa
       title: name,
     },
     githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-  };
+  } satisfies BaseLayoutProps;
+}
+
+export type TransformChildren<T> = Omit<T, "children"> & {
+  children?: ((nodes: ReactNode) => ReactNode)[];
+};
+
+export function TransformChildrenSlot<T>({
+  Comp,
+  props,
+  children,
+}: {
+  Comp: ComponentType<Omit<T, "children"> & { children: ReactNode }>;
+  props: TransformChildren<T>;
+  children: ReactNode;
+}) {
+  if (props.children) {
+    for (const transformer of props.children) {
+      children = transformer(children);
+    }
+  }
+
+  return <Comp {...props}>{children}</Comp>;
 }

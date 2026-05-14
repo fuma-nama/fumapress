@@ -21,6 +21,12 @@ function pressCore(): PluginOption {
             pkgName === "fumapress"
           )
             return true;
+          switch (pkgName) {
+            case "vite":
+            case "waku":
+            case "shiki":
+              return false;
+          }
         },
       });
 
