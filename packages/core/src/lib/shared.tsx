@@ -4,11 +4,12 @@ import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPlugin } from "./types";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import { ComponentType, Fragment, type ReactNode } from "react";
+import { type ComponentType, Fragment, type ReactNode } from "react";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import { fumadocsMdx } from "@/adapters/mdx";
 import type { RootProviderProps } from "fumadocs-ui/provider/waku";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
+import createDeepmerge from "@fastify/deepmerge";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -130,3 +131,5 @@ export function TransformChildrenSlot<T>({
 
   return <Comp {...props}>{children}</Comp>;
 }
+
+export const mergeLayoutConfigs = createDeepmerge({ all: true, onlyDefinedProperties: true });

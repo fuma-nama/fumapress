@@ -2,6 +2,7 @@ import type { ConfigContext, Layouts } from "@/config";
 import {
   AppContext,
   getGitHubFileUrl,
+  mergeLayoutConfigs,
   renderPageMeta,
   TransformChildren,
   TransformChildrenSlot,
@@ -30,7 +31,7 @@ export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> 
     markdownUrl?: string;
     lastModified?: Date | null;
     body?: ReactNode;
-    layoutProps?: TransformChildren<Partial<DocsLayoutProps>>;
+    layoutProps?: Partial<TransformChildren<DocsLayoutProps>>;
     pageProps?: TransformChildren<DocsPageProps>;
   }>;
 }
@@ -83,23 +84,22 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
     if (!page) unstable_notFound();
 
     async function getLayoutProps(
-      overrides?: TransformChildren<Partial<DocsLayoutProps>>,
+      overrides?: Partial<TransformChildren<DocsLayoutProps>>,
     ): Promise<TransformChildren<DocsLayoutProps>> {
       const { name, git } = siteConfig;
+      const inherit = await layouts.defaultProps?.call(props, page!);
 
-      if (layouts.defaultProps) {
-        overrides ??= await layouts.defaultProps.call(props, page!);
-      }
-
-      return {
-        tree: source.getPageTree(lang),
-        githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-        ...overrides,
-        nav: {
-          title: name,
-          ...overrides?.nav,
+      return mergeLayoutConfigs(
+        {
+          tree: source.getPageTree(lang),
+          githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+          nav: {
+            title: name,
+          },
         },
-      };
+        inherit,
+        overrides,
+      );
     }
 
     const _raw = await render?.call(props, page);

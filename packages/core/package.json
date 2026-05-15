@@ -53,6 +53,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@fastify/deepmerge": "^3.2.1",
     "@tailwindcss/oxide": "^4.3.0",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.7.0",
@@ -82,5 +83,8 @@
     "@types/react": {
       "optional": true
     }
+  },
+  "inlinedDependencies": {
+    "@fastify/deepmerge": "3.2.1"
   }
 }

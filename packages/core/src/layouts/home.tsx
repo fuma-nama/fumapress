@@ -1,6 +1,7 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   type AppContext,
+  mergeLayoutConfigs,
   renderPageMeta,
   TransformChildren,
   TransformChildrenSlot,
@@ -62,19 +63,18 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
       overrides?: TransformChildren<HomeLayoutProps>,
     ): Promise<TransformChildren<HomeLayoutProps>> {
       const { name, git } = siteConfig;
+      const inherit = await layouts.defaultProps?.call(props, page!);
 
-      if (layouts.defaultProps) {
-        overrides ??= await layouts.defaultProps.call(props, page!);
-      }
-
-      return {
-        githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-        ...overrides,
-        nav: {
-          title: name,
-          ...overrides?.nav,
+      return mergeLayoutConfigs(
+        {
+          githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+          nav: {
+            title: name,
+          },
         },
-      };
+        inherit,
+        overrides,
+      );
     }
 
     const _raw = await render?.call(props, page);

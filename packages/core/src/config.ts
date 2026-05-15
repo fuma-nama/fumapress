@@ -45,8 +45,7 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
   notFound: ComponentType<AppContext<C> & { lang?: string }>;
 
   /**
-   * Define default props for page layouts.
-   * This will also be ignored if you specify a custom page layout wtih the `render` option.
+   * Define default props for page layouts, will be merged with current props.
    */
   defaultProps?: (
     this: AppContext<C>,

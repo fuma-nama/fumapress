@@ -21,7 +21,7 @@ export default defineConfig({
     },
   },
   deps: {
-    onlyBundle: [],
+    onlyBundle: ["@fastify/deepmerge"],
     neverBundle: [/^virtual:/, /^node:/],
   },
   async onSuccess() {
