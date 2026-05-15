@@ -49,7 +49,7 @@ export default defineConfig({
   .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .useLayouts({
     page: createDocsLayout({
-      async render(page) {
+      async render() {
         return {
           layoutProps: {
             nav: {
@@ -75,7 +75,6 @@ export default defineConfig({
             },
           },
           pageProps: {
-            toc: (await page.data.load()).toc,
             tableOfContent: { style: "clerk" },
           },
         };

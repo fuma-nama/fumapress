@@ -1,7 +1,6 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   type AppContext,
-  baseOptions,
   renderPageMeta,
   TransformChildren,
   TransformChildrenSlot,
@@ -18,7 +17,7 @@ export interface HomeLayoutOptions<C extends ConfigContext = ConfigContext> {
     page: C["loaderConfig"]["page"],
   ) => Awaitable<{
     body?: ReactNode;
-    layoutProps?: TransformChildren<Partial<HomeLayoutProps>>;
+    layoutProps?: TransformChildren<HomeLayoutProps>;
   }>;
 }
 
@@ -37,13 +36,29 @@ export interface HomeLayoutContextData {
 export function createHomeLayout<C extends ConfigContext = ConfigContext>({
   render,
 }: HomeLayoutOptions<NoInfer<C>>): Layouts<C>["page"] {
-  async function renderDefault(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
+  async function renderBody(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     for (const adapter of this.adapters) {
       const body = await adapter["core:render-body"]?.call(this, page);
-      if (body !== undefined) return { body } satisfies Partial<HomeLayoutRenderData>;
+      if (body !== undefined) return body;
     }
 
     throw new Error("[Fumapress] Please specify the `render` option in createHomeLayout()");
+  }
+
+  function getLayoutProps(
+    this: AppContext<C>,
+    overrides?: TransformChildren<HomeLayoutProps>,
+  ): TransformChildren<HomeLayoutProps> {
+    const { name, git } = this.siteConfig;
+
+    return {
+      githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+      ...overrides,
+      nav: {
+        title: name,
+        ...overrides?.nav,
+      },
+    };
   }
 
   return async function Layout(props) {
@@ -57,10 +72,10 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
-    const _raw = await (render ?? renderDefault).call(props, page);
+    const _raw = await render?.call(props, page);
     let result: HomeLayoutRenderData = {
-      body: _raw.body === undefined ? (await renderDefault.call(props, page)).body : _raw.body,
-      layoutProps: _raw.layoutProps ?? baseOptions(props),
+      body: _raw?.body ?? (await renderBody.call(props, page)),
+      layoutProps: getLayoutProps.call(props, _raw?.layoutProps),
     };
 
     if (layoutData?.renderers) {

@@ -1,5 +1,4 @@
 import type { BuildMode, Config, ConfigContext, I18nConfig } from "@/config";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
@@ -106,17 +105,6 @@ export function getGitHubFileUrl<C extends ConfigContext>(
   if (p.startsWith("../")) return;
 
   return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
-}
-
-export function baseOptions<C extends ConfigContext>(ctx: AppContext<C>) {
-  const { name, git } = ctx.siteConfig;
-
-  return {
-    nav: {
-      title: name,
-    },
-    githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-  } satisfies BaseLayoutProps;
 }
 
 export type TransformChildren<T> = Omit<T, "children"> & {

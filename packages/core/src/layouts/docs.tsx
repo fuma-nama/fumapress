@@ -1,7 +1,6 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   AppContext,
-  baseOptions,
   getGitHubFileUrl,
   renderPageMeta,
   TransformChildren,
@@ -9,7 +8,6 @@ import {
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
-import { TOCItemType } from "fumadocs-core/toc";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import {
   MarkdownCopyButton,
@@ -55,27 +53,20 @@ export interface DocsLayoutContextData {
 export function createDocsLayout<C extends ConfigContext = ConfigContext>({
   render,
 }: DocsLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
-  async function defaultRender(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
-    let body: ReactNode | undefined;
-    let toc: TOCItemType[] | undefined;
-
+  async function renderToc(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
     for (const adapter of this.adapters) {
-      body = await adapter["core:render-body"]?.call(this, page);
-      if (body !== undefined) break;
+      const toc = await adapter["core:render-toc"]?.call(this, page);
+      if (toc !== undefined) return toc;
+    }
+  }
+
+  async function renderBody(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
+    for (const adapter of this.adapters) {
+      const body = await adapter["core:render-body"]?.call(this, page);
+      if (body !== undefined) return body;
     }
 
-    for (const adapter of this.adapters) {
-      toc = await adapter["core:render-toc"]?.call(this, page);
-      if (toc !== undefined) break;
-    }
-
-    if (body === undefined)
-      throw new Error("[Fumapress] Please specify the `render` option in createDocsLayout()");
-
-    return {
-      body,
-      pageProps: { toc },
-    } satisfies Partial<DocsLayoutRenderData>;
+    throw new Error("[Fumapress] Please specify the `render` option in createDocsLayout()");
   }
 
   return async function Layout(props) {
@@ -89,31 +80,32 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
-    const _raw = await (render ?? defaultRender).call(props, page);
-    let result: DocsLayoutRenderData;
+    function getLayoutProps(
+      overrides?: TransformChildren<Partial<DocsLayoutProps>>,
+    ): TransformChildren<DocsLayoutProps> {
+      const { name, git } = props.siteConfig;
 
-    if (_raw.body === undefined || _raw.pageProps === undefined) {
-      const _default = await defaultRender.call(props, page);
-      result = {
-        markdownUrl: _raw.markdownUrl,
-        pageProps: _raw.pageProps ?? _default.pageProps,
-        body: _raw.body ?? _default.body,
-        layoutProps: {
-          tree: source.getPageTree(lang),
-          ...(_raw.layoutProps ?? baseOptions(props)),
-        },
-      };
-    } else {
-      result = {
-        body: _raw.body,
-        pageProps: _raw.pageProps,
-        markdownUrl: _raw.markdownUrl,
-        layoutProps: {
-          tree: source.getPageTree(lang),
-          ...(_raw.layoutProps ?? baseOptions(props)),
+      return {
+        tree: source.getPageTree(lang),
+        githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+        ...overrides,
+        nav: {
+          title: name,
+          ...overrides?.nav,
         },
       };
     }
+
+    const _raw = await render?.call(props, page);
+    let result: DocsLayoutRenderData = {
+      ..._raw,
+      pageProps: {
+        ..._raw?.pageProps,
+        toc: _raw?.pageProps?.toc ?? (await renderToc.call(props, page)),
+      },
+      body: _raw?.body ?? (await renderBody.call(props, page)),
+      layoutProps: getLayoutProps(_raw?.layoutProps),
+    };
 
     if (layoutData?.renderers) {
       const renderCtx = { page };
