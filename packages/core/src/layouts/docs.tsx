@@ -3,7 +3,9 @@ import {
   AppContext,
   getGitHubFileUrl,
   mergeLayoutConfigs,
+  renderBody,
   renderPageMeta,
+  renderToc,
   TransformChildren,
   TransformChildrenSlot,
 } from "@/lib/shared";
@@ -54,22 +56,6 @@ export interface DocsLayoutContextData {
 export function createDocsLayout<C extends ConfigContext = ConfigContext>({
   render,
 }: DocsLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
-  async function renderToc(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
-    for (const adapter of this.adapters) {
-      const toc = await adapter["core:render-toc"]?.call(this, page);
-      if (toc !== undefined) return toc;
-    }
-  }
-
-  async function renderBody(this: AppContext<C>, page: C["loaderConfig"]["page"]) {
-    for (const adapter of this.adapters) {
-      const body = await adapter["core:render-body"]?.call(this, page);
-      if (body !== undefined) return body;
-    }
-
-    throw new Error("[Fumapress] Please specify the `render` option in createDocsLayout()");
-  }
-
   return async function Layout(props) {
     const {
       slugs,
@@ -107,9 +93,15 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
       ..._raw,
       pageProps: {
         ..._raw?.pageProps,
-        toc: _raw?.pageProps?.toc ?? (await renderToc.call(props, page)),
+        toc: _raw?.pageProps?.toc ?? (await renderToc(props, page)),
       },
-      body: _raw?.body ?? (await renderBody.call(props, page)),
+      body:
+        _raw?.body ??
+        (await renderBody(
+          props,
+          page,
+          "[Fumapress] Please specify the `render` option in createDocsLayout()",
+        )),
       layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
 

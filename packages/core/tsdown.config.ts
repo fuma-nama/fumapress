@@ -6,11 +6,7 @@ import path from "node:path";
 export default defineConfig({
   target: "es2023",
   format: "esm",
-  entry: [
-    "src/{index,vite,router}.ts",
-    "src/{plugins,adapters}/**",
-    "src/layouts/{docs,home,root,notebook}.tsx",
-  ],
+  entry: ["src/{index,vite,router}.ts", "src/{plugins,adapters}/**", "src/layouts/*.tsx"],
   unbundle: true,
   platform: "neutral",
   dts: true,

@@ -25,6 +25,15 @@ export interface Adapter<C extends ConfigContext = ConfigContext> {
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
   ) => Awaitable<TOCItemType[] | undefined>;
+
+  "core:get-creation-date"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<Date | undefined>;
+  "core:get-modified-date"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<Date | undefined>;
 }
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {

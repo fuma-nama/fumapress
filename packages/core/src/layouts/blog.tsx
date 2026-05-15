@@ -4,40 +4,45 @@ import {
   mergeLayoutConfigs,
   renderBody,
   renderPageMeta,
+  renderToc,
   TransformChildren,
   TransformChildrenSlot,
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
+import { TOCItemType } from "fumadocs-core/toc";
+import { InlineTOC } from "fumadocs-ui/components/inline-toc";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
 import type { ReactNode } from "react";
 import { unstable_notFound } from "waku/router/server";
 
-export interface HomeLayoutOptions<C extends ConfigContext = ConfigContext> {
+export interface BlogLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
   ) => Awaitable<{
-    body?: ReactNode;
+    toc?: TOCItemType[];
+    body: ReactNode;
     layoutProps?: TransformChildren<HomeLayoutProps>;
   }>;
 }
 
-export interface HomeLayoutRenderData {
+export interface BlogLayoutRenderData {
+  toc: TOCItemType[];
   body: ReactNode;
   layoutProps: TransformChildren<HomeLayoutProps>;
 }
 
-export interface HomeLayoutContextData {
+export interface BlogLayoutContextData {
   renderers?: ((
     this: { page: Page },
-    data: HomeLayoutRenderData,
-  ) => Awaitable<HomeLayoutRenderData>)[];
+    data: BlogLayoutRenderData,
+  ) => Awaitable<BlogLayoutRenderData>)[];
 }
 
-export function createHomeLayout<C extends ConfigContext = ConfigContext>({
+export function createBlogLayout<C extends ConfigContext = ConfigContext>({
   render,
-}: HomeLayoutOptions<NoInfer<C>>): Layouts<C>["page"] {
+}: BlogLayoutOptions<NoInfer<C>>): Layouts<C>["page"] {
   return async function Layout(props) {
     const {
       slugs,
@@ -45,7 +50,7 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
       getLoader,
       siteConfig,
       layouts,
-      data: { "core:home-layout": layoutData },
+      data: { "core:blog-layout": layoutData },
     } = props;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
@@ -70,13 +75,14 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     }
 
     const _raw = await render?.call(props, page);
-    let result: HomeLayoutRenderData = {
+    let result: BlogLayoutRenderData = {
+      toc: _raw?.toc ?? (await renderToc(props, page)) ?? [],
       body:
         _raw?.body ??
         (await renderBody(
           props,
           page,
-          "[Fumapress] Please specify the `render` option in createHomeLayout()",
+          "[Fumapress] Please specify the `render` option in createBlogLayout()",
         )),
       layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
@@ -91,7 +97,11 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     return (
       <TransformChildrenSlot Comp={HomeLayout} props={result.layoutProps}>
         {renderPageMeta(page, props)}
-        {result.body}
+
+        <h1 className="font-bold text-xl">{page.data.title}</h1>
+        <p className="mt-4 text-fd-muted-foreground">{page.data.description}</p>
+        {result.toc.length > 0 && <InlineTOC items={result.toc} />}
+        <article className="prose">{result.body}</article>
       </TransformChildrenSlot>
     );
   };

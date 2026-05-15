@@ -50,7 +50,7 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
   defaultProps?: (
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
-  ) => Awaitable<Omit<Partial<BaseLayoutProps>, "children">>;
+  ) => Awaitable<Omit<BaseLayoutProps, "children">>;
 }
 
 export interface I18nConfig<Lang extends string = string> extends Pick<
