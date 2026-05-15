@@ -31,17 +31,16 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.179",
+    "@ai-sdk/react": "^3.0.184",
     "@radix-ui/react-presence": "^1.1.5",
-    "ai": "^6.0.177",
+    "ai": "^6.0.182",
     "flexsearch": "^0.8.212",
-    "fumadocs-core": "^16.8.10",
-    "fumadocs-ui": "^16.8.10",
+    "fumadocs-core": "^16.8.11",
+    "fumadocs-ui": "^16.8.11",
     "fumapress": "workspace:*",
     "lucide-react": "^1.14.0",
     "tailwind-merge": "^3.5.0",
     "unist-util-visit": "^5.1.0",
-    "waku": "1.0.0-alpha.10",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -53,12 +52,14 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsdown": "0.22.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "waku": "1.0.0-beta.0"
   },
   "peerDependencies": {
     "@types/react": "*",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "waku": "1.0.0-beta.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {

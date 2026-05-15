@@ -3,14 +3,14 @@
   "version": "0.0.4",
   "private": true,
   "dependencies": {
-    "fumadocs-core": "^16.8.10",
+    "fumadocs-core": "^16.8.11",
     "fumadocs-mdx": "^15.0.4",
-    "fumadocs-ui": "^16.8.10",
+    "fumadocs-ui": "^16.8.11",
     "fumapress": "workspace:*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-server-dom-webpack": "^19.2.6",
-    "waku": "1.0.0-alpha.10"
+    "waku": "1.0.0-beta.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
