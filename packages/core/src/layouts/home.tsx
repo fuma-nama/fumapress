@@ -45,37 +45,42 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     throw new Error("[Fumapress] Please specify the `render` option in createHomeLayout()");
   }
 
-  function getLayoutProps(
-    this: AppContext<C>,
-    overrides?: TransformChildren<HomeLayoutProps>,
-  ): TransformChildren<HomeLayoutProps> {
-    const { name, git } = this.siteConfig;
-
-    return {
-      githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-      ...overrides,
-      nav: {
-        title: name,
-        ...overrides?.nav,
-      },
-    };
-  }
-
   return async function Layout(props) {
     const {
       slugs,
       lang,
       getLoader,
+      siteConfig,
+      layouts,
       data: { "core:home-layout": layoutData },
     } = props;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
+    async function getLayoutProps(
+      overrides?: TransformChildren<HomeLayoutProps>,
+    ): Promise<TransformChildren<HomeLayoutProps>> {
+      const { name, git } = siteConfig;
+
+      if (layouts.defaultProps) {
+        overrides ??= await layouts.defaultProps.call(props, page!);
+      }
+
+      return {
+        githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+        ...overrides,
+        nav: {
+          title: name,
+          ...overrides?.nav,
+        },
+      };
+    }
+
     const _raw = await render?.call(props, page);
     let result: HomeLayoutRenderData = {
       body: _raw?.body ?? (await renderBody.call(props, page)),
-      layoutProps: getLayoutProps.call(props, _raw?.layoutProps),
+      layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
 
     if (layoutData?.renderers) {

@@ -74,16 +74,22 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
       slugs,
       lang,
       getLoader,
+      siteConfig,
+      layouts,
       data: { "core:notebook-layout": layoutData },
     } = props;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
 
-    function getLayoutProps(
+    async function getLayoutProps(
       overrides?: TransformChildren<Partial<DocsLayoutProps>>,
-    ): TransformChildren<DocsLayoutProps> {
-      const { name, git } = props.siteConfig;
+    ): Promise<TransformChildren<DocsLayoutProps>> {
+      const { name, git } = siteConfig;
+
+      if (layouts.defaultProps) {
+        overrides ??= await layouts.defaultProps.call(props, page!);
+      }
 
       return {
         tree: source.getPageTree(lang),
@@ -104,7 +110,7 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
         toc: _raw?.pageProps?.toc ?? (await renderToc.call(props, page)),
       },
       body: _raw?.body ?? (await renderBody.call(props, page)),
-      layoutProps: getLayoutProps(_raw?.layoutProps),
+      layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
 
     if (layoutData?.renderers) {

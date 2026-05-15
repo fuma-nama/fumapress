@@ -8,7 +8,7 @@ export default defineConfig({
   format: "esm",
   entry: [
     "src/{index,vite,router}.ts",
-    "src/{plugins,adapters}/*",
+    "src/{plugins,adapters}/**",
     "src/layouts/{docs,home,root,notebook}.tsx",
   ],
   unbundle: true,

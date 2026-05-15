@@ -5,33 +5,26 @@ import type { Config, ConfigContext, Layouts } from "./config";
 import { unstable_redirect } from "waku/router/server";
 import { RouteFns } from "./lib/types";
 
-export type RouterOptions<C extends ConfigContext = ConfigContext> = Partial<Layouts<C>>;
-
 export function createRouter<C extends ConfigContext>(
   userConfig: Config<C>,
-  routerOptions?: RouterOptions<NoInfer<C>>,
 ): {
   extend: typeof waku.createPages;
   createPages: () => ReturnType<typeof waku.createPages>;
 } {
   async function init(): Promise<{ context: AppContext<C> } & Layouts<C>> {
-    const context: AppContext<C> = parseConfig(userConfig);
+    const context = parseConfig<C>(userConfig);
 
     for (const plugin of context.plugins) {
       plugin.init?.call(context);
     }
 
-    const layouts = {
-      ...userConfig.layouts,
-      ...routerOptions,
-    } as Partial<Layouts<C>>;
-
     return {
       context,
-      root: layouts?.root ?? (await import("./layouts/root")).createRootLayout<C>(),
-      page: layouts.page ?? (await import("./layouts/docs")).createDocsLayout<C>(),
+      root: context.layouts.root ?? (await import("./layouts/root")).createRootLayout<C>(),
+      page: context.layouts.page ?? (await import("./layouts/docs")).createDocsLayout<C>(),
       notFound:
-        layouts.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
+        context.layouts.notFound ??
+        (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
     };
   }
 

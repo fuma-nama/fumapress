@@ -4,6 +4,7 @@ import type { Awaitable, ServerPlugin, Adapter } from "@/lib/types";
 import type { TranslationsOption } from "fumadocs-ui/contexts/i18n";
 import type { I18nConfig as CoreI18nConfig } from "fumadocs-core/i18n";
 import type { ComponentType, ReactNode } from "react";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 export interface ConfigContext {
   loaderConfig: LoaderConfig;
@@ -42,11 +43,20 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
   root: ComponentType<AppContext<C> & { lang?: string; children: ReactNode }>;
   page: ComponentType<AppContext<C> & { lang?: string; slugs: string[] }>;
   notFound: ComponentType<AppContext<C> & { lang?: string }>;
+
+  /**
+   * Define default props for page layouts.
+   * This will also be ignored if you specify a custom page layout wtih the `render` option.
+   */
+  defaultProps?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<Omit<Partial<BaseLayoutProps>, "children">>;
 }
 
 export interface I18nConfig<Lang extends string = string> extends Pick<
   CoreI18nConfig<NoInfer<Lang>>,
-  "fallbackLanguage" | "parser"
+  "defaultLanguage" | "fallbackLanguage" | "parser"
 > {
   /** locale code -> language info */
   languages: {
@@ -55,7 +65,6 @@ export interface I18nConfig<Lang extends string = string> extends Pick<
       translations?: TranslationsOption;
     };
   };
-  defaultLanguage: NoInfer<Lang>;
 }
 
 export interface SiteConfig {

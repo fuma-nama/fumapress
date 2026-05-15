@@ -20,6 +20,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
+    "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
     "./layouts/docs": "./dist/layouts/docs.js",
     "./layouts/home": "./dist/layouts/home.js",
     "./layouts/notebook": "./dist/layouts/notebook.js",
@@ -46,11 +47,10 @@
     "@orama/orama": "^3.1.18",
     "@takumi-rs/image-response": "^1.1.2",
     "flexsearch": "^0.8.212",
-    "fumadocs-core": "^16.8.10",
-    "fumadocs-ui": "^16.8.10",
-    "tailwind-merge": "^3.5.0",
+    "fumadocs-core": "^16.8.11",
+    "fumadocs-ui": "^16.8.11",
     "vite": "^8.0.11",
-    "waku": "1.0.0-alpha.10"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.0",
@@ -61,14 +61,16 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsdown": "0.22.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "waku": "1.0.0-beta.0"
   },
   "peerDependencies": {
     "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-mdx": "^15.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "waku": "1.0.0-beta.0"
   },
   "peerDependenciesMeta": {
     "@types/mdx": {

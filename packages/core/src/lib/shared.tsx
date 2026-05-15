@@ -1,4 +1,4 @@
-import type { BuildMode, Config, ConfigContext, I18nConfig } from "@/config";
+import type { BuildMode, Config, ConfigContext, I18nConfig, Layouts } from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
@@ -15,6 +15,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   getLoader: () => Awaitable<LoaderOutput<C["loaderConfig"]>>;
   plugins: ServerPlugin<C>[];
   adapters: Adapter<C>[];
+  layouts: Partial<Layouts<C>>;
 
   /** always `undefined`, easier way to infer types */
   $context: C;
@@ -53,6 +54,7 @@ export function parseConfig<C extends ConfigContext>(config: Config<C>): AppCont
 
       return config.loader;
     },
+    layouts: (config.layouts ?? {}) as never,
     plugins: (config.plugins ?? []) as never,
     adapters: (config.adapters ?? [fumadocsMdx()]) as never,
     $context: undefined as never,
