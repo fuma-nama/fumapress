@@ -1,6 +1,7 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   type AppContext,
+  baseLayoutProps,
   createTransformChildren,
   mergeLayoutConfigs,
   renderBody,
@@ -10,10 +11,10 @@ import {
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { unstable_notFound } from "waku/router/server";
 
-export interface HomeLayoutOptions<C extends ConfigContext = ConfigContext> {
+export interface HomeLayoutPageOptions<C extends ConfigContext = ConfigContext> {
   render?: (
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
@@ -30,25 +31,22 @@ export interface HomeLayoutRenderData {
 
 export interface HomeLayoutContextData {
   renderers?: ((
-    this: { page: Page },
+    this: { page: Page | undefined },
     data: HomeLayoutRenderData,
   ) => Awaitable<HomeLayoutRenderData>)[];
 }
 
-export function createHomeLayout<C extends ConfigContext = ConfigContext>({
+export function createHomeLayoutPage<C extends ConfigContext = ConfigContext>({
   render,
-}: HomeLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
+}: HomeLayoutPageOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   const THomeLayout = createTransformChildren(HomeLayout);
 
-  return async function Layout(props) {
+  return async function Layout({ slugs, lang, ctx }) {
     const {
-      slugs,
-      lang,
       getLoader,
-      siteConfig,
       layouts,
       data: { "core:home-layout": layoutData },
-    } = props;
+    } = ctx;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
@@ -56,29 +54,19 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     async function getLayoutProps(
       overrides?: TransformChildren<HomeLayoutProps>,
     ): Promise<TransformChildren<HomeLayoutProps>> {
-      const { name, git } = siteConfig;
-      const inherit = await layouts.defaultProps?.call(props, page!);
+      const inherit = await layouts.defaultProps?.call(ctx, { lang });
 
-      return mergeLayoutConfigs(
-        {
-          githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-          nav: {
-            title: name,
-          },
-        },
-        inherit,
-        overrides,
-      );
+      return mergeLayoutConfigs(baseLayoutProps(ctx), inherit, overrides);
     }
 
-    const _raw = await render?.call(props, page);
+    const _raw = await render?.call(ctx, page);
     let result: HomeLayoutRenderData = {
       body:
         _raw?.body ??
         (await renderBody(
-          props,
+          ctx,
           page,
-          "[Fumapress] Please specify the `render` option in createHomeLayout()",
+          "[Fumapress] Please specify the `render` option in createHomeLayoutPage()",
         )),
       layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
@@ -92,9 +80,55 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
 
     return (
       <THomeLayout props={result.layoutProps}>
-        {renderPageMeta(page, props)}
+        {renderPageMeta(page, ctx)}
         {result.body}
       </THomeLayout>
     );
+  };
+}
+
+export interface HomeLayoutOptions<C extends ConfigContext = ConfigContext> {
+  render?: (this: AppContext<C>) => Awaitable<{
+    layoutProps?: TransformChildren<HomeLayoutProps>;
+  }>;
+}
+
+export function createHomeLayout<C extends ConfigContext = ConfigContext>({
+  render,
+}: HomeLayoutOptions<C> = {}): ComponentType<{
+  lang?: string;
+  children: ReactNode;
+  ctx: AppContext<C>;
+}> {
+  const THomeLayout = createTransformChildren(HomeLayout);
+
+  return async function Layout({ lang, children, ctx }) {
+    const {
+      layouts,
+      data: { "core:home-layout": layoutData },
+    } = ctx;
+
+    async function getLayoutProps(
+      overrides?: TransformChildren<HomeLayoutProps>,
+    ): Promise<TransformChildren<HomeLayoutProps>> {
+      const inherit = await layouts.defaultProps?.call(ctx, { lang });
+
+      return mergeLayoutConfigs(baseLayoutProps(ctx), inherit, overrides);
+    }
+
+    const _raw = await render?.call(ctx);
+    let result: HomeLayoutRenderData = {
+      body: children,
+      layoutProps: await getLayoutProps(_raw?.layoutProps),
+    };
+
+    if (layoutData?.renderers) {
+      const renderCtx = { page: undefined };
+      for (const r of layoutData.renderers) {
+        result = await r.call(renderCtx, result);
+      }
+    }
+
+    return <THomeLayout props={result.layoutProps}>{result.body}</THomeLayout>;
   };
 }

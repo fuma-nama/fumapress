@@ -21,14 +21,14 @@ export default defineConfig({
 Specify or customize the UI (renderers) for pages.
 
 ```tsx title="press.config.tsx"
-import { createDocsLayout } from "fumapress/layouts/docs";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { defineConfig } from "fumapress";
 
 export default defineConfig({
   // ...
 }).useLayouts({
   // [!code ++] customize layout for pages
-  page: createDocsLayout(),
+  page: createDocsLayoutPage(),
 });
 ```
 

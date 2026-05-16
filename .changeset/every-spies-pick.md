@@ -1,0 +1,5 @@
+---
+"fumapress": minor
+---
+
+rename layouts

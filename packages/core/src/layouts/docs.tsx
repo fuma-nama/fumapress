@@ -1,6 +1,7 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   AppContext,
+  baseLayoutProps,
   createTransformChildren,
   getGitHubFileUrl,
   getLastModifiedDate,
@@ -54,21 +55,18 @@ export interface DocsLayoutContextData {
   ) => Awaitable<DocsLayoutRenderData>)[];
 }
 
-export function createDocsLayout<C extends ConfigContext = ConfigContext>({
+export function createDocsLayoutPage<C extends ConfigContext = ConfigContext>({
   render,
 }: DocsLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   const TDocsLayout = createTransformChildren(DocsLayout);
   const TDocsPage = createTransformChildren(DocsPage);
 
-  return async function Layout(props) {
+  return async function Layout({ slugs, lang, ctx }) {
     const {
-      slugs,
-      lang,
       getLoader,
-      siteConfig,
       layouts,
       data: { "core:docs-layout": layoutData },
-    } = props;
+    } = ctx;
     const source = await getLoader();
     const page = source.getPage(slugs, lang);
     if (!page) unstable_notFound();
@@ -76,36 +74,30 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
     async function getLayoutProps(
       overrides?: Partial<TransformChildren<DocsLayoutProps>>,
     ): Promise<TransformChildren<DocsLayoutProps>> {
-      const { name, git } = siteConfig;
-      const inherit = await layouts.defaultProps?.call(props, page!);
+      const inherit = await layouts.defaultProps?.call(ctx, { lang });
 
       return mergeLayoutConfigs(
-        {
-          tree: source.getPageTree(lang),
-          githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
-          nav: {
-            title: name,
-          },
-        },
+        { tree: source.getPageTree(lang) },
+        baseLayoutProps(ctx),
         inherit,
         overrides,
       );
     }
 
-    const _raw = await render?.call(props, page);
+    const _raw = await render?.call(ctx, page);
     let result: DocsLayoutRenderData = {
       ..._raw,
-      lastModified: _raw?.lastModified ?? (await getLastModifiedDate(props, page)),
+      lastModified: _raw?.lastModified ?? (await getLastModifiedDate(ctx, page)),
       pageProps: {
         ..._raw?.pageProps,
-        toc: _raw?.pageProps?.toc ?? (await renderToc(props, page)),
+        toc: _raw?.pageProps?.toc ?? (await renderToc(ctx, page)),
       },
       body:
         _raw?.body ??
         (await renderBody(
-          props,
+          ctx,
           page,
-          "[Fumapress] Please specify the `render` option in createDocsLayout()",
+          "[Fumapress] Please specify the `render` option in createDocsLayoutPage()",
         )),
       layoutProps: await getLayoutProps(_raw?.layoutProps),
     };
@@ -119,7 +111,7 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
 
     return (
       <TDocsLayout props={result.layoutProps}>
-        {renderPageMeta(page, props)}
+        {renderPageMeta(page, ctx)}
         <TDocsPage props={result.pageProps}>
           <DocsTitle>{page.data.title}</DocsTitle>
           <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
@@ -127,7 +119,7 @@ export function createDocsLayout<C extends ConfigContext = ConfigContext>({
             {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
             <ViewOptionsPopover
               markdownUrl={result.markdownUrl}
-              githubUrl={page.absolutePath ? getGitHubFileUrl(props, page.absolutePath) : undefined}
+              githubUrl={page.absolutePath ? getGitHubFileUrl(ctx, page.absolutePath) : undefined}
             />
           </div>
           <DocsBody>{result.body}</DocsBody>

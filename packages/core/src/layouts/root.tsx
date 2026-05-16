@@ -10,15 +10,14 @@ export interface RootLayoutOptions {
 export function createRootLayout<C extends ConfigContext = ConfigContext>(
   options?: RootLayoutOptions,
 ): Layouts<C>["root"] {
-  return async function (props) {
-    const { children, lang, i18nConfig, data } = props;
-    const hooks = data["core:provider"];
+  return async function ({ lang, ctx, children }) {
+    const hooks = ctx.data["core:provider"];
     let providerProps: RootProviderProps = {
       ...options?.providerProps,
     };
 
-    if (i18nConfig) {
-      const { languages } = i18nConfig as I18nConfig;
+    if (ctx.i18nConfig) {
+      const { languages } = ctx.i18nConfig as I18nConfig;
       providerProps.i18n ??= {
         locale: lang,
         locales: Object.entries(languages).map(([k, v]) => ({
@@ -39,7 +38,7 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
       <html lang={lang ?? "en"} suppressHydrationWarning>
         <head>
           <style>{styles}</style>
-          {renderRootMeta(props)}
+          {renderRootMeta(ctx)}
         </head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
           <RootProvider {...providerProps}>{children}</RootProvider>
