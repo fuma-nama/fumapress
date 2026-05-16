@@ -1,11 +1,11 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   type AppContext,
+  createTransformChildren,
   mergeLayoutConfigs,
   renderBody,
   renderPageMeta,
   TransformChildren,
-  TransformChildrenSlot,
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
@@ -37,7 +37,9 @@ export interface HomeLayoutContextData {
 
 export function createHomeLayout<C extends ConfigContext = ConfigContext>({
   render,
-}: HomeLayoutOptions<NoInfer<C>>): Layouts<C>["page"] {
+}: HomeLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
+  const THomeLayout = createTransformChildren(HomeLayout);
+
   return async function Layout(props) {
     const {
       slugs,
@@ -89,10 +91,10 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
     }
 
     return (
-      <TransformChildrenSlot Comp={HomeLayout} props={result.layoutProps}>
+      <THomeLayout props={result.layoutProps}>
         {renderPageMeta(page, props)}
         {result.body}
-      </TransformChildrenSlot>
+      </THomeLayout>
     );
   };
 }

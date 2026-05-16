@@ -2,18 +2,28 @@ import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 import { loader } from "fumadocs-core/source";
-import { docs } from "./.source/server";
+import { blog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { createDocsLayout } from "fumapress/layouts/docs";
+import { createLayoutSwitchAuto } from "fumapress/layouts/switch";
+import { createBlogLayout } from "fumapress/layouts/blog";
 
 export default defineConfig({
   mode: "static",
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-    plugins: [lucideIconsPlugin()],
-  }),
+  loader: loader(
+    {
+      docs: docs.toFumadocsSource(),
+      blog: blog.toFumadocsSource({
+        baseDir: "blog",
+      }),
+    },
+    {
+      baseUrl: "/",
+      plugins: [lucideIconsPlugin()],
+    },
+  ),
   site: {
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
@@ -48,36 +58,56 @@ export default defineConfig({
   .useAdapters(fumadocsMdx())
   .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .useLayouts({
-    page: createDocsLayout({
-      async render() {
-        return {
-          layoutProps: {
-            nav: {
-              title: (
-                <>
-                  <img
-                    src="/logo.png"
-                    width={64}
-                    height={64}
-                    className="size-8 rounded-full shadow-md shadow-black mb-1"
-                  />
-                  <span>
-                    <span className="font-mono uppercase border-b-2 border-fd-primary">
-                      Fumapress
-                    </span>
-                    <br />
-                    <span className="font-normal text-fd-muted-foreground text-xs">
-                      The site generator
-                    </span>
-                  </span>
-                </>
-              ),
-            },
-          },
+    defaultProps() {
+      return {
+        nav: {
+          title: (
+            <>
+              <img
+                src="/logo.png"
+                width={64}
+                height={64}
+                className="size-8 rounded-full shadow-md shadow-black mb-1"
+              />
+              <span>
+                <span className="font-mono uppercase border-b-2 border-fd-primary">Fumapress</span>
+                <br />
+                <span className="font-normal text-fd-muted-foreground text-xs">
+                  The site generator
+                </span>
+              </span>
+            </>
+          ),
+        },
+      };
+    },
+    page: createLayoutSwitchAuto({
+      docs: createDocsLayout({
+        render: () => ({
           pageProps: {
             tableOfContent: { style: "clerk" },
           },
-        };
-      },
+        }),
+      }),
+      blog: createBlogLayout({
+        indexPath: "/blog",
+        render: () => ({
+          layoutProps: {
+            links: [
+              {
+                type: "main",
+                url: "/",
+                text: "Documentation",
+              },
+              {
+                type: "main",
+                url: "/blog",
+                text: "Blog",
+                active: "nested-url",
+              },
+            ],
+          },
+        }),
+      }),
     }),
   });

@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "../../lib/cn";
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
-import { buttonVariants } from "../ui/button";
+import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { CornerDownRightIcon, ThumbsDown, ThumbsUp } from "lucide-react";
 import {
   type HTMLAttributes,
@@ -13,7 +13,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Collapsible, CollapsibleContent } from "../ui/collapsible";
+import { Collapsible, CollapsibleContent } from "fumadocs-ui/components/ui/collapsible";
 import { cva } from "class-variance-authority";
 import {
   actionResponse,

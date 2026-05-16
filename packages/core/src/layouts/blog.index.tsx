@@ -1,50 +1,54 @@
-import { ConfigContext } from "@/config";
-import { AppContext } from "@/lib/shared";
-import { Awaitable } from "@/lib/types";
-import { ReactNode } from "react";
+import type { ConfigContext } from "@/config";
+import { getCreationDate, type AppContext } from "@/lib/shared";
+import path from "node:path";
+import type { ComponentType, ReactNode } from "react";
 import { Link } from "waku";
 
-export interface BlogIndexPageOptions<C extends ConfigContext = ConfigContext> {
+export interface BlogIndexPageOptions {
   heading?: ReactNode;
   description?: ReactNode;
-  getBlogDate?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<Date | undefined>;
 }
 
+export type BlogIndexPage<C extends ConfigContext = ConfigContext> = ComponentType<
+  AppContext<C> & {
+    lang?: string;
+    indexPage: C["loaderConfig"]["page"];
+    blogDir: string;
+  }
+>;
+
 export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
-  heading = "Blog",
+  heading,
   description,
-  getBlogDate = async function (page) {
-    for (const adapter of this.adapters) {
-      const d = await adapter["core:get-creation-date"]?.call(this, page);
-      if (d) return d;
-    }
-  },
-}: BlogIndexPageOptions<C> = {}) {
-  return async function BlogIndexPage(props: AppContext<C> & { lang?: string }) {
-    const { lang, getLoader } = props;
+}: BlogIndexPageOptions = {}): BlogIndexPage<C> {
+  return async function BlogIndexPage(props) {
+    const { lang, getLoader, indexPage, blogDir } = props;
     const source = await getLoader();
 
     const currentDate = new Date(Date.now());
-    const posts = await Promise.all(
-      source.getPages(lang).map(async (page) => ({
-        page,
-        date: (await getBlogDate.call(props, page)) ?? currentDate,
-      })),
-    );
+    const postPromises: Promise<{
+      page: C["loaderConfig"]["page"];
+      date: Date;
+    }>[] = [];
+    for (const page of source.getPages(lang)) {
+      if (path.relative(blogDir, page.path).startsWith("..") || page === indexPage) continue;
+      const datePromise = Promise.resolve(getCreationDate(props, page));
+      postPromises.push(datePromise.then((date) => ({ page, date: date ?? currentDate })));
+    }
+    const posts = await Promise.all(postPromises);
 
     posts.sort((a, b) => b.date.getTime() - a.date.getTime());
 
     return (
-      <main className="mx-auto w-full px-4 pb-12 md:py-12">
-        <div className="mb-4 aspect-[3.2] p-8 z-2 md:p-12">
-          <h1 className="mb-4 text-3xl font-medium">{heading}</h1>
-          <p className="text-sm text-fd-muted-foreground empty:hidden">{description}</p>
+      <>
+        <div className="border-2 border-dashed border-fd-primary bg-fd-primary/10 p-4 z-2 md:p-8">
+          <h1 className="text-3xl font-semibold">{heading ?? indexPage.data.title ?? "Blog"}</h1>
+          <p className="mt-4 text-fd-primary overline decoration-fd-primary empty:hidden">
+            {description ?? indexPage.data.description}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 mt-4 md:grid-cols-3 xl:grid-cols-4">
           {posts.map(({ page: post, date }) => (
             <Link
               key={post.url}
@@ -58,7 +62,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
             </Link>
           ))}
         </div>
-      </main>
+      </>
     );
   };
 }

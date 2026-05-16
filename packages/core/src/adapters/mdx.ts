@@ -5,6 +5,7 @@ import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import type { MDXComponents, MDXContent } from "mdx/types";
 import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
+import { z } from "zod/mini";
 
 export interface MdxAdapterOptions<C extends ConfigContext = ConfigContext> {
   getMdxComponents?: (
@@ -55,8 +56,36 @@ export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
       if (isSyncEntry(page.data)) return page.data.toc;
       if (isAsyncEntry(page.data)) return (await page.data.load()).toc;
     },
+    "core:get-creation-date"(page) {
+      if (isSyncEntry(page.data) || isAsyncEntry(page.data)) {
+        return "date" in page.data && page.data.date instanceof Date ? page.data.date : undefined;
+      }
+    },
+    async "core:get-modified-date"(page) {
+      let data: object;
+
+      if (isSyncEntry(page.data)) {
+        data = page.data;
+      } else if (isAsyncEntry(page.data)) {
+        data = await page.data.load();
+      } else return;
+
+      return "lastModified" in data && data.lastModified instanceof Date
+        ? data.lastModified
+        : undefined;
+    },
+    "blog:get-tags"(page) {
+      if (isSyncEntry(page.data) || isAsyncEntry(page.data)) {
+        const parsed = tagsSchema.safeParse(page.data);
+        return parsed.success ? parsed.data.tags : undefined;
+      }
+    },
   };
 }
+
+const tagsSchema = z.looseObject({
+  tags: z.optional(z.array(z.string())),
+});
 
 function isSyncEntry(v: object): v is DocCollectionEntry {
   return (

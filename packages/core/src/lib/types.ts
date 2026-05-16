@@ -34,6 +34,11 @@ export interface Adapter<C extends ConfigContext = ConfigContext> {
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
   ) => Awaitable<Date | undefined>;
+
+  "blog:get-tags"?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<string[] | undefined>;
 }
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {

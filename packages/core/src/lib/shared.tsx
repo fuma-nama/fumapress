@@ -4,7 +4,7 @@ import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPlugin } from "./types";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import { type ComponentType, Fragment, type ReactNode } from "react";
+import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import { fumadocsMdx } from "@/adapters/mdx";
 import type { RootProviderProps } from "fumadocs-ui/provider/waku";
@@ -116,22 +116,18 @@ export type TransformChildren<T> = Omit<T, "children"> & {
   children?: ((nodes: ReactNode) => ReactNode)[];
 };
 
-export function TransformChildrenSlot<T>({
-  Comp,
-  props,
-  children,
-}: {
-  Comp: ComponentType<Omit<T, "children"> & { children: ReactNode }>;
-  props: TransformChildren<T>;
-  children: ReactNode;
-}) {
-  if (props.children) {
-    for (const transformer of props.children) {
-      children = transformer(children);
+export function createTransformChildren<T>(
+  Component: ComponentType<T>,
+): ComponentType<{ props: TransformChildren<T>; children: ReactNode }> {
+  return function ({ props, children }) {
+    if (props.children) {
+      for (const transformer of props.children) {
+        children = transformer(children);
+      }
     }
-  }
 
-  return <Comp {...props}>{children}</Comp>;
+    return <Component {...(props as T)}>{children}</Component>;
+  };
 }
 
 export async function renderBody<C extends ConfigContext>(
@@ -157,4 +153,34 @@ export async function renderToc<C extends ConfigContext>(
   }
 }
 
-export const mergeLayoutConfigs = createDeepmerge({ all: true, onlyDefinedProperties: true });
+export async function getCreationDate<C extends ConfigContext>(
+  ctx: AppContext<C>,
+  page: C["loaderConfig"]["page"],
+) {
+  for (const adapter of ctx.adapters) {
+    const date = await adapter["core:get-creation-date"]?.call(ctx, page);
+    if (date !== undefined) return date;
+  }
+}
+
+export async function getLastModifiedDate<C extends ConfigContext>(
+  ctx: AppContext<C>,
+  page: C["loaderConfig"]["page"],
+) {
+  for (const adapter of ctx.adapters) {
+    const date = await adapter["core:get-modified-date"]?.call(ctx, page);
+    if (date !== undefined) return date;
+  }
+}
+
+export const mergeLayoutConfigs = createDeepmerge({
+  all: true,
+  onlyDefinedProperties: true,
+  isMergeableObject(value) {
+    if (isValidElement(value)) {
+      return false;
+    }
+
+    return createDeepmerge.isMergeableObject(value);
+  },
+});

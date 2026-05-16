@@ -1,13 +1,14 @@
 import type { ConfigContext, Layouts } from "@/config";
 import {
   AppContext,
+  createTransformChildren,
   getGitHubFileUrl,
+  getLastModifiedDate,
   mergeLayoutConfigs,
   renderBody,
   renderPageMeta,
   renderToc,
   TransformChildren,
-  TransformChildrenSlot,
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
@@ -56,6 +57,9 @@ export interface NotebookLayoutContextData {
 export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
   render,
 }: NotebookLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
+  const TDocsLayout = createTransformChildren(DocsLayout);
+  const TDocsPage = createTransformChildren(DocsPage);
+
   return async function Layout(props) {
     const {
       slugs,
@@ -91,6 +95,7 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
     const _raw = await render?.call(props, page);
     let result: NotebookLayoutRenderData = {
       ..._raw,
+      lastModified: _raw?.lastModified ?? (await getLastModifiedDate(props, page)),
       pageProps: {
         ..._raw?.pageProps,
         toc: _raw?.pageProps?.toc ?? (await renderToc(props, page)),
@@ -113,9 +118,9 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
     }
 
     return (
-      <TransformChildrenSlot Comp={DocsLayout} props={result.layoutProps}>
+      <TDocsLayout props={result.layoutProps}>
         {renderPageMeta(page, props)}
-        <TransformChildrenSlot Comp={DocsPage} props={result.pageProps}>
+        <TDocsPage props={result.pageProps}>
           <DocsTitle>{page.data.title}</DocsTitle>
           <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
           <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
@@ -127,8 +132,8 @@ export function createNotebookLayout<C extends ConfigContext = ConfigContext>({
           </div>
           <DocsBody>{result.body}</DocsBody>
           {result.lastModified && <PageLastUpdate date={result.lastModified} />}
-        </TransformChildrenSlot>
-      </TransformChildrenSlot>
+        </TDocsPage>
+      </TDocsLayout>
     );
   };
 }

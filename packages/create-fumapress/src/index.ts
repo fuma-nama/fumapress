@@ -185,7 +185,7 @@ export default defineConfig({
   .useAdapters(fumadocsMdx());
 `,
     "source.config.ts": `import { defineDocs } from "fumadocs-mdx/config";
-import { metaSchema, pageSchema } from "fumadocs-core/source/schema";
+import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
 
 export const docs = defineDocs({
   dir: "content",

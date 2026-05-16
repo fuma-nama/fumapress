@@ -1,0 +1,59 @@
+---
+title: Introducing Fumapress
+description: Build content sites with React.js.
+tags: [guide]
+---
+
+## Why?
+
+Most static site generators are built on the assumption that `static content files = static pages`.
+
+In real world scenarios, pages are often dynamic, and content sites can rarely be fully static. Content sites are integrated with CMS, dynamic statistics, comments, and even AI Chat.
+
+Furthermore, customizing them was often difficult due to the assumptions, only a few frameworks can integrate with other content layers, and UI customization sometimes require knowledge of their source code.
+
+Fumadocs was built on a lower level as primitives, this served great for higher flexibility that developers enjoyed a lot.
+But with a low-level framework, it becomes difficult to provide a "brainless" experience:
+
+- **Routing** must be managed manually.
+- **Components** must be added manually for every integration & feature.
+- **Extra decision cost** on choosing a React.js meta-framework.
+- **Boilerplate** due to framework-agnostic semantics.
+
+Fumapress brought a better DX at a smaller cost on flexibility.
+
+- A **fixed** React.js framework.
+- **Auto-routing** configurations.
+- A **Plugin System** to make adding new features simple & brainless.
+- **High flexiblity** by reusing the primitives from Fumadocs.
+
+It inherits the same UI, content, and authoring system from Fumadocs, which is designed to be modular & composable.
+In other words, you can seamlessly use your own CMS, UI, search solution, etc.
+
+This was not possible with Fumadocs due to the priority of being framework-agnostic, and as per our design philosophy, we must bring **minimal abstraction** for **maximal flexibility**, a singe config file was not suitable for that.
+
+## Fumapress
+
+In **Fumapress**, features are plugins, and the config is type-safe by default:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { takumiPlugin } from "fumapress/plugins/takumi";
+import { loader } from "fumadocs-core/source";
+import { docs } from "./.source/server";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+
+export default defineConfig({
+  // content source is composable
+  loader: loader(docs.toFumadocsSource(), {
+    baseUrl: "/",
+  }),
+})
+  .useAdapters(fumadocsMdx())
+  // plugins bring new features
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin());
+```
+
+See [our docs](/) to learn more.

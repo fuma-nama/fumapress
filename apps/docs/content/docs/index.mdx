@@ -19,7 +19,7 @@ Install the dependencies:
 ```npm
 npm i waku fumapress fumadocs-ui fumadocs-core fumadocs-mdx react react-dom react-server-dom-webpack
 
-npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript -D
+npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript vite -D
 ```
 
 Create the config files:
@@ -40,7 +40,7 @@ export default defineConfig({
 
 ```ts tab="source.config.ts"
 import { defineDocs } from "fumadocs-mdx/config";
-import { metaSchema, pageSchema } from "fumadocs-core/source/schema";
+import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
 
 // the config file for Fumadocs MDX, see https://fumadocs.dev/docs/mdx
 export const docs = defineDocs({
