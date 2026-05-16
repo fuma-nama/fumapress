@@ -1,5 +1,16 @@
 # fumapress
 
+## 0.3.0
+
+### Minor Changes
+
+- 60fd1c3: rename layouts
+
+### Patch Changes
+
+- 145f92b: Support `defaultProps` in layouts config
+- b1a00a0: Support blog layout
+
 ## 0.2.5
 
 ### Patch Changes
