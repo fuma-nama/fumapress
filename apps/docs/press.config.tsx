@@ -6,9 +6,8 @@ import { blog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { createDocsLayout } from "fumapress/layouts/docs";
-import { createLayoutSwitchAuto } from "fumapress/layouts/switch";
-import { createBlogLayout } from "fumapress/layouts/blog";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+import { blogPlugin } from "fumapress/plugins/blog";
 
 export default defineConfig({
   mode: "static",
@@ -56,7 +55,7 @@ export default defineConfig({
   },
 })
   .useAdapters(fumadocsMdx())
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), blogPlugin())
   .useLayouts({
     defaultProps() {
       return {
@@ -81,33 +80,11 @@ export default defineConfig({
         },
       };
     },
-    page: createLayoutSwitchAuto({
-      docs: createDocsLayout({
-        render: () => ({
-          pageProps: {
-            tableOfContent: { style: "clerk" },
-          },
-        }),
-      }),
-      blog: createBlogLayout({
-        indexPath: "/blog",
-        render: () => ({
-          layoutProps: {
-            links: [
-              {
-                type: "main",
-                url: "/",
-                text: "Documentation",
-              },
-              {
-                type: "main",
-                url: "/blog",
-                text: "Blog",
-                active: "nested-url",
-              },
-            ],
-          },
-        }),
+    page: createDocsLayoutPage({
+      render: () => ({
+        pageProps: {
+          tableOfContent: { style: "clerk" },
+        },
       }),
     }),
   });

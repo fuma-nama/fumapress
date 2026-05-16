@@ -1,9 +1,9 @@
 import * as waku from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
-import { createElement } from "react";
+import { Fragment } from "react";
 import type { Config, ConfigContext, Layouts } from "./config";
 import { unstable_redirect } from "waku/router/server";
-import { RouteFns } from "./lib/types";
+import { CreatePagesContext, RouteFns } from "./lib/types";
 
 export function createRouter<C extends ConfigContext>(
   userConfig: Config<C>,
@@ -21,7 +21,7 @@ export function createRouter<C extends ConfigContext>(
     return {
       context,
       root: context.layouts.root ?? (await import("./layouts/root")).createRootLayout<C>(),
-      page: context.layouts.page ?? (await import("./layouts/docs")).createDocsLayout<C>(),
+      page: context.layouts.page ?? (await import("./layouts/docs")).createDocsLayoutPage<C>(),
       notFound:
         context.layouts.notFound ??
         (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
@@ -56,35 +56,45 @@ export function createRouter<C extends ConfigContext>(
       };
 
       await base(fns);
+      const resolved = new Set<C["loaderConfig"]["page"]>();
+      const createPagesCtx: CreatePagesContext<C> = {
+        ...context,
+        markResolved(page) {
+          resolved.add(page);
+        },
+      };
       for (const plugin of context.plugins) {
-        await plugin.createPages?.call(context, fns);
+        await plugin.createPages?.call(createPagesCtx, fns);
       }
 
+      const source = await context.getLoader();
+      const pendingPages = source.getPages().filter((page) => !resolved.has(page));
       const defaultRenderMode = context.mode === "dynamic" ? "dynamic" : "static";
 
       if (context.i18nConfig) {
         fns.createRoot({
           render: defaultRenderMode,
-          component({ children }) {
-            return children;
-          },
+          component: Fragment,
         });
+
         fns.createLayout({
           render: defaultRenderMode,
           path: "/[lang]",
           component({ children, lang }) {
-            return createElement(layouts.root, { lang, children, ...context });
+            return (
+              <layouts.root lang={lang} ctx={context}>
+                {children}
+              </layouts.root>
+            );
           },
         });
 
         fns.createPage({
           render: defaultRenderMode,
           path: "/[lang]/[...slugs]",
-          staticPaths: (await context.getLoader())
-            .getPages()
-            .map((page) => [page.locale!, ...page.slugs]),
+          staticPaths: pendingPages.map((page) => [page.locale!, ...page.slugs]),
           component({ slugs, lang }) {
-            return createElement(layouts.page, { lang, slugs, ...context });
+            return <layouts.page lang={lang} slugs={slugs} ctx={context} />;
           },
         });
 
@@ -93,7 +103,7 @@ export function createRouter<C extends ConfigContext>(
           path: "/[lang]/404",
           staticPaths: Object.keys(context.i18nConfig.languages),
           component({ lang }) {
-            return createElement(layouts.notFound, { lang, ...context });
+            return <layouts.notFound lang={lang} ctx={context} />;
           },
         });
 
@@ -111,16 +121,16 @@ export function createRouter<C extends ConfigContext>(
         fns.createRoot({
           render: defaultRenderMode,
           component({ children }) {
-            return createElement(layouts.root, { children, ...context });
+            return <layouts.root ctx={context}>{children}</layouts.root>;
           },
         });
 
         fns.createPage({
           render: defaultRenderMode,
           path: "/[...slugs]",
-          staticPaths: (await context.getLoader()).getPages().map((page) => page.slugs),
+          staticPaths: pendingPages.map((page) => page.slugs),
           component({ slugs }) {
-            return createElement(layouts.page, { slugs, ...context });
+            return <layouts.page slugs={slugs} ctx={context} />;
           },
         });
 
@@ -129,7 +139,7 @@ export function createRouter<C extends ConfigContext>(
           staticPaths: [],
           path: "/404",
           component() {
-            return createElement(layouts.notFound, context);
+            return <layouts.notFound ctx={context} />;
           },
         });
       }

@@ -23,11 +23,13 @@
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
+    "./layouts/blog.tags": "./dist/layouts/blog.tags.js",
     "./layouts/docs": "./dist/layouts/docs.js",
     "./layouts/home": "./dist/layouts/home.js",
     "./layouts/notebook": "./dist/layouts/notebook.js",
     "./layouts/root": "./dist/layouts/root.js",
     "./layouts/switch": "./dist/layouts/switch.js",
+    "./plugins/blog": "./dist/plugins/blog.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
@@ -42,7 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "tsdown --watch",
+    "dev": "tsdown --watch --clean false",
     "build": "tsdown",
     "types:check": "tsc --noEmit"
   },

@@ -30,26 +30,20 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   /** adapter for content sources, use `fumadocs-mdx` if not specified */
   adapters?: Adapter[];
   i18n?: I18nConfig<C["lang"]>;
-  meta?: {
-    /** render meta tags for any pages */
-    root?: (this: AppContext<C>) => ReactNode;
-
-    /** render meta tags for page */
-    page?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => ReactNode;
-  };
+  meta?: MetaConfig<C>;
 }
 
 export interface Layouts<C extends ConfigContext = ConfigContext> {
-  root: ComponentType<AppContext<C> & { lang?: string; children: ReactNode }>;
-  page: ComponentType<AppContext<C> & { lang?: string; slugs: string[] }>;
-  notFound: ComponentType<AppContext<C> & { lang?: string }>;
+  root: ComponentType<{ lang?: string; ctx: AppContext<C>; children: ReactNode }>;
+  page: ComponentType<{ lang?: string; ctx: AppContext<C>; slugs: string[] }>;
+  notFound: ComponentType<{ lang?: string; ctx: AppContext<C> }>;
 
   /**
    * Define default props for page layouts, will be merged with current props.
    */
   defaultProps?: (
     this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
+    env: { lang: string | undefined },
   ) => Awaitable<Omit<BaseLayoutProps, "children">>;
 }
 
@@ -64,6 +58,14 @@ export interface I18nConfig<Lang extends string = string> extends Pick<
       translations?: TranslationsOption;
     };
   };
+}
+
+export interface MetaConfig<C extends ConfigContext = ConfigContext> {
+  /** render meta tags for any pages */
+  root?: (this: AppContext<C>) => ReactNode;
+
+  /** render meta tags for page */
+  page?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => ReactNode;
 }
 
 export interface SiteConfig {

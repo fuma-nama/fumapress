@@ -1,7 +1,11 @@
+import { OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
-import { getCreationDate, type AppContext } from "@/lib/shared";
-import path from "node:path";
-import type { ComponentType, ReactNode } from "react";
+import { cn } from "@/lib/cn";
+import { joinPathname } from "@/lib/join-pathname";
+import type { BlogIndexPage } from "@/plugins/blog";
+import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { ListIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "waku";
 
 export interface BlogIndexPageOptions {
@@ -9,59 +13,40 @@ export interface BlogIndexPageOptions {
   description?: ReactNode;
 }
 
-export type BlogIndexPage<C extends ConfigContext = ConfigContext> = ComponentType<
-  AppContext<C> & {
-    lang?: string;
-    indexPage: C["loaderConfig"]["page"];
-    blogDir: string;
-  }
->;
-
 export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
   heading,
   description,
 }: BlogIndexPageOptions = {}): BlogIndexPage<C> {
-  return async function BlogIndexPage(props) {
-    const { lang, getLoader, indexPage, blogDir } = props;
-    const source = await getLoader();
-
-    const currentDate = new Date(Date.now());
-    const postPromises: Promise<{
-      page: C["loaderConfig"]["page"];
-      date: Date;
-    }>[] = [];
-    for (const page of source.getPages(lang)) {
-      if (path.relative(blogDir, page.path).startsWith("..") || page === indexPage) continue;
-      const datePromise = Promise.resolve(getCreationDate(props, page));
-      postPromises.push(datePromise.then((date) => ({ page, date: date ?? currentDate })));
-    }
-    const posts = await Promise.all(postPromises);
-
-    posts.sort((a, b) => b.date.getTime() - a.date.getTime());
+  return async function BlogIndexPage({ lang, blog, ctx }) {
+    const source = await ctx.getLoader();
 
     return (
       <>
-        <div className="border-2 border-dashed border-fd-primary bg-fd-primary/10 p-4 z-2 md:p-8">
-          <h1 className="text-3xl font-semibold">{heading ?? indexPage.data.title ?? "Blog"}</h1>
-          <p className="mt-4 text-fd-primary overline decoration-fd-primary empty:hidden">
-            {description ?? indexPage.data.description}
+        <div className="flex flex-col gap-4 items-start border-2 border-dashed border-fd-primary rounded-xl bg-fd-primary/10 p-4 z-2 md:p-8">
+          <h1 className="text-3xl font-semibold">{heading ?? "Blog"}</h1>
+          <p className="text-fd-primary overline decoration-fd-primary empty:hidden">
+            {description}
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 mt-4 md:grid-cols-3 xl:grid-cols-4">
-          {posts.map(({ page: post, date }) => (
+          {blog.tagsPath !== false && (
             <Link
-              key={post.url}
-              to={post.url}
-              className="flex flex-col bg-fd-card rounded-2xl border shadow-sm p-4 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
+              to={lang ? joinPathname(lang, blog.tagsPath) : blog.tagsPath}
+              className={cn(
+                buttonVariants({
+                  variant: "primary",
+                }),
+                "gap-2",
+              )}
             >
-              <p className="font-medium">{post.data.title}</p>
-              <p className="text-sm text-fd-muted-foreground">{post.data.description}</p>
-
-              <p className="mt-auto pt-4 text-xs text-fd-primary">{date.toDateString()}</p>
+              <ListIcon className="size-4" />
+              All Tags
             </Link>
-          ))}
+          )}
         </div>
+
+        <OrderedBlogGrid
+          posts={source.getPages(lang).filter((page) => blog.isBlog.call(ctx, page))}
+          ctx={ctx}
+        />
       </>
     );
   };

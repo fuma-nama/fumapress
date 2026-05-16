@@ -1,4 +1,4 @@
-import type { BuildMode, Config, ConfigContext, I18nConfig, Layouts } from "@/config";
+import type { BuildMode, Config, ConfigContext, I18nConfig, Layouts, MetaConfig } from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import type { LoaderOutput, Page } from "fumadocs-core/source";
@@ -10,7 +10,7 @@ import { fumadocsMdx } from "@/adapters/mdx";
 import type { RootProviderProps } from "fumadocs-ui/provider/waku";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import createDeepmerge from "@fastify/deepmerge";
-import type { BlogLayoutContextData } from "@/layouts/blog";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -28,7 +28,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   data: AppContextData & Record<string, unknown>;
 
   i18nConfig?: I18nConfig<C["lang"]>;
-  metaConfig?: Config<C>["meta"];
+  metaConfig?: MetaConfig<C>;
   siteConfig: {
     name: string;
     baseUrl?: string;
@@ -43,7 +43,6 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
 
 export interface AppContextData {
   "core:page-meta"?: ((page: Page) => ReactNode)[];
-  "core:blog-layout"?: BlogLayoutContextData;
   "core:notebook-layout"?: NotebookLayoutContextData;
   "core:docs-layout"?: DocsLayoutContextData;
   "core:home-layout"?: HomeLayoutContextData;
@@ -110,6 +109,17 @@ export function getGitHubFileUrl<C extends ConfigContext>(
   if (p.startsWith("../")) return;
 
   return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
+}
+
+export function baseLayoutProps<C extends ConfigContext>(ctx: AppContext<C>) {
+  const { name, git } = ctx.siteConfig;
+
+  return {
+    githubUrl: git ? `https://github.com/${git.user}/${git.repo}` : undefined,
+    nav: {
+      title: name,
+    },
+  } satisfies BaseLayoutProps;
 }
 
 export type TransformChildren<T> = Omit<T, "children"> & {
