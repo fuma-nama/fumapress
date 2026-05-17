@@ -21,6 +21,7 @@
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
+    "./adapters/openapi": "./dist/adapters/openapi.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",
@@ -32,6 +33,7 @@
     "./plugins/blog": "./dist/plugins/blog.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
+    "./plugins/openapi": "./dist/plugins/openapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",
     "./router": "./dist/router.js",
@@ -66,7 +68,8 @@
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.8.0",
     "@types/react": "^19.2.14",
-    "fumadocs-mdx": "^15.0.5",
+    "fumadocs-mdx": "^15.0.6",
+    "fumadocs-openapi": "^10.8.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsdown": "0.22.0",
@@ -77,11 +80,15 @@
     "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-mdx": "^15.0.0",
+    "fumadocs-openapi": "^10.8.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "waku": "1.0.0-beta.0"
   },
   "peerDependenciesMeta": {
+    "fumadocs-openapi": {
+      "optional": true
+    },
     "@types/mdx": {
       "optional": true
     },

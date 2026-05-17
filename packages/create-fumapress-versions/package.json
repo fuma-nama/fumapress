@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "fumadocs-core": "^16.8.11",
-    "fumadocs-mdx": "^15.0.5",
+    "fumadocs-mdx": "^15.0.6",
     "fumadocs-ui": "^16.8.11",
     "fumapress": "workspace:*",
     "react": "^19.2.6",

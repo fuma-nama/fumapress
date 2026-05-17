@@ -54,7 +54,7 @@ export interface CreatePagesContext<C extends ConfigContext = ConfigContext> ext
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   /** receive & modify context */
-  init?: (this: AppContext<C>) => void;
+  init?: (this: AppContext<C>) => Awaitable<void>;
 
   createPages?: (this: CreatePagesContext<C>, fns: RouteFns) => Awaitable<void>;
 }

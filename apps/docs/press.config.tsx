@@ -32,7 +32,7 @@ export default defineConfig({
     git: {
       user: "fuma-nama",
       branch: "dev",
-      repo: "fumadocs",
+      repo: "fumapress",
     },
   },
   meta: {

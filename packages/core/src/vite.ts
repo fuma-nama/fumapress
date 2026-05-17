@@ -1,14 +1,23 @@
-import type { PluginOption } from "vite";
+import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "./lib/vitefu";
 
-export default function press(): PluginOption {
-  return pressCore();
+export interface PluginOptions {
+  /**
+   * Auto-generate Vite config to handle CJS bundling.
+   *
+   * @default true
+   */
+  generateViteConfig?: boolean;
 }
 
-function pressCore(): PluginOption {
+export default function press(options: PluginOptions = {}): Plugin {
+  const { generateViteConfig = true } = options;
+
   return {
     name: "fumapress:core",
     async config(_, { command }) {
+      if (!generateViteConfig) return;
+
       const out = await crawlFrameworkPkgs({
         root: process.cwd(),
         isBuild: command === "build",

@@ -19,7 +19,7 @@ export function createRouter<C extends ConfigContext>(
     const context = parseConfig<C>(userConfig);
 
     for (const plugin of context.plugins) {
-      plugin.init?.call(context);
+      await plugin.init?.call(context);
     }
 
     return {
