@@ -123,13 +123,16 @@ import { createRouter } from "fumapress/router";
 
 const router = createRouter(pressConfig);
 
-const pages = router.extend(async ({ createPage }) => [
+const pages = router.createPages(async ({ createPage }) => {
   // note: root element is already created by Fumapress
   createPage({
     render: "dynamic",
     path: "/hello-world",
-  }),
-]);
+    component() {
+      // ...
+    },
+  });
+});
 
 export default adapter(pages);
 ```

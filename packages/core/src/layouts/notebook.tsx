@@ -25,7 +25,6 @@ import {
   PageLastUpdate,
 } from "fumadocs-ui/layouts/notebook/page";
 import type { ReactNode } from "react";
-import { unstable_notFound } from "waku/router/server";
 
 export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> {
   render?: (

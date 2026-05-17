@@ -9,7 +9,6 @@ import {
 import type { Awaitable } from "@/lib/types";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { ReactNode } from "react";
-import { unstable_notFound } from "waku/router/server";
 import { Link } from "waku";
 import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";

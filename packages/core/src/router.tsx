@@ -3,13 +3,17 @@ import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
 import type { Config, ConfigContext, Layouts } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
-import { CreatePagesContext, RouteFns } from "./lib/types";
+import type { Awaitable, CreatePagesContext, RouteFns } from "./lib/types";
+
+type Options = Parameters<typeof waku.createPages>[1];
 
 export function createRouter<C extends ConfigContext>(
   userConfig: Config<C>,
 ): {
-  extend: typeof waku.createPages;
-  createPages: () => ReturnType<typeof waku.createPages>;
+  createPages: (
+    fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
+    options?: Options,
+  ) => ReturnType<typeof waku.createPages>;
 } {
   async function init(): Promise<{ context: AppContext<C> } & Layouts<C>> {
     const context = parseConfig<C>(userConfig);
@@ -28,7 +32,10 @@ export function createRouter<C extends ConfigContext>(
     };
   }
 
-  const createPages: typeof waku.createPages = (base, createPagesOptions) => {
+  const createPages = (
+    base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
+    createPagesOptions?: Options,
+  ) => {
     return waku.createPages(async (_fns) => {
       const { context, ...layouts } = await init();
 
@@ -55,7 +62,7 @@ export function createRouter<C extends ConfigContext>(
         },
       };
 
-      await base(fns);
+      await base?.call(context, fns);
       const resolved = new Set<C["loaderConfig"]["page"]>();
       const createPagesCtx: CreatePagesContext<C> = {
         ...context,
@@ -163,9 +170,6 @@ export function createRouter<C extends ConfigContext>(
   };
 
   return {
-    extend: createPages,
-    createPages() {
-      return createPages(() => null as never);
-    },
+    createPages,
   };
 }

@@ -59,12 +59,15 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   createPages?: (this: CreatePagesContext<C>, fns: RouteFns) => Awaitable<void>;
 }
 
-export interface RouteFns {
+export interface BaseRouteFns {
   createPage: CreatePage;
   createLayout: CreateLayout;
   createRoot: CreateRoot;
   createApi: CreateApi;
   createSlice: CreateSlice;
+}
+
+export interface RouteFns extends BaseRouteFns {
   createApiIsomorphic: (config: {
     render: "static" | "dynamic";
     path: string;
