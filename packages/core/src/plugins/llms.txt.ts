@@ -5,7 +5,10 @@ import { unstable_notFound } from "waku/router/server";
 import type { AppContext } from "@/lib/shared";
 
 export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
-  getLLMText?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => Awaitable<string>;
+  getLLMText?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<string | undefined>;
 }
 
 export function llmsPlugin<C extends ConfigContext = ConfigContext>(
@@ -20,8 +23,6 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
           return `# ${page.data.title} (${page.url})\n\n${txt}`;
         }
       }
-
-      throw new Error("[Fumapress] Please specify the `getLLMText()` option in llmsPlugin()");
     },
   } = options;
 
@@ -52,9 +53,9 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
         path: "/llms-full.txt",
         handler: async () => {
           const source = await this.getLoader();
-          const scan = source.getPages().map(getLLMText);
-          const scanned = await Promise.all(scan);
-          return new Response(scanned.join("\n\n"));
+          const scanned = await Promise.all(source.getPages().map(getLLMText));
+
+          return new Response(scanned.filter((item) => item !== undefined).join("\n\n"));
         },
       });
 
@@ -74,8 +75,10 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
             params.lang as string,
           );
           if (!page) unstable_notFound();
+          const txt = await getLLMText(page);
+          if (txt === undefined) unstable_notFound();
 
-          return new Response(await getLLMText(page), {
+          return new Response(txt, {
             headers: {
               "Content-Type": "text/markdown",
             },
