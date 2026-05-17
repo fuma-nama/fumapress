@@ -1,5 +1,13 @@
 # fumapress
 
+## 0.3.1
+
+### Patch Changes
+
+- 86467b7: rename `router.extend` to `router.createPages()`
+- b6e011e: fix mdx components option
+- 043dd3e: Add `page` to page renderers
+
 ## 0.3.0
 
 ### Minor Changes
