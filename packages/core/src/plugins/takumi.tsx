@@ -87,7 +87,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
   };
 }
 
-function slugsToImagePath(slugs: string[], lang?: string) {
+function slugsToImagePath(slugs: string[], lang: string | undefined) {
   const segments = [...slugs];
   if (segments.length === 0) {
     segments.push("index.webp");

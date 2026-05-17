@@ -53,11 +53,7 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
 ): BlogLayoutPage<C> {
   const { render } = options;
 
-  return async function BlogLayoutPage({ slugs, ctx, blog, lang }) {
-    const source = await ctx.getLoader();
-    const page = source.getPage(slugs, lang);
-    if (!page) unstable_notFound();
-
+  return async function BlogLayoutPage({ ctx, page, blog, lang }) {
     const tags = await getTags(ctx, page);
     const _raw = await render?.call(ctx, page);
     const result: BlogLayoutPageRenderData = {

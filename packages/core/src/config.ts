@@ -35,7 +35,12 @@ export interface Config<C extends ConfigContext = ConfigContext> {
 
 export interface Layouts<C extends ConfigContext = ConfigContext> {
   root: ComponentType<{ lang?: string; ctx: AppContext<C>; children: ReactNode }>;
-  page: ComponentType<{ lang?: string; ctx: AppContext<C>; slugs: string[] }>;
+  page: ComponentType<{
+    lang?: string;
+    slugs: string[];
+    ctx: AppContext<C>;
+    page: C["loaderConfig"]["page"];
+  }>;
   notFound: ComponentType<{ lang?: string; ctx: AppContext<C> }>;
 
   /**

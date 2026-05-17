@@ -2,7 +2,7 @@ import * as waku from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
 import type { Config, ConfigContext, Layouts } from "./config";
-import { unstable_redirect } from "waku/router/server";
+import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import { CreatePagesContext, RouteFns } from "./lib/types";
 
 export function createRouter<C extends ConfigContext>(
@@ -68,7 +68,13 @@ export function createRouter<C extends ConfigContext>(
       }
 
       const source = await context.getLoader();
-      const pendingPages = source.getPages().filter((page) => !resolved.has(page));
+      const staticPaths: string[][] = [];
+
+      for (const page of source.getPages()) {
+        if (resolved.has(page)) continue;
+        staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
+      }
+
       const defaultRenderMode = context.mode === "dynamic" ? "dynamic" : "static";
 
       if (context.i18nConfig) {
@@ -92,9 +98,13 @@ export function createRouter<C extends ConfigContext>(
         fns.createPage({
           render: defaultRenderMode,
           path: "/[lang]/[...slugs]",
-          staticPaths: pendingPages.map((page) => [page.locale!, ...page.slugs]),
-          component({ slugs, lang }) {
-            return <layouts.page lang={lang} slugs={slugs} ctx={context} />;
+          staticPaths,
+          async component({ slugs, lang }) {
+            const source = await context.getLoader();
+            const page = source.getPage(slugs, lang);
+            if (!page || resolved.has(page)) unstable_notFound();
+
+            return <layouts.page lang={lang} slugs={slugs} page={page} ctx={context} />;
           },
         });
 
@@ -128,9 +138,13 @@ export function createRouter<C extends ConfigContext>(
         fns.createPage({
           render: defaultRenderMode,
           path: "/[...slugs]",
-          staticPaths: pendingPages.map((page) => page.slugs),
-          component({ slugs }) {
-            return <layouts.page slugs={slugs} ctx={context} />;
+          staticPaths,
+          async component({ slugs }) {
+            const source = await context.getLoader();
+            const page = source.getPage(slugs);
+            if (!page || resolved.has(page)) unstable_notFound();
+
+            return <layouts.page slugs={slugs} page={page} ctx={context} />;
           },
         });
 

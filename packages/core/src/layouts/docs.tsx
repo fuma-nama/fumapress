@@ -61,15 +61,13 @@ export function createDocsLayoutPage<C extends ConfigContext = ConfigContext>({
   const TDocsLayout = createTransformChildren(DocsLayout);
   const TDocsPage = createTransformChildren(DocsPage);
 
-  return async function Layout({ slugs, lang, ctx }) {
+  return async function Layout({ lang, page, ctx }) {
     const {
       getLoader,
       layouts,
       data: { "core:docs-layout": layoutData },
     } = ctx;
     const source = await getLoader();
-    const page = source.getPage(slugs, lang);
-    if (!page) unstable_notFound();
 
     async function getLayoutProps(
       overrides?: Partial<TransformChildren<DocsLayoutProps>>,

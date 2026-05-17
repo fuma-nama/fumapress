@@ -7,6 +7,7 @@ import { type AppContext } from "@/lib/shared";
 import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
 import type { ServerPlugin } from "@/lib/types";
 import type { ComponentType, ReactNode } from "react";
+import { unstable_notFound } from "waku/router/server";
 
 export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   /** default to checking from `page.type` */
@@ -54,6 +55,7 @@ export interface BlogContext<C extends ConfigContext> {
 export type BlogLayoutPage<C extends ConfigContext = ConfigContext> = ComponentType<{
   lang?: string;
   slugs: string[];
+  page: C["loaderConfig"]["page"];
   blog: BlogContext<C>;
   ctx: AppContext<C>;
 }>;
@@ -127,8 +129,12 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           render: renderMode,
           path: "/[lang]/(blog)/[...slugs]",
           staticPaths: blogPages.map((page) => [page.locale!, ...page.slugs]),
-          component: ({ slugs, lang }) => {
-            return <Page lang={lang} slugs={slugs} blog={blogCtx} ctx={this} />;
+          component: async ({ slugs, lang }) => {
+            const source = await this.getLoader();
+            const page = source.getPage(slugs, lang);
+            if (!page || !isBlog.call(this, page)) unstable_notFound();
+
+            return <Page lang={lang} slugs={slugs} blog={blogCtx} page={page} ctx={this} />;
           },
         });
 
@@ -192,8 +198,12 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           render: renderMode,
           path: "/(blog)/[...slugs]",
           staticPaths: blogPages.map((page) => page.slugs),
-          component: ({ slugs }) => {
-            return <Page blog={blogCtx} slugs={slugs} ctx={this} />;
+          component: async ({ slugs }) => {
+            const source = await this.getLoader();
+            const page = source.getPage(slugs);
+            if (!page || !isBlog.call(this, page)) unstable_notFound();
+
+            return <Page blog={blogCtx} slugs={slugs} page={page} ctx={this} />;
           },
         });
 
@@ -228,7 +238,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           createPage({
             path: joinPathname("/(blog)", blogCtx.tagsPath, "[tag]") as "/[tag]",
             render: renderMode,
-            staticPaths: grouped ? Array.from(grouped.keys()) : [],
+            staticPaths: Array.from(grouped.keys()),
             component: ({ tag }) => {
               return <TagPage tag={tag} blog={blogCtx} ctx={this} />;
             },

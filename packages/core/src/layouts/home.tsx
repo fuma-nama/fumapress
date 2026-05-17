@@ -41,15 +41,11 @@ export function createHomeLayoutPage<C extends ConfigContext = ConfigContext>({
 }: HomeLayoutPageOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   const THomeLayout = createTransformChildren(HomeLayout);
 
-  return async function Layout({ slugs, lang, ctx }) {
+  return async function Layout({ lang, page, ctx }) {
     const {
-      getLoader,
       layouts,
       data: { "core:home-layout": layoutData },
     } = ctx;
-    const source = await getLoader();
-    const page = source.getPage(slugs, lang);
-    if (!page) unstable_notFound();
 
     async function getLayoutProps(
       overrides?: TransformChildren<HomeLayoutProps>,
