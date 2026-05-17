@@ -8,6 +8,9 @@ import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { blogPlugin } from "fumapress/plugins/blog";
+import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
+import { Card, Cards } from "fumadocs-ui/components/card";
+import path from "node:path";
 
 export default defineConfig({
   mode: "static",
@@ -48,7 +51,37 @@ export default defineConfig({
     },
   },
 })
-  .useAdapters(fumadocsMdx())
+  .useAdapters(
+    fumadocsMdx({
+      async getMdxComponents(page) {
+        const source = await this.getLoader();
+
+        return {
+          ...defaultMdxComponents,
+          a: createRelativeLink(source, page),
+          DocsCategory() {
+            const dir = path.dirname(page.path);
+            const items = source
+              .getPages(page.locale)
+              .filter(
+                (item) =>
+                  item.path !== page.path && !path.relative(dir, item.path).startsWith(".."),
+              );
+
+            return (
+              <Cards>
+                {items.map((item) => (
+                  <Card key={item.path} href={item.url} title={item.data.title}>
+                    {item.data.description}
+                  </Card>
+                ))}
+              </Cards>
+            );
+          },
+        };
+      },
+    }),
+  )
   .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), blogPlugin())
   .useLayouts({
     defaultProps() {
