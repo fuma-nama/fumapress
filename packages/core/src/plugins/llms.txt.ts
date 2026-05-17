@@ -76,9 +76,8 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
           );
           if (!page) unstable_notFound();
           const txt = await getLLMText(page);
-          if (txt === undefined) unstable_notFound();
 
-          return new Response(txt, {
+          return new Response(txt ?? "", {
             headers: {
               "Content-Type": "text/markdown",
             },
