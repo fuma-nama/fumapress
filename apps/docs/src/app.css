@@ -4,7 +4,7 @@
 @import "fumapress/css/preset.css";
 
 @theme {
-  --font-mono: "Geist Mono", monospace;
+  --font-mono: "JetBrains Mono", monospace;
   --default-font-family: "Geist", sans-serif;
 
   --color-fd-primary: oklch(55.639% 0.16448 43.087);

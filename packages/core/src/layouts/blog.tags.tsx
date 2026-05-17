@@ -1,11 +1,8 @@
 import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
-import { cn } from "@/lib/cn";
-import { joinPathname } from "@/lib/join-pathname";
 import { getTags, groupTags } from "@/lib/shared/blog";
 import { BlogTagPage, BlogTagsPage } from "@/plugins/blog";
-import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import { ListIcon, NewspaperIcon, TagIcon } from "lucide-react";
+import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "waku";
 
