@@ -17,7 +17,14 @@ export interface MdxAdapterOptions<C extends ConfigContext = ConfigContext> {
 export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
   options?: MdxAdapterOptions<C>,
 ): Adapter<C> {
-  const getMdxComponents = options?.getMdxComponents;
+  const getMdxComponents =
+    options?.getMdxComponents ??
+    async function (page) {
+      return {
+        ...defaultMdxComponents,
+        a: createRelativeLink(await this.getLoader(), page),
+      };
+    };
 
   return {
     async "core:get-text"(page) {
@@ -40,17 +47,9 @@ export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
         body = (await page.data.load()).body;
       } else return;
 
-      return createElement(
-        body,
-        getMdxComponents
-          ? await getMdxComponents.call(this, page)
-          : {
-              components: {
-                ...defaultMdxComponents,
-                a: createRelativeLink(await this.getLoader(), page),
-              },
-            },
-      );
+      return createElement(body, {
+        components: await getMdxComponents.call(this, page),
+      });
     },
     async "core:render-toc"(page) {
       if (isSyncEntry(page.data)) return page.data.toc;
