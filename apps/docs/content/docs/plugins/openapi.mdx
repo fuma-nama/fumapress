@@ -1,0 +1,89 @@
+---
+title: OpenAPI
+description: Build API documentations with Fumapress.
+---
+
+## Installation
+
+```npm
+npm i fumadocs-openapi shiki
+```
+
+Create the renderer for API pages:
+
+```tsx title="src/components/api.tsx"
+"use client";
+import { createClientAPIPage } from "fumadocs-openapi/ui/create-client";
+
+export const ClientAPIPage = createClientAPIPage();
+```
+
+Configure the plugin:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { loader } from "fumadocs-core/source";
+import { docs } from "./.source/server";
+// [!code ++:4]
+import path from "node:path";
+import { createOpenAPI, openapiSource } from "fumadocs-openapi/server";
+import { ClientAPIPage } from "./src/components/api";
+import { openapiPlugin, openapiLoaderPlugin } from "fumapress/plugins/openapi";
+
+// [!code ++:4]
+const openapi = createOpenAPI({
+  // path or URL to your OpenAPI spec
+  input: [path.resolve("./openapi.json")],
+});
+
+export default defineConfig({
+  loader: loader(
+    {
+      docs: docs.toFumadocsSource(),
+      // [!code ++]
+      openapi: await openapiSource(openapi),
+    },
+    {
+      baseUrl: "/",
+      // loader plugin [!code ++]
+      plugins: [openapiLoaderPlugin()],
+    },
+  ),
+})
+  // fumapress plugin [!code ++]
+  .usePlugins(openapiPlugin({ ClientAPIPage }));
+```
+
+Update the path/URL to your OpenAPI spec (e.g. `./openapi.json`), the API pages will be automatically generated based on your spec.
+
+## Options
+
+### `openapiSource()`
+
+It support a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/openapi/generate-files).
+
+<Callout title="How to customize its output file structure?">
+
+`openapiSource()` accepts a `baseDir` option. For example, the following will generate all API pages under the `(openapi)` folder:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { loader } from "fumadocs-core/source";
+import { docs } from "./.source/server";
+import { openapiSource } from "fumadocs-openapi/server";
+
+export default defineConfig({
+  loader: loader(
+    {
+      docs: docs.toFumadocsSource(),
+      openapi: await openapiSource(openapi, {
+        // [!code highlight]
+        baseDir: "(openapi)",
+      }),
+    },
+    // ...
+  ),
+});
+```
+
+</Callout>

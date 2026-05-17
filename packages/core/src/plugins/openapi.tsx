@@ -32,4 +32,4 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
 /**
  * Note: the name `openapiPlugin` was originally taken by `fumadocs-openapi/server`, so this is provided to avoid conflicts in import names.
  */
-openapiPlugin.loaderPlugin = openapiLoaderPlugin;
+export { openapiLoaderPlugin };
