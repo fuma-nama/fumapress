@@ -1,16 +1,20 @@
-import type { BuildMode, Config, ConfigContext, I18nConfig, Layouts, MetaConfig } from "@/config";
+import type {
+  BuildMode,
+  ConfigBuilder,
+  ConfigContext,
+  I18nConfig,
+  Layouts,
+  MetaConfig,
+} from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
-import type { LoaderOutput, Page } from "fumadocs-core/source";
-import type { Awaitable, Adapter, ServerPlugin } from "./types";
-import type { DocsLayoutContextData } from "@/layouts/docs";
+import type { LoaderOutput } from "fumadocs-core/source";
+import type { Awaitable, Adapter, ServerPlugin, AppContextData, ServerPluginOption } from "./types";
 import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
-import type { HomeLayoutContextData } from "@/layouts/home";
 import { fumadocsMdx } from "@/adapters/mdx";
-import type { RootProviderProps } from "fumadocs-ui/provider/waku";
-import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { disableSearchPlugin } from "@/plugins/internal/disable-search";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -41,29 +45,36 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   };
 }
 
-export interface AppContextData {
-  "core:page-meta"?: ((page: Page) => ReactNode)[];
-  "core:notebook-layout"?: NotebookLayoutContextData;
-  "core:docs-layout"?: DocsLayoutContextData;
-  "core:home-layout"?: HomeLayoutContextData;
-  "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
-}
+export function parseConfig<C extends ConfigContext>(config: ConfigBuilder<C>): AppContext<C> {
+  let adapters = config.getAdapters();
+  if (adapters.length === 0) adapters = [fumadocsMdx()];
+  const ORDER = {
+    pre: -1,
+    post: 1,
+    _: 0,
+  };
 
-export function parseConfig<C extends ConfigContext>(config: Config<C>): AppContext<C> {
+  function resolvePlugins(plugins: ServerPluginOption<C>[]): ServerPlugin<C>[] {
+    const flat: ServerPlugin<C>[] = plugins.flat(Infinity as never);
+    flat.push(disableSearchPlugin());
+
+    return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
+  }
+
   return {
     getLoader() {
       if (typeof config.loader === "function") return config.loader();
 
       return config.loader;
     },
-    layouts: (config.layouts ?? {}) as never,
-    plugins: (config.plugins ?? []) as never,
-    adapters: (config.adapters ?? [fumadocsMdx()]) as never,
+    layouts: config.getLayouts(),
+    plugins: resolvePlugins(config.getPlugins()),
+    adapters,
     $context: undefined as never,
     data: {},
     i18nConfig: config.i18n,
     mode: config.mode ?? "default",
-    metaConfig: config.meta as Config<C>["meta"],
+    metaConfig: config.meta,
     siteConfig: {
       name: config.site?.name ?? "Fumapress",
       baseUrl: config.site?.baseUrl,

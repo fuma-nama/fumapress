@@ -1,3 +1,10 @@
 export * from "./config";
-export type { AppContext, AppContextData } from "./lib/shared";
-export type { ServerPlugin, Adapter, RouteFns } from "@/lib/types";
+export type { AppContext } from "./lib/shared";
+export type {
+  ServerPlugin,
+  Adapter,
+  RouteFns,
+  AppContextData,
+  CreatePagesContext,
+  ServerPluginOption,
+} from "@/lib/types";

@@ -1,7 +1,12 @@
 import type { ConfigContext } from "@/config";
+import type { DocsLayoutContextData } from "@/layouts/docs";
+import type { HomeLayoutContextData } from "@/layouts/home";
+import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { AppContext } from "@/lib/shared";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
+import type { Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
+import type { RootProviderProps } from "fumadocs-ui/provider/base";
 import type { ReactNode } from "react";
 import type {
   CreatePage,
@@ -53,6 +58,9 @@ export interface CreatePagesContext<C extends ConfigContext = ConfigContext> ext
 }
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
+  /** force change the order of plugin */
+  enforce?: "pre" | "post";
+
   /** receive & modify context */
   init?: (this: AppContext<C>) => Awaitable<void>;
 
@@ -77,4 +85,17 @@ export interface RouteFns extends BaseRouteFns {
       ctx: { params: Record<string, string | string[]> },
     ) => Promise<Response>;
   }) => void;
+}
+
+export type ServerPluginOption<C extends ConfigContext = ConfigContext> =
+  | ServerPlugin<C>
+  | ServerPluginOption<C>[];
+
+/** can be extended from other libraries */
+export interface AppContextData {
+  "core:page-meta"?: ((page: Page) => ReactNode)[];
+  "core:notebook-layout"?: NotebookLayoutContextData;
+  "core:docs-layout"?: DocsLayoutContextData;
+  "core:home-layout"?: HomeLayoutContextData;
+  "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
 }

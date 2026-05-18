@@ -1,6 +1,6 @@
 import type { AppContext } from "./lib/shared";
 import type { LoaderConfig, LoaderOutput } from "fumadocs-core/source";
-import type { Awaitable, ServerPlugin, Adapter } from "@/lib/types";
+import type { Awaitable, Adapter, ServerPluginOption } from "@/lib/types";
 import type { TranslationsOption } from "fumadocs-ui/contexts/i18n";
 import type { I18nConfig as CoreI18nConfig } from "fumadocs-core/i18n";
 import type { ComponentType, ReactNode } from "react";
@@ -25,12 +25,8 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   loader: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
 
   site?: SiteConfig;
-  layouts?: Partial<Layouts>;
-  plugins?: ServerPlugin[];
-  /** adapter for content sources, use `fumadocs-mdx` if not specified */
-  adapters?: Adapter[];
   i18n?: I18nConfig<C["lang"]>;
-  meta?: MetaConfig<C>;
+  meta?: MetaConfig<NoInfer<C>>;
 }
 
 export interface Layouts<C extends ConfigContext = ConfigContext> {
@@ -94,9 +90,14 @@ export interface I18nConfigBuilder<Lang extends string> extends I18nConfig<Lang>
 }
 
 export interface ConfigBuilder<C extends ConfigContext> extends Config<C> {
-  usePlugins: (...plugins: ServerPlugin<C>[]) => ConfigBuilder<C>;
+  getPlugins: () => ServerPluginOption<C>[];
+  getLayouts: () => Partial<Layouts<C>>;
+  getAdapters: () => Adapter<C>[];
+
+  usePlugins: (...plugins: ServerPluginOption<C>[]) => ConfigBuilder<C>;
   useLayouts: (layouts: Partial<Layouts<C>>) => ConfigBuilder<C>;
-  useAdapters: (...adapters: Adapter[]) => ConfigBuilder<C>;
+  /** Add adapter for content sources, use `fumadocs-mdx` if not specified */
+  useAdapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
 }
 
 export function defineConfig<C extends LoaderConfig, L extends string = string>(
@@ -105,21 +106,39 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
     lang: L;
   }>,
 ): ConfigBuilder<{ loaderConfig: C; lang: L }> {
+  const plugins: ServerPluginOption<{ loaderConfig: C; lang: L }>[] = [];
+  const layouts: Partial<
+    Layouts<{
+      loaderConfig: C;
+      lang: L;
+    }>
+  > = {};
+  const adapters: Adapter<{
+    loaderConfig: C;
+    lang: L;
+  }>[] = [];
+
   return {
     ...config,
-    useAdapters(...adapters) {
-      this.adapters ??= [];
-      this.adapters.push(...adapters);
+    getPlugins() {
+      return plugins;
+    },
+    getAdapters() {
+      return adapters;
+    },
+    getLayouts() {
+      return layouts;
+    },
+    useAdapters(...values) {
+      adapters.push(...values);
       return this;
     },
-    useLayouts(layouts) {
-      this.layouts ??= {};
-      Object.assign(this.layouts, layouts);
+    useLayouts(overrides) {
+      Object.assign(layouts, overrides);
       return this;
     },
-    usePlugins(...plugins) {
-      this.plugins ??= [];
-      this.plugins.push(...(plugins as unknown as ServerPlugin[]));
+    usePlugins(...values) {
+      plugins.push(...values);
       return this;
     },
   };

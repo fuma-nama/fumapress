@@ -28,14 +28,15 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
 }: OramaSearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
   return {
     init() {
-      if (this.mode === "static") {
-        const hooks = (this.data["core:provider"] ??= []);
-        hooks.push(async (props) => {
-          props.search ??= {};
+      const hooks = (this.data["core:provider"] ??= []);
+
+      hooks.push(async (props) => {
+        props.search ??= { enabled: true };
+        if (this.mode === "static") {
           props.search.SearchDialog ??= (await import("@/components/orama-search-static")).default;
-          return props;
-        });
-      }
+        }
+        return props;
+      });
     },
     async createPages({ createApiIsomorphic }) {
       const { createFromSource } = await import("fumadocs-core/search/server");

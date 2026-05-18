@@ -1,14 +1,14 @@
 import * as waku from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
-import type { Config, ConfigContext, Layouts } from "./config";
+import type { ConfigBuilder, ConfigContext, Layouts } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, CreatePagesContext, RouteFns } from "./lib/types";
 
 type Options = Parameters<typeof waku.createPages>[1];
 
 export function createRouter<C extends ConfigContext>(
-  userConfig: Config<C>,
+  userConfig: ConfigBuilder<C>,
 ): {
   createPages: (
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
