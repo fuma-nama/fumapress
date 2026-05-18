@@ -1,7 +1,7 @@
 import * as waku from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
-import type { ConfigBuilder, ConfigContext, Layouts } from "./config";
+import type { ConfigBuilder, ConfigContext } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
 
@@ -15,21 +15,14 @@ export function createRouter<C extends ConfigContext>(
     options?: Options,
   ) => ReturnType<typeof waku.createPages>;
 } {
-  async function init(): Promise<{ context: AppContext<C> } & Layouts<C>> {
-    const context = parseConfig<C>(userConfig);
+  async function init(): Promise<AppContext<C>> {
+    const context = await parseConfig<C>(userConfig);
 
     for (const plugin of context.plugins) {
       await plugin.init?.call(context);
     }
 
-    return {
-      context,
-      root: context.layouts.root ?? (await import("./layouts/root")).createRootLayout<C>(),
-      page: context.layouts.page ?? (await import("./layouts/docs")).createDocsLayoutPage<C>(),
-      notFound:
-        context.layouts.notFound ??
-        (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
-    };
+    return context;
   }
 
   const createPages = (
@@ -37,7 +30,8 @@ export function createRouter<C extends ConfigContext>(
     createPagesOptions?: Options,
   ) => {
     return waku.createPages(async (_fns) => {
-      const { context, ...layouts } = await init();
+      const context = await init();
+      const layouts = context.layouts;
 
       const fns: RouteFns = {
         ..._fns,

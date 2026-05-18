@@ -21,7 +21,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   getLoader: () => Awaitable<LoaderOutput<C["loaderConfig"]>>;
   plugins: ServerPlugin<C>[];
   adapters: Adapter<C>[];
-  layouts: Partial<Layouts<C>>;
+  layouts: Layouts<C>;
 
   /** always `undefined`, easier way to infer types */
   $context: C;
@@ -45,7 +45,9 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   };
 }
 
-export function parseConfig<C extends ConfigContext>(config: ConfigBuilder<C>): AppContext<C> {
+export async function parseConfig<C extends ConfigContext>(
+  config: ConfigBuilder<C>,
+): Promise<AppContext<C>> {
   let adapters = config.getAdapters();
   if (adapters.length === 0) adapters = [fumadocsMdx()];
   const ORDER = {
@@ -61,13 +63,20 @@ export function parseConfig<C extends ConfigContext>(config: ConfigBuilder<C>): 
     return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
   }
 
+  const layouts = config.getLayouts();
   return {
     getLoader() {
       if (typeof config.loader === "function") return config.loader();
 
       return config.loader;
     },
-    layouts: config.getLayouts(),
+    layouts: {
+      root: layouts.root ?? (await import("@/layouts/root")).createRootLayout<C>(),
+      page: layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage<C>(),
+      notFound:
+        layouts.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
+    },
+
     plugins: resolvePlugins(config.getPlugins()),
     adapters,
     $context: undefined as never,

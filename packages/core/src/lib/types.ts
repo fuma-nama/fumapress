@@ -64,7 +64,7 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
   /**
-   * Resolve the given page before passing to the page renderer:
+   * Resolve the given page before passing to the **default** page renderer:
    *
    * - `object`: replace the page object.
    * - `false`: render not found (will also exclude from static pre-rendering).
@@ -88,7 +88,7 @@ export interface RouteFns extends BaseRouteFns {
   createApiIsomorphic: (config: {
     render: "static" | "dynamic";
     path: string;
-    staticPaths?: string[][];
+    staticPaths?: string[] | string[][];
     handler: (
       req: Request,
       ctx: { params: Record<string, string | string[]> },

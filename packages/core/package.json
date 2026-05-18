@@ -21,7 +21,6 @@
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
-    "./adapters/openapi": "./dist/adapters/openapi.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",

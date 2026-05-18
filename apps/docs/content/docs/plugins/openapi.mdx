@@ -9,25 +9,15 @@ description: Build API documentations with Fumapress.
 npm i fumadocs-openapi shiki
 ```
 
-Create the renderer for API pages:
-
-```tsx title="src/components/api.tsx"
-"use client";
-import { createClientAPIPage } from "fumadocs-openapi/ui/create-client";
-
-export const ClientAPIPage = createClientAPIPage();
-```
-
 Configure the plugin:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
-// [!code ++:4]
+// [!code ++:3]
 import path from "node:path";
 import { createOpenAPI, openapiSource } from "fumadocs-openapi/server";
-import { ClientAPIPage } from "./src/components/api";
 import { openapiPlugin, openapiLoaderPlugin } from "fumapress/plugins/openapi";
 
 // [!code ++:4]
@@ -51,7 +41,7 @@ export default defineConfig({
   ),
 })
   // fumapress plugin [!code ++]
-  .usePlugins(openapiPlugin({ ClientAPIPage }));
+  .usePlugins(openapiPlugin({ server: openapi }));
 ```
 
 Update the path/URL to your OpenAPI spec (e.g. `./openapi.json`), the API pages will be automatically generated based on your spec.
@@ -87,3 +77,31 @@ export default defineConfig({
 ```
 
 </Callout>
+
+### Client UI
+
+Create the renderer for API pages explicitly:
+
+```tsx title="src/components/api.tsx"
+"use client";
+import { createClientAPIPage } from "fumadocs-openapi/ui/create-client";
+
+export const ClientAPIPage = createClientAPIPage();
+```
+
+And import it from the OpenAPI plugin:
+
+```tsx title="press.config.tsx"
+// [!code ++]
+import { ClientAPIPage } from "./src/components/api";
+
+export default defineConfig({
+  // ...
+}).usePlugins(
+  openapiPlugin({
+    server: openapi,
+    // [!code ++]
+    ClientAPIPage,
+  }),
+);
+```

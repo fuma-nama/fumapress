@@ -7,7 +7,6 @@ import { createOpenAPI, openapiSource } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { ClientAPIPage } from "./src/api-page";
 import { openapiPlugin, openapiLoaderPlugin } from "fumapress/plugins/openapi";
 import path from "node:path";
 
@@ -43,4 +42,4 @@ export default defineConfig({
   },
 })
   .useAdapters(fumadocsMdx())
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), openapiPlugin({ ClientAPIPage }));
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), openapiPlugin({ server: openapi }));
