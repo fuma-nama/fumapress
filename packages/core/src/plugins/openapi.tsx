@@ -1,6 +1,6 @@
 import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import type { ServerPlugin } from "@/lib/types";
+import type { Awaitable, ServerPlugin } from "@/lib/types";
 import { openapiPlugin as openapiLoaderPlugin } from "fumadocs-openapi/server";
 import type { Adapter } from "@/lib/types";
 import type { OpenAPIPageData, OpenAPIServer } from "fumadocs-openapi/server";
@@ -13,6 +13,9 @@ export interface OpenAPIOptions {
   server: OpenAPIServer;
   /** must be a client component */
   ClientAPIPage?: FC<ClientApiPageProps>;
+
+  /** create proxy server */
+  createProxy?: boolean | (() => Awaitable<ReturnType<OpenAPIServer["createProxy"]>>);
 }
 
 /**
@@ -39,12 +42,12 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
     resolvePage(page) {
       if (isOpenAPI(page.data)) return false;
     },
-    async createPages({ createPage, createLayout }) {
-      const { server } = options;
+    async createPages({ createPage, createLayout, createApi }) {
+      const { server, createProxy } = options;
       const renderMode = this.mode === "dynamic" ? "dynamic" : "static";
 
       createLayout({
-        path: "/(openapi)",
+        path: this.i18nConfig ? "/[lang]/(openapi)" : "/(openapi)",
         render: renderMode,
         async component({ children }) {
           const payload: PayloadObject = {};
@@ -76,6 +79,27 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
           return <this.layouts.page slugs={slugs} page={page} ctx={this} />;
         },
       });
+
+      if (createProxy) {
+        const proxyUrl = server.options.proxyUrl;
+        if (!proxyUrl)
+          throw new Error(
+            `[Fumapress] The "proxyUrl" option in createOpenAPI() is required to create proxy server`,
+          );
+        if (this.mode === "static")
+          throw new Error(`[Fumapress] static mode is not compatible with proxy server`);
+
+        const proxy =
+          typeof createProxy === "function" ? await createProxy() : server.createProxy();
+
+        createApi({
+          path: proxyUrl,
+          render: "dynamic",
+          handlers: {
+            all: proxy.handle,
+          },
+        });
+      }
     },
   };
 }

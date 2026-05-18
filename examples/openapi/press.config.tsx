@@ -12,10 +12,10 @@ import path from "node:path";
 
 const openapi = createOpenAPI({
   input: [path.resolve("./scalar.yaml")],
+  proxyUrl: "/_proxy",
 });
 
 export default defineConfig({
-  mode: "static",
   loader: loader(
     {
       docs: docs.toFumadocsSource(),
@@ -42,4 +42,9 @@ export default defineConfig({
   },
 })
   .useAdapters(fumadocsMdx())
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), openapiPlugin({ server: openapi }));
+  .usePlugins(
+    flexsearchPlugin(),
+    llmsPlugin(),
+    takumiPlugin(),
+    openapiPlugin({ server: openapi, createProxy: true }),
+  );

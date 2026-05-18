@@ -105,3 +105,28 @@ export default defineConfig({
   }),
 );
 ```
+
+### Proxy Server
+
+To create the [Proxy Server](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy), update your server & plugin options:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createOpenAPI } from "fumadocs-openapi/server";
+import { openapiPlugin } from "fumapress/plugins/openapi";
+
+const openapi = createOpenAPI({
+  // [!code ++]
+  proxyUrl: "/_proxy",
+});
+
+export default defineConfig({
+  // ...
+}).usePlugins(
+  openapiPlugin({
+    server: openapi,
+    // [!code ++]
+    createProxy: true,
+  }),
+);
+```
