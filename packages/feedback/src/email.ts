@@ -1,5 +1,5 @@
 import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { ConfigContext, ServerPlugin, ServerPluginOption } from "fumapress";
 import { feedbackPlugin } from ".";
 import { onPageFeedbackAction, onTextFeedbackAction } from "./email.client";
 
@@ -49,7 +49,7 @@ async function sendResendEmail(opts: {
 
 export function emailFeedbackPlugin<C extends ConfigContext = ConfigContext>(
   options: EmailFeedbackPluginOptions,
-): ServerPlugin<C> {
+): ServerPluginOption<C> {
   const { apiKey, from, beforeRequest } = options;
   const to = Array.isArray(options.to) ? options.to : [options.to];
   const subjectPrefix = options.subjectPrefix ?? "[Docs feedback]";
@@ -59,11 +59,9 @@ export function emailFeedbackPlugin<C extends ConfigContext = ConfigContext>(
     onTextFeedbackAction,
   });
 
-  return {
-    ...base,
-    createPages(fns) {
-      const { createApi } = fns;
-
+  const additional: ServerPlugin<C> = {
+    name: "feedback:email",
+    createPages({ createApi }) {
       if (this.mode === "static")
         throw new Error(
           "[@fumapress/feedback] Email integration is not compatible with static mode",
@@ -128,8 +126,8 @@ export function emailFeedbackPlugin<C extends ConfigContext = ConfigContext>(
           },
         },
       });
-
-      return base.createPages?.call(this, fns);
     },
   };
+
+  return [base, additional];
 }

@@ -37,6 +37,7 @@ export function feedbackPlugin<C extends ConfigContext = ConfigContext>(
     });
   }
   return {
+    name: "feedback:main",
     async init() {
       initRenderers((this.data["core:docs-layout"] ??= {}));
       initRenderers((this.data["core:notebook-layout"] ??= {}) as never);

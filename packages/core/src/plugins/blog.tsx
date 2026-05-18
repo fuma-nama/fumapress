@@ -98,6 +98,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
   };
 
   return {
+    name: "core:blog",
     async createPages({ createPage, createLayout }) {
       const renderMode = this.mode === "dynamic" ? "dynamic" : "static";
       const source = await this.getLoader();

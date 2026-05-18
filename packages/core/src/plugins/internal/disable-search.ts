@@ -3,6 +3,7 @@ import type { ServerPlugin } from "@/lib/types";
 
 export function disableSearchPlugin<C extends ConfigContext>(): ServerPlugin<C> {
   return {
+    name: "core:disable-search-if-needed",
     enforce: "post",
     init() {
       const hooks = (this.data["core:provider"] ??= []);

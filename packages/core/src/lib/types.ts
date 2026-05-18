@@ -58,6 +58,8 @@ export interface CreatePagesContext<C extends ConfigContext = ConfigContext> ext
 }
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
+  name?: string;
+
   /** force change the order of plugin */
   enforce?: "pre" | "post";
 

@@ -27,6 +27,7 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
   },
 }: OramaSearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
   return {
+    name: "core:orama-search",
     init() {
       const hooks = (this.data["core:provider"] ??= []);
 

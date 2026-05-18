@@ -29,6 +29,7 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
   }
 
   return {
+    name: "ai:main",
     init() {
       if (configureUI) {
         initRenderers((this.data["core:docs-layout"] ??= {}));

@@ -27,6 +27,7 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
   },
 }: FlexsearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
   return {
+    name: "core:flexsearch",
     init() {
       const hooks = (this.data["core:provider"] ??= []);
 

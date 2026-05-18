@@ -1,6 +1,6 @@
 import { App, Octokit } from "octokit";
 import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { ConfigContext, ServerPlugin, ServerPluginOption } from "fumapress";
 import { feedbackPlugin } from ".";
 import { onPageFeedbackAction, onTextFeedbackAction } from "./github.client";
 
@@ -33,7 +33,7 @@ interface RepositoryInfo {
 
 export function githubFeedbackPlugin<C extends ConfigContext = ConfigContext>(
   options: GitHubFeedbackPluginOptions,
-): ServerPlugin<C> {
+): ServerPluginOption<C> {
   const { beforeRequest } = options;
   const { owner, repo, category: FeedbackCategory } = options.storage;
   let instance: Promise<Octokit> | undefined;
@@ -149,11 +149,9 @@ export function githubFeedbackPlugin<C extends ConfigContext = ConfigContext>(
     onTextFeedbackAction,
   });
 
-  return {
-    ...base,
-    createPages(fns) {
-      const { createApi } = fns;
-
+  const additional: ServerPlugin<C> = {
+    name: "feedback:github",
+    createPages({ createApi }) {
       if (this.mode === "static")
         throw new Error(
           "[@fumapress/feedback] GitHub integration is not compatiable with static mode",
@@ -205,8 +203,8 @@ export function githubFeedbackPlugin<C extends ConfigContext = ConfigContext>(
           },
         },
       });
-
-      return base.createPages?.call(this, fns);
     },
   };
+
+  return [base, additional];
 }

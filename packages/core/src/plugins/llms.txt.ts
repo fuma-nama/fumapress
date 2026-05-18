@@ -27,6 +27,7 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
   } = options;
 
   return {
+    name: "core:llms.txt",
     init() {
       this.data["core:docs-layout"] ??= {};
       this.data["core:docs-layout"].renderers ??= [];

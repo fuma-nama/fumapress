@@ -21,6 +21,7 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
   }
 
   return {
+    name: "core:openapi",
     init() {
       this.adapters.push(fumadocsOpenAPI(options));
       initRenderers((this.data["core:docs-layout"] ??= {}));

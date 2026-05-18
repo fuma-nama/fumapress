@@ -35,6 +35,7 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
   const height = 630;
 
   return {
+    name: "core:takumi",
     init() {
       const hooks = (this.data["core:page-meta"] ??= []);
       hooks.push((page) => {
