@@ -12,7 +12,6 @@ import type { Awaitable } from "@/lib/types";
 import type { Page } from "fumadocs-core/source";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
 import type { ComponentType, ReactNode } from "react";
-import { unstable_notFound } from "waku/router/server";
 
 export interface HomeLayoutPageOptions<C extends ConfigContext = ConfigContext> {
   render?: (

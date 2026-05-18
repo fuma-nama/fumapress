@@ -7,7 +7,7 @@ import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type {
   CreatePage,
   CreateLayout,
@@ -52,11 +52,6 @@ export interface Adapter<C extends ConfigContext = ConfigContext> {
   ) => Awaitable<string[] | undefined>;
 }
 
-export interface CreatePagesContext<C extends ConfigContext = ConfigContext> extends AppContext<C> {
-  /** call this function if the page's route is already created by your plugin */
-  markResolved: (page: C["loaderConfig"]["page"]) => void;
-}
-
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   name?: string;
 
@@ -66,7 +61,19 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   /** receive & modify context */
   init?: (this: AppContext<C>) => Awaitable<void>;
 
-  createPages?: (this: CreatePagesContext<C>, fns: RouteFns) => Awaitable<void>;
+  createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
+
+  /**
+   * Resolve the given page before passing to the page renderer:
+   *
+   * - `object`: replace the page object.
+   * - `false`: render not found (will also exclude from static pre-rendering).
+   * - `undefined`: fallback to default.
+   */
+  resolvePage?: (
+    this: AppContext<C>,
+    page: C["loaderConfig"]["page"],
+  ) => Awaitable<C["loaderConfig"]["page"] | false | undefined>;
 }
 
 export interface BaseRouteFns {

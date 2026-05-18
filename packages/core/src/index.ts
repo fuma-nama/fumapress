@@ -5,6 +5,5 @@ export type {
   Adapter,
   RouteFns,
   AppContextData,
-  CreatePagesContext,
   ServerPluginOption,
 } from "@/lib/types";

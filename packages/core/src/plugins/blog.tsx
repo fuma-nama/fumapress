@@ -99,17 +99,13 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
 
   return {
     name: "core:blog",
+    resolvePage(page) {
+      if (isBlog.call(this, page)) return false;
+    },
     async createPages({ createPage, createLayout }) {
       const renderMode = this.mode === "dynamic" ? "dynamic" : "static";
       const source = await this.getLoader();
-      const blogPages: C["loaderConfig"]["page"][] = [];
-
-      for (const page of source.getPages()) {
-        if (!isBlog.call(this, page)) continue;
-
-        blogPages.push(page);
-        this.markResolved(page);
-      }
+      const blogPages = source.getPages().filter((page) => isBlog.call(this, page));
 
       const Layout = layouts.layout ?? createBlogLayout<C>();
       const Page = layouts.page ?? createBlogLayoutPage<C>();

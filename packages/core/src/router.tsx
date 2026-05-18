@@ -3,7 +3,7 @@ import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
 import type { ConfigBuilder, ConfigContext, Layouts } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
-import type { Awaitable, CreatePagesContext, RouteFns } from "./lib/types";
+import type { Awaitable, RouteFns } from "./lib/types";
 
 type Options = Parameters<typeof waku.createPages>[1];
 
@@ -62,27 +62,41 @@ export function createRouter<C extends ConfigContext>(
         },
       };
 
+      async function resolvePage(slugs: string[], lang?: string) {
+        const source = await context.getLoader();
+        let page = source.getPage(slugs, lang);
+        if (!page) unstable_notFound();
+
+        for (const plugin of context.plugins) {
+          const resolved: C["loaderConfig"]["page"] | false | undefined =
+            await plugin.resolvePage?.call(context, page);
+
+          if (typeof resolved === "object") page = resolved;
+          else if (resolved === false) unstable_notFound();
+        }
+
+        return page;
+      }
+
       await base?.call(context, fns);
-      const resolved = new Set<C["loaderConfig"]["page"]>();
-      const createPagesCtx: CreatePagesContext<C> = {
-        ...context,
-        markResolved(page) {
-          resolved.add(page);
-        },
-      };
+
       for (const plugin of context.plugins) {
-        await plugin.createPages?.call(createPagesCtx, fns);
+        await plugin.createPages?.call(context, fns);
       }
 
-      const source = await context.getLoader();
       const staticPaths: string[][] = [];
-
-      for (const page of source.getPages()) {
-        if (resolved.has(page)) continue;
-        staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
-      }
-
       const defaultRenderMode = context.mode === "dynamic" ? "dynamic" : "static";
+
+      if (defaultRenderMode === "static") {
+        outer: for (const page of (await context.getLoader()).getPages()) {
+          for (const plugin of context.plugins) {
+            const resolved = await plugin.resolvePage?.call(context, page);
+            if (resolved === false) continue outer;
+          }
+
+          staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
+        }
+      }
 
       if (context.i18nConfig) {
         fns.createRoot({
@@ -107,11 +121,14 @@ export function createRouter<C extends ConfigContext>(
           path: "/[lang]/[...slugs]",
           staticPaths,
           async component({ slugs, lang }) {
-            const source = await context.getLoader();
-            const page = source.getPage(slugs, lang);
-            if (!page || resolved.has(page)) unstable_notFound();
-
-            return <layouts.page lang={lang} slugs={slugs} page={page} ctx={context} />;
+            return (
+              <layouts.page
+                lang={lang}
+                slugs={slugs}
+                page={await resolvePage(slugs, lang)}
+                ctx={context}
+              />
+            );
           },
         });
 
@@ -147,11 +164,7 @@ export function createRouter<C extends ConfigContext>(
           path: "/[...slugs]",
           staticPaths,
           async component({ slugs }) {
-            const source = await context.getLoader();
-            const page = source.getPage(slugs);
-            if (!page || resolved.has(page)) unstable_notFound();
-
-            return <layouts.page slugs={slugs} page={page} ctx={context} />;
+            return <layouts.page slugs={slugs} page={await resolvePage(slugs)} ctx={context} />;
           },
         });
 
