@@ -1,0 +1,95 @@
+---
+title: Takumi
+description: Generate Open Graph images for your documentation pages.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Enable the plugin in your Fumapress config:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { takumiPlugin } from "fumapress/plugins/takumi";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .usePlugins(takumiPlugin());
+```
+
+The plugin creates a `.webp` Open Graph image for every docs page and adds the matching metadata:
+
+```html
+<meta property="og:image" content="/docs/page.webp" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="twitter:card" content="summary_large_image" />
+```
+
+The default image uses `fumadocs-ui/og/takumi` with the page title, description, and site name.
+
+<Callout type='warn'>
+
+Set `site.baseUrl` in your config to make `og:image` resolve to an absolute URL.
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    // [!code ++]
+    baseUrl: "https://press.fumadocs.dev",
+  },
+});
+```
+
+</Callout>
+
+## Options
+
+### `generate`
+
+Customize the image content or image response options:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { takumiPlugin } from "fumapress/plugins/takumi";
+
+export default defineConfig({
+  // ...
+}).usePlugins(
+  takumiPlugin({
+    generate(page) {
+      return {
+        node: (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              padding: 80,
+              background: "#111",
+              color: "white",
+            }}
+          >
+            <p>{this.siteConfig.name}</p>
+            <h1>{page.data.title}</h1>
+          </div>
+        ),
+        options: {
+          // passed to @takumi-rs/image-response
+          debug: false,
+        },
+      };
+    },
+  }),
+);
+```
+
+The image size is fixed at `1200x630`, and the response format is always `webp`.

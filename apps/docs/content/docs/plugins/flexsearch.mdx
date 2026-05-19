@@ -1,0 +1,62 @@
+---
+title: FlexSearch
+description: Add built-in full-text search with FlexSearch.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Enable the plugin in your Fumapress config:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .usePlugins(flexsearchPlugin());
+```
+
+The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
+In static mode, the search index is generated as static data.
+
+## Options
+
+### `buildIndex`
+
+By default, the plugin uses structured data from your configured adapters.
+Define `buildIndex` to customize the index fields:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+
+export default defineConfig({
+  // ...
+}).usePlugins(
+  flexsearchPlugin({
+    buildIndex(page) {
+      return {
+        id: page.url,
+        title: page.data.title,
+        description: page.data.description,
+        url: page.url,
+        structuredData: page.data.structuredData,
+        tag: page.path.split("/")[0],
+      };
+    },
+  }),
+);
+```
+
+The returned index must include `structuredData`. If your content source does not expose structured data,
+add it with a content adapter or provide it from your own page data.
+
+<Callout type="warn">
+  Enable only one search plugin at a time. `flexsearchPlugin()` and `oramaSearchPlugin()` both
+  create `/api/search`.
+</Callout>

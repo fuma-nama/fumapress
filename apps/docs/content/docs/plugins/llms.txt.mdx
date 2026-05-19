@@ -1,0 +1,56 @@
+---
+title: llms.txt
+description: Expose your documentation as LLM-friendly text files.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Enable the plugin in your Fumapress config:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .usePlugins(llmsPlugin());
+```
+
+The plugin creates:
+
+- `/llms.txt`: an index of your documentation pages.
+- `/llms-full.txt`: a combined text export of all pages.
+- `/*.md`: a markdown version for each page.
+
+It also adds the markdown URL to docs pages, so layouts can show a "Copy Markdown" or markdown link when supported.
+
+## Options
+
+### `getLLMText`
+
+By default, the plugin asks your configured adapters for each page's plain text content.
+If your content source does not expose text through an adapter, define `getLLMText` manually:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+
+export default defineConfig({
+  // ...
+}).usePlugins(
+  llmsPlugin({
+    getLLMText(page) {
+      return `# ${page.data.title} (${page.url})
+
+${page.data.description ?? ""}`;
+    },
+  }),
+);
+```
+
+Return `undefined` from `getLLMText` to exclude a page from `/llms-full.txt`.
