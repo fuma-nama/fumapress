@@ -71,6 +71,7 @@ export async function parseConfig<C extends ConfigContext>(
       return config.loader;
     },
     layouts: {
+      ...layouts,
       root: layouts.root ?? (await import("@/layouts/root")).createRootLayout<C>(),
       page: layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage<C>(),
       notFound:
