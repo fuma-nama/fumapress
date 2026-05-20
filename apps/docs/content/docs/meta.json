@@ -1,3 +1,5 @@
 {
-  "pages": ["[Rss][Blog](/blog)", "---Documentation---", "...", "!blog"]
+  "title": "Documentation",
+  "icon": "Book",
+  "root": true
 }

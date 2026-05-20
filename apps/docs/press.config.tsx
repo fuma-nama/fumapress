@@ -11,12 +11,38 @@ import { blogPlugin } from "fumapress/plugins/blog";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
+import Home from "./src/home";
+import { createHomeLayout } from "fumapress/layouts/home";
+import { BookIcon, RssIcon } from "lucide-react";
+import { createBlogLayout } from "fumapress/layouts/blog";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+
+function baseOptions() {
+  return {
+    links: [
+      {
+        url: "/docs",
+        text: "Documentation",
+        icon: <BookIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "/blog",
+        text: "Blog",
+        icon: <RssIcon />,
+        active: "nested-url",
+      },
+    ],
+  } satisfies BaseLayoutProps;
+}
 
 export default defineConfig({
   mode: "static",
   loader: loader(
     {
-      docs: docs.toFumadocsSource(),
+      docs: docs.toFumadocsSource({
+        baseDir: "docs",
+      }),
       blog: blog.toFumadocsSource({
         baseDir: "blog",
       }),
@@ -82,7 +108,37 @@ export default defineConfig({
       },
     }),
   )
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), blogPlugin())
+  .usePlugins(
+    flexsearchPlugin(),
+    llmsPlugin(),
+    takumiPlugin(),
+    blogPlugin({
+      layouts: {
+        layout: createBlogLayout({
+          render: () => ({ layoutProps: baseOptions() }),
+        }),
+      },
+    }),
+    {
+      createPages({ createPage }) {
+        const HomeLayout = createHomeLayout<(typeof this)["$context"]>({
+          render: () => ({
+            layoutProps: baseOptions(),
+          }),
+        });
+
+        createPage({
+          path: "/",
+          render: "static",
+          component: () => (
+            <HomeLayout ctx={this}>
+              <Home />
+            </HomeLayout>
+          ),
+        });
+      },
+    },
+  )
   .useLayouts({
     defaultProps() {
       return {
