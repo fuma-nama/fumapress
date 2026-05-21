@@ -2,7 +2,7 @@
 
 import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "shiki-magic-move/core";
 import { ShikiMagicMove } from "shiki-magic-move/react";
-import { createHighlighterCore } from "shiki/core";
+import { createHighlighterCoreSync } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import typescript from "shiki/langs/typescript.mjs";
 import vesper from "shiki/themes/vesper.mjs";
@@ -76,7 +76,7 @@ function createConfigCode(selected: readonly FeatureId[]) {
   ].join("\n");
 }
 
-const highlighter = await createHighlighterCore({
+const highlighter = createHighlighterCoreSync({
   engine: createJavaScriptRegexEngine(),
   themes: [vesper],
   langs: [typescript],
