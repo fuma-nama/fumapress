@@ -1,5 +1,18 @@
 # fumapress
 
+## 0.4.0
+
+### Minor Changes
+
+- 2e7bc34: Breaking: require `server` for OpenAPI plugin
+
+### Patch Changes
+
+- 7f4f577: Improve plugin system
+- c35796d: Support `resolvePage` hook in plugins
+- 3eb4adc: Support proxy server in OpenAPI plugin
+- e145b15: fix `defaultProps` being ignored
+
 ## 0.3.1
 
 ### Patch Changes
