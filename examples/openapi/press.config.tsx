@@ -3,11 +3,11 @@ import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
-import { createOpenAPI, openapiSource } from "fumadocs-openapi/server";
+import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { openapiPlugin, openapiLoaderPlugin } from "fumapress/plugins/openapi";
+import { openapiPlugin } from "fumapress/plugins/openapi";
 import path from "node:path";
 
 const openapi = createOpenAPI({
@@ -19,11 +19,11 @@ export default defineConfig({
   loader: loader(
     {
       docs: docs.toFumadocsSource(),
-      openapi: await openapiSource(openapi),
+      openapi: await openapi.staticSource(),
     },
     {
       baseUrl: "/",
-      plugins: [lucideIconsPlugin(), openapiLoaderPlugin()],
+      plugins: [lucideIconsPlugin(), openapi.loaderPlugin()],
     },
   ),
   meta: {

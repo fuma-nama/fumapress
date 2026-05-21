@@ -17,8 +17,8 @@ import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 // [!code ++:3]
 import path from "node:path";
-import { createOpenAPI, openapiSource } from "fumadocs-openapi/server";
-import { openapiPlugin, openapiLoaderPlugin } from "fumapress/plugins/openapi";
+import { createOpenAPI } from "fumadocs-openapi/server";
+import { openapiPlugin } from "fumapress/plugins/openapi";
 
 // [!code ++:4]
 const openapi = createOpenAPI({
@@ -31,12 +31,12 @@ export default defineConfig({
     {
       docs: docs.toFumadocsSource(),
       // [!code ++]
-      openapi: await openapiSource(openapi),
+      openapi: await openapi.staticSource(),
     },
     {
       baseUrl: "/",
       // loader plugin [!code ++]
-      plugins: [openapiLoaderPlugin()],
+      plugins: [openapi.loaderPlugin()],
     },
   ),
 })
@@ -48,25 +48,26 @@ Update the path/URL to your OpenAPI spec (e.g. `./openapi.json`), the API pages 
 
 ## Options
 
-### `openapiSource()`
+You can see [Fumadocs OpenAPI](https://www.fumadocs.dev/docs/integrations/openapi) for details of advanced options.
+
+### `openapi.staticSource()`
 
 It support a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/openapi/generate-files).
 
 <Callout title="How to customize its output file structure?">
 
-`openapiSource()` accepts a `baseDir` option. For example, the following will generate all API pages under the `(openapi)` folder:
+It accepts a `baseDir` option. For example, the following will generate all API pages under the `(openapi)` folder:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
-import { openapiSource } from "fumadocs-openapi/server";
 
 export default defineConfig({
   loader: loader(
     {
       docs: docs.toFumadocsSource(),
-      openapi: await openapiSource(openapi, {
+      openapi: await openapi.staticSource({
         // [!code highlight]
         baseDir: "(openapi)",
       }),
