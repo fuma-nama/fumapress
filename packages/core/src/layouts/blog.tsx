@@ -13,26 +13,11 @@ import { Link } from "waku";
 import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
 import { getTags } from "@/lib/shared/blog";
-import { createHomeLayout, type HomeLayoutOptions } from "./home";
-import { BlogLayout, BlogLayoutPage } from "@/plugins/blog";
+import type { BlogLayoutPage } from "@/plugins/blog";
 import { joinPathname } from "@/lib/join-pathname";
 import { LinkToHome } from "@/components/blog";
 
-export function createBlogLayout<C extends ConfigContext = ConfigContext>(
-  options?: HomeLayoutOptions<C>,
-): BlogLayout<C> {
-  const HomeLayout = createHomeLayout<C>(options);
-
-  return function BlogLayout({ children, ctx, lang }) {
-    return (
-      <HomeLayout lang={lang} ctx={ctx}>
-        <main className="flex flex-col w-full max-w-[1400px] flex-1 px-4 pt-6 pb-20 mx-auto">
-          {children}
-        </main>
-      </HomeLayout>
-    );
-  };
-}
+export { createHomeLayout as createBlogLayout } from "./home";
 
 export interface BlogLayoutPageRenderData {
   creationDate?: Date;
@@ -103,6 +88,7 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
         </div>
         <article className="prose mt-6 mx-auto w-full max-w-[900px]">{result.body}</article>
 
+        <div className="h-12" />
         <BlogPanel />
       </BlogProvider>
     );

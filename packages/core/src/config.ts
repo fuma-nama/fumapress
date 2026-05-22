@@ -40,7 +40,7 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
   notFound: ComponentType<{ lang?: string; ctx: AppContext<C> }>;
 
   /**
-   * Define default props for page layouts, will be merged with current props.
+   * Define default props for all Fumadocs layouts, will be deep-merged with current props.
    */
   defaultProps?: (
     this: AppContext<C>,
@@ -90,6 +90,8 @@ export interface I18nConfigBuilder<Lang extends string> extends I18nConfig<Lang>
 }
 
 export interface ConfigBuilder<C extends ConfigContext> extends Config<C> {
+  /** for type inference only, always `undefined` */
+  $context: C;
   getPlugins: () => ServerPluginOption<C>[];
   getLayouts: () => Partial<Layouts<C>>;
   getAdapters: () => Adapter<C>[];
@@ -120,6 +122,7 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
 
   return {
     ...config,
+    $context: undefined as never,
     getPlugins() {
       return plugins;
     },

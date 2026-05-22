@@ -8,8 +8,8 @@ import { AutoSetupCommand } from "./home.client";
 
 export default function Home() {
   return (
-    <main className="min-h-screen p-4">
-      <section className="relative grid grid-cols-1 min-h-[50vh] w-full mx-auto max-w-[1400px] border lg:grid-cols-2 lg:divide-x lg:divide-fd-border">
+    <>
+      <section className="relative grid grid-cols-1 min-h-[50vh] border lg:grid-cols-2 lg:divide-x lg:divide-fd-border">
         <div className="flex flex-col px-6 py-12 md:px-12 md:py-24">
           <p className="text-fd-muted-foreground">
             By <span className="text-fd-foreground">Fuma Nama</span>
@@ -59,6 +59,6 @@ export default function Home() {
       </section>
 
       <HomeConfigPlayground />
-    </main>
+    </>
   );
 }

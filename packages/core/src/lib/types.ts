@@ -7,7 +7,7 @@ import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type {
   CreatePage,
   CreateLayout,

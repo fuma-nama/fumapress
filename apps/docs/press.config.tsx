@@ -14,11 +14,9 @@ import path from "node:path";
 import Home from "./src/home";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { BookIcon, RssIcon } from "lucide-react";
-import { createBlogLayout } from "fumapress/layouts/blog";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-function baseOptions() {
-  return {
+const HomeLayout = createHomeLayout<(typeof config)["$context"]>({
+  layoutProps: {
     links: [
       {
         url: "/docs",
@@ -33,10 +31,10 @@ function baseOptions() {
         active: "nested-url",
       },
     ],
-  } satisfies BaseLayoutProps;
-}
+  },
+});
 
-export default defineConfig({
+const config = defineConfig({
   mode: "static",
   loader: loader(
     {
@@ -114,19 +112,11 @@ export default defineConfig({
     takumiPlugin(),
     blogPlugin({
       layouts: {
-        layout: createBlogLayout({
-          render: () => ({ layoutProps: baseOptions() }),
-        }),
+        layout: (props) => <HomeLayout {...props} />,
       },
     }),
     {
       createPages({ createPage }) {
-        const HomeLayout = createHomeLayout<(typeof this)["$context"]>({
-          render: () => ({
-            layoutProps: baseOptions(),
-          }),
-        });
-
         createPage({
           path: "/",
           render: "static",
@@ -171,3 +161,5 @@ export default defineConfig({
       }),
     }),
   });
+
+export default config;

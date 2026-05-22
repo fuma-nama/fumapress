@@ -27,6 +27,10 @@ import {
 import type { ReactNode } from "react";
 
 export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> {
+  inherit?: {
+    layoutProps?: boolean;
+  };
+
   render?: (
     this: AppContext<C> & { lang?: string },
     page: C["loaderConfig"]["page"],
@@ -56,6 +60,7 @@ export interface NotebookLayoutContextData {
 
 export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext>({
   render,
+  inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: NotebookLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   const TDocsLayout = createTransformChildren(DocsLayout);
   const TDocsPage = createTransformChildren(DocsPage);
@@ -68,18 +73,9 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
     } = ctx;
     const source = await getLoader();
 
-    async function getLayoutProps(
-      overrides?: Partial<TransformChildren<DocsLayoutProps>>,
-    ): Promise<TransformChildren<DocsLayoutProps>> {
-      const inherit = await layouts.defaultProps?.call(ctx, { lang });
-
-      return mergeLayoutConfigs(
-        { tree: source.getPageTree(lang) },
-        baseLayoutProps(ctx),
-        inherit,
-        overrides,
-      );
-    }
+    const inherited = inheritLayoutProps
+      ? await layouts.defaultProps?.call(ctx, { lang })
+      : undefined;
 
     const _raw = await render?.call(ctx, page);
     let result: NotebookLayoutRenderData = {
@@ -96,7 +92,12 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
           page,
           "[Fumapress] Please specify the `render` option in createNotebookLayoutPage()",
         )),
-      layoutProps: await getLayoutProps(_raw?.layoutProps),
+      layoutProps: mergeLayoutConfigs(
+        { tree: source.getPageTree(lang) },
+        baseLayoutProps(ctx),
+        inherited,
+        _raw?.layoutProps,
+      ),
     };
 
     if (layoutData?.renderers) {
