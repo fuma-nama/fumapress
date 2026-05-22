@@ -9,6 +9,7 @@ export default defineConfig({
   entry: [
     "src/{index,vite,i18n}.ts",
     "src/router.tsx",
+    "src/router/fs.tsx",
     "src/adapters/**",
     "src/{layouts,plugins}/*",
   ],

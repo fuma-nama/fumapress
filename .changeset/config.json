@@ -8,7 +8,7 @@
   ],
   "linked": [],
   "access": "restricted",
-  "baseBranch": "main",
+  "baseBranch": "dev",
   "updateInternalDependencies": "patch",
   "ignore": ["docs"]
 }

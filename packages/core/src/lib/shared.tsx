@@ -46,8 +46,6 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
 export async function parseConfig<C extends ConfigContext>(
   config: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
-  let adapters = config.getAdapters();
-  if (adapters.length === 0) adapters = [fumadocsMdx()];
   const ORDER = {
     pre: -1,
     post: 1,
@@ -77,7 +75,7 @@ export async function parseConfig<C extends ConfigContext>(
     },
 
     plugins: resolvePlugins(config.getPlugins()),
-    adapters,
+    adapters: config.getAdapters(),
     $context: undefined as never,
     data: {},
     i18nConfig:

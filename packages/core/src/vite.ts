@@ -68,12 +68,23 @@ export default function press(options: PluginOptions = {}): Plugin {
 }
 
 function getManagedServerEntry() {
+  const globPattern = `/src/pages/**/*.{ts,tsx,js,jsx}`;
+  const srcDirPrefix = `/src/`;
+
   return `import adapter from 'waku/adapters/default';
 import pressConfig from 'virtual:fumapress-core/config';
 import { createRouter } from 'fumapress/router';
+import { fsRouterFn } from 'fumapress/router/fs';
+
+const modules = Object.fromEntries(
+  Object.entries(import.meta.glob(${JSON.stringify(globPattern)})).map(
+    ([k, v]) => [k.slice(${srcDirPrefix.length}), v],
+  ),
+);
 
 const router = createRouter(pressConfig);
+const pages = router.createPages(fsRouterFn(modules));
 
-export default adapter(router.createPages());
+export default adapter(pages);
 `;
 }

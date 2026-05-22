@@ -234,7 +234,7 @@ export async function pkgNeedsOptimization(
   pkgJson: PackageJson,
   pkgJsonPath: string,
 ): Promise<boolean> {
-  if (pkgJson.module || pkgJson.exports) return false;
+  if (pkgJson.module || pkgJson.exports || pkgJson.type === "module") return false;
 
   if (pkgJson.main) {
     const entryExt = path.extname(pkgJson.main);

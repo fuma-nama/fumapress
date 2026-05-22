@@ -7,14 +7,14 @@ import type { Awaitable, RouteFns } from "./lib/types";
 
 type Options = Parameters<typeof waku.createPages>[1];
 
-export function createRouter<C extends ConfigContext>(
-  userConfig: ConfigBuilder<C>,
-): {
+export interface Router<C extends ConfigContext = ConfigContext> {
   createPages: (
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
   ) => ReturnType<typeof waku.createPages>;
-} {
+}
+
+export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
   async function init(): Promise<AppContext<C>> {
     const context = await parseConfig<C>(userConfig);
 
