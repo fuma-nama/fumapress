@@ -1,11 +1,4 @@
-import type {
-  BuildMode,
-  ConfigBuilder,
-  ConfigContext,
-  I18nConfig,
-  Layouts,
-  MetaConfig,
-} from "@/config";
+import type { BuildMode, ConfigBuilder, ConfigContext, Layouts, MetaConfig } from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import type { LoaderOutput } from "fumadocs-core/source";
@@ -15,6 +8,8 @@ import { fumadocsMdx } from "@/adapters/mdx";
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
+import type { Translations } from "fumadocs-ui/i18n";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -32,6 +27,9 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   data: AppContextData & Record<string, unknown>;
 
   i18nConfig?: I18nConfig<C["lang"]>;
+  translationsConfig?:
+    | TranslationsAPI<C["lang"], { ui: Translations }>
+    | SingularTranslationsAPI<{ ui: Translations }>;
   metaConfig?: MetaConfig<C>;
   siteConfig: {
     name: string;
@@ -82,7 +80,12 @@ export async function parseConfig<C extends ConfigContext>(
     adapters,
     $context: undefined as never,
     data: {},
-    i18nConfig: config.i18n,
+    i18nConfig:
+      config.i18n ??
+      (config.translations && "config" in config.translations
+        ? config.translations.config
+        : undefined),
+    translationsConfig: config.translations,
     mode: config.mode ?? "default",
     metaConfig: config.meta,
     siteConfig: {

@@ -35,8 +35,8 @@
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.8",
     "class-variance-authority": "^0.7.1",
-    "fumadocs-core": "^16.8.12",
-    "fumadocs-ui": "^16.8.12",
+    "fumadocs-core": "^16.9.0",
+    "fumadocs-ui": "^16.9.0",
     "fumapress": "workspace:*",
     "lucide-react": "^1.16.0",
     "octokit": "^5.0.5",

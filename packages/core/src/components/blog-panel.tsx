@@ -13,12 +13,14 @@ import { ChevronDown, ShareIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { cva } from "class-variance-authority";
 import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
+import { useFumapressTranslations } from "@/components/i18n";
 
 const panelButtonVariants = cva(
   "inline-flex items-center font-medium gap-2 px-3 py-2 transition-all duration-150 rounded-lg hover:text-fd-accent-foreground hover:bg-fd-accent active:scale-95",
 );
 
 export function BlogPanel() {
+  const t = useFumapressTranslations();
   const items = useTOCItems();
   const [open, setOpen] = useState(false);
   const [isSuccessful, onCopy] = useCopyButton(() => {
@@ -46,7 +48,7 @@ export function BlogPanel() {
       </CollapsibleContent>
       <div className="flex flex-row gap-2">
         <CollapsibleTrigger className={cn(panelButtonVariants(), "min-w-0")}>
-          <span className="truncate">Table of Contents</span>
+          <span className="truncate">{t.tableOfContents}</span>
           <ChevronDown
             className={cn(
               "size-3.5 shrink-0 text-fd-muted-foreground transition-transform",
@@ -59,7 +61,7 @@ export function BlogPanel() {
           onClick={onCopy}
         >
           <ShareIcon className="size-3.5 shrink-0" />
-          {isSuccessful ? "Copied" : "Share"}
+          {isSuccessful ? t.copied : t.share}
         </button>
       </div>
     </Collapsible>

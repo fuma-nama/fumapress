@@ -1,10 +1,10 @@
 import type { AppContext } from "./lib/shared";
 import type { LoaderConfig, LoaderOutput } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPluginOption } from "@/lib/types";
-import type { TranslationsOption } from "fumadocs-ui/contexts/i18n";
-import type { I18nConfig as CoreI18nConfig } from "fumadocs-core/i18n";
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { ComponentType, ReactNode } from "react";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import type { Translations } from "fumadocs-ui/i18n";
 
 export interface ConfigContext {
   loaderConfig: LoaderConfig;
@@ -25,7 +25,11 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   loader: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
 
   site?: SiteConfig;
+  /** this is optional if you have defined `translations` */
   i18n?: I18nConfig<C["lang"]>;
+  translations?:
+    | TranslationsAPI<C["lang"], { ui: Translations }>
+    | SingularTranslationsAPI<{ ui: Translations }>;
   meta?: MetaConfig<NoInfer<C>>;
 }
 
@@ -46,19 +50,6 @@ export interface Layouts<C extends ConfigContext = ConfigContext> {
     this: AppContext<C>,
     env: { lang: string | undefined },
   ) => Awaitable<Omit<BaseLayoutProps, "children">>;
-}
-
-export interface I18nConfig<Lang extends string = string> extends Pick<
-  CoreI18nConfig<NoInfer<Lang>>,
-  "defaultLanguage" | "fallbackLanguage" | "parser"
-> {
-  /** locale code -> language info */
-  languages: {
-    [K in Lang]: {
-      displayName: string;
-      translations?: TranslationsOption;
-    };
-  };
 }
 
 export interface MetaConfig<C extends ConfigContext = ConfigContext> {
@@ -82,11 +73,6 @@ export interface SiteConfig {
     /** the root directory of git repo */
     rootDir?: string;
   };
-}
-
-export interface I18nConfigBuilder<Lang extends string> extends I18nConfig<Lang> {
-  /** convert Fumapress i18n config to core i18n config */
-  toCore: () => CoreI18nConfig<Lang>;
 }
 
 export interface ConfigBuilder<C extends ConfigContext> extends Config<C> {
@@ -143,22 +129,6 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
     usePlugins(...values) {
       plugins.push(...values);
       return this;
-    },
-  };
-}
-
-export function defineI18nConfig<Lang extends string>(
-  config: I18nConfig<Lang>,
-): I18nConfigBuilder<Lang> {
-  return {
-    ...config,
-    toCore() {
-      return {
-        defaultLanguage: this.defaultLanguage,
-        fallbackLanguage: this.fallbackLanguage,
-        parser: this.parser,
-        languages: Object.keys(this.languages) as Lang[],
-      };
     },
   };
 }

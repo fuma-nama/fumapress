@@ -1,11 +1,12 @@
 import { ConfigContext } from "@/config";
 import { cn } from "@/lib/cn";
-import { joinPathname } from "@/lib/join-pathname";
 import { AppContext, getCreationDate } from "@/lib/shared";
-import { BlogContext } from "@/plugins/blog";
-import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import { CornerLeftUpIcon } from "lucide-react";
+import type { BlogContext } from "@/plugins/blog";
 import { Link } from "waku";
+import { I18nLabel } from "./i18n";
+import { CornerLeftUpIcon } from "lucide-react";
+import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { joinPathname } from "@/lib/join-pathname";
 
 export function BlogItem<C extends ConfigContext>({
   page,
@@ -73,7 +74,7 @@ export function LinkToHome<C extends ConfigContext>({
       )}
     >
       <CornerLeftUpIcon className="size-3.5" />
-      Back to Home
+      <I18nLabel label="backToHome" />
     </Link>
   );
 }

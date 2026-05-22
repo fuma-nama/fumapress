@@ -1,0 +1,55 @@
+{
+  "name": "@fumapress/language",
+  "version": "0.0.1",
+  "description": "Common language packs for Fumapress",
+  "keywords": [
+    "Docs",
+    "Fumadocs",
+    "Fumapress"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "./zh-cn": "./dist/zh-cn.js",
+    "./zh-tw": "./dist/zh-tw.js",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fumadocs/language": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "fumadocs-core": "^16.9.0",
+    "fumadocs-openapi": "^10.9.0",
+    "fumadocs-ui": "^16.9.0",
+    "fumapress": "workspace:*",
+    "tsdown": "0.22.0",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "fumadocs-core": "*",
+    "fumapress": "*"
+  },
+  "peerDependenciesMeta": {
+    "fumadocs-core": {
+      "optional": true
+    },
+    "fumapress": {
+      "optional": true
+    }
+  }
+}

@@ -21,6 +21,7 @@
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
+    "./i18n": "./dist/i18n.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",
@@ -54,11 +55,11 @@
     "@takumi-rs/image-response": "^1.3.0",
     "class-variance-authority": "^0.7.1",
     "flexsearch": "^0.8.212",
-    "fumadocs-core": "^16.8.12",
-    "fumadocs-ui": "^16.8.12",
+    "fumadocs-core": "^16.9.0",
+    "fumadocs-ui": "^16.9.0",
     "lucide-react": "^1.16.0",
     "tailwind-merge": "^3.6.0",
-    "vite": "^8.0.13",
+    "vite": "^8.0.14",
     "zod": "^4.4.3"
   },
   "devDependencies": {

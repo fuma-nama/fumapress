@@ -12,9 +12,9 @@
   "dependencies": {
     "@paper-design/shaders-react": "^0.0.76",
     "@radix-ui/react-tabs": "^1.1.13",
-    "fumadocs-core": "^16.8.12",
+    "fumadocs-core": "^16.9.0",
     "fumadocs-mdx": "^15.0.7",
-    "fumadocs-ui": "^16.8.12",
+    "fumadocs-ui": "^16.9.0",
     "fumapress": "workspace:*",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
@@ -33,6 +33,6 @@
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.13"
+    "vite": "^8.0.14"
   }
 }

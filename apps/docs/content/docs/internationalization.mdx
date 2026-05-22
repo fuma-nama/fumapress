@@ -10,38 +10,52 @@ import { File, Files, Folder } from "fumadocs-ui/components/files";
 
 To configure internationalization, define an i18n config:
 
-```ts title="press.config.ts"
-import { defineConfig, defineI18nConfig } from "fumapress";
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
 import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
+import { defineI18n } from "fumadocs-core/i18n";
+import { uiTranslations } from "fumadocs-ui/i18n";
+import { fumapressTranslations } from "fumapress/i18n";
 
-// [!code ++:14]
-const i18n = defineI18nConfig({
-  languages: {
-    cn: {
-      displayName: "Chinese",
-      translations: {
-        // add your translations
-      },
-    },
-    en: {
-      displayName: "English",
-    },
-  },
+// [!code ++:4]
+const i18n = defineI18n({
+  languages: ["cn", "en"],
   defaultLanguage: "en",
 });
+
+// [!code ++:14]
+const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .extend(fumapressTranslations())
+  .add("ui", {
+    en: { displayName: "English" },
+    cn: { displayName: "Chinese", search: "搜尋文檔" },
+  })
+  .add("fumapress", {
+    cn: {
+      blog: "博客",
+      allTags: "全部标签",
+    },
+  });
 
 export default defineConfig({
   loader: loader(docs.toFumadocsSource(), {
     baseUrl: "/",
     // [!code ++]
-    i18n: i18n.toCore(),
+    i18n,
   }),
 
   // [!code ++]
-  i18n,
+  translations,
 });
 ```
+
+<Callout title="Learn More">
+  See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for adding
+  translations.
+</Callout>
 
 Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
 
@@ -53,3 +67,24 @@ Add Markdown/JSON files for different languages by attending `.{locale}` to your
     <File name="get-started.cn.mdx" />
   </Folder>
 </Files>
+
+### Using Language Packs
+
+The official language pack extends `@fumadocs/language` and adds Fumapress-specific translations.
+
+```npm
+npm i @fumapress/language
+```
+
+```tsx title="press.config.tsx"
+import { zhCN } from "@fumapress/language/zh-cn";
+import { fumapressTranslations } from "fumapress/i18n";
+import { uiTranslations } from "fumadocs-ui/i18n";
+
+const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .extend(fumapressTranslations())
+  // [!code ++]
+  .preset("cn", zhCN());
+```

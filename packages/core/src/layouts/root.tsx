@@ -1,7 +1,8 @@
-import type { Layouts, ConfigContext, I18nConfig } from "@/config";
+import type { Layouts, ConfigContext } from "@/config";
 import styles from "virtual:root.css?inline";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
 import { renderRootMeta } from "@/lib/shared";
+import { i18nProvider } from "fumadocs-ui/i18n";
 
 export interface RootLayoutOptions {
   providerProps?: Omit<RootProviderProps, "children">;
@@ -16,16 +17,10 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
       ...options?.providerProps,
     };
 
-    if (ctx.i18nConfig) {
-      const { languages } = ctx.i18nConfig as I18nConfig;
-      providerProps.i18n ??= {
-        locale: lang,
-        locales: Object.entries(languages).map(([k, v]) => ({
-          name: v.displayName,
-          locale: k,
-        })),
-        translations: lang ? languages[lang]?.translations : undefined,
-      };
+    if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
+      providerProps.i18n ??= i18nProvider(ctx.translationsConfig, lang);
+    } else if (ctx.translationsConfig) {
+      providerProps.i18n ??= i18nProvider(ctx.translationsConfig);
     }
 
     if (hooks) {

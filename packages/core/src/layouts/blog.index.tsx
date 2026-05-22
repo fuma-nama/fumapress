@@ -1,5 +1,6 @@
 import { OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
+import { I18nLabel } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 import { joinPathname } from "@/lib/join-pathname";
 import type { BlogIndexPage } from "@/plugins/blog";
@@ -23,7 +24,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
     return (
       <>
         <div className="flex flex-col gap-4 items-start border-2 border-dashed border-fd-primary rounded-xl bg-fd-primary/10 p-4 z-2 md:p-8">
-          <h1 className="text-3xl font-semibold">{heading ?? "Blog"}</h1>
+          <h1 className="text-3xl font-semibold">{heading ?? <I18nLabel label="blog" />}</h1>
           <p className="text-fd-primary overline decoration-fd-primary empty:hidden">
             {description}
           </p>
@@ -38,7 +39,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
               )}
             >
               <ListIcon className="size-4" />
-              All Tags
+              <I18nLabel label="allTags" />
             </Link>
           )}
         </div>
