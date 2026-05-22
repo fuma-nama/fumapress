@@ -60,6 +60,7 @@ function createConfigCode(selected: readonly FeatureId[]) {
 
   return [
     'import { defineConfig } from "fumapress";',
+    'import { fumadocsMdx } from "fumapress/adapters/mdx";',
     'import { loader } from "fumadocs-core/source";',
     ...activeFeatures.map((feature) => feature.importLine),
     hasBlog
@@ -69,10 +70,11 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "export default defineConfig({",
     "  loader: loader({",
     "    docs: docs.toFumadocsSource(),",
-    ...(hasBlog ? ["    blog: blog.toFumadocsSource({", '      baseDir: "blog",', "    }),"] : []),
+    ...(hasBlog ? [`    blog: blog.toFumadocsSource({ baseDir: "blog" }),`] : []),
     "  }),",
     "})",
-    plugins.length > 0 ? `  .usePlugins(${plugins.join(", ")});` : "  .usePlugins();",
+    ...(plugins.length > 0 ? [`  .usePlugins(${plugins.join(", ")})`] : []),
+    "  .useAdapters(fumadocsMdx());",
   ].join("\n");
 }
 
@@ -145,7 +147,7 @@ export function HomeConfigPlayground() {
 
       <div className="relative flex flex-col dark rounded-xl border border-fd-border bg-fd-card shadow-lg shadow-black/50 min-h-[520px] [&_.shiki-magic-move-container]:flex-1 [&_.shiki-magic-move-container]:overflow-x-auto [&_.shiki-magic-move-container]:overflow-y-hidden [&_.shiki-magic-move-container]:bg-transparent [&_.shiki-magic-move-container]:px-5 [&_.shiki-magic-move-container]:py-5 [&_.shiki-magic-move-container]:font-mono [&_.shiki-magic-move-container]:text-[13px] [&_.shiki-magic-move-container]:leading-6 [&_.shiki-magic-move-container]:md:text-sm">
         <div className="absolute inset-x-8 top-0 h-px bg-linear-to-r from-transparent via-fd-primary/70 to-transparent" />
-        <div className="flex items-center justify-between border-b border-[oklch(95%_0.02_255/0.1)] px-5 py-3">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-2 border-b border-[oklch(95%_0.02_255/0.1)] px-5 py-3">
           <div className="flex gap-2">
             <span className="size-3 rounded-full bg-[oklch(67%_0.18_24)]" />
             <span className="size-3 rounded-full bg-[oklch(76%_0.15_82)]" />

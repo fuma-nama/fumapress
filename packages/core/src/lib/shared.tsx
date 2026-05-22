@@ -4,7 +4,6 @@ import path from "node:path";
 import type { LoaderOutput } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPlugin, AppContextData, ServerPluginOption } from "./types";
 import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
-import { fumadocsMdx } from "@/adapters/mdx";
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
@@ -59,6 +58,7 @@ export async function parseConfig<C extends ConfigContext>(
     return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
   }
 
+  const defaultBaseUrl = "http://localhost:3000";
   const layouts = config.getLayouts();
   return {
     getLoader() {
@@ -88,7 +88,7 @@ export async function parseConfig<C extends ConfigContext>(
     metaConfig: config.meta,
     siteConfig: {
       name: config.site?.name ?? "Fumapress",
-      baseUrl: config.site?.baseUrl,
+      baseUrl: config.site?.baseUrl ?? import.meta.env.BASE_URL,
       git: config.site?.git
         ? {
             ...config.site.git,

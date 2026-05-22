@@ -11,11 +11,10 @@ import { blogPlugin } from "fumapress/plugins/blog";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
-import Home from "./src/home";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { BookIcon, RssIcon } from "lucide-react";
 
-const HomeLayout = createHomeLayout<(typeof config)["$context"]>({
+export const HomeLayout = createHomeLayout<(typeof config)["$context"]>({
   layoutProps: {
     links: [
       {
@@ -115,19 +114,6 @@ const config = defineConfig({
         layout: (props) => <HomeLayout {...props} />,
       },
     }),
-    {
-      createPages({ createPage }) {
-        createPage({
-          path: "/",
-          render: "static",
-          component: () => (
-            <HomeLayout ctx={this}>
-              <Home />
-            </HomeLayout>
-          ),
-        });
-      },
-    },
   )
   .useLayouts({
     defaultProps() {
@@ -162,4 +148,5 @@ const config = defineConfig({
     }),
   });
 
+export type Ctx = typeof config.$context;
 export default config;
