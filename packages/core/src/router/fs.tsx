@@ -84,10 +84,11 @@ export function fsRouterFn<C extends ConfigContext>(
 
       if (isFumapressPageMod<C>(_mod)) {
         const info = _mod.default;
+
         createPage({
           path,
           component: (props: object) => <info.component {...props} ctx={this} />,
-          render: info.render ?? "static",
+          render: info.render ?? (this.mode === "default" ? "static" : this.mode),
           staticPaths: info.staticPaths,
           unstable_sourceFile: srcPath,
         } as never);
@@ -95,13 +96,13 @@ export function fsRouterFn<C extends ConfigContext>(
       }
 
       const mod = _mod as {
-        default?: FunctionComponent<{ children: ReactNode }>;
+        default?: FunctionComponent<{ ctx: AppContext<C> }>;
         getConfig?: () => Promise<{
           render?: "static" | "dynamic";
         }>;
-        GET?: (req: Request) => Promise<Response>;
+        GET?: (req: Request, ctx?: unknown) => Promise<Response>;
       };
-      const config = await mod.getConfig?.();
+      const config = await mod.getConfig?.call(this);
 
       if (pathItems.at(-1) === "[path]") {
         throw new Error(
@@ -121,64 +122,73 @@ export function fsRouterFn<C extends ConfigContext>(
             path: apiPath,
             render: "static",
             method: "GET",
-            handler: mod.GET!,
+            handler: mod.GET!.bind(this),
             unstable_sourceFile: srcPath,
           });
         } else {
-          const handlers = Object.fromEntries(
-            Object.entries(mod).flatMap(([exportName, handler]) => {
-              const isValidExport =
-                exportName === "getConfig" ||
-                exportName === "default" ||
-                ValidMethods.has(exportName);
-              if (!isValidExport) {
-                console.warn(
-                  `API ${path} has an invalid export: ${exportName}. Valid exports are: ${Methods.join(
-                    ", ",
-                  )}`,
-                );
-              }
-              return isValidExport && exportName !== "getConfig"
-                ? exportName === "default"
-                  ? [["all", handler]]
-                  : [[exportName, handler]]
-                : [];
-            }),
-          );
+          const entries = [];
+
+          for (const [exportName, handler] of Object.entries(mod)) {
+            const isValidExport =
+              exportName === "getConfig" ||
+              exportName === "default" ||
+              ValidMethods.has(exportName);
+
+            if (!isValidExport) {
+              console.warn(
+                `API ${path} has an invalid export: ${exportName}. Valid exports are: ${Methods.join(
+                  ", ",
+                )}`,
+              );
+              continue;
+            }
+
+            if (exportName === "default") entries.push(["all", handler.bind(this)]);
+            else entries.push([exportName, handler.bind(this)]);
+          }
+
           createApi({
             path: apiPath,
             render: "dynamic",
-            handlers,
+            handlers: Object.fromEntries(entries),
             unstable_sourceFile: srcPath,
           });
         }
       } else if (pathItems.at(0) === slicesDir) {
+        const Comp = mod.default!;
+
         createSlice({
-          component: mod.default,
+          component: (props: object) => <Comp {...props} ctx={this} />,
           render: "static",
           id: pathItems.slice(1).join("/"),
           ...config,
           unstable_sourceFile: srcPath,
         } as never); // FIXME avoid as never
       } else if (pathItems.at(-1) === "_layout") {
+        const Comp = mod.default!;
+
         createLayout({
           path,
-          component: mod.default,
+          component: (props: object) => <Comp {...props} ctx={this} />,
           render: "static",
           ...config,
           unstable_sourceFile: srcPath,
         } as never);
       } else if (pathItems.at(-1) === "_root") {
+        const Comp = mod.default!;
+
         createRoot({
-          component: mod.default,
+          component: (props: object) => <Comp {...props} ctx={this} />,
           render: "static",
           ...config,
           unstable_sourceFile: srcPath,
         } as never);
       } else {
+        const Comp = mod.default!;
+
         createPage({
           path,
-          component: mod.default,
+          component: (props: object) => <Comp {...props} ctx={this} />,
           render: "static",
           ...config,
           unstable_sourceFile: srcPath,

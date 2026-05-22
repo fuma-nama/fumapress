@@ -58,7 +58,6 @@ export async function parseConfig<C extends ConfigContext>(
     return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
   }
 
-  const defaultBaseUrl = "http://localhost:3000";
   const layouts = config.getLayouts();
   return {
     getLoader() {
@@ -88,7 +87,7 @@ export async function parseConfig<C extends ConfigContext>(
     metaConfig: config.meta,
     siteConfig: {
       name: config.site?.name ?? "Fumapress",
-      baseUrl: config.site?.baseUrl ?? import.meta.env.BASE_URL,
+      baseUrl: config.site?.baseUrl ?? getDefaultBaseUrl(),
       git: config.site?.git
         ? {
             ...config.site.git,
@@ -97,6 +96,15 @@ export async function parseConfig<C extends ConfigContext>(
         : undefined,
     },
   };
+}
+
+function getDefaultBaseUrl() {
+  console.warn(
+    '[Fumapress] It is recommended to specify "site.baseUrl" in your config for better SEO.',
+  );
+  if (import.meta.env.DEV) {
+    return "http://localhost:3000";
+  }
 }
 
 export function renderRootMeta<C extends ConfigContext>(context: AppContext<C>): ReactNode {
