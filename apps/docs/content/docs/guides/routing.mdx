@@ -1,0 +1,211 @@
+---
+title: Routing
+description: Different ways to create a new page.
+---
+
+## Overview
+
+Fumapress supports creating routes from content sources, plugins, and local page files, while keeping the file-based routing model from [Waku](https://waku.gg).
+
+In most apps, you will use content files for documentation pages, file-based routes for custom pages like landing page, and plugins for advanced use cases like generated blog routes.
+
+### With Content Files
+
+Content pages are generated from the loader configured in `press.config.tsx`.
+
+For the default Fumadocs MDX adapter, each Markdown/MDX file under the collection directory becomes a page:
+
+| File                              | URL                    |
+| --------------------------------- | ---------------------- |
+| `content/docs/index.mdx`          | `/docs`                |
+| `content/docs/guides/routing.mdx` | `/docs/guides/routing` |
+| `content/blog/introducing.mdx`    | `/blog/introducing`    |
+
+The file path will decide its actual pathname & appearance on sidebar, see [Page Tree & Page Slugs](https://fumadocs.dev/docs/page-conventions) for available syntax.
+
+The pathname generation can be customized from source configuration. For example, `baseDir` adds a directory name in generated URLs:
+
+```tsx title="press.config.tsx"
+import { loader } from "fumadocs-core/source";
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+
+export default defineConfig({
+  loader: loader(
+    {
+      docs: docs.toFumadocsSource({
+        // all pages will locate under `docs/`
+        baseDir: "docs",
+      }),
+    },
+    {
+      baseUrl: "/",
+    },
+  ),
+});
+```
+
+Fumapress renders these pages with the configured page layout. You can customize the layout with `useLayouts()` or let plugins override how certain pages are rendered.
+
+If you use other content sources (e.g. a CMS), consult the docs of relevant adapters instead.
+
+### File-based Routing
+
+Fumapress also reads route files from `src/pages`. This is a good fit for landing pages, dashboards, or other custom screens that do not belong to a content collection.
+
+| File                       | Route         |
+| -------------------------- | ------------- |
+| `src/pages/index.tsx`      | `/`           |
+| `src/pages/about.tsx`      | `/about`      |
+| `src/pages/blog/index.tsx` | `/blog`       |
+| `src/pages/_layout.tsx`    | Shared layout |
+
+For detailed Waku route conventions, see [Waku File-based Routing](https://waku.gg/#routing).
+
+To create a page:
+
+```tsx title="src/pages/about.tsx"
+export default function Page() {
+  return (
+    <main>
+      <h1>About</h1>
+      <p>This page is rendered from a route file.</p>
+    </main>
+  );
+}
+```
+
+You can export `getConfig()` to configure the route:
+
+```tsx title="src/pages/dashboard.tsx"
+import type { RouteConfig } from "fumapress";
+
+export async function getConfig() {
+  return {
+    render: "dynamic",
+  } satisfies RouteConfig;
+}
+
+export default function Page() {
+  return <main>Dashboard</main>;
+}
+```
+
+When i18n is enabled, file-based pages are automatically placed under the language segment (e.g. `/my-page` -> `/en/my-page`). Disable that behavior with `autoI18n: false`:
+
+```tsx title="src/pages/rss.xml.tsx"
+import type { RouteConfig } from "fumapress";
+
+export async function getConfig() {
+  return {
+    autoI18n: false,
+    render: "static",
+  } satisfies RouteConfig;
+}
+
+export default function Page() {
+  return null;
+}
+```
+
+You can access Fumapress runtime data with `getPressContext()`, such as the content loader:
+
+```tsx title="src/pages/sitemap-preview.tsx"
+import { getPressContext } from "fumapress/router";
+// config file
+import type PressConfig from "../../press.config";
+
+export default async function Page() {
+  const ctx = getPressContext<typeof PressConfig.$context>();
+  const source = await ctx.getLoader();
+  const pages = source.getPages();
+
+  return (
+    <main>
+      <h1>Sitemap Preview</h1>
+      <ul>
+        {pages.map((page) => (
+          <li key={page.url}>
+            <a href={page.url}>{page.url}</a>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+```
+
+For file-based API routes, place files under `src/pages/_api`. Export HTTP method handlers:
+
+```ts title="src/pages/_api/version.ts"
+export async function GET() {
+  return Response.json({
+    version: "1.0.0",
+  });
+}
+```
+
+Fumapress still creates the default catch-all route for content pages, so avoid defining a file-based route and a content page with the same URL.
+
+### With Plugins
+
+Plugins can create pages, layouts, API routes, and slices with `createPages()`. This is useful when a feature needs routes that are derived from config or content instead of individual files.
+
+```tsx title="press.config.tsx"
+import { defineConfig, type ConfigContext, type ServerPlugin } from "fumapress";
+
+function changelogPlugin<C extends ConfigContext>(): ServerPlugin<C> {
+  return {
+    name: "changelog",
+    async createPages({ createPage }) {
+      createPage({
+        path: "/changelog",
+        render: "static",
+        component() {
+          return <main>Changelog</main>;
+        },
+      });
+    },
+  };
+}
+
+export default defineConfig({
+  // ...
+}).usePlugins(changelogPlugin());
+```
+
+Inside plugin hooks, `this` is the Fumapress app context. You can access the content loader, resolved config, i18n config, and other runtime data:
+
+```tsx title="press.config.tsx"
+import { defineConfig, type ConfigContext, type ServerPlugin } from "fumapress";
+
+function allDocsPlugin<C extends ConfigContext>(): ServerPlugin<C> {
+  return {
+    name: "all-docs",
+    async createPages({ createPage }) {
+      const source = await this.getLoader();
+      const pages = source.getPages();
+
+      createPage({
+        path: "/all-docs",
+        render: "static",
+        component() {
+          return (
+            <ul>
+              {pages.map((page) => (
+                <li key={page.url}>
+                  <a href={page.url}>{page.data.title}</a>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      });
+    },
+  };
+}
+
+export default defineConfig({
+  // ...
+}).usePlugins(allDocsPlugin());
+```
