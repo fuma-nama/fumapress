@@ -24,21 +24,12 @@ const i18n = defineI18n({
   defaultLanguage: "en",
 });
 
-// [!code ++:14]
+// [!code ++]
 const translations = i18n
+  // [!code ++:3]
   .translations()
   .extend(uiTranslations())
-  .extend(fumapressTranslations())
-  .add("ui", {
-    en: { displayName: "English" },
-    cn: { displayName: "Chinese", search: "搜尋文檔" },
-  })
-  .add("fumapress", {
-    cn: {
-      blog: "博客",
-      allTags: "全部标签",
-    },
-  });
+  .extend(fumapressTranslations());
 
 export default defineConfig({
   loader: loader(docs.toFumadocsSource(), {
@@ -52,7 +43,27 @@ export default defineConfig({
 });
 ```
 
-If you have other integrations, include them via `extend()` like:
+You can add translations to UI like:
+
+```tsx
+const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .extend(fumapressTranslations())
+  // [!code ++:10]
+  .add("ui", {
+    en: { displayName: "English" },
+    cn: { displayName: "Chinese", search: "搜尋文檔" },
+  })
+  .add("fumapress", {
+    cn: {
+      blog: "博客",
+      allTags: "全部标签",
+    },
+  });
+```
+
+If you have other integrations and want to add translations for them, include them via `extend()` like:
 
 ```tsx
 import { openapiTranslations } from "fumadocs-openapi/i18n";
@@ -68,22 +79,6 @@ const translations = i18n
   .extend(feedbackTranslations())
   .extend(aiTranslations());
 ```
-
-<Callout title="Learn More">
-  See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for adding
-  translations.
-</Callout>
-
-Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
-
-<Files>
-  <Folder name="content" defaultOpen>
-    <File name="meta.json" />
-    <File name="meta.cn.json" />
-    <File name="get-started.mdx" />
-    <File name="get-started.cn.mdx" />
-  </Folder>
-</Files>
 
 ### Using Language Packs
 
@@ -105,3 +100,23 @@ const translations = i18n
   // add Traditional Chinese translations to `cn` locale [!code ++]
   .preset("cn", zhCN());
 ```
+
+When using a language pack, you do not need to include integrations with `extend()` unless you want to override the default translations.
+
+<Callout title="Learn More">
+  See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for adding
+  translations.
+</Callout>
+
+### Writing Content
+
+Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
+
+<Files>
+  <Folder name="content" defaultOpen>
+    <File name="meta.json" />
+    <File name="meta.cn.json" />
+    <File name="get-started.mdx" />
+    <File name="get-started.cn.mdx" />
+  </Folder>
+</Files>

@@ -39,6 +39,12 @@ export function feedbackPlugin<C extends ConfigContext = ConfigContext>(
   return {
     name: "feedback:main",
     async init() {
+      if (this.translationsConfig) {
+        const { feedbackTranslations } = await import("./i18n");
+        // ensure language pack works correctly without calling `extend()`
+        this.translationsConfig.extend(feedbackTranslations());
+      }
+
       initRenderers((this.data["core:docs-layout"] ??= {}));
       initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
     },

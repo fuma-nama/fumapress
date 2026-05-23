@@ -30,7 +30,13 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
 
   return {
     name: "ai:main",
-    init() {
+    async init() {
+      if (this.translationsConfig) {
+        const { aiTranslations } = await import("./i18n");
+        // ensure language pack works correctly without calling `extend()`
+        this.translationsConfig.extend(aiTranslations());
+      }
+
       if (configureUI) {
         initRenderers((this.data["core:docs-layout"] ??= {}));
         initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
