@@ -202,14 +202,53 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
   function contextMiddleware(): MiddlewareHandler {
     return async (_, next) => {
       const ctx = await getAppContext();
-      return appContext.run(ctx, () => next());
+      return appContext.run(ctx, next);
+    };
+  }
+
+  function pluginsMiddleware(): MiddlewareHandler {
+    async function init(): Promise<MiddlewareHandler[]> {
+      const ctx = await getAppContext();
+      const out: MiddlewareHandler[] = [];
+      const resolved = await Promise.all(
+        ctx.plugins.map((plugin) => plugin.createMiddlewares?.call(ctx)),
+      );
+
+      for (const v of resolved) {
+        if (!v) continue;
+        for (const middleware of v) out.push(middleware());
+      }
+
+      return out;
+    }
+
+    const middlewaresPromise = init();
+
+    return async (c, next) => {
+      const middlewares = await middlewaresPromise;
+      let response: Response | undefined;
+
+      const run = async (index: number) => {
+        const handler = middlewares[index];
+        if (handler) {
+          const result = await handler(c, () => run(index + 1));
+          if (result && !response) {
+            response = result;
+          }
+        } else {
+          await next();
+        }
+      };
+
+      await run(0);
+      return response;
     };
   }
 
   return {
     createPages,
     createMiddlewares() {
-      return [contextMiddleware];
+      return [contextMiddleware, pluginsMiddleware];
     },
   };
 }

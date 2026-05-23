@@ -7,6 +7,7 @@ import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
+import type { MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import type {
   CreatePage,
@@ -74,6 +75,8 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
     this: AppContext<C>,
     page: C["loaderConfig"]["page"],
   ) => Awaitable<C["loaderConfig"]["page"] | false | undefined>;
+
+  createMiddlewares?: (this: AppContext<C>) => (() => MiddlewareHandler)[] | undefined;
 }
 
 export interface BaseRouteFns {
