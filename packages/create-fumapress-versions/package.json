@@ -3,9 +3,9 @@
   "version": "0.0.7",
   "private": true,
   "dependencies": {
-    "fumadocs-core": "^16.9.0",
-    "fumadocs-mdx": "^15.0.7",
-    "fumadocs-ui": "^16.9.0",
+    "fumadocs-core": "^16.9.1",
+    "fumadocs-mdx": "^15.0.8",
+    "fumadocs-ui": "^16.9.1",
     "fumapress": "workspace:*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

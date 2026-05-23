@@ -1,9 +1,14 @@
+"use client";
+
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/components/i18n";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { MessageCircleIcon } from "lucide-react";
 import { AISearch, AISearchPanel, AISearchTrigger } from "./search";
 
 export function DefaultComponent() {
+  const t = useTranslations();
+
   return (
     <AISearch>
       <AISearchPanel />
@@ -17,7 +22,7 @@ export function DefaultComponent() {
         )}
       >
         <MessageCircleIcon className="size-4.5" />
-        Ask AI
+        {t.askAi}
       </AISearchTrigger>
     </AISearch>
   );

@@ -1,11 +1,12 @@
 {
-  "name": "@fumapress/language",
+  "name": "@fumapress/sanity",
   "version": "0.0.1",
-  "description": "Common language packs for Fumapress",
+  "description": "Sanity CMS integration for Fumapress",
   "keywords": [
     "Docs",
     "Fumadocs",
-    "Fumapress"
+    "Fumapress",
+    "Sanity"
   ],
   "homepage": "https://press.fumadocs.dev",
   "license": "MIT",
@@ -15,11 +16,6 @@
     "dist"
   ],
   "type": "module",
-  "exports": {
-    "./zh-cn": "./dist/zh-cn.mjs",
-    "./zh-tw": "./dist/zh-tw.mjs",
-    "./package.json": "./package.json"
-  },
   "publishConfig": {
     "access": "public"
   },
@@ -28,38 +24,30 @@
     "dev": "tsdown --watch --clean false",
     "types:check": "tsc --noEmit"
   },
-  "dependencies": {
-    "@fumadocs/language": "^0.0.1"
-  },
   "devDependencies": {
-    "@fumapress/ai": "workspace:*",
-    "@fumapress/feedback": "workspace:*",
     "@types/node": "^25.9.1",
     "fumadocs-core": "^16.9.1",
-    "fumadocs-openapi": "^10.9.0",
-    "fumadocs-ui": "^16.9.1",
     "fumapress": "workspace:*",
     "tsdown": "0.22.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@fumapress/ai": "*",
-    "@fumapress/feedback": "*",
     "fumadocs-core": "*",
     "fumapress": "*"
   },
   "peerDependenciesMeta": {
-    "@fumapress/ai": {
-      "optional": true
-    },
-    "@fumapress/feedback": {
-      "optional": true
-    },
     "fumadocs-core": {
       "optional": true
     },
     "fumapress": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "@fumadocs/sanity": "^0.0.4"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
   }
 }

@@ -20,6 +20,7 @@
     ".": "./dist/index.mjs",
     "./email": "./dist/email.mjs",
     "./github": "./dist/github.mjs",
+    "./i18n": "./dist/i18n.mjs",
     "./schema": "./dist/schema.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"
@@ -35,8 +36,8 @@
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.8",
     "class-variance-authority": "^0.7.1",
-    "fumadocs-core": "^16.9.0",
-    "fumadocs-ui": "^16.9.0",
+    "fumadocs-core": "^16.9.1",
+    "fumadocs-ui": "^16.9.1",
     "fumapress": "workspace:*",
     "lucide-react": "^1.16.0",
     "octokit": "^5.0.5",

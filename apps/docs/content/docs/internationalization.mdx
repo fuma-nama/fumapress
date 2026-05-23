@@ -52,6 +52,23 @@ export default defineConfig({
 });
 ```
 
+If you have other integrations, include them via `extend()` like:
+
+```tsx
+import { openapiTranslations } from "fumadocs-openapi/i18n";
+import { aiTranslations } from "@fumapress/ai/i18n";
+import { feedbackTranslations } from "@fumapress/feedback/i18n";
+
+const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .extend(fumapressTranslations())
+  // [!code ++:3]
+  .extend(openapiTranslations())
+  .extend(feedbackTranslations())
+  .extend(aiTranslations());
+```
+
 <Callout title="Learn More">
   See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for adding
   translations.
@@ -70,7 +87,7 @@ Add Markdown/JSON files for different languages by attending `.{locale}` to your
 
 ### Using Language Packs
 
-The official language pack extends `@fumadocs/language` and adds Fumapress-specific translations.
+The official language pack extends `@fumadocs/language` and adds translations for Fumapress.
 
 ```npm
 npm i @fumapress/language

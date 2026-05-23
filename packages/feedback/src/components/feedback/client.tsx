@@ -25,6 +25,7 @@ import {
 } from "./schema";
 import { z } from "zod/mini";
 import { usePathname } from "fumadocs-core/framework";
+import { useTranslations } from "@/components/i18n";
 
 const rateButtonVariants = cva(
   "inline-flex items-center gap-2 px-3 py-2 rounded-full font-medium border text-sm [&_svg]:size-4 disabled:cursor-not-allowed",
@@ -54,6 +55,7 @@ export function Feedback({
 }: {
   onSendAction: (feedback: PageFeedback) => Promise<ActionResponse>;
 }) {
+  const t = useTranslations();
   const pathname = usePathname();
   const { previous, setPrevious } = useSubmissionStorage(pathname, (v) => {
     const result = pageFeedbackResult.safeParse(v);
@@ -96,7 +98,7 @@ export function Feedback({
       className="border-y py-3"
     >
       <div className="flex flex-row items-center gap-2">
-        <p className="text-sm font-medium pe-2">How is this guide?</p>
+        <p className="text-sm font-medium pe-2">{t.howIsThisGuide}</p>
         <button
           disabled={previous !== null}
           className={cn(
@@ -109,7 +111,7 @@ export function Feedback({
           }}
         >
           <ThumbsUp />
-          Good
+          {t.good}
         </button>
         <button
           disabled={previous !== null}
@@ -123,13 +125,13 @@ export function Feedback({
           }}
         >
           <ThumbsDown />
-          Bad
+          {t.bad}
         </button>
       </div>
       <CollapsibleContent className="mt-3">
         {previous ? (
           <div className="px-3 py-6 flex flex-col items-center gap-3 bg-fd-card text-fd-muted-foreground text-sm text-center rounded-xl">
-            <p>Thank you for your feedback!</p>
+            <p>{t.thankYou}</p>
             <div className="flex flex-row items-center gap-2">
               {previous.response?.githubUrl && (
                 <a
@@ -143,7 +145,7 @@ export function Feedback({
                     "text-xs",
                   )}
                 >
-                  View on GitHub
+                  {t.viewOnGitHub}
                 </a>
               )}
 
@@ -159,7 +161,7 @@ export function Feedback({
                   setPrevious(null);
                 }}
               >
-                Submit Again
+                {t.submitAgain}
               </button>
             </div>
           </div>
@@ -171,7 +173,7 @@ export function Feedback({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="border rounded-lg bg-fd-secondary text-fd-secondary-foreground p-3 resize-none focus-visible:outline-none placeholder:text-fd-muted-foreground"
-              placeholder="Leave your feedback..."
+              placeholder={t.leaveFeedbackPlaceholder}
               onKeyDown={(e) => {
                 if (!e.shiftKey && e.key === "Enter") {
                   submit(e);
@@ -183,7 +185,7 @@ export function Feedback({
               className={cn(buttonVariants({ color: "outline" }), "w-fit px-3")}
               disabled={isPending}
             >
-              Submit
+              {t.submit}
             </button>
           </form>
         )}
@@ -203,6 +205,7 @@ export interface FeedbackTextProps {
  * See https://fumadocs.dev/docs/integrations/feedback.
  */
 export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
+  const t = useTranslations();
   const [popup, _setPopup] = useState<{
     mode: "tooltip" | "expanded";
     blockId: string;
@@ -350,7 +353,7 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
                 onClick={expandPopup}
               >
                 <CornerDownRightIcon className="size-4 text-fd-muted-foreground" />
-                Feedback
+                {t.feedback}
               </button>
             </div>
           ) : (
@@ -381,6 +384,7 @@ function FeedbackTextForm({
   onSendAction: (feedback: BlockFeedback) => Promise<ActionResponse>;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const pathname = usePathname();
   const { previous, setPrevious } = useSubmissionStorage(`${pathname}-${blockId}`, (v) => {
     const result = blockFeedbackResult.safeParse(v);
@@ -419,7 +423,7 @@ function FeedbackTextForm({
           container.className,
         )}
       >
-        <p>Thank you for your feedback!</p>
+        <p>{t.thankYou}</p>
         <div className="flex flex-row items-center gap-2">
           {previous.response?.githubUrl && (
             <a
@@ -433,7 +437,7 @@ function FeedbackTextForm({
                 "text-xs",
               )}
             >
-              View on GitHub
+              {t.viewOnGitHub}
             </a>
           )}
 
@@ -448,7 +452,7 @@ function FeedbackTextForm({
               setPrevious(null);
             }}
           >
-            Submit Again
+            {t.submitAgain}
           </button>
         </div>
       </div>
@@ -466,7 +470,7 @@ function FeedbackTextForm({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         className="border rounded-lg bg-fd-secondary text-fd-secondary-foreground p-3 resize-none focus-visible:outline-none placeholder:text-fd-muted-foreground"
-        placeholder="Leave your feedback..."
+        placeholder={t.leaveFeedbackPlaceholder}
         onKeyDown={(e) => {
           if (!e.shiftKey && e.key === "Enter") {
             submit(e);
@@ -480,7 +484,7 @@ function FeedbackTextForm({
           disabled={isPending}
         >
           <CornerDownRightIcon className="size-4" />
-          Submit
+          {t.submit}
         </button>
         <button
           type="button"
@@ -488,7 +492,7 @@ function FeedbackTextForm({
           disabled={isPending}
           onClick={onClose}
         >
-          Close
+          {t.close}
         </button>
       </div>
     </form>

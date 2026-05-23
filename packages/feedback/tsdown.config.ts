@@ -6,7 +6,7 @@ import path from "node:path";
 export default defineConfig({
   target: "es2023",
   format: "esm",
-  entry: ["src/index.tsx", "src/schema.ts", "src/github.ts", "src/email.ts"],
+  entry: ["src/index.tsx", "src/i18n.ts", "src/schema.ts", "src/github.ts", "src/email.ts"],
   dts: {
     sourcemap: false,
   },

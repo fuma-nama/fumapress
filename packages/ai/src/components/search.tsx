@@ -19,6 +19,8 @@ import { DefaultChatTransport, type Tool, type UIToolInvocation } from "ai";
 import { Markdown } from "./markdown";
 import { Presence } from "@radix-ui/react-presence";
 import type { ChatUIMessage, SearchTool } from "@/api";
+import { useTranslations } from "@/components/i18n";
+import { renderTranslation } from "fumadocs-core/i18n";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
 
 const Context = createContext<{
@@ -28,6 +30,7 @@ const Context = createContext<{
 } | null>(null);
 
 export function AISearchPanelHeader({ className, ...props }: ComponentProps<"div">) {
+  const t = useTranslations();
   const { setOpen } = useAISearchContext();
 
   return (
@@ -39,14 +42,12 @@ export function AISearchPanelHeader({ className, ...props }: ComponentProps<"div
       {...props}
     >
       <div className="px-3 py-2 flex-1">
-        <p className="text-sm font-medium mb-2">AI Chat</p>
-        <p className="text-xs text-fd-muted-foreground">
-          AI can be inaccurate, please verify the answers.
-        </p>
+        <p className="text-sm font-medium mb-2">{t.aiChat}</p>
+        <p className="text-xs text-fd-muted-foreground">{t.aiDisclaimer}</p>
       </div>
 
       <button
-        aria-label="Close"
+        aria-label={t.close}
         tabIndex={-1}
         className={cn(
           buttonVariants({
@@ -64,6 +65,7 @@ export function AISearchPanelHeader({ className, ...props }: ComponentProps<"div
 }
 
 export function AISearchInputActions() {
+  const t = useTranslations();
   const { messages, status, setMessages, regenerate } = useChatContext();
   const isLoading = status === "streaming";
 
@@ -84,7 +86,7 @@ export function AISearchInputActions() {
           onClick={() => regenerate()}
         >
           <RefreshCw className="size-4" />
-          Retry
+          {t.retry}
         </button>
       )}
       <button
@@ -98,7 +100,7 @@ export function AISearchInputActions() {
         )}
         onClick={() => setMessages([])}
       >
-        Clear Chat
+        {t.clearChat}
       </button>
     </>
   );
@@ -106,6 +108,7 @@ export function AISearchInputActions() {
 
 const StorageKeyInput = "__ai_search_input";
 export function AISearchInput(props: ComponentProps<"form">) {
+  const t = useTranslations();
   const { status, sendMessage, stop } = useChatContext();
   const { locale } = useI18n();
   const [input, setInput] = useState(() => localStorage.getItem(StorageKeyInput) ?? "");
@@ -144,7 +147,7 @@ export function AISearchInput(props: ComponentProps<"form">) {
     <form {...props} className={cn("flex items-start pe-2", props.className)} onSubmit={onStart}>
       <Input
         value={input}
-        placeholder={isLoading ? "AI is answering..." : "Ask a question"}
+        placeholder={isLoading ? t.aiAnswering : t.askQuestion}
         autoFocus
         className="p-3"
         disabled={status === "streaming" || status === "submitted"}
@@ -171,7 +174,7 @@ export function AISearchInput(props: ComponentProps<"form">) {
           onClick={stop}
         >
           <Loader2 className="size-4 animate-spin text-fd-muted-foreground" />
-          Abort Answer
+          {t.abortAnswer}
         </button>
       ) : (
         <button
@@ -253,12 +256,12 @@ function Input(props: ComponentProps<"textarea">) {
   );
 }
 
-const roleName: Record<string, string> = {
-  user: "you",
-  assistant: "fumadocs",
-};
-
 function Message({ message, ...props }: { message: ChatUIMessage } & ComponentProps<"div">) {
+  const t = useTranslations();
+  const roleName: Record<string, string> = {
+    user: t.roleUser,
+    assistant: t.roleAssistant,
+  };
   let markdown = "";
   const searchCalls: UIToolInvocation<SearchTool>[] = [];
 
@@ -285,7 +288,7 @@ function Message({ message, ...props }: { message: ChatUIMessage } & ComponentPr
           message.role === "assistant" && "text-fd-primary",
         )}
       >
-        {roleName[message.role] ?? "unknown"}
+        {roleName[message.role] ?? t.unknown}
       </p>
       <div className="prose text-sm">
         <Markdown text={markdown} />
@@ -299,9 +302,15 @@ function Message({ message, ...props }: { message: ChatUIMessage } & ComponentPr
           >
             <SearchIcon className="size-4" />
             {call.state === "output-error" || call.state === "output-denied" ? (
-              <p className="text-fd-error">{call.errorText ?? "Failed to search"}</p>
+              <p className="text-fd-error">{call.errorText ?? t.failedToSearch}</p>
             ) : (
-              <p>{!call.output ? "Searching…" : `${call.output.length} search results`}</p>
+              <p>
+                {!call.output
+                  ? t.searching
+                  : renderTranslation(t.searchResults, {
+                      count: String(call.output.length),
+                    })}
+              </p>
             )}
           </div>
         );
@@ -392,6 +401,7 @@ export function AISearchPanel() {
 }
 
 export function AISearchPanelList({ className, style, ...props }: ComponentProps<"div">) {
+  const t = useTranslations();
   const chat = useChatContext();
   const messages = chat.messages.filter((msg) => msg.role !== "system");
 
@@ -408,14 +418,14 @@ export function AISearchPanelList({ className, style, ...props }: ComponentProps
       {messages.length === 0 ? (
         <div className="text-sm text-fd-muted-foreground/80 size-full flex flex-col items-center justify-center text-center gap-2">
           <MessageCircleIcon fill="currentColor" stroke="none" />
-          <p onClick={(e) => e.stopPropagation()}>Start a new chat below.</p>
+          <p onClick={(e) => e.stopPropagation()}>{t.startNewChat}</p>
         </div>
       ) : (
         <div className="flex flex-col px-3 gap-4">
           {chat.error && (
             <div className="p-2 bg-fd-secondary text-fd-secondary-foreground border rounded-lg">
               <p className="text-xs text-fd-muted-foreground mb-1">
-                Request Failed: {chat.error.name}
+                {renderTranslation(t.requestFailed, { name: chat.error.name })}
               </p>
               <p className="text-sm">{chat.error.message}</p>
             </div>
