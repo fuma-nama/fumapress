@@ -8,11 +8,31 @@ icon: Cog
 
 Primary options for your app.
 
-```ts title="press.config.tsx"
+```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 
 export default defineConfig({
   // ...
+});
+```
+
+### Site
+
+The site information like name and linked GitHub repository:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    name: "Fumapress",
+    baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
+    git: {
+      user: "fuma-nama",
+      branch: "dev",
+      repo: "fumapress",
+    },
+  },
 });
 ```
 
@@ -111,9 +131,7 @@ You can change the color theme or add custom styles, like:
 
 ## Server Entry
 
-### Custom Routing
-
-The routing config is optional, you can create one if needed.
+The server entry file is optional, you can create one if needed. Useful for implementing custom router.
 
 ```tsx title="src/waku.server.tsx"
 import adapter from "waku/adapters/default";
