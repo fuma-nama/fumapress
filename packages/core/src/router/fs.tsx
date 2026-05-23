@@ -1,10 +1,11 @@
 /**
  * This is a copy of https://github.com/wakujs/waku/blob/main/packages/waku/src/router/fs-router.ts
  */
-import type { FunctionComponent, ReactNode } from "react";
-import type { Awaitable, RouteFns } from "@/lib/types.js";
+import type { FunctionComponent } from "react";
+import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext } from "@/lib/shared";
-import type { ConfigContext, DefinedPage } from "@/config";
+import type { ConfigContext } from "@/config";
+import { joinPathname } from "@/lib/join-pathname";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);
@@ -21,17 +22,6 @@ interface Options {
   apiDir?: string;
   /** e.g. `"_slices"` will detect slices in `src/pages/_slices`. */
   slicesDir?: string;
-}
-
-function isFumapressPageMod<C extends ConfigContext>(
-  v: Record<string, unknown>,
-): v is { default: DefinedPage<C> } {
-  return (
-    v.default !== null &&
-    typeof v.default === "object" &&
-    "type" in v.default &&
-    v.default.type === "page"
-  );
 }
 
 const IGNORED_PATH_PARTS = new Set(["_components", "_hooks"]);
@@ -74,7 +64,6 @@ export function fsRouterFn<C extends ConfigContext>(
         continue;
       }
 
-      const _mod = (await modules[file]!()) as Record<string, unknown>;
       const path =
         "/" +
         (["_layout", "index", "_root"].includes(pathItems.at(-1)!)
@@ -82,24 +71,9 @@ export function fsRouterFn<C extends ConfigContext>(
           : pathItems
         ).join("/");
 
-      if (isFumapressPageMod<C>(_mod)) {
-        const info = _mod.default;
-
-        createPage({
-          path,
-          component: (props: object) => <info.component {...props} ctx={this} />,
-          render: info.render ?? (this.mode === "default" ? "static" : this.mode),
-          staticPaths: info.staticPaths,
-          unstable_sourceFile: srcPath,
-        } as never);
-        continue;
-      }
-
-      const mod = _mod as {
+      const mod = (await modules[file]!()) as {
         default?: FunctionComponent<{ ctx: AppContext<C> }>;
-        getConfig?: () => Promise<{
-          render?: "static" | "dynamic";
-        }>;
+        getConfig?: () => Promise<RouteConfig>;
         GET?: (req: Request, ctx?: unknown) => Promise<Response>;
       };
       const config = await mod.getConfig?.call(this);
@@ -108,7 +82,9 @@ export function fsRouterFn<C extends ConfigContext>(
         throw new Error(
           "Page file cannot be named [path]. This will conflict with the path prop of the page component.",
         );
-      } else if (pathItems.at(0) === apiDir) {
+      }
+
+      if (pathItems[0] === apiDir) {
         // Strip the apiDir prefix from the path (e.g., _api/hello.txt -> hello.txt)
         const apiPath = "/" + pathItems.slice(1).join("/");
         if (config?.render === "static") {
@@ -154,46 +130,50 @@ export function fsRouterFn<C extends ConfigContext>(
             unstable_sourceFile: srcPath,
           });
         }
-      } else if (pathItems.at(0) === slicesDir) {
-        const Comp = mod.default!;
+        continue;
+      }
 
+      const Comp = mod.default!;
+      const renderMode = config?.render ?? (this.mode === "default" ? "static" : this.mode);
+
+      if (pathItems[0] === slicesDir) {
         createSlice({
           component: (props: object) => <Comp {...props} ctx={this} />,
-          render: "static",
+          render: renderMode,
           id: pathItems.slice(1).join("/"),
-          ...config,
           unstable_sourceFile: srcPath,
         } as never); // FIXME avoid as never
-      } else if (pathItems.at(-1) === "_layout") {
-        const Comp = mod.default!;
+        continue;
+      }
 
-        createLayout({
-          path,
-          component: (props: object) => <Comp {...props} ctx={this} />,
-          render: "static",
-          ...config,
-          unstable_sourceFile: srcPath,
-        } as never);
-      } else if (pathItems.at(-1) === "_root") {
-        const Comp = mod.default!;
-
+      if (pathItems.at(-1) === "_root") {
         createRoot({
           component: (props: object) => <Comp {...props} ctx={this} />,
           render: "static",
           ...config,
           unstable_sourceFile: srcPath,
         } as never);
-      } else {
-        const Comp = mod.default!;
+        continue;
+      }
 
-        createPage({
-          path,
+      const routePath = joinPathname("(fs)", path);
+
+      if (pathItems.at(-1) === "_layout") {
+        createLayout({
+          path: routePath,
           component: (props: object) => <Comp {...props} ctx={this} />,
-          render: "static",
-          ...config,
+          render: renderMode,
           unstable_sourceFile: srcPath,
         } as never);
+        continue;
       }
+
+      createPage({
+        path: routePath,
+        component: (props: object) => <Comp {...props} ctx={this} />,
+        render: renderMode,
+        unstable_sourceFile: srcPath,
+      } as never);
     }
   };
 }

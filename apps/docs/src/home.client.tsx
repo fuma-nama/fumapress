@@ -14,7 +14,7 @@ export function AutoSetupCommand() {
   return (
     <Tabs
       defaultValue="npm"
-      className="mt-auto -mx-6 -mb-12 px-6 py-4 text-sm border-t bg-fd-card text-fd-card-foreground md:-mx-12 md:-mb-24 md:px-8.5"
+      className="mt-auto -mx-6 -mb-12 px-6 py-4 text-sm border-t bg-fd-card text-fd-card-foreground md:-mx-12 md:-mb-24 md:px-12"
     >
       <TabsList className="flex flex-row mb-4 border w-fit rounded-lg items-center text-fd-muted-foreground bg-fd-muted shadow-md">
         {Object.keys(commands).map((name) => (

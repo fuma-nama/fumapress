@@ -132,18 +132,3 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
     },
   };
 }
-
-export interface DefinedPage<C extends ConfigContext = ConfigContext> {
-  type: "page";
-  component: (props: { ctx: AppContext<C> }) => Awaitable<ReactNode>;
-  render?: "static" | "dynamic";
-  staticPaths?: string[] | string[][];
-}
-
-export function definePage<C extends ConfigContext = ConfigContext>(p: {
-  component: (props: { ctx: AppContext<C> }) => Awaitable<ReactNode>;
-  staticPaths?: string[] | string[][];
-  render?: "static" | "dynamic";
-}): DefinedPage<C> {
-  return { ...p, type: "page" };
-}

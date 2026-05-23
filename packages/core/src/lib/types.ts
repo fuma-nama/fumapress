@@ -108,3 +108,10 @@ export interface AppContextData {
   "core:home-layout"?: HomeLayoutContextData;
   "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
 }
+
+/**
+ * For file-system routing, route files can export a `getConfig()` function that returns a `RouteConfig` object.
+ */
+export interface RouteConfig {
+  render?: "static" | "dynamic";
+}

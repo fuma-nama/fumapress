@@ -13,14 +13,14 @@ import { ChevronDown, ShareIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { cva } from "class-variance-authority";
 import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
-import { useFumapressTranslations } from "@/components/i18n";
+import { useTranslations } from "@/components/i18n";
 
 const panelButtonVariants = cva(
   "inline-flex items-center font-medium gap-2 px-3 py-2 transition-all duration-150 rounded-lg hover:text-fd-accent-foreground hover:bg-fd-accent active:scale-95",
 );
 
 export function BlogPanel() {
-  const t = useFumapressTranslations();
+  const t = useTranslations();
   const items = useTOCItems();
   const [open, setOpen] = useState(false);
   const [isSuccessful, onCopy] = useCopyButton(() => {

@@ -14,7 +14,7 @@ import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { BookIcon, RssIcon } from "lucide-react";
 
-export const HomeLayout = createHomeLayout<(typeof config)["$context"]>({
+export const HomeLayout = createHomeLayout<Ctx>({
   layoutProps: {
     links: [
       {
