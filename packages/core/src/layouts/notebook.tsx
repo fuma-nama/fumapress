@@ -76,8 +76,14 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
     const inherited = inheritLayoutProps
       ? await layouts.defaultProps?.call(ctx, { lang })
       : undefined;
-
     const _raw = await render?.call(ctx, page);
+    const layoutProps = mergeLayoutConfigs(
+      baseLayoutProps(ctx),
+      inherited,
+      _raw?.layoutProps as DocsLayoutProps,
+    );
+    layoutProps.tree ??= source.getPageTree(lang);
+
     let result: NotebookLayoutRenderData = {
       ..._raw,
       lastModified: _raw?.lastModified ?? (await getLastModifiedDate(ctx, page)),
@@ -92,12 +98,7 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
           page,
           "[Fumapress] Please specify the `render` option in createNotebookLayoutPage()",
         )),
-      layoutProps: mergeLayoutConfigs(
-        { tree: source.getPageTree(lang) },
-        baseLayoutProps(ctx),
-        inherited,
-        _raw?.layoutProps,
-      ),
+      layoutProps,
     };
 
     if (layoutData?.renderers) {

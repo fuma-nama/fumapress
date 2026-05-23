@@ -140,11 +140,27 @@ const config = defineConfig({
       };
     },
     page: createDocsLayoutPage({
-      render: () => ({
-        pageProps: {
-          tableOfContent: { style: "clerk" },
-        },
-      }),
+      async render({ locale }) {
+        let pageTree = (await this.getLoader()).getPageTree(locale);
+
+        for (const child of pageTree.children) {
+          if (child.type === "folder" && child.$id === "docs") {
+            pageTree = {
+              ...pageTree,
+              children: child.children,
+            };
+          }
+        }
+
+        return {
+          layoutProps: {
+            tree: pageTree,
+          },
+          pageProps: {
+            tableOfContent: { style: "clerk" },
+          },
+        };
+      },
     }),
   });
 

@@ -77,6 +77,13 @@ export function createDocsLayoutPage<C extends ConfigContext = ConfigContext>({
       ? await layouts.defaultProps?.call(ctx, { lang })
       : undefined;
     const _raw = await render?.call(ctx, page);
+    const layoutProps = mergeLayoutConfigs(
+      baseLayoutProps(ctx),
+      inherited,
+      _raw?.layoutProps as DocsLayoutProps,
+    );
+    layoutProps.tree ??= source.getPageTree(lang);
+
     let result: DocsLayoutRenderData = {
       ..._raw,
       lastModified: _raw?.lastModified ?? (await getLastModifiedDate(ctx, page)),
@@ -91,12 +98,7 @@ export function createDocsLayoutPage<C extends ConfigContext = ConfigContext>({
           page,
           "[Fumapress] Please specify the `render` option in createDocsLayoutPage()",
         )),
-      layoutProps: mergeLayoutConfigs(
-        { tree: source.getPageTree(lang) },
-        baseLayoutProps(ctx),
-        inherited,
-        _raw?.layoutProps,
-      ),
+      layoutProps,
     };
 
     if (layoutData?.renderers) {
