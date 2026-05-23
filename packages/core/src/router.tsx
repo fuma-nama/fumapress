@@ -4,6 +4,8 @@ import { Fragment } from "react";
 import type { ConfigBuilder, ConfigContext } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
+import type { MiddlewareHandler } from "hono";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 type Options = Parameters<typeof waku.createPages>[1];
 
@@ -12,9 +14,26 @@ export interface Router<C extends ConfigContext = ConfigContext> {
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
   ) => ReturnType<typeof waku.createPages>;
+  createMiddlewares: () => (() => MiddlewareHandler)[];
+}
+
+const appContext = new AsyncLocalStorage({
+  name: "fumapress:core",
+});
+
+export function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
+  const store = appContext.getStore();
+  if (!store)
+    throw new Error(
+      "[Fumapress] Missing server context for Fumapress, make sure to use the middlewares from createRouter()",
+    );
+
+  return store as AppContext<C>;
 }
 
 export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
+  let _ctx: Promise<AppContext<C>> | undefined;
+
   async function init(): Promise<AppContext<C>> {
     const context = await parseConfig<C>(userConfig);
 
@@ -25,12 +44,16 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     return context;
   }
 
+  async function getAppContext() {
+    return await (_ctx ??= init());
+  }
+
   const createPages = (
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     createPagesOptions?: Options,
   ) => {
     return waku.createPages(async (_fns) => {
-      const context = await init();
+      const context = await getAppContext();
       const layouts = context.layouts;
 
       const fns: RouteFns = {
@@ -176,7 +199,17 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     }, createPagesOptions);
   };
 
+  function contextMiddleware(): MiddlewareHandler {
+    return async (_, next) => {
+      const ctx = await getAppContext();
+      return appContext.run(ctx, () => next());
+    };
+  }
+
   return {
     createPages,
+    createMiddlewares() {
+      return [contextMiddleware];
+    },
   };
 }

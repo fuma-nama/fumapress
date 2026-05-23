@@ -84,7 +84,8 @@ const modules = Object.fromEntries(
 
 const router = createRouter(pressConfig);
 const pages = router.createPages(fsRouterFn(modules));
+const middlewareFns = router.createMiddlewares();
 
-export default adapter(pages);
+export default adapter(pages, { middlewareFns });
 `;
 }

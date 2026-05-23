@@ -71,6 +71,7 @@
     "@types/react": "^19.2.15",
     "fumadocs-mdx": "^15.0.7",
     "fumadocs-openapi": "^10.9.0",
+    "hono": "^4.12.22",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsdown": "0.22.0",
@@ -82,11 +83,15 @@
     "@types/react": "*",
     "fumadocs-mdx": "^15.0.0",
     "fumadocs-openapi": "^10.8.0",
+    "hono": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "waku": "1.0.0-beta.0"
   },
   "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    },
     "fumadocs-openapi": {
       "optional": true
     },

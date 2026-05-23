@@ -25,6 +25,7 @@ interface Options {
 }
 
 const IGNORED_PATH_PARTS = new Set(["_components", "_hooks"]);
+const SPECIAL_BASENAME = new Set(["_layout", "index", "_root"]);
 
 /** Ignore paths like `_components` and `_hooks` in pages dir */
 const isIgnoredPath = (paths: string[]) => paths.some((p) => IGNORED_PATH_PARTS.has(p));
@@ -66,10 +67,7 @@ export function fsRouterFn<C extends ConfigContext>(
 
       const path =
         "/" +
-        (["_layout", "index", "_root"].includes(pathItems.at(-1)!)
-          ? pathItems.slice(0, -1)
-          : pathItems
-        ).join("/");
+        (SPECIAL_BASENAME.has(pathItems.at(-1)!) ? pathItems.slice(0, -1) : pathItems).join("/");
 
       const mod = (await modules[file]!()) as {
         default?: FunctionComponent<{ ctx: AppContext<C> }>;
@@ -87,16 +85,17 @@ export function fsRouterFn<C extends ConfigContext>(
       if (pathItems[0] === apiDir) {
         // Strip the apiDir prefix from the path (e.g., _api/hello.txt -> hello.txt)
         const apiPath = "/" + pathItems.slice(1).join("/");
-        if (config?.render === "static") {
+        const renderMode = config?.render ?? (this.mode === "default" ? "dynamic" : this.mode);
+
+        if (renderMode === "static") {
           if (Object.keys(mod).length !== 2 || !mod.GET) {
             console.warn(
               `API ${path} is invalid. For static API routes, only a single GET handler is supported.`,
             );
           }
           createApi({
-            ...config,
             path: apiPath,
-            render: "static",
+            render: renderMode,
             method: "GET",
             handler: mod.GET!.bind(this),
             unstable_sourceFile: srcPath,
@@ -125,7 +124,7 @@ export function fsRouterFn<C extends ConfigContext>(
 
           createApi({
             path: apiPath,
-            render: "dynamic",
+            render: renderMode,
             handlers: Object.fromEntries(entries),
             unstable_sourceFile: srcPath,
           });
@@ -133,35 +132,43 @@ export function fsRouterFn<C extends ConfigContext>(
         continue;
       }
 
-      const Comp = mod.default!;
+      const component = (props: object) => {
+        const Comp = mod.default!;
+
+        return <Comp {...props} ctx={this} />;
+      };
+
       const renderMode = config?.render ?? (this.mode === "default" ? "static" : this.mode);
 
       if (pathItems[0] === slicesDir) {
         createSlice({
-          component: (props: object) => <Comp {...props} ctx={this} />,
+          component,
           render: renderMode,
           id: pathItems.slice(1).join("/"),
-          unstable_sourceFile: srcPath,
-        } as never); // FIXME avoid as never
-        continue;
-      }
-
-      if (pathItems.at(-1) === "_root") {
-        createRoot({
-          component: (props: object) => <Comp {...props} ctx={this} />,
-          render: "static",
-          ...config,
           unstable_sourceFile: srcPath,
         } as never);
         continue;
       }
 
-      const routePath = joinPathname("(fs)", path);
+      if (pathItems.at(-1) === "_root") {
+        createRoot({
+          component,
+          render: renderMode,
+          unstable_sourceFile: srcPath,
+        } as never);
+        continue;
+      }
+
+      const autoI18n = config?.autoI18n ?? true;
+      const routePath =
+        this.i18nConfig && autoI18n
+          ? joinPathname("[lang]/(fs)", path)
+          : joinPathname("(fs)", path);
 
       if (pathItems.at(-1) === "_layout") {
         createLayout({
           path: routePath,
-          component: (props: object) => <Comp {...props} ctx={this} />,
+          component,
           render: renderMode,
           unstable_sourceFile: srcPath,
         } as never);
@@ -170,7 +177,7 @@ export function fsRouterFn<C extends ConfigContext>(
 
       createPage({
         path: routePath,
-        component: (props: object) => <Comp {...props} ctx={this} />,
+        component,
         render: renderMode,
         unstable_sourceFile: srcPath,
       } as never);

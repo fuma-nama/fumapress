@@ -110,8 +110,15 @@ export interface AppContextData {
 }
 
 /**
- * For file-system routing, route files can export a `getConfig()` function that returns a `RouteConfig` object.
+ * For file-system router, route files can export a `getConfig()` function that returns a `RouteConfig` object.
  */
 export interface RouteConfig {
   render?: "static" | "dynamic";
+
+  /**
+   * automatically insert `/[lang]` route segment if i18n is configured, only applicable for pages & layouts.
+   *
+   * @default true
+   */
+  autoI18n?: boolean;
 }

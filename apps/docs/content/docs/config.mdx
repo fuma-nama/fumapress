@@ -120,13 +120,38 @@ import adapter from "waku/adapters/default";
 // your main config file
 import pressConfig from "../press.config";
 import { createRouter } from "fumapress/router";
+import { fsRouterFn } from "fumapress/router/fs";
+
+const router = createRouter(pressConfig);
+
+const modules = Object.fromEntries(
+  Object.entries(import.meta.glob("/src/pages/**/*.{ts,tsx,js,jsx}")).map(([k, v]) => [
+    k.slice("/src/".length),
+    v,
+  ]),
+);
+
+// file-system router
+const pages = router.createPages(fsRouterFn(modules));
+const middlewareFns = router.createMiddlewares();
+
+export default adapter(pages, { middlewareFns });
+```
+
+You can also use [Waku Config-based Routing](https://waku.gg/#routing) instead of the file-system router, see the linked docs for usage.
+
+```tsx title="src/waku.server.tsx"
+import adapter from "waku/adapters/default";
+// your main config file
+import pressConfig from "../press.config";
+import { createRouter } from "fumapress/router";
 
 const router = createRouter(pressConfig);
 
 const pages = router.createPages(async ({ createPage }) => {
   // note: root element is already created by Fumapress
   createPage({
-    render: "dynamic",
+    render: "static",
     path: "/hello-world",
     component() {
       // ...
@@ -134,7 +159,7 @@ const pages = router.createPages(async ({ createPage }) => {
   });
 });
 
-export default adapter(pages);
-```
+const middlewareFns = router.createMiddlewares();
 
-See the [Waku Config-based Routing](https://waku.gg/#routing) section if you want to create custom routes.
+export default adapter(pages, { middlewareFns });
+```

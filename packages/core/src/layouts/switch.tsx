@@ -20,7 +20,7 @@ export function createLayoutSwitchAuto<C extends ConfigContext = ConfigContext>(
   };
 }
 
-export function createLayoutSwitch<T extends string, C extends ConfigContext = ConfigContext>(
+export function createLayoutSwitch<const T extends string, C extends ConfigContext = ConfigContext>(
   /** detect layout from page */
   detector: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => T,
   layouts: Record<NoInfer<T>, Layouts<C>["page"]>,

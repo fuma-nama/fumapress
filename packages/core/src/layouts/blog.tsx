@@ -13,11 +13,17 @@ import { Link } from "waku";
 import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
 import { getTags } from "@/lib/shared/blog";
-import type { BlogLayoutPage } from "@/plugins/blog";
+import type { BlogLayout, BlogLayoutPage } from "@/plugins/blog";
 import { joinPathname } from "@/lib/join-pathname";
 import { LinkToHome } from "@/components/blog";
+import { createHomeLayout, type HomeLayoutOptions } from "./home";
 
-export { createHomeLayout as createBlogLayout } from "./home";
+/** You can use `createHomeLayout()` directly, this is only a wrapper */
+export function createBlogLayout<C extends ConfigContext>(
+  options?: HomeLayoutOptions<C>,
+): BlogLayout<C> {
+  return createHomeLayout(options);
+}
 
 export interface BlogLayoutPageRenderData {
   creationDate?: Date;
