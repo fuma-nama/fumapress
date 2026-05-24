@@ -1,0 +1,48 @@
+---
+title: Notebook Layout
+description: Render reference pages with the notebook appearance.
+---
+
+## Overview
+
+Use the notebook layout for reference pages that should keep docs features, but use the notebook appearance from Fumadocs UI.
+
+It is a good fit for API references, generated content, or dense technical pages where the notebook style is easier to scan than the default docs page.
+
+## Config
+
+Configure it as the default page renderer with `useLayouts()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createNotebookLayoutPage(),
+});
+```
+
+The notebook layout accepts the same kind of `render` option as the docs layout:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createNotebookLayoutPage({
+    render(page) {
+      return {
+        pageProps: {
+          full: true,
+        },
+      };
+    },
+  }),
+});
+```
+
+The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.

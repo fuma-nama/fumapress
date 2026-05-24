@@ -1,0 +1,124 @@
+---
+title: Layouts
+description: Use and customize layouts in Fumapress.
+icon: PanelsTopLeft
+---
+
+## Overview
+
+Layouts are page renderers. They decide how a content page is wrapped, how the page body is rendered, and which UI pieces like sidebar, table of contents, navbar, and footer are shown.
+
+Fumapress uses the docs layout by default. Pick another layout when a page needs a different reading experience, or switch between layouts per page with your own renderer.
+
+<Cards>
+  <Card href="/docs/layouts/docs" title="Docs Layout">
+    For documentation pages with sidebar navigation, table of contents, page title, and page
+    metadata.
+  </Card>
+  <Card href="/docs/layouts/notebook" title="Notebook Layout">
+    For reference-style pages that keep docs features with the notebook appearance from Fumadocs UI.
+  </Card>
+  <Card href="/docs/layouts/home" title="Home Layout">
+    For standalone pages that need the shared navbar and layout props without docs page chrome.
+  </Card>
+</Cards>
+
+## Shared Props
+
+Define `defaultProps` to share props across Fumadocs layouts. These props are merged into layouts that inherit default props, such as docs, notebook, and home layouts:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  defaultProps() {
+    return {
+      nav: {
+        title: "My Docs",
+      },
+      links: [
+        {
+          text: "GitHub",
+          url: "https://github.com/acme/docs",
+        },
+      ],
+    };
+  },
+});
+```
+
+## Switching Layouts
+
+The `page` layout is just a React component. To switch between layouts for every page, create your own renderer and forward the same props to the layout you want to use:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+
+const config = defineConfig({
+  // ...
+});
+
+export type Ctx = typeof config.$context;
+
+const DocsPage = createDocsLayoutPage<Ctx>();
+const NotebookPage = createNotebookLayoutPage<Ctx>();
+
+export default config.useLayouts({
+  page: (props) => {
+    if (props.page.path.startsWith("reference/")) {
+      return <NotebookPage {...props} />;
+    }
+
+    return <DocsPage {...props} />;
+  },
+});
+```
+
+For simpler use cases, it can be simplified with `createLayoutSwitch()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+import { createHomeLayoutPage } from "fumapress/layouts/home";
+import { createLayoutSwitch } from "fumapress/layouts/switch";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createLayoutSwitch((page) => (page.path.startsWith("marketing/") ? "marketing" : "docs"), {
+    docs: createDocsLayoutPage(),
+    marketing: createHomeLayoutPage(),
+  }),
+});
+```
+
+## File-based Layouts
+
+File-based routes in `src/pages` use Waku's file-based routing model. Use `_layout.tsx` files to apply layouts on children routes.
+
+Define & export layouts:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createHomeLayout } from "fumapress/layouts/home";
+
+const config = defineConfig({
+  // ...
+});
+
+export type Ctx = typeof config.$context;
+
+export const HomeLayout = createHomeLayout<Ctx>();
+
+export default config;
+```
+
+To apply `HomeLayout` on all file-based routes under `/`:
+
+```tsx title="src/pages/_layout.tsx"
+export { HomeLayout as default } from "../../press.config";
+```

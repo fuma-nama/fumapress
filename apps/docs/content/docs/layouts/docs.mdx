@@ -1,0 +1,50 @@
+---
+title: Docs Layout
+description: Render documentation pages with sidebar navigation and table of contents.
+---
+
+## Overview
+
+Use the docs layout for documentation pages with sidebar navigation, page title, description, table of contents, view options, and last updated time.
+
+Fumapress uses this layout by default, so you only need to configure it when you want to customize the renderer.
+
+## Config
+
+Configure the docs layout explicitly with `useLayouts()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createDocsLayoutPage(),
+});
+```
+
+Customize what the layout renders with the `render` option:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createDocsLayoutPage({
+    async render(page) {
+      return {
+        pageProps: {
+          tableOfContent: {
+            style: "clerk",
+          },
+        },
+      };
+    },
+  }),
+});
+```
+
+The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.

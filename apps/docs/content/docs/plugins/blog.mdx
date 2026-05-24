@@ -128,7 +128,8 @@ Override the UI.
 import { defineConfig } from "fumapress";
 import { blogPlugin } from "fumapress/plugins/blog";
 // blog layouts
-import { createBlogLayout, createBlogLayoutPage } from "fumapress/layouts/blog";
+import { createHomeLayout } from "fumapress/layouts/home";
+import { createBlogLayoutPage } from "fumapress/layouts/blog";
 import { createBlogIndexPage } from "fumapress/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "fumapress/layouts/blog.tags";
 
@@ -138,7 +139,7 @@ export default defineConfig({
   blogPlugin({
     layouts: {
       // shared layout for blog
-      layout: createBlogLayout(),
+      layout: createHomeLayout(),
       // renderer for blog pages
       page: createBlogLayoutPage(),
       // renderer for blog's index page

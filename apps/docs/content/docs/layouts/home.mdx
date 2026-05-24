@@ -1,0 +1,73 @@
+---
+title: Home Layout
+description: Render standalone pages with the shared home layout.
+---
+
+## Overview
+
+Use the home layout for standalone content pages that only need shared navbar.
+
+It is a good fit for marketing pages, landing pages, or custom content pages that should live in your content source.
+
+## Config
+
+Configure it as the default content page renderer with `useLayouts()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createHomeLayoutPage } from "fumapress/layouts/home";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createHomeLayoutPage(),
+});
+```
+
+Customize the rendered body or layout props with the `render` option:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createHomeLayoutPage } from "fumapress/layouts/home";
+
+export default defineConfig({
+  // ...
+}).useLayouts({
+  page: createHomeLayoutPage({
+    render(page) {
+      return {
+        layoutProps: {
+          nav: {
+            title: page.data.title,
+          },
+        },
+      };
+    },
+  }),
+});
+```
+
+## File-based Layout
+
+For custom route files, use `createHomeLayout()` directly as a wrapper:
+
+```tsx title="src/pages/_layout.tsx"
+import type { ReactNode } from "react";
+import type { AppContext } from "fumapress";
+import { createHomeLayout } from "fumapress/layouts/home";
+import type PressConfig from "../../press.config";
+
+const HomeLayout = createHomeLayout<typeof PressConfig.$context>();
+
+export default function Layout({
+  children,
+  ctx,
+}: {
+  children: ReactNode;
+  ctx: AppContext<typeof PressConfig.$context>;
+}) {
+  return <HomeLayout ctx={ctx}>{children}</HomeLayout>;
+}
+```
+
+The `<HomeLayout />` is a normal component that you can use anywhere.
