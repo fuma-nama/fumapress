@@ -9,7 +9,6 @@ import {
   TransformChildren,
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
-import { getPressContext } from "@/router";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
 import type { ComponentType, FC, ReactNode } from "react";
 
@@ -79,12 +78,12 @@ export function createHomeLayout<C extends ConfigContext = ConfigContext>({
 }: HomeLayoutOptions<C> = {}): FC<{
   lang?: string;
   layoutProps?: TransformChildren<HomeLayoutProps>;
-  ctx?: AppContext<C>;
+  ctx: AppContext<C>;
   children: ReactNode;
 }> {
   const THomeLayout = createTransformChildren(HomeLayout);
 
-  return async function Layout({ lang, layoutProps, children, ctx = getPressContext<C>() }) {
+  return async function Layout({ lang, layoutProps, children, ctx }) {
     const {
       layouts,
       data: { "core:home-layout": layoutData },

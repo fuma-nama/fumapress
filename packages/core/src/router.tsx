@@ -21,7 +21,9 @@ const appContext = new AsyncLocalStorage({
   name: "fumapress:core",
 });
 
-export function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
+/* Waku.js does not support build-time middleware at the moment
+
+function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
   const store = appContext.getStore();
   if (!store)
     throw new Error(
@@ -30,6 +32,7 @@ export function getPressContext<C extends ConfigContext = ConfigContext>(): AppC
 
   return store as AppContext<C>;
 }
+*/
 
 export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
   let _ctx: Promise<AppContext<C>> | undefined;
