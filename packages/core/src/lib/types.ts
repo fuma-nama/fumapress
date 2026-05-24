@@ -76,7 +76,7 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
     page: C["loaderConfig"]["page"],
   ) => Awaitable<C["loaderConfig"]["page"] | false | undefined>;
 
-  createMiddlewares?: (this: AppContext<C>) => (() => MiddlewareHandler)[] | undefined;
+  createMiddlewares?: (this: AppContext<C>) => MiddlewareHandler[] | undefined;
 }
 
 export interface BaseRouteFns {

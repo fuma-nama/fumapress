@@ -9,24 +9,19 @@ export function createLayoutSwitchAuto<C extends ConfigContext = ConfigContext>(
     Layouts<C>["page"]
   >,
 ): Layouts<C>["page"] {
-  return async function (props) {
-    const { page } = props;
-    if (!page.type) unstable_notFound();
-
-    const Layout = layouts[page.type as never] as Layouts<C>["page"];
-    if (!Layout) unstable_notFound();
-
-    return <Layout {...props} />;
-  };
+  return createLayoutSwitch((page) => page.type, layouts);
 }
 
 export function createLayoutSwitch<const T extends string, C extends ConfigContext = ConfigContext>(
   /** detect layout from page */
-  detector: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => T,
+  detector: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => T | undefined,
   layouts: Record<NoInfer<T>, Layouts<C>["page"]>,
 ): Layouts<C>["page"] {
   return async function (props) {
-    const Layout = layouts[detector.call(props.ctx, props.page)] as Layouts<C>["page"];
+    const key = detector.call(props.ctx, props.page);
+    if (typeof key !== "string") unstable_notFound();
+
+    const Layout = layouts[key] as Layouts<C>["page"];
     if (!Layout) unstable_notFound();
 
     return <Layout {...props} />;

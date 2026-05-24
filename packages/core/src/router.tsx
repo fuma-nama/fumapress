@@ -5,7 +5,6 @@ import type { ConfigBuilder, ConfigContext } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
 import type { MiddlewareHandler } from "hono";
-import { AsyncLocalStorage } from "node:async_hooks";
 
 type Options = Parameters<typeof waku.createPages>[1];
 
@@ -17,11 +16,11 @@ export interface Router<C extends ConfigContext = ConfigContext> {
   createMiddlewares: () => (() => MiddlewareHandler)[];
 }
 
+/* Waku.js does not support build-time middleware at the moment
+
 const appContext = new AsyncLocalStorage({
   name: "fumapress:core",
 });
-
-/* Waku.js does not support build-time middleware at the moment
 
 function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
   const store = appContext.getStore();
@@ -136,21 +135,23 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           },
         });
 
-        fns.createPage({
-          render: defaultRenderMode,
-          path: "/[lang]/[...slugs]",
-          staticPaths,
-          async component({ slugs, lang }) {
-            return (
-              <layouts.page
-                lang={lang}
-                slugs={slugs}
-                page={await resolvePage(slugs, lang)}
-                ctx={context}
-              />
-            );
-          },
-        });
+        if (defaultRenderMode === "dynamic" || staticPaths.length > 0) {
+          fns.createPage({
+            render: defaultRenderMode,
+            path: "/[lang]/[...slugs]",
+            staticPaths,
+            async component({ slugs, lang }) {
+              return (
+                <layouts.page
+                  lang={lang}
+                  slugs={slugs}
+                  page={await resolvePage(slugs, lang)}
+                  ctx={context}
+                />
+              );
+            },
+          });
+        }
 
         fns.createPage({
           render: defaultRenderMode,
@@ -179,14 +180,16 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           },
         });
 
-        fns.createPage({
-          render: defaultRenderMode,
-          path: "/[...slugs]",
-          staticPaths,
-          async component({ slugs }) {
-            return <layouts.page slugs={slugs} page={await resolvePage(slugs)} ctx={context} />;
-          },
-        });
+        if (defaultRenderMode === "dynamic" || staticPaths.length > 0) {
+          fns.createPage({
+            render: defaultRenderMode,
+            path: "/[...slugs]",
+            staticPaths,
+            async component({ slugs }) {
+              return <layouts.page slugs={slugs} page={await resolvePage(slugs)} ctx={context} />;
+            },
+          });
+        }
 
         fns.createPage({
           render: defaultRenderMode,
@@ -202,13 +205,6 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     }, createPagesOptions);
   };
 
-  function contextMiddleware(): MiddlewareHandler {
-    return async (_, next) => {
-      const ctx = await getAppContext();
-      return appContext.run(ctx, next);
-    };
-  }
-
   function pluginsMiddleware(): MiddlewareHandler {
     async function init(): Promise<MiddlewareHandler[]> {
       const ctx = await getAppContext();
@@ -218,8 +214,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
       );
 
       for (const v of resolved) {
-        if (!v) continue;
-        for (const middleware of v) out.push(middleware());
+        if (v) out.push(...v);
       }
 
       return out;
@@ -229,6 +224,8 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
 
     return async (c, next) => {
       const middlewares = await middlewaresPromise;
+      if (middlewares.length === 0) return next();
+
       let response: Response | undefined;
 
       const run = async (index: number) => {
@@ -251,7 +248,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
   return {
     createPages,
     createMiddlewares() {
-      return [contextMiddleware, pluginsMiddleware];
+      return [pluginsMiddleware];
     },
   };
 }

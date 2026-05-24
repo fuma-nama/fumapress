@@ -32,9 +32,9 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.192",
+    "@ai-sdk/react": "^3.0.193",
     "@radix-ui/react-presence": "^1.1.5",
-    "ai": "^6.0.190",
+    "ai": "^6.0.191",
     "flexsearch": "^0.8.212",
     "fumadocs-core": "^16.9.1",
     "fumadocs-ui": "^16.9.1",

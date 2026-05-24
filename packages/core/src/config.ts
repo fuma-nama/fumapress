@@ -22,7 +22,7 @@ export interface Config<C extends ConfigContext = ConfigContext> {
   mode?: BuildMode;
 
   /** the default content loader */
-  loader: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
+  loader?: LoaderOutput<C["loaderConfig"]> | (() => Awaitable<LoaderOutput<C["loaderConfig"]>>);
 
   site?: SiteConfig;
   /** this is optional if you have defined `translations` */

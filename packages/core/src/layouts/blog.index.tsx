@@ -44,10 +44,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
           )}
         </div>
 
-        <OrderedBlogGrid
-          posts={source.getPages(lang).filter((page) => blog.isBlog.call(ctx, page))}
-          ctx={ctx}
-        />
+        <OrderedBlogGrid posts={source.getPages(lang).filter(blog.isBlog.bind(ctx))} ctx={ctx} />
       </>
     );
   };

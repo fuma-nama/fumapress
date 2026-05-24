@@ -1,7 +1,7 @@
 import type { BuildMode, ConfigBuilder, ConfigContext, Layouts, MetaConfig } from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
-import type { LoaderOutput } from "fumadocs-core/source";
+import { loader, type LoaderOutput } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPlugin, AppContextData, ServerPluginOption } from "./types";
 import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
 import createDeepmerge from "@fastify/deepmerge";
@@ -51,6 +51,7 @@ export async function parseConfig<C extends ConfigContext>(
     _: 0,
   };
 
+  let EMPTY: LoaderOutput<C["loaderConfig"]> | undefined;
   function resolvePlugins(plugins: ServerPluginOption<C>[]): ServerPlugin<C>[] {
     const flat: ServerPlugin<C>[] = plugins.flat(Infinity as never);
     flat.push(disableSearchPlugin());
@@ -62,8 +63,15 @@ export async function parseConfig<C extends ConfigContext>(
   return {
     getLoader() {
       if (typeof config.loader === "function") return config.loader();
+      if (config.loader) return config.loader;
 
-      return config.loader;
+      console.warn("[Fumapress] loader is not specified in your config, is it a mistake?");
+      return (EMPTY ??= loader(
+        {},
+        {
+          baseUrl: "/",
+        },
+      ) as never);
     },
     layouts: {
       ...layouts,
