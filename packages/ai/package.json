@@ -53,14 +53,12 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsdown": "0.22.0",
-    "typescript": "^6.0.3",
-    "waku": "1.0.0-beta.0"
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@types/react": "*",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "waku": "1.0.0-beta.0"
+    "react-dom": "^19.2.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {

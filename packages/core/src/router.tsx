@@ -1,4 +1,4 @@
-import * as waku from "waku";
+import { createPages as base_createPages } from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
 import { Fragment } from "react";
 import type { ConfigBuilder, ConfigContext } from "./config";
@@ -6,13 +6,13 @@ import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
 import type { MiddlewareHandler } from "hono";
 
-type Options = Parameters<typeof waku.createPages>[1];
+type Options = Parameters<typeof base_createPages>[1];
 
 export interface Router<C extends ConfigContext = ConfigContext> {
   createPages: (
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
-  ) => ReturnType<typeof waku.createPages>;
+  ) => ReturnType<typeof base_createPages>;
   createMiddlewares: () => (() => MiddlewareHandler)[];
 }
 
@@ -54,7 +54,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     createPagesOptions?: Options,
   ) => {
-    return waku.createPages(async (_fns) => {
+    return base_createPages(async (_fns) => {
       const context = await getAppContext();
       const layouts = context.layouts;
 

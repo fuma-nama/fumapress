@@ -8,7 +8,7 @@ export default defineConfig({
   format: "esm",
   entry: [
     "src/{index,vite,i18n}.ts",
-    "src/router.tsx",
+    "src/{router,client}.tsx",
     "src/router/fs.tsx",
     "src/adapters/**",
     "src/{layouts,plugins}/*",

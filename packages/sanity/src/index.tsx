@@ -1,13 +1,17 @@
 import {
   createSanitySource,
-  GenericSanityOptions,
+  type GenericSanityOptions,
   type BaseDoc,
   type DocToPage,
 } from "@fumadocs/sanity";
 import type { DynamicSource, MetaData, PageData } from "fumadocs-core/source";
 import type { ConfigContext, ServerPlugin } from "fumapress";
 import { z } from "zod/mini";
-import { type PortableTextBlock, toPlainText, PortableText } from "@portabletext/react";
+import {
+  type PortableTextBlock,
+  toPlainText,
+  PortableText as DefaultPortableText,
+} from "@portabletext/react";
 import type { SanityClient } from "@sanity/client";
 import type { ReactNode } from "react";
 
@@ -20,7 +24,7 @@ export interface SanityIntegration<Doc extends BaseDoc> {
   client: SanityClient;
   docType: string;
 
-  dynamicSource: (options: SourceOptions<Doc>) => DynamicSource<{
+  dynamicSource: (options?: SourceOptions<Doc>) => DynamicSource<{
     pageData: DocToPage<Doc>;
     metaData: MetaData;
   }>;
@@ -35,7 +39,7 @@ export function fumapressSanity<
   client: SanityClient;
   /** document name for docs pages */
   docType: string;
-  /** renderer for portable text, **highly** recommended to specify yours */
+  /** renderer for portable text */
   PortableText?: PortableTextRenderer<B>;
 }): SanityIntegration<Doc> {
   const { client, docType } = config;
@@ -44,7 +48,7 @@ export function fumapressSanity<
     $inferDoc: undefined as never,
     client,
     docType,
-    renderer: (config.PortableText as unknown as PortableTextRenderer | undefined) ?? PortableText,
+    renderer: (config.PortableText ?? DefaultPortableText) as unknown as PortableTextRenderer,
     dynamicSource(options) {
       return createSanitySource<Doc>({ client, docType, ...options });
     },

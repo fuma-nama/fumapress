@@ -21,6 +21,7 @@
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
+    "./client": "./dist/client.js",
     "./i18n": "./dist/i18n.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",

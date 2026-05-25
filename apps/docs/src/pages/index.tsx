@@ -1,6 +1,6 @@
 import { GrainGradient } from "@paper-design/shaders-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import { Link } from "waku";
+import { Link } from "fumapress/client";
 import { cn } from "../cn";
 import { BookIcon } from "lucide-react";
 import { HomeConfigPlayground } from "../home-config-playground";
@@ -26,7 +26,7 @@ export default function Page() {
             composable site generator.
           </p>
           <Link
-            to={"/docs" as never}
+            href="/docs"
             className={cn(
               buttonVariants({ variant: "primary" }),
               "mt-8 mb-12 gap-2 w-40 rounded-xl",
