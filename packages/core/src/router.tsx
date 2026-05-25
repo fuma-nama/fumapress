@@ -1,6 +1,6 @@
 import { createPages as base_createPages } from "waku";
 import { AppContext, parseConfig } from "./lib/shared";
-import { Fragment } from "react";
+import { Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "./config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
@@ -50,10 +50,10 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     return await (_ctx ??= init());
   }
 
-  const createPages = (
+  function createPages(
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     createPagesOptions?: Options,
-  ) => {
+  ) {
     return base_createPages(async (_fns) => {
       const context = await getAppContext();
       const layouts = context.layouts;
@@ -135,23 +135,29 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           },
         });
 
-        if (defaultRenderMode === "dynamic" || staticPaths.length > 0) {
-          fns.createPage({
-            render: defaultRenderMode,
-            path: "/[lang]/[...slugs]",
-            staticPaths,
-            async component({ slugs, lang }) {
-              return (
-                <layouts.page
-                  lang={lang}
-                  slugs={slugs}
-                  page={await resolvePage(slugs, lang)}
-                  ctx={context}
-                />
-              );
-            },
-          });
-        }
+        fns.createPage({
+          render: defaultRenderMode,
+          path: "/[lang]/[...slugs]",
+          staticPaths,
+          async component({ slugs, lang }) {
+            const page = await resolvePage(slugs, lang);
+            let fallback: ReactNode = (
+              <layouts.page lang={lang} slugs={slugs} page={page} ctx={context} />
+            );
+
+            for (const plugin of context.plugins) {
+              const res: ReactNode = await plugin.renderPage?.call(context, {
+                fallback,
+                page,
+                slugs,
+                lang,
+              });
+              if (res !== undefined) fallback = res;
+            }
+
+            return fallback;
+          },
+        });
 
         fns.createPage({
           render: defaultRenderMode,
@@ -180,16 +186,26 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           },
         });
 
-        if (defaultRenderMode === "dynamic" || staticPaths.length > 0) {
-          fns.createPage({
-            render: defaultRenderMode,
-            path: "/[...slugs]",
-            staticPaths,
-            async component({ slugs }) {
-              return <layouts.page slugs={slugs} page={await resolvePage(slugs)} ctx={context} />;
-            },
-          });
-        }
+        fns.createPage({
+          render: defaultRenderMode,
+          path: "/[...slugs]",
+          staticPaths,
+          async component({ slugs }) {
+            const page = await resolvePage(slugs);
+            let fallback: ReactNode = <layouts.page slugs={slugs} page={page} ctx={context} />;
+
+            for (const plugin of context.plugins) {
+              const res: ReactNode = await plugin.renderPage?.call(context, {
+                fallback,
+                page,
+                slugs,
+              });
+              if (res !== undefined) fallback = res;
+            }
+
+            return fallback;
+          },
+        });
 
         fns.createPage({
           render: defaultRenderMode,
@@ -203,7 +219,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
 
       return null as never;
     }, createPagesOptions);
-  };
+  }
 
   function pluginsMiddleware(): MiddlewareHandler {
     async function init(): Promise<MiddlewareHandler[]> {

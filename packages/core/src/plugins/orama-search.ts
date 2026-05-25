@@ -41,14 +41,15 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
     },
     async createPages({ createApiIsomorphic }) {
       const { createFromSource } = await import("fumadocs-core/search/server");
+      const renderMode = this.mode === "default" ? "dynamic" : this.mode;
       const server = createFromSource(this.getLoader, {
         buildIndex: buildIndex.bind(this),
       });
 
       createApiIsomorphic({
-        render: this.mode === "static" ? "static" : "dynamic",
+        render: renderMode,
         path: "/api/search",
-        handler: this.mode === "static" ? server.staticGET : server.GET,
+        handler: renderMode === "static" ? server.staticGET : server.GET,
       });
     },
   };

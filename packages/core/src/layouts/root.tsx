@@ -1,11 +1,20 @@
 import type { Layouts, ConfigContext } from "@/config";
-import styles from "virtual:root.css?inline";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
 import { renderRootMeta } from "@/lib/shared";
 import { i18nProvider } from "fumadocs-ui/i18n";
+import type { ReactElement } from "react";
 
 export interface RootLayoutOptions {
   providerProps?: Omit<RootProviderProps, "children">;
+}
+
+let styleTag: ReactElement;
+if (import.meta.env.DEV) {
+  const { default: styles } = await import("virtual:root.css?inline");
+  styleTag = <style>{styles}</style>;
+} else {
+  const { default: cssUrl } = await import("virtual:root.css?url");
+  styleTag = <link rel="stylesheet" href={cssUrl} />;
 }
 
 export function createRootLayout<C extends ConfigContext = ConfigContext>(
@@ -32,7 +41,7 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
     return (
       <html lang={lang ?? "en"} suppressHydrationWarning>
         <head>
-          <style>{styles}</style>
+          {styleTag}
           {renderRootMeta(ctx)}
         </head>
         <body data-version="1.0" className="flex flex-col min-h-screen">

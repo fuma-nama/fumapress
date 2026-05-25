@@ -74,6 +74,20 @@ export default defineConfig({
 );
 ```
 
+The integration is now configured, you can write blog posts under the `content/blog` directory (as specified in `defineDocs()`):
+
+```mdx title="content/blog/hello-world.mdx"
+---
+title: My Blog Post
+description: Hello World!!!
+tags: [my-tag]
+---
+
+## Introduction
+
+Welcome to my first blog post.
+```
+
 ### Other Content Sources
 
 If you don't use Fumadocs MDX, you can keep the your loader config, but make sure to define the `isBlog()` option like:

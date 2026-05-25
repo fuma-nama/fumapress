@@ -76,6 +76,14 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
     page: C["loaderConfig"]["page"],
   ) => Awaitable<C["loaderConfig"]["page"] | false | undefined>;
 
+  /**
+   * Override the page renderer, use default fallback if `undefined` is returned.
+   */
+  renderPage?: (
+    this: AppContext<C>,
+    env: { page: C["loaderConfig"]["page"]; fallback: ReactNode; lang?: string; slugs: string[] },
+  ) => Awaitable<ReactNode>;
+
   createMiddlewares?: (this: AppContext<C>) => MiddlewareHandler[] | undefined;
 }
 

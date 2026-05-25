@@ -43,14 +43,15 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
     },
     async createPages({ createApiIsomorphic }) {
       const { flexsearchFromSource } = await import("fumadocs-core/search/flexsearch");
+      const render = this.mode === "default" ? "dynamic" : this.mode;
       const server = flexsearchFromSource(this.getLoader, {
         buildIndex: buildIndex.bind(this),
       });
 
       createApiIsomorphic({
-        render: this.mode === "static" ? "static" : "dynamic",
+        render,
         path: "/api/search",
-        handler: this.mode === "static" ? server.staticGET : server.GET,
+        handler: render === "static" ? server.staticGET : server.GET,
       });
     },
   };

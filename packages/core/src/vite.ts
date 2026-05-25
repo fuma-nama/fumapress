@@ -10,7 +10,24 @@ export interface PluginOptions {
   generateViteConfig?: boolean;
 }
 
-export default function press(options: PluginOptions = {}): Plugin {
+export default function press(options?: PluginOptions): Plugin[] {
+  return [
+    core(options),
+    // see https://github.com/wakujs/waku/issues/2092
+    { name: "waku:vite-plugins:fs-router-typegen" },
+    {
+      name: "fumapress:internal-flags",
+      enforce: "pre",
+      config(config) {
+        Object.assign(config, {
+          _fumadocs_skipViteConfig: true,
+        });
+      },
+    },
+  ];
+}
+
+function core(options: PluginOptions = {}): Plugin {
   const { generateViteConfig = true } = options;
 
   return {
@@ -52,10 +69,12 @@ export default function press(options: PluginOptions = {}): Plugin {
         return this.resolve("/press.config", undefined, options);
       }
 
-      if (source === "virtual:root.css?inline") {
+      if (source.startsWith("virtual:root.css")) {
+        const [_id, query = ""] = source.split("?", 2);
+
         return (
-          (await this.resolve(`/src/app.css?inline`)) ??
-          (await this.resolve(`fumapress/css/default.css?inline`))
+          (await this.resolve(`/src/app.css?${query}`)) ??
+          (await this.resolve(`fumapress/css/default.css?${query}`))
         );
       }
     },

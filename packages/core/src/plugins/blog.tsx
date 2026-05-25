@@ -97,18 +97,25 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
     isBlog,
   };
 
+  const Layout = layouts.layout ?? createBlogLayout<C>();
+  const Page = layouts.page ?? createBlogLayoutPage<C>();
+
   return {
     name: "core:blog",
-    resolvePage(page) {
-      if (isBlog.call(this, page)) return false;
+    renderPage({ page, lang, slugs }) {
+      if (!isBlog.call(this, page)) return;
+
+      return (
+        <Layout lang={lang} blog={blogCtx} ctx={this}>
+          <Page lang={lang} slugs={slugs} blog={blogCtx} page={page} ctx={this} />
+        </Layout>
+      );
     },
     async createPages({ createPage, createLayout }) {
-      const renderMode = this.mode === "dynamic" ? "dynamic" : "static";
+      const renderMode = this.mode === "default" ? "static" : this.mode;
       const source = await this.getLoader();
       const blogPages = source.getPages().filter((page) => isBlog.call(this, page));
 
-      const Layout = layouts.layout ?? createBlogLayout<C>();
-      const Page = layouts.page ?? createBlogLayoutPage<C>();
       if (this.i18nConfig) {
         createLayout({
           render: renderMode,
@@ -119,19 +126,6 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
                 {children}
               </Layout>
             );
-          },
-        });
-
-        createPage({
-          render: renderMode,
-          path: "/[lang]/(blog)/[...slugs]",
-          staticPaths: blogPages.map((page) => [page.locale!, ...page.slugs]),
-          component: async ({ slugs, lang }) => {
-            const source = await this.getLoader();
-            const page = source.getPage(slugs, lang);
-            if (!page || !isBlog.call(this, page)) unstable_notFound();
-
-            return <Page lang={lang} slugs={slugs} blog={blogCtx} page={page} ctx={this} />;
           },
         });
 
@@ -188,19 +182,6 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
                 {children}
               </Layout>
             );
-          },
-        });
-
-        createPage({
-          render: renderMode,
-          path: "/(blog)/[...slugs]",
-          staticPaths: blogPages.map((page) => page.slugs),
-          component: async ({ slugs }) => {
-            const source = await this.getLoader();
-            const page = source.getPage(slugs);
-            if (!page || !isBlog.call(this, page)) unstable_notFound();
-
-            return <Page blog={blogCtx} slugs={slugs} page={page} ctx={this} />;
           },
         });
 
