@@ -8,10 +8,13 @@ import { PortableText } from "@portabletext/react";
 import { createClient } from "@sanity/client";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import { defineConfig } from "fumapress";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
 const sanityClient = createClient({
   projectId: process.env.SANITY_STUDIO_PROJECT_ID,
   dataset: process.env.SANITY_STUDIO_DATASET,
+  apiVersion: "2024-12-04",
 });
 
 const sanityIntegration = fumapressSanity({
@@ -40,8 +43,9 @@ const sanityIntegration = fumapressSanity({
 const loader = dynamicLoader(sanityIntegration.dynamicSource(), { baseUrl: "/" });
 
 export default defineConfig({
+  mode: "dynamic",
   site: {
     name: "Sanity Example",
   },
   loader: () => loader.get(),
-}).usePlugins(sanityPlugin(sanityIntegration));
+}).usePlugins(sanityPlugin(sanityIntegration), llmsPlugin(), flexsearchPlugin());

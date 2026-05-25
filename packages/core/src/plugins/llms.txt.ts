@@ -92,41 +92,34 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
       };
 
       if (autoRedirect) {
-        middlewares.push(async ({ req }, next) => {
+        middlewares.push(async ({ req, redirect }, next) => {
           if (req.path.endsWith(".md") || !isMarkdownPreferred(req.raw)) return next();
 
           const parsed = parsePathname(req.path);
           if (!parsed) return next();
+          const { lang, slugs } = parsed;
 
           const loader = await this.getLoader();
-          const page = loader.getPage(parsed.slugs, parsed.lang);
-          if (!page) return next();
+          if (!loader.getPage(slugs, lang)) return next();
 
-          return Response.redirect(
-            new URL(req.url, slugsToMarkdownPath(page.slugs, page.locale).pathname),
-          );
+          return redirect(slugsToMarkdownPath(slugs, lang).pathname);
         });
       }
 
       // API route is created under _llms.txt with force dynamic, this redirects requests like "/page.md" back to "/_llms.txt/page.md"
       if (this.mode === "dynamic") {
-        middlewares.push(async ({ req }, next) => {
-          if (!req.path.startsWith(".md")) return next();
+        middlewares.push(async ({ req, redirect }, next) => {
+          if (!req.path.endsWith(".md")) return next();
 
           const parsed = parsePathname(req.path);
           if (!parsed || parsed.slugs[0] === "_llms.txt") return next();
+          const { lang, slugs } = parsed;
 
           const loader = await this.getLoader();
-          parsed.slugs[parsed.slugs.length - 1] = parsed.slugs[parsed.slugs.length - 1]!.replace(
-            /\.md$/,
-            "",
-          );
-          const page = loader.getPage(parsed.slugs, parsed.lang);
-          if (!page) return next();
+          slugs[slugs.length - 1] = slugs[slugs.length - 1]!.replace(/\.md$/, "");
+          if (!loader.getPage(slugs, lang)) return next();
 
-          return Response.redirect(
-            new URL(req.url, slugsToMarkdownPath(page.slugs, page.locale).pathname),
-          );
+          return redirect(slugsToMarkdownPath(slugs, lang).pathname);
         });
       }
 

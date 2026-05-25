@@ -7,7 +7,6 @@ import { type AppContext } from "@/lib/shared";
 import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
 import type { ServerPlugin } from "@/lib/types";
 import type { ComponentType, ReactNode } from "react";
-import { unstable_notFound } from "waku/router/server";
 
 export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   /** default to checking from `page.type` */
