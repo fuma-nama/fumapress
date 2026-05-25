@@ -2,17 +2,17 @@ import type {
   NodeRenderer,
   PortableTextBlock,
   PortableTextTypeComponent,
-} from '@portabletext/react';
-import { Step, Steps } from 'fumadocs-ui/components/steps';
+} from "@portabletext/react";
+import { Step, Steps } from "fumadocs-ui/components/steps";
 
 export interface StepValue {
   _key?: string;
-  _type: 'step';
+  _type: "step";
   body?: PortableTextBlock[];
 }
 
 export interface StepsValue {
-  _type: 'steps';
+  _type: "steps";
   items?: StepValue[];
 }
 

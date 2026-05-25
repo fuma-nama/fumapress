@@ -1,22 +1,22 @@
-import type { PortableTextTypeComponent } from '@portabletext/react';
-import { File, Files, Folder } from 'fumadocs-ui/components/files';
+import type { PortableTextTypeComponent } from "@portabletext/react";
+import { File, Files, Folder } from "fumadocs-ui/components/files";
 
 export interface FileValue {
   _key?: string;
-  _type: 'file';
+  _type: "file";
   name?: string;
 }
 
 export interface FolderValue {
   _key?: string;
-  _type: 'folder';
+  _type: "folder";
   name?: string;
   defaultOpen?: boolean;
   items?: FileTreeItem[];
 }
 
 export interface FilesValue {
-  _type: 'files';
+  _type: "files";
   items?: FileTreeItem[];
 }
 
@@ -26,15 +26,15 @@ function renderFileTree(items: FileTreeItem[] | undefined) {
   return items?.map((item, index) => {
     const key = item._key ?? index;
 
-    if (item._type === 'folder') {
+    if (item._type === "folder") {
       return (
-        <Folder key={key} name={item.name ?? ''} defaultOpen={item.defaultOpen}>
+        <Folder key={key} name={item.name ?? ""} defaultOpen={item.defaultOpen}>
           {renderFileTree(item.items)}
         </Folder>
       );
     }
 
-    return <File key={key} name={item.name ?? ''} />;
+    return <File key={key} name={item.name ?? ""} />;
   });
 }
 
@@ -44,11 +44,11 @@ export const filesComponents: {
   files: PortableTextTypeComponent<FilesValue>;
 } = {
   file({ value }) {
-    return <File name={value.name ?? ''} />;
+    return <File name={value.name ?? ""} />;
   },
   folder({ value }) {
     return (
-      <Folder name={value.name ?? ''} defaultOpen={value.defaultOpen}>
+      <Folder name={value.name ?? ""} defaultOpen={value.defaultOpen}>
         {renderFileTree(value.items)}
       </Folder>
     );

@@ -4,23 +4,23 @@ import type {
   PortableTextBlockComponent,
   PortableTextMarkComponent,
   PortableTextTypeComponent,
-} from '@portabletext/react';
-import Link from 'fumadocs-core/link';
-import { Heading } from 'fumadocs-ui/components/heading';
-import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock';
-import { Callout, type CalloutType } from 'fumadocs-ui/components/callout';
-import { Cards, Card } from 'fumadocs-ui/components/card';
+} from "@portabletext/react";
+import Link from "fumadocs-core/link";
+import { Heading } from "fumadocs-ui/components/heading";
+import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
+import { Callout, type CalloutType } from "fumadocs-ui/components/callout";
+import { Cards, Card } from "fumadocs-ui/components/card";
 
 const baseHeading: PortableTextBlockComponent = (props) => {
   return (
-    <Heading id={props.value._key} as={props.value.style as 'h1'}>
+    <Heading id={props.value._key} as={props.value.style as "h1"}>
       {props.children}
     </Heading>
   );
 };
 
 export const baseBlocks: Record<
-  'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'normal',
+  "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "normal",
   PortableTextBlockComponent
 > = {
   normal(props) {
@@ -35,25 +35,25 @@ export const baseBlocks: Record<
 };
 
 export interface CodeValue {
-  _type: 'code';
+  _type: "code";
   language?: string;
   code?: string;
 }
 
 export interface CalloutValue {
-  _type: 'callout';
+  _type: "callout";
   title?: PortableTextBlock[];
   body?: PortableTextBlock[];
   type?: CalloutType;
 }
 
 export interface CardsValue {
-  _type: 'cards';
+  _type: "cards";
   items?: CardValue[];
 }
 
 export interface CardValue {
-  _type: 'card';
+  _type: "card";
   _key?: string;
   title?: PortableTextBlock[];
   body?: PortableTextBlock[];
@@ -75,7 +75,7 @@ export const baseComponents: {
   cards: PortableTextTypeComponent<CardsValue>;
 } = {
   code: (props) => (
-    <DynamicCodeBlock lang={props.value.language ?? 'text'} code={props.value.code ?? ''} />
+    <DynamicCodeBlock lang={props.value.language ?? "text"} code={props.value.code ?? ""} />
   ),
   callout({ value, renderNode }) {
     return (

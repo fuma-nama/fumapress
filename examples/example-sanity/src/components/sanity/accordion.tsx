@@ -2,12 +2,12 @@ import type {
   NodeRenderer,
   PortableTextBlock,
   PortableTextTypeComponent,
-} from '@portabletext/react';
-import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+} from "@portabletext/react";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
 
 export interface AccordionValue {
   _key?: string;
-  _type: 'accordion';
+  _type: "accordion";
   title?: PortableTextBlock[];
   id?: string;
   value?: string;
@@ -15,8 +15,8 @@ export interface AccordionValue {
 }
 
 export interface AccordionsValue {
-  _type: 'accordions';
-  type?: 'single' | 'multiple';
+  _type: "accordions";
+  type?: "single" | "multiple";
   items?: AccordionValue[];
 }
 
@@ -45,7 +45,7 @@ export const accordionComponents: {
   },
   accordions({ value, renderNode }) {
     return (
-      <Accordions type={value.type ?? 'single'}>
+      <Accordions type={value.type ?? "single"}>
         {value.items?.map((item) => (
           <Accordion
             key={item._key}

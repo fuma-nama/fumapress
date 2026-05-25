@@ -1,33 +1,33 @@
-import { defineType, defineField } from 'sanity';
+import { defineType, defineField } from "sanity";
 
 export const step = defineType({
-  name: 'step',
-  type: 'object',
-  title: 'Step',
+  name: "step",
+  type: "object",
+  title: "Step",
   fields: [
     defineField({
-      name: 'body',
-      title: 'Body',
-      type: 'blockContent',
+      name: "body",
+      title: "Body",
+      type: "blockContent",
     }),
   ],
 });
 
 export const steps = defineType({
-  name: 'steps',
-  type: 'object',
-  title: 'Steps',
+  name: "steps",
+  type: "object",
+  title: "Steps",
   fields: [
     defineField({
-      name: 'items',
-      title: 'Steps',
-      type: 'array',
-      of: [{ type: 'step' }],
+      name: "items",
+      title: "Steps",
+      type: "array",
+      of: [{ type: "step" }],
     }),
   ],
   preview: {
     select: {
-      items: 'items',
+      items: "items",
     },
     prepare({ items = [] }) {
       return {

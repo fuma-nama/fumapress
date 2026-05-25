@@ -2,18 +2,18 @@ import type {
   NodeRenderer,
   PortableTextBlock,
   PortableTextTypeComponent,
-} from '@portabletext/react';
-import { Tab, Tabs, TabsList, TabsTrigger } from 'fumadocs-ui/components/tabs';
+} from "@portabletext/react";
+import { Tab, Tabs, TabsList, TabsTrigger } from "fumadocs-ui/components/tabs";
 
 export interface TabValue {
   _key?: string;
-  _type: 'tab';
+  _type: "tab";
   title?: string;
   body?: PortableTextBlock[];
 }
 
 export interface TabsValue {
-  _type: 'tabs';
+  _type: "tabs";
   items?: TabValue[];
 }
 
