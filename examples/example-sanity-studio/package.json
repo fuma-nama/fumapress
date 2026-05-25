@@ -1,0 +1,30 @@
+{
+  "name": "example-sanity-studio",
+  "version": "1.0.0",
+  "private": true,
+  "keywords": [
+    "sanity"
+  ],
+  "scripts": {
+    "build": "sanity build",
+    "deploy": "sanity deploy",
+    "deploy-graphql": "sanity graphql deploy",
+    "dev": "sanity dev",
+    "start": "sanity start"
+  },
+  "dependencies": {
+    "@sanity/code-input": "^7.1.1",
+    "@sanity/icons": "^3.7.4",
+    "@sanity/vision": "^5.26.0",
+    "fumadocs-core": "^16.9.1",
+    "fumadocs-ui": "^16.9.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sanity": "^5.26.0",
+    "styled-components": "^6.1.18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^6.0.3"
+  }
+}

@@ -29,7 +29,6 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/sanity": "^0.0.4",
     "@portabletext/react": "^6.2.0",
     "@sanity/client": "^7.22.0",
     "fumadocs-core": "^16.9.1",
@@ -37,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@fumadocs/sanity": "^0.0.5",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "react": "^19.2.6",
@@ -44,13 +44,20 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
+    "@sanity/types": "*",
     "@types/react": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "peerDependenciesMeta": {
+    "@sanity/types": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
+  },
+  "inlinedDependencies": {
+    "@fumadocs/sanity": "0.0.5"
   }
 }
