@@ -115,112 +115,85 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
       const source = await this.getLoader();
       const blogPages = source.getPages().filter((page) => isBlog.call(this, page));
 
-      if (this.i18nConfig) {
-        createLayout({
+      createLayout({
+        render: renderMode,
+        path: this.i18nConfig ? "/[lang]/(blog)" : "/(blog)",
+        component: ({ lang, children }) => {
+          return (
+            <Layout lang={lang} blog={blogCtx} ctx={this}>
+              {children}
+            </Layout>
+          );
+        },
+      });
+
+      if (blogCtx.indexPath !== false) {
+        const IndexPage = layouts.index ?? createBlogIndexPage<C>();
+
+        createPage({
           render: renderMode,
-          path: "/[lang]/(blog)",
-          component: ({ lang, children }) => {
-            return (
-              <Layout lang={lang} blog={blogCtx} ctx={this}>
-                {children}
-              </Layout>
-            );
+          path: this.i18nConfig
+            ? (joinPathname("/[lang]/(blog)", blogCtx.indexPath) as "/[lang]")
+            : (joinPathname("/(blog)", blogCtx.indexPath) as "/[lang]"),
+          staticPaths: this.i18nConfig ? Object.keys(this.i18nConfig.languages) : [],
+          component: ({ lang }) => {
+            return <IndexPage lang={lang} blog={blogCtx} ctx={this} />;
+          },
+        });
+      }
+
+      if (this.i18nConfig && blogCtx.tagsPath !== false) {
+        const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
+        const TagPage = layouts.tag ?? createBlogTagPage<C>();
+
+        createPage({
+          path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath) as "/[lang]",
+          render: renderMode,
+          staticPaths: Object.keys(this.i18nConfig.languages),
+          component: ({ lang }) => {
+            return <TagsPage lang={lang} blog={blogCtx} ctx={this} />;
           },
         });
 
-        if (blogCtx.indexPath !== false) {
-          const IndexPage = layouts.index ?? createBlogIndexPage<C>();
-
-          createPage({
-            render: renderMode,
-            path: joinPathname("/[lang]/(blog)", blogCtx.indexPath) as "/[lang]",
-            staticPaths: Object.keys(this.i18nConfig.languages),
-            component: ({ lang }) => {
-              return <IndexPage lang={lang} blog={blogCtx} ctx={this} />;
-            },
-          });
-        }
-
-        if (blogCtx.tagsPath !== false) {
-          const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
-          const TagPage = layouts.tag ?? createBlogTagPage<C>();
-
-          createPage({
-            path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath) as "/[lang]",
-            render: renderMode,
-            staticPaths: Object.keys(this.i18nConfig.languages),
-            component: ({ lang }) => {
-              return <TagsPage lang={lang} blog={blogCtx} ctx={this} />;
-            },
-          });
-
-          const groupedTags = await groupTagsI18n(this, blogPages);
-          const staticPaths: [string, string][] = [];
-          for (const [locale, tags] of groupedTags) {
-            for (const tag of tags.keys()) {
-              staticPaths.push([locale, tag]);
-            }
+        const groupedTags = await groupTagsI18n(this, blogPages);
+        const staticPaths: [string, string][] = [];
+        for (const [locale, tags] of groupedTags) {
+          for (const tag of tags.keys()) {
+            staticPaths.push([locale, tag]);
           }
-
-          createPage({
-            path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath, "[tag]") as "/[lang]/[tag]",
-            render: renderMode,
-            staticPaths,
-            component: ({ lang, tag }) => {
-              return <TagPage lang={lang} tag={tag} blog={blogCtx} ctx={this} />;
-            },
-          });
         }
-      } else {
-        createLayout({
+
+        createPage({
+          path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath, "[tag]") as "/[lang]/[tag]",
           render: renderMode,
-          path: "/(blog)",
-          component: ({ children }) => {
-            return (
-              <Layout blog={blogCtx} ctx={this}>
-                {children}
-              </Layout>
-            );
+          staticPaths,
+          component: ({ lang, tag }) => {
+            return <TagPage lang={lang} tag={tag} blog={blogCtx} ctx={this} />;
+          },
+        });
+      } else if (blogCtx.tagsPath !== false) {
+        const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
+        const TagPage = layouts.tag ?? createBlogTagPage<C>();
+
+        createPage({
+          path: joinPathname("/(blog)", blogCtx.tagsPath) as "/",
+          render: renderMode,
+          staticPaths: [],
+          component: () => {
+            return <TagsPage blog={blogCtx} ctx={this} />;
           },
         });
 
-        if (blogCtx.indexPath !== false) {
-          const IndexPage = layouts.index ?? createBlogIndexPage<C>();
+        const grouped = await groupTags(this, blogPages);
 
-          createPage({
-            render: renderMode,
-            path: joinPathname("/(blog)", blogCtx.indexPath) as "/",
-            staticPaths: [],
-            component: () => {
-              return <IndexPage blog={blogCtx} ctx={this} />;
-            },
-          });
-        }
-
-        if (blogCtx.tagsPath !== false) {
-          const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
-          const TagPage = layouts.tag ?? createBlogTagPage<C>();
-
-          createPage({
-            path: joinPathname("/(blog)", blogCtx.tagsPath) as "/",
-            render: renderMode,
-            staticPaths: [],
-            component: () => {
-              return <TagsPage blog={blogCtx} ctx={this} />;
-            },
-          });
-
-          const grouped = await groupTags(this, blogPages);
-
-          createPage({
-            path: joinPathname("/(blog)", blogCtx.tagsPath, "[tag]") as "/[tag]",
-            render: renderMode,
-            staticPaths: Array.from(grouped.keys()),
-            component: ({ tag }) => {
-              return <TagPage tag={tag} blog={blogCtx} ctx={this} />;
-            },
-          });
-        }
+        createPage({
+          path: joinPathname("/(blog)", blogCtx.tagsPath, "[tag]") as "/[tag]",
+          render: renderMode,
+          staticPaths: Array.from(grouped.keys()),
+          component: ({ tag }) => {
+            return <TagPage tag={tag} blog={blogCtx} ctx={this} />;
+          },
+        });
       }
     },
   };

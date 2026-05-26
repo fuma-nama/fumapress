@@ -14,25 +14,6 @@ import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { BookIcon, RssIcon } from "lucide-react";
 
-export const HomeLayout = createHomeLayout<Ctx>({
-  layoutProps: {
-    links: [
-      {
-        url: "/docs",
-        text: "Documentation",
-        icon: <BookIcon />,
-        active: "nested-url",
-      },
-      {
-        url: "/blog",
-        text: "Blog",
-        icon: <RssIcon />,
-        active: "nested-url",
-      },
-    ],
-  },
-});
-
 const config = defineConfig({
   mode: "static",
   loader: loader(
@@ -105,16 +86,7 @@ const config = defineConfig({
       },
     }),
   )
-  .usePlugins(
-    flexsearchPlugin(),
-    llmsPlugin(),
-    takumiPlugin(),
-    blogPlugin({
-      layouts: {
-        layout: (props) => <HomeLayout {...props} />,
-      },
-    }),
-  )
+  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .useLayouts({
     defaultProps() {
       return {
@@ -164,5 +136,30 @@ const config = defineConfig({
     }),
   });
 
+export const HomeLayout = createHomeLayout<Ctx>({
+  layoutProps: {
+    links: [
+      {
+        url: "/docs",
+        text: "Documentation",
+        icon: <BookIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "/blog",
+        text: "Blog",
+        icon: <RssIcon />,
+        active: "nested-url",
+      },
+    ],
+  },
+});
+
 export type Ctx = typeof config.$context;
-export default config;
+export default config.usePlugins(
+  blogPlugin({
+    layouts: {
+      layout: HomeLayout,
+    },
+  }),
+);

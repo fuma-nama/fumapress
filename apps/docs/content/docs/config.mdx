@@ -142,12 +142,9 @@ import { fsRouterFn } from "fumapress/router/fs";
 
 const router = createRouter(pressConfig);
 
-const modules = Object.fromEntries(
-  Object.entries(import.meta.glob("/src/pages/**/*.{ts,tsx,js,jsx}")).map(([k, v]) => [
-    k.slice("/src/".length),
-    v,
-  ]),
-);
+const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
+  base: "/src",
+});
 
 // file-system router
 const pages = router.createPages(fsRouterFn(modules));

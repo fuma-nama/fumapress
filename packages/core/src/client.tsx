@@ -1,3 +1,4 @@
+"use client";
 /** tiny wrapper of `waku` */
 import type { ComponentProps, ReactNode, TransitionFunction } from "react";
 import {

@@ -104,7 +104,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
       }
 
       const staticPaths: string[][] = [];
-      const defaultRenderMode = context.mode === "dynamic" ? "dynamic" : "static";
+      const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
 
       if (defaultRenderMode === "static") {
         outer: for (const page of (await context.getLoader()).getPages()) {
@@ -168,16 +168,15 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           },
         });
 
-        if (context.mode !== "static") {
-          // must be dynamic because of redirects
-          fns.createPage({
-            render: "dynamic",
-            path: "/404",
-            component() {
-              unstable_redirect(`/${context.i18nConfig!.defaultLanguage}`);
-            },
-          });
-        }
+        const defaultLanguage = context.i18nConfig.defaultLanguage;
+        fns.createPage({
+          render: defaultRenderMode,
+          path: "/404",
+          staticPaths: [],
+          component() {
+            return <layouts.notFound lang={defaultLanguage} ctx={context} />;
+          },
+        });
       } else {
         fns.createRoot({
           render: defaultRenderMode,

@@ -65,7 +65,7 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
   /**
-   * Resolve the given page before passing to the **default** page renderer:
+   * Resolve the given page before passing to the page renderer:
    *
    * - `object`: replace the page object.
    * - `false`: render not found (will also exclude from static pre-rendering).
