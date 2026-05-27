@@ -2,7 +2,7 @@ import type { AppContext } from "./lib/shared";
 import type { LoaderConfig, LoaderOutput } from "fumadocs-core/source";
 import type { Awaitable, Adapter, ServerPluginOption } from "@/lib/types";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import type { ComponentType, ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import type { Translations } from "fumadocs-ui/i18n";
 
@@ -34,14 +34,13 @@ export interface Config<C extends ConfigContext = ConfigContext> {
 }
 
 export interface Layouts<C extends ConfigContext = ConfigContext> {
-  root: ComponentType<{ lang?: string; ctx: AppContext<C>; children: ReactNode }>;
-  page: ComponentType<{
+  root: FC<{ lang?: string; children: ReactNode }> & { $ctx?: C };
+  page: FC<{
     lang?: string;
     slugs: string[];
-    ctx: AppContext<C>;
     page: C["loaderConfig"]["page"];
-  }>;
-  notFound: ComponentType<{ lang?: string; ctx: AppContext<C> }>;
+  }> & { $ctx?: C };
+  notFound: FC<{ lang?: string }> & { $ctx?: C };
 
   /**
    * Define default props for all Fumadocs layouts, will be deep-merged with current props.

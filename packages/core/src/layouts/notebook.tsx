@@ -5,6 +5,7 @@ import {
   createTransformChildren,
   getGitHubFileUrl,
   getLastModifiedDate,
+  getPressContext,
   mergeLayoutConfigs,
   renderBody,
   renderPageMeta,
@@ -65,7 +66,8 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
   const TDocsLayout = createTransformChildren(DocsLayout);
   const TDocsPage = createTransformChildren(DocsPage);
 
-  return async function Layout({ lang, page, ctx }) {
+  return async function Layout({ lang, page }) {
+    const ctx = getPressContext<C>();
     const {
       getLoader,
       layouts,

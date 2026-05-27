@@ -1,8 +1,8 @@
 import { createPages as base_createPages } from "waku";
-import { AppContext, parseConfig } from "./lib/shared";
-import { Fragment, ReactNode } from "react";
+import { AppContext, parseConfig, appContext } from "./lib/shared";
+import { FC, Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "./config";
-import { unstable_notFound, unstable_redirect } from "waku/router/server";
+import { unstable_notFound } from "waku/router/server";
 import type { Awaitable, RouteFns } from "./lib/types";
 import type { MiddlewareHandler } from "hono";
 
@@ -15,23 +15,6 @@ export interface Router<C extends ConfigContext = ConfigContext> {
   ) => ReturnType<typeof base_createPages>;
   createMiddlewares: () => (() => MiddlewareHandler)[];
 }
-
-/* Waku.js does not support build-time middleware at the moment
-
-const appContext = new AsyncLocalStorage({
-  name: "fumapress:core",
-});
-
-function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
-  const store = appContext.getStore();
-  if (!store)
-    throw new Error(
-      "[Fumapress] Missing server context for Fumapress, make sure to use the middlewares from createRouter()",
-    );
-
-  return store as AppContext<C>;
-}
-*/
 
 export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
   let _ctx: Promise<AppContext<C>> | undefined;
@@ -56,6 +39,11 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
   ) {
     return base_createPages(async (_fns) => {
       const context = await getAppContext();
+
+      if (import.meta.env.PROD) {
+        global.appContextTemp = context as unknown as AppContext;
+      }
+
       const layouts = context.layouts;
 
       const fns: RouteFns = {
@@ -126,13 +114,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
         fns.createLayout({
           render: defaultRenderMode,
           path: "/[lang]",
-          component({ children, lang }) {
-            return (
-              <layouts.root lang={lang} ctx={context}>
-                {children}
-              </layouts.root>
-            );
-          },
+          component: layouts.root,
         });
 
         fns.createPage({
@@ -141,9 +123,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           staticPaths,
           async component({ slugs, lang }) {
             const page = await resolvePage(slugs, lang);
-            let fallback: ReactNode = (
-              <layouts.page lang={lang} slugs={slugs} page={page} ctx={context} />
-            );
+            let fallback: ReactNode = <layouts.page lang={lang} slugs={slugs} page={page} />;
 
             for (const plugin of context.plugins) {
               const res: ReactNode = await plugin.renderPage?.call(context, {
@@ -163,9 +143,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           render: defaultRenderMode,
           path: "/[lang]/404",
           staticPaths: Object.keys(context.i18nConfig.languages),
-          component({ lang }) {
-            return <layouts.notFound lang={lang} ctx={context} />;
-          },
+          component: layouts.notFound,
         });
 
         const defaultLanguage = context.i18nConfig.defaultLanguage;
@@ -174,15 +152,13 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           path: "/404",
           staticPaths: [],
           component() {
-            return <layouts.notFound lang={defaultLanguage} ctx={context} />;
+            return <layouts.notFound lang={defaultLanguage} />;
           },
         });
       } else {
         fns.createRoot({
           render: defaultRenderMode,
-          component({ children }) {
-            return <layouts.root ctx={context}>{children}</layouts.root>;
-          },
+          component: layouts.root,
         });
 
         fns.createPage({
@@ -191,7 +167,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           staticPaths,
           async component({ slugs }) {
             const page = await resolvePage(slugs);
-            let fallback: ReactNode = <layouts.page slugs={slugs} page={page} ctx={context} />;
+            let fallback: ReactNode = <layouts.page slugs={slugs} page={page} />;
 
             for (const plugin of context.plugins) {
               const res: ReactNode = await plugin.renderPage?.call(context, {
@@ -210,14 +186,19 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           render: defaultRenderMode,
           staticPaths: [],
           path: "/404",
-          component() {
-            return <layouts.notFound ctx={context} />;
-          },
+          component: layouts.notFound as FC,
         });
       }
 
       return null as never;
     }, createPagesOptions);
+  }
+
+  function contextMiddleware(): MiddlewareHandler {
+    return async (_c, next) => {
+      const ctx = await getAppContext();
+      return appContext.run(ctx, next);
+    };
   }
 
   function pluginsMiddleware(): MiddlewareHandler {
@@ -263,7 +244,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
   return {
     createPages,
     createMiddlewares() {
-      return [pluginsMiddleware];
+      return [contextMiddleware, pluginsMiddleware];
     },
   };
 }

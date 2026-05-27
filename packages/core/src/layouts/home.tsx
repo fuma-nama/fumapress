@@ -3,6 +3,7 @@ import {
   type AppContext,
   baseLayoutProps,
   createTransformChildren,
+  getPressContext,
   mergeLayoutConfigs,
   renderBody,
   renderPageMeta,
@@ -10,16 +11,17 @@ import {
 } from "@/lib/shared";
 import type { Awaitable } from "@/lib/types";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
-import type { ComponentType, FC, ReactNode } from "react";
+import type { FC, ReactNode } from "react";
+
+type LayoutComponent<C extends ConfigContext> = FC<{
+  lang?: string | undefined;
+  layoutProps?: TransformChildren<HomeLayoutProps> | undefined;
+  children: ReactNode;
+}> & { $ctx?: C };
 
 export interface HomeLayoutPageOptions<C extends ConfigContext = ConfigContext> {
   /** swap the outer layout of page content */
-  layout?: ComponentType<{
-    lang: string | undefined;
-    layoutProps: TransformChildren<HomeLayoutProps> | undefined;
-    ctx: AppContext<C>;
-    children: ReactNode;
-  }>;
+  layout?: LayoutComponent<C>;
 
   render?: (
     this: AppContext<C>,
@@ -34,7 +36,8 @@ export function createHomeLayoutPage<C extends ConfigContext = ConfigContext>({
   layout: Container = createHomeLayout<C>(),
   render,
 }: HomeLayoutPageOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
-  return async function Layout({ lang, page, ctx }) {
+  return async function Layout({ lang, page }) {
+    const ctx = getPressContext<C>();
     const _raw = await render?.call(ctx, page);
     const body =
       _raw?.body ??
@@ -45,7 +48,7 @@ export function createHomeLayoutPage<C extends ConfigContext = ConfigContext>({
       ));
 
     return (
-      <Container lang={lang} layoutProps={_raw?.layoutProps} ctx={ctx}>
+      <Container lang={lang} layoutProps={_raw?.layoutProps}>
         {renderPageMeta(page, ctx)}
         {body}
       </Container>
@@ -75,15 +78,11 @@ export interface HomeLayoutContextData {
 export function createHomeLayout<C extends ConfigContext = ConfigContext>({
   layoutProps: getLayoutProps,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
-}: HomeLayoutOptions<C> = {}): FC<{
-  lang?: string;
-  layoutProps?: TransformChildren<HomeLayoutProps>;
-  ctx: AppContext<C>;
-  children: ReactNode;
-}> {
+}: HomeLayoutOptions<C> = {}): LayoutComponent<C> {
   const THomeLayout = createTransformChildren(HomeLayout);
 
-  return async function Layout({ lang, layoutProps, children, ctx }) {
+  return async function Layout({ lang, layoutProps, children }) {
+    const ctx = getPressContext<C>();
     const {
       layouts,
       data: { "core:home-layout": layoutData },

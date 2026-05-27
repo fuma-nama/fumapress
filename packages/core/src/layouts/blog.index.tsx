@@ -3,11 +3,12 @@ import type { ConfigContext } from "@/config";
 import { I18nLabel } from "@/components/i18n";
 import { cn } from "@/lib/cn";
 import { joinPathname } from "@/lib/join-pathname";
-import type { BlogIndexPage } from "@/plugins/blog";
+import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "waku";
+import { getPressContext } from "@/lib/shared";
 
 export interface BlogIndexPageOptions {
   heading?: ReactNode;
@@ -18,7 +19,9 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
   heading,
   description,
 }: BlogIndexPageOptions = {}): BlogIndexPage<C> {
-  return async function BlogIndexPage({ lang, blog, ctx }) {
+  return async function BlogIndexPage({ lang }) {
+    const ctx = getPressContext<C>();
+    const { tagsPath, isBlog } = getBlogContext<C>();
     const source = await ctx.getLoader();
 
     return (
@@ -28,9 +31,9 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
           <p className="text-fd-primary overline decoration-fd-primary empty:hidden">
             {description}
           </p>
-          {blog.tagsPath !== false && (
+          {tagsPath !== false && (
             <Link
-              to={lang ? joinPathname(lang, blog.tagsPath) : blog.tagsPath}
+              to={lang ? joinPathname(lang, tagsPath) : tagsPath}
               className={cn(
                 buttonVariants({
                   variant: "primary",
@@ -44,7 +47,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
           )}
         </div>
 
-        <OrderedBlogGrid posts={source.getPages(lang).filter(blog.isBlog.bind(ctx))} ctx={ctx} />
+        <OrderedBlogGrid<C> posts={source.getPages(lang).filter(isBlog.bind(ctx))} />
       </>
     );
   };

@@ -108,15 +108,16 @@ export default function Page() {
 }
 ```
 
-You can access Fumapress runtime data from `ctx` prop, such as the content loader:
+You can access Fumapress runtime data from `getPressContext()`, such as the content loader:
 
 ```tsx title="src/pages/sitemap-preview.tsx"
-import type { AppContext } from "fumapress";
+import { getPressContext } from "fumapress";
 // config file
 import type PressConfig from "../../press.config";
 
-export default async function Page({ ctx }: { ctx: AppContext<typeof PressConfig.$context> }) {
-  const source = await ctx.getLoader();
+export default async function Page() {
+  const { getLoader } = getPressContext<typeof PressConfig.$context>();
+  const source = await getLoader();
   const pages = source.getPages();
 
   return (

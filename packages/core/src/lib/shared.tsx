@@ -9,6 +9,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { Translations } from "fumadocs-ui/i18n";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -40,6 +41,31 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
       rootDir: string;
     };
   };
+}
+
+declare global {
+  // TODO: Waku.js doesn't run middlewares during build, must set the context stores somewhere else
+  var appContextTemp: AppContext | undefined;
+}
+
+export const appContext = new AsyncLocalStorage({
+  name: "fumapress:core",
+});
+
+export function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
+  let store = appContext.getStore();
+  if (!store) {
+    store = global.appContextTemp;
+  } else {
+    delete global.appContextTemp;
+  }
+
+  if (!store)
+    throw new Error(
+      "[Fumapress] Missing server context for Fumapress, make sure to use the middlewares from createRouter()",
+    );
+
+  return store as AppContext<C>;
 }
 
 export async function parseConfig<C extends ConfigContext>(

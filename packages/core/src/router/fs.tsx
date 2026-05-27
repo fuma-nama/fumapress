@@ -1,7 +1,7 @@
 /**
  * This is a copy of https://github.com/wakujs/waku/blob/main/packages/waku/src/router/fs-router.ts
  */
-import type { FunctionComponent } from "react";
+import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext } from "@/lib/shared";
 import type { ConfigContext } from "@/config";
@@ -70,7 +70,7 @@ export function fsRouterFn<C extends ConfigContext>(
         (SPECIAL_BASENAME.has(pathItems.at(-1)!) ? pathItems.slice(0, -1) : pathItems).join("/");
 
       const mod = (await modules[file]!()) as {
-        default?: FunctionComponent<{ ctx: AppContext<C> }>;
+        default?: FC;
         getConfig?: () => Promise<RouteConfig>;
         GET?: (req: Request, ctx?: unknown) => Promise<Response>;
       };
@@ -132,12 +132,7 @@ export function fsRouterFn<C extends ConfigContext>(
         continue;
       }
 
-      const component = (props: object) => {
-        const Comp = mod.default!;
-
-        return <Comp {...props} ctx={this} />;
-      };
-
+      const component = mod.default!;
       const renderMode = config?.render ?? (this.mode === "default" ? "static" : this.mode);
 
       if (pathItems[0] === slicesDir) {

@@ -1,6 +1,6 @@
 import type { Layouts, ConfigContext } from "@/config";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
-import { renderRootMeta } from "@/lib/shared";
+import { getPressContext, renderRootMeta } from "@/lib/shared";
 import { i18nProvider } from "fumadocs-ui/i18n";
 import type { ReactElement } from "react";
 
@@ -20,7 +20,8 @@ if (import.meta.env.DEV) {
 export function createRootLayout<C extends ConfigContext = ConfigContext>(
   options?: RootLayoutOptions,
 ): Layouts<C>["root"] {
-  return async function ({ lang, ctx, children }) {
+  return async function ({ lang, children }) {
+    const ctx = getPressContext<C>();
     const hooks = ctx.data["core:provider"];
     let providerProps: RootProviderProps = {
       ...options?.providerProps,

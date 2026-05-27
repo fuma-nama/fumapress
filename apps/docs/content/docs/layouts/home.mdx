@@ -53,20 +53,13 @@ For custom route files, use `createHomeLayout()` directly as a wrapper:
 
 ```tsx title="src/pages/_layout.tsx"
 import type { ReactNode } from "react";
-import type { AppContext } from "fumapress";
 import { createHomeLayout } from "fumapress/layouts/home";
 import type PressConfig from "../../press.config";
 
 const HomeLayout = createHomeLayout<typeof PressConfig.$context>();
 
-export default function Layout({
-  children,
-  ctx,
-}: {
-  children: ReactNode;
-  ctx: AppContext<typeof PressConfig.$context>;
-}) {
-  return <HomeLayout ctx={ctx}>{children}</HomeLayout>;
+export default function Layout({ children }: { children: ReactNode }) {
+  return <HomeLayout>{children}</HomeLayout>;
 }
 ```
 

@@ -49,14 +49,10 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       initRenderers((this.data["core:docs-layout"] ??= {}));
       initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
     },
-    renderPage({ page, slugs, lang }) {
+    renderPage({ page, fallback }) {
       if (!isOpenAPI(page.data)) return;
 
-      return (
-        <ServerPayloadProvider>
-          <this.layouts.page lang={lang} slugs={slugs} page={page} ctx={this} />
-        </ServerPayloadProvider>
-      );
+      return <ServerPayloadProvider>{fallback}</ServerPayloadProvider>;
     },
     async createPages({ createApi }) {
       if (createProxy) {
@@ -105,7 +101,6 @@ function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
   };
 }
 
-/** @internal */
 function isOpenAPI(data: object): data is OpenAPIPageData {
   return "getAPIPageProps" in data && typeof data.getAPIPageProps === "function";
 }

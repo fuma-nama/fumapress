@@ -2,6 +2,7 @@ import type { ConfigContext } from "@/config";
 import {
   type AppContext,
   getCreationDate,
+  getPressContext,
   renderBody,
   renderPageMeta,
   renderToc,
@@ -13,7 +14,7 @@ import { Link } from "waku";
 import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
 import { getTags } from "@/lib/shared/blog";
-import type { BlogLayout, BlogLayoutPage } from "@/plugins/blog";
+import { getBlogContext, type BlogLayout, type BlogLayoutPage } from "@/plugins/blog";
 import { joinPathname } from "@/lib/join-pathname";
 import { LinkToHome } from "@/components/blog";
 import { createHomeLayout, type HomeLayoutOptions } from "./home";
@@ -43,7 +44,9 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
 ): BlogLayoutPage<C> {
   const { render } = options;
 
-  return async function BlogLayoutPage({ ctx, page, blog, lang }) {
+  return async function BlogLayoutPage({ page, lang }) {
+    const ctx = getPressContext<C>();
+    const { tagsPath } = getBlogContext<C>();
     const tags = await getTags(ctx, page);
     const _raw = await render?.call(ctx, page);
     const result: BlogLayoutPageRenderData = {
@@ -63,7 +66,7 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
         {renderPageMeta(page, ctx)}
         <div className="flex flex-col gap-4 items-center border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
           <div className="flex flex-row items-center gap-2 w-full max-w-[900px]">
-            <LinkToHome blog={blog} lang={lang} />
+            <LinkToHome lang={lang} />
           </div>
           <h1 className="font-semibold text-2xl w-full max-w-[900px]">{page.data.title}</h1>
           <p className="text-fd-muted-foreground w-full max-w-[900px]">{page.data.description}</p>
@@ -72,11 +75,11 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
               <TagIcon className="size-4 text-fd-muted-foreground" />
 
               {tags.map((t) => {
-                if (blog.tagsPath !== false)
+                if (tagsPath !== false)
                   return (
                     <Link
                       key={t}
-                      to={joinPathname(lang ?? "", blog.tagsPath, t)}
+                      to={joinPathname(lang ?? "", tagsPath, t)}
                       className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
                     >
                       {t}

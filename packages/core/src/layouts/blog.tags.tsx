@@ -2,10 +2,11 @@ import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
 import { I18nLabel } from "@/components/i18n";
 import { getTags, groupTags } from "@/lib/shared/blog";
-import { BlogTagPage, BlogTagsPage } from "@/plugins/blog";
+import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "waku";
+import { getPressContext } from "@/lib/shared";
 
 export interface BlogTagsPageOptions {
   heading?: ReactNode;
@@ -16,16 +17,18 @@ export function createBlogTagsPage<C extends ConfigContext = ConfigContext>({
   heading,
   description,
 }: BlogTagsPageOptions = {}): BlogTagsPage<C> {
-  return async function BlogTagsPage({ lang, blog, ctx }) {
+  return async function BlogTagsPage({ lang }) {
+    const ctx = getPressContext<C>();
+    const { isBlog } = getBlogContext<C>();
     const source = await ctx.getLoader();
 
-    const blogPosts = source.getPages(lang).filter((page) => blog.isBlog.call(ctx, page));
+    const blogPosts = source.getPages(lang).filter((page) => isBlog.call(ctx, page));
     const grouped = await groupTags(ctx, blogPosts);
 
     return (
       <>
         <div className="flex flex-col items-start gap-4 border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
-          <LinkToHome lang={lang} blog={blog} />
+          <LinkToHome lang={lang} />
           <h1 className="font-semibold text-2xl">{heading ?? <I18nLabel label="allTags" />}</h1>
           <p className="text-fd-muted-foreground empty:hidden">
             {description ?? (
@@ -61,12 +64,14 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
   heading,
   description,
 }: BlogTagsPageOptions = {}): BlogTagPage<C> {
-  return async function BlogTagPage({ lang, tag, blog, ctx }) {
+  return async function BlogTagPage({ lang, tag }) {
+    const ctx = getPressContext<C>();
+    const { isBlog } = getBlogContext<C>();
     const source = await ctx.getLoader();
 
     const posts: C["loaderConfig"]["page"][] = [];
     for (const page of source.getPages(lang)) {
-      if (!blog.isBlog.call(ctx, page)) continue;
+      if (!isBlog.call(ctx, page)) continue;
       const tags = await getTags(ctx, page);
       if (!tags || !tags.includes(tag)) continue;
 
@@ -76,7 +81,7 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
     return (
       <>
         <div className="flex flex-col items-start gap-4 border-y p-4 pt-3.5 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
-          <LinkToHome lang={lang} blog={blog} />
+          <LinkToHome lang={lang} />
           <h1 className="font-semibold text-2xl">
             {heading ?? (
               <span className="inline-flex gap-2 items-center">
@@ -98,7 +103,7 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
           </p>
         </div>
 
-        <OrderedBlogGrid posts={posts} ctx={ctx} />
+        <OrderedBlogGrid<C> posts={posts} />
       </>
     );
   };

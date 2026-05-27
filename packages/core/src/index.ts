@@ -1,5 +1,5 @@
 export * from "./config";
-export type { AppContext } from "./lib/shared";
+export { getPressContext, type AppContext } from "./lib/shared";
 export type {
   RouteConfig,
   ServerPlugin,

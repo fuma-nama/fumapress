@@ -6,7 +6,8 @@ import { joinPathname } from "@/lib/join-pathname";
 import { type AppContext } from "@/lib/shared";
 import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
 import type { ServerPlugin } from "@/lib/types";
-import type { ComponentType, ReactNode } from "react";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { FC, ReactNode } from "react";
 
 export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   /** default to checking from `page.type` */
@@ -45,45 +46,59 @@ export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   };
 }
 
-export interface BlogContext<C extends ConfigContext> {
+export interface BlogContext<C extends ConfigContext = ConfigContext> {
   indexPath: string | false;
   tagsPath: string | false;
   isBlog: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => boolean;
 }
 
-export type BlogLayoutPage<C extends ConfigContext = ConfigContext> = ComponentType<{
+const blogContext = new AsyncLocalStorage({
+  name: "fumapress:blog",
+});
+
+declare global {
+  // TODO: Waku.js doesn't run middlewares during build, must set the context stores somewhere else
+  var blogContextTemp: BlogContext | undefined;
+}
+
+export function getBlogContext<C extends ConfigContext = ConfigContext>(): BlogContext<C> {
+  let store = blogContext.getStore();
+  if (!store) {
+    store = global.blogContextTemp;
+  } else {
+    delete global.blogContextTemp;
+  }
+
+  if (!store)
+    throw new Error(
+      "[Fumapress] Missing blog context for Fumapress, make sure the blog plugin is configured",
+    );
+  return store as BlogContext<C>;
+}
+
+export type BlogLayoutPage<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
   slugs: string[];
   page: C["loaderConfig"]["page"];
-  blog: BlogContext<C>;
-  ctx: AppContext<C>;
-}>;
+}> & { $ctx?: C };
 
-export type BlogLayout<C extends ConfigContext = ConfigContext> = ComponentType<{
+export type BlogLayout<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
   children: ReactNode;
-  blog: BlogContext<C>;
-  ctx: AppContext<C>;
-}>;
+}> & { $ctx?: C };
 
-export type BlogIndexPage<C extends ConfigContext = ConfigContext> = ComponentType<{
+export type BlogIndexPage<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
-  blog: BlogContext<C>;
-  ctx: AppContext<C>;
-}>;
+}> & { $ctx?: C };
 
-export type BlogTagsPage<C extends ConfigContext = ConfigContext> = ComponentType<{
+export type BlogTagsPage<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
-  blog: BlogContext<C>;
-  ctx: AppContext<C>;
-}>;
+}> & { $ctx?: C };
 
-export type BlogTagPage<C extends ConfigContext = ConfigContext> = ComponentType<{
+export type BlogTagPage<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
   tag: string;
-  blog: BlogContext<C>;
-  ctx: AppContext<C>;
-}>;
+}> & { $ctx?: C };
 
 export function blogPlugin<C extends ConfigContext = ConfigContext>({
   paths = {},
@@ -105,26 +120,27 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
       if (!isBlog.call(this, page)) return;
 
       return (
-        <Layout lang={lang} blog={blogCtx} ctx={this}>
-          <Page lang={lang} slugs={slugs} blog={blogCtx} page={page} ctx={this} />
+        <Layout lang={lang}>
+          <Page lang={lang} slugs={slugs} page={page} />
         </Layout>
       );
+    },
+    createMiddlewares() {
+      return [(_c, next) => blogContext.run(blogCtx, next)];
     },
     async createPages({ createPage, createLayout }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
       const source = await this.getLoader();
       const blogPages = source.getPages().filter((page) => isBlog.call(this, page));
 
+      if (import.meta.env.PROD) {
+        global.blogContextTemp = blogCtx as unknown as BlogContext;
+      }
+
       createLayout({
         render: renderMode,
         path: this.i18nConfig ? "/[lang]/(blog)" : "/(blog)",
-        component: ({ lang, children }) => {
-          return (
-            <Layout lang={lang} blog={blogCtx} ctx={this}>
-              {children}
-            </Layout>
-          );
-        },
+        component: Layout,
       });
 
       if (blogCtx.indexPath !== false) {
@@ -136,9 +152,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
             ? (joinPathname("/[lang]/(blog)", blogCtx.indexPath) as "/[lang]")
             : (joinPathname("/(blog)", blogCtx.indexPath) as "/[lang]"),
           staticPaths: this.i18nConfig ? Object.keys(this.i18nConfig.languages) : [],
-          component: ({ lang }) => {
-            return <IndexPage lang={lang} blog={blogCtx} ctx={this} />;
-          },
+          component: IndexPage,
         });
       }
 
@@ -150,9 +164,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath) as "/[lang]",
           render: renderMode,
           staticPaths: Object.keys(this.i18nConfig.languages),
-          component: ({ lang }) => {
-            return <TagsPage lang={lang} blog={blogCtx} ctx={this} />;
-          },
+          component: TagsPage,
         });
 
         const groupedTags = await groupTagsI18n(this, blogPages);
@@ -167,9 +179,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath, "[tag]") as "/[lang]/[tag]",
           render: renderMode,
           staticPaths,
-          component: ({ lang, tag }) => {
-            return <TagPage lang={lang} tag={tag} blog={blogCtx} ctx={this} />;
-          },
+          component: TagPage,
         });
       } else if (blogCtx.tagsPath !== false) {
         const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
@@ -179,9 +189,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           path: joinPathname("/(blog)", blogCtx.tagsPath) as "/",
           render: renderMode,
           staticPaths: [],
-          component: () => {
-            return <TagsPage blog={blogCtx} ctx={this} />;
-          },
+          component: TagsPage as FC,
         });
 
         const grouped = await groupTags(this, blogPages);
@@ -190,9 +198,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           path: joinPathname("/(blog)", blogCtx.tagsPath, "[tag]") as "/[tag]",
           render: renderMode,
           staticPaths: Array.from(grouped.keys()),
-          component: ({ tag }) => {
-            return <TagPage tag={tag} blog={blogCtx} ctx={this} />;
-          },
+          component: TagPage,
         });
       }
     },

@@ -1,7 +1,7 @@
 import { ConfigContext } from "@/config";
 import { cn } from "@/lib/cn";
-import { AppContext, getCreationDate } from "@/lib/shared";
-import type { BlogContext } from "@/plugins/blog";
+import { AppContext, getCreationDate, getPressContext } from "@/lib/shared";
+import { getBlogContext, type BlogContext } from "@/plugins/blog";
 import { Link } from "waku";
 import { I18nLabel } from "./i18n";
 import { CornerLeftUpIcon } from "lucide-react";
@@ -30,11 +30,10 @@ export function BlogItem<C extends ConfigContext>({
 
 export async function OrderedBlogGrid<C extends ConfigContext>({
   posts,
-  ctx,
 }: {
   posts: C["loaderConfig"]["page"][];
-  ctx: AppContext<C>;
 }) {
+  const ctx = getPressContext<C>();
   const currentDate = new Date(Date.now());
   const orderedPosts: { page: C["loaderConfig"]["page"]; date: Date }[] = [];
 
@@ -54,18 +53,13 @@ export async function OrderedBlogGrid<C extends ConfigContext>({
   );
 }
 
-export function LinkToHome<C extends ConfigContext>({
-  lang,
-  blog,
-}: {
-  blog: BlogContext<C>;
-  lang?: string;
-}) {
-  if (!blog.indexPath) return;
+export function LinkToHome({ lang }: { lang?: string }) {
+  const { indexPath } = getBlogContext();
+  if (!indexPath) return;
 
   return (
     <Link
-      to={lang ? joinPathname(lang, blog.indexPath) : blog.indexPath}
+      to={lang ? joinPathname(lang, indexPath) : indexPath}
       className={cn(
         buttonVariants({
           variant: "ghost",
