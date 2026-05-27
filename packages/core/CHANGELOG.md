@@ -1,5 +1,18 @@
 # fumapress
 
+## 0.5.0
+
+### Minor Changes
+
+- 426e392: Support 16.9 Translations API & official language pack
+- c8a2fbd: Introduce server contexts over passing `ctx` into components
+- 60b23a7: Support file-system based router
+
+### Patch Changes
+
+- 0fe67b0: Support `Accept` header in `llms.txt` plugin
+- be15a6f: Support creating middlewares from plugins
+
 ## 0.4.0
 
 ### Minor Changes
