@@ -10,5 +10,6 @@
   "access": "restricted",
   "baseBranch": "dev",
   "updateInternalDependencies": "patch",
+  "bumpVersionsWithWorkspaceProtocolOnly": true,
   "ignore": ["docs"]
 }
