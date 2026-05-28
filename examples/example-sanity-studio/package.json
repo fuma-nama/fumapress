@@ -13,7 +13,7 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.1.1",
+    "@sanity/code-input": "^7.1.2",
     "@sanity/icons": "^3.7.4",
     "@sanity/vision": "^5.27.0",
     "fumadocs-core": "^16.9.1",

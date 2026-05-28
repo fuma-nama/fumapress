@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "test": "vitest",
     "lint": "oxlint",
     "lint:format": "oxfmt --check",
     "format": "oxfmt",
@@ -15,11 +16,12 @@
     "@changesets/cli": "^2.31.0",
     "oxfmt": "^0.52.0",
     "oxlint": "^1.67.0",
-    "turbo": "^2.9.14",
-    "typescript": "6.0.3"
+    "turbo": "^2.9.15",
+    "typescript": "6.0.3",
+    "vitest": "^4.1.7"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.1.1"
 }
