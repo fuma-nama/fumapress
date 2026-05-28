@@ -103,37 +103,6 @@ function initOpenAPIIntegration<C extends ConfigContext>(
   });
 }
 
-function initNavigationRenderer<C extends ConfigContext>(
-  data: DocsLayoutContextData,
-  ctx: AppContext<C>,
-  docs: MintlifyDocsJson,
-  options: MintlifyPluginOptions,
-) {
-  const renderers = (data.renderers ??= []);
-
-  renderers.push(async function (props) {
-    const source = await ctx.getLoader();
-    const root = source.getPageTree(this.page.locale);
-    const pageIndex = createPageIndex(root);
-    const mintlifyLanguage = pressLocaleToMintlify(this.page.locale ?? "", docs, options);
-
-    const children = buildPageTreeFromNavigation(docs.navigation, pageIndex, {
-      language: mintlifyLanguage,
-      docsDir: options.docsDir,
-    });
-
-    if (children.length === 0) {
-      console.warn(
-        "[Fumapress Mintlify] No navigation entries matched existing pages; keeping default page tree",
-      );
-      return props;
-    }
-
-    props.layoutProps.tree = { ...root, name: docs.name, children };
-    return props;
-  });
-}
-
 export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
   options: MintlifyPluginOptions = {},
 ): ServerPlugin<C> {
@@ -146,6 +115,32 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
   } = options;
 
   let docs: MintlifyDocsJson;
+
+  function initNavigationRenderer(data: DocsLayoutContextData, ctx: AppContext<C>) {
+    const renderers = (data.renderers ??= []);
+
+    renderers.push(async function (props) {
+      const source = await ctx.getLoader();
+      const root = source.getPageTree(this.page.locale);
+      const pageIndex = createPageIndex(root);
+      const mintlifyLanguage = pressLocaleToMintlify(this.page.locale ?? "", docs, options);
+
+      const children = buildPageTreeFromNavigation(docs.navigation, pageIndex, {
+        language: mintlifyLanguage,
+        docsDir: options.docsDir,
+      });
+
+      if (children.length === 0) {
+        console.warn(
+          "[Fumapress Mintlify] No navigation entries matched existing pages; keeping default page tree",
+        );
+        return props;
+      }
+
+      props.layoutProps.tree = { ...root, name: docs.name, children };
+      return props;
+    });
+  }
 
   return {
     name: "fumapress:mintlify",
@@ -182,14 +177,8 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
         };
       }
 
-      initNavigationRenderer((this.data["core:docs-layout"] ??= {}), this, docs, {
-        ...options,
-        docsDir,
-      });
-      initNavigationRenderer((this.data["core:notebook-layout"] ??= {}) as never, this, docs, {
-        ...options,
-        docsDir,
-      });
+      initNavigationRenderer((this.data["core:docs-layout"] ??= {}), this);
+      initNavigationRenderer((this.data["core:notebook-layout"] ??= {}) as never, this);
     },
     createMiddlewares() {
       if (!applyRedirects) return;

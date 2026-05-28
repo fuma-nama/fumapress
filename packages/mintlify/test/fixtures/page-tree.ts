@@ -4,7 +4,7 @@ export function page(ref: string, name = ref): Item {
   return {
     $id: `page:${ref}`,
     type: "page",
-    url: '/' + ref,
+    url: "/" + ref,
     name,
     $ref: ref,
   };

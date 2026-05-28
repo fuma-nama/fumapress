@@ -5,6 +5,6 @@ import mdx from "fumadocs-mdx/vite";
 
 export default defineConfig({
   vite: {
-    plugins: [press(), mdx(undefined, { updateViteConfig: false }), tailwindcss()],
+    plugins: [press(), mdx(), tailwindcss()],
   },
 });
