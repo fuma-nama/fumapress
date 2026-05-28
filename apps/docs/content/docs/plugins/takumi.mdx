@@ -18,7 +18,7 @@ export default defineConfig({
   // ...
 })
   // [!code ++]
-  .usePlugins(takumiPlugin());
+  .plugins(takumiPlugin());
 ```
 
 The plugin creates a `.webp` Open Graph image for every docs page and adds the matching metadata:
@@ -61,7 +61,7 @@ import { takumiPlugin } from "fumapress/plugins/takumi";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   takumiPlugin({
     generate(page) {
       return {

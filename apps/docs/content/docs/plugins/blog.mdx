@@ -54,7 +54,7 @@ export default defineConfig({
   ),
 })
   // [!code ++]
-  .usePlugins(blogPlugin());
+  .plugins(blogPlugin());
 ```
 
 The plugin overrides the renderer for blog pages, by default, all pages from the `blog` content source are rendered as blog posts.
@@ -67,7 +67,7 @@ import { blogPlugin } from "fumapress/plugins/blog";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   blogPlugin({
     isBlog: (page) => page.type === "blog",
   }),
@@ -101,7 +101,7 @@ export default defineConfig({
   loader: loader(myCms.toStaticSource(), {
     baseUrl: "/",
   }),
-}).usePlugins(
+}).plugins(
   blogPlugin({
     // since it is not using multi-source, `page.type` will be `undefined`.
     // you need to detect it from other properties, like page path.
@@ -122,7 +122,7 @@ import { blogPlugin } from "fumapress/plugins/blog";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   blogPlugin({
     paths: {
       index: "/blog",
@@ -149,7 +149,7 @@ import { createBlogTagPage, createBlogTagsPage } from "fumapress/layouts/blog.ta
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   blogPlugin({
     layouts: {
       // shared layout for blog

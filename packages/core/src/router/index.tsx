@@ -1,9 +1,9 @@
 import { createPages as base_createPages } from "waku";
-import { AppContext, parseConfig, appContext } from "./lib/shared";
+import { type AppContext, parseConfig, appContext } from "../lib/shared";
 import { FC, Fragment, ReactNode } from "react";
-import type { ConfigBuilder, ConfigContext } from "./config";
+import type { ConfigBuilder, ConfigContext } from "../config";
 import { unstable_notFound } from "waku/router/server";
-import type { Awaitable, RouteFns } from "./lib/types";
+import type { Awaitable, RouteFns } from "../lib/types";
 import type { MiddlewareHandler } from "hono";
 
 type Options = Parameters<typeof base_createPages>[1];
@@ -248,3 +248,6 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     },
   };
 }
+
+/** forward Waku.js router primitives */
+export { unstable_notFound as notFound, unstable_redirect as redirect } from "waku/router/server";

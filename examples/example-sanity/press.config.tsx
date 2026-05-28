@@ -48,4 +48,4 @@ export default defineConfig({
     name: "Sanity Example",
   },
   loader: () => loader.get(),
-}).usePlugins(sanityPlugin(sanityIntegration), llmsPlugin(), flexsearchPlugin());
+}).plugins(sanityPlugin(sanityIntegration), llmsPlugin(), flexsearchPlugin());

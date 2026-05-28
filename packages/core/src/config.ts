@@ -74,12 +74,21 @@ export interface SiteConfig {
   };
 }
 
-export interface ConfigBuilder<C extends ConfigContext> extends Config<C> {
+export interface ConfigBuilder<C extends ConfigContext> {
   /** for type inference only, always `undefined` */
   $context: C;
-  getPlugins: () => ServerPluginOption<C>[];
-  getLayouts: () => Partial<Layouts<C>>;
-  getAdapters: () => Adapter<C>[];
+  get: () => Config<C> & {
+    plugins: ServerPluginOption<C>[];
+    layouts: Partial<Layouts<C>>;
+    adapters: Adapter<C>[];
+  };
+
+  /** alias for `usePlugins()` */
+  plugins: (...plugins: ServerPluginOption<C>[]) => ConfigBuilder<C>;
+  /** alias for `useAdapters()` */
+  adapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
+  /** alias for `useLayouts()` */
+  layouts: (layouts: Partial<Layouts<C>>) => ConfigBuilder<C>;
 
   usePlugins: (...plugins: ServerPluginOption<C>[]) => ConfigBuilder<C>;
   useLayouts: (layouts: Partial<Layouts<C>>) => ConfigBuilder<C>;
@@ -91,7 +100,7 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
   config: Config<{
     loaderConfig: C;
     lang: L;
-  }>,
+  }> = {},
 ): ConfigBuilder<{ loaderConfig: C; lang: L }> {
   const plugins: ServerPluginOption<{ loaderConfig: C; lang: L }>[] = [];
   const layouts: Partial<
@@ -106,16 +115,18 @@ export function defineConfig<C extends LoaderConfig, L extends string = string>(
   }>[] = [];
 
   return {
-    ...config,
     $context: undefined as never,
-    getPlugins() {
-      return plugins;
+    get() {
+      return { ...config, plugins, layouts, adapters };
     },
-    getAdapters() {
-      return adapters;
+    plugins(...plugins) {
+      return this.usePlugins(...plugins);
     },
-    getLayouts() {
-      return layouts;
+    adapters(...adapters) {
+      return this.useAdapters(...adapters);
+    },
+    layouts(layouts) {
+      return this.useLayouts(layouts);
     },
     useAdapters(...values) {
       adapters.push(...values);

@@ -171,7 +171,7 @@ function changelogPlugin<C extends ConfigContext>(): ServerPlugin<C> {
 
 export default defineConfig({
   // ...
-}).usePlugins(changelogPlugin());
+}).plugins(changelogPlugin());
 ```
 
 Inside plugin hooks, `this` is the Fumapress app context. You can access the content loader, resolved config, i18n config, and other runtime data:
@@ -207,5 +207,5 @@ function allDocsPlugin<C extends ConfigContext>(): ServerPlugin<C> {
 
 export default defineConfig({
   // ...
-}).usePlugins(allDocsPlugin());
+}).plugins(allDocsPlugin());
 ```

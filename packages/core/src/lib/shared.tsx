@@ -69,7 +69,7 @@ export function getPressContext<C extends ConfigContext = ConfigContext>(): AppC
 }
 
 export async function parseConfig<C extends ConfigContext>(
-  config: ConfigBuilder<C>,
+  builder: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
   const ORDER = {
     pre: -1,
@@ -85,7 +85,7 @@ export async function parseConfig<C extends ConfigContext>(
     return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
   }
 
-  const layouts = config.getLayouts();
+  const config = builder.get();
   return {
     getLoader() {
       if (typeof config.loader === "function") return config.loader();
@@ -100,15 +100,16 @@ export async function parseConfig<C extends ConfigContext>(
       ) as never);
     },
     layouts: {
-      ...layouts,
-      root: layouts.root ?? (await import("@/layouts/root")).createRootLayout<C>(),
-      page: layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage<C>(),
+      ...config.layouts,
+      root: config.layouts.root ?? (await import("@/layouts/root")).createRootLayout<C>(),
+      page: config.layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage<C>(),
       notFound:
-        layouts.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
+        config.layouts.notFound ??
+        (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
     },
 
-    plugins: resolvePlugins(config.getPlugins()),
-    adapters: config.getAdapters(),
+    plugins: resolvePlugins(config.plugins),
+    adapters: config.adapters,
     $context: undefined as never,
     data: {},
     i18nConfig:

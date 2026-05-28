@@ -41,7 +41,7 @@ export default defineConfig({
   ),
 })
   // fumapress plugin [!code ++]
-  .usePlugins(openapiPlugin({ server: openapi }));
+  .plugins(openapiPlugin({ server: openapi }));
 ```
 
 Update the path/URL to your OpenAPI spec (e.g. `./openapi.json`), the API pages will be automatically generated based on your spec.
@@ -98,7 +98,7 @@ import { ClientAPIPage } from "./src/components/api";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   openapiPlugin({
     server: openapi,
     // [!code ++]
@@ -123,7 +123,7 @@ const openapi = createOpenAPI({
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   openapiPlugin({
     server: openapi,
     // [!code ++]

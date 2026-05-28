@@ -55,7 +55,7 @@ const config = defineConfig({
     },
   },
 })
-  .useAdapters(
+  .adapters(
     fumadocsMdx({
       async getMdxComponents(page) {
         const source = await this.getLoader();
@@ -86,8 +86,8 @@ const config = defineConfig({
       },
     }),
   )
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
-  .useLayouts({
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .layouts({
     defaultProps() {
       return {
         nav: {
@@ -156,7 +156,7 @@ export const HomeLayout = createHomeLayout<Ctx>({
 });
 
 export type Ctx = typeof config.$context;
-export default config.usePlugins(
+export default config.plugins(
   blogPlugin({
     layouts: {
       layout: HomeLayout,

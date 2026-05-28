@@ -19,7 +19,7 @@ import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
 export default defineConfig({
   // ...
-}).useLayouts({
+}).layouts({
   page: createNotebookLayoutPage(),
 });
 ```
@@ -32,7 +32,7 @@ import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
 export default defineConfig({
   // ...
-}).useLayouts({
+}).layouts({
   page: createNotebookLayoutPage({
     render(page) {
       return {

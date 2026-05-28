@@ -41,8 +41,8 @@ export default defineConfig({
     },
   },
 })
-  .useAdapters(fumadocsMdx())
-  .usePlugins(
+  .adapters(fumadocsMdx())
+  .plugins(
     flexsearchPlugin(),
     llmsPlugin(),
     takumiPlugin(),

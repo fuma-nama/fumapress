@@ -18,7 +18,7 @@ export default defineConfig({
   // ...
 })
   // [!code ++]
-  .usePlugins(oramaSearchPlugin());
+  .plugins(oramaSearchPlugin());
 ```
 
 The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
@@ -37,7 +37,7 @@ import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   oramaSearchPlugin({
     buildIndex(page) {
       return {

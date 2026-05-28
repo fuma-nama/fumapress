@@ -18,7 +18,7 @@ export default defineConfig({
   // ...
 })
   // [!code ++]
-  .usePlugins(flexsearchPlugin());
+  .plugins(flexsearchPlugin());
 ```
 
 The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
@@ -37,7 +37,7 @@ import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   flexsearchPlugin({
     buildIndex(page) {
       return {

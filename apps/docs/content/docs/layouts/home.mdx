@@ -19,7 +19,7 @@ import { createHomeLayoutPage } from "fumapress/layouts/home";
 
 export default defineConfig({
   // ...
-}).useLayouts({
+}).layouts({
   page: createHomeLayoutPage(),
 });
 ```
@@ -32,7 +32,7 @@ import { createHomeLayoutPage } from "fumapress/layouts/home";
 
 export default defineConfig({
   // ...
-}).useLayouts({
+}).layouts({
   page: createHomeLayoutPage({
     render(page) {
       return {

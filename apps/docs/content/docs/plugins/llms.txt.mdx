@@ -18,7 +18,7 @@ export default defineConfig({
   // ...
 })
   // [!code ++]
-  .usePlugins(llmsPlugin());
+  .plugins(llmsPlugin());
 ```
 
 The plugin creates:
@@ -42,7 +42,7 @@ import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
 export default defineConfig({
   // ...
-}).usePlugins(
+}).plugins(
   llmsPlugin({
     getLLMText(page) {
       return `# ${page.data.title} (${page.url})

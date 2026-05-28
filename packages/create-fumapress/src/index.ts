@@ -181,8 +181,8 @@ export default defineConfig({
     name: "Fumapress",
   },
 })
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
-  .useAdapters(fumadocsMdx());
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .adapters(fumadocsMdx());
 `,
     "source.config.ts": `import { defineDocs } from "fumadocs-mdx/config";
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";

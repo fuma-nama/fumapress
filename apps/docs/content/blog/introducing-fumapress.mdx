@@ -51,9 +51,9 @@ export default defineConfig({
     baseUrl: "/",
   }),
 })
-  .useAdapters(fumadocsMdx())
+  .adapters(fumadocsMdx())
   // plugins bring new features
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin());
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin());
 ```
 
 See [our docs](/docs) to learn more.

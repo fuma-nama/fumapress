@@ -127,7 +127,7 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
 
       const children = buildPageTreeFromNavigation(docs.navigation, pageIndex, {
         language: mintlifyLanguage,
-        docsDir: options.docsDir,
+        docsDir,
       });
 
       if (children.length === 0) {

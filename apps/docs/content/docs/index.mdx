@@ -87,9 +87,9 @@ export default defineConfig({
   },
 })
   // extend via plugins
-  .usePlugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   // use different content sources
-  .useAdapters(fumadocsMdx());
+  .adapters(fumadocsMdx());
 ```
 
 ```json tab="tsconfig.json"
