@@ -1,7 +1,7 @@
 import type { ServerPlugin } from "@/lib/types";
 import type { ResolvedImageConfig } from "@/lib/image/config";
 import type { ConfigContext } from "@/config";
-import { isRemoteUrl, validateImageSrc } from "@/lib/image/shared";
+import { validateImageSrc } from "@/lib/image/shared";
 
 const IMAGE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 const IMAGE_CONTENT_SECURITY_POLICY = "script-src 'none'; frame-src 'none'; sandbox;";
@@ -34,8 +34,6 @@ export function parseImageParams(url: URL, config: ResolvedImageConfig): ParsedI
 
   if (Number.isNaN(width) || width < 0 || !config.deviceSizes.includes(width)) return null;
   if (Number.isNaN(quality) || quality < 1 || quality > 100) return null;
-  if ((!isRemoteUrl(src) && !src.startsWith("/")) || src.startsWith("//")) return null;
-
   return { src, width, quality };
 }
 
@@ -123,12 +121,17 @@ export async function handleImageOptimization(
     return new Response("Bad Request", { status: 400 });
   }
 
-  const validation = validateImageSrc(params.src, config);
+  const resolvedSrc = new URL(params.src, request.url);
+  const validation = validateImageSrc(resolvedSrc, config);
   if (!validation.allowed) {
     return new Response(validation.reason ?? "Forbidden", { status: 403 });
   }
 
-  const source = await fetchImageSource(params.src, request);
+  const source = await fetch(resolvedSrc, {
+    headers: {
+      Accept: "image/*",
+    },
+  });
   if (!source.ok || !source.body) {
     return new Response("Image not found", { status: 404 });
   }
@@ -172,16 +175,4 @@ export async function handleImageOptimization(
     setImageSecurityHeaders(headers);
     return new Response(source.body, { status: 200, headers });
   }
-}
-
-async function fetchImageSource(src: string, request: Request): Promise<Response> {
-  if (isRemoteUrl(src)) {
-    return fetch(src, {
-      headers: {
-        Accept: "image/*",
-      },
-    });
-  }
-
-  return fetch(new URL(src, request.url));
 }

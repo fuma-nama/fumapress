@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties, ImgHTMLAttributes } from "react";
 import type { ResolvedImageConfig } from "@/lib/image/config";
-import { isRemoteUrl, validateImageSrc } from "@/lib/image/shared";
+import { validateImageSrc } from "@/lib/image/shared";
 
 export interface StaticImageData {
   src: string;
@@ -80,56 +80,37 @@ function getFillStyle(): CSSProperties {
 }
 
 export function Image({
-  src: srcProp,
-  alt,
-  width,
-  height,
+  src: _src,
+  width: _width,
+  height: _height,
+  blurDataURL: _blurDataURL,
+  loading: _loading,
   fill,
   sizes,
-  quality,
+  quality = __FUMAPRESS_IMAGE_CONFIG__?.quality,
   priority,
   placeholder,
-  blurDataURL,
   unoptimized = false,
   style,
-  loading,
   ...rest
 }: ImageProps) {
-  const {
-    src,
-    width: imgWidth,
-    height: imgHeight,
-    blurDataURL: imgBlurDataURL,
-  } = resolveSource({
-    src: srcProp,
-    width,
-    height,
-    blurDataURL,
+  const { src, width, height, blurDataURL } = resolveSource({
+    src: _src,
+    width: _width,
+    height: _height,
+    blurDataURL: _blurDataURL,
   });
 
-  const optimize =
-    __FUMAPRESS_IMAGE_CONFIG__ && !unoptimized && (src.startsWith("/") || isRemoteUrl(src));
+  const loading = priority ? "eager" : (_loading ?? "lazy");
 
-  if (import.meta.env.DEV && optimize) {
-    const validation = isRemoteUrl(src)
-      ? validateImageSrc(src, __FUMAPRESS_IMAGE_CONFIG__)
-      : { allowed: true };
-
-    if (!validation.allowed) {
-      throw new Error(`[Fumapress] Image src "${src}" is not allowed: ${validation.reason}`);
-    }
-  }
-
-  const imageLoading = priority ? "eager" : (loading ?? "lazy");
-  if (!optimize) {
+  if (!__FUMAPRESS_IMAGE_CONFIG__ || unoptimized) {
     return (
       <img
         {...rest}
         src={src}
-        alt={alt}
-        width={fill ? undefined : imgWidth}
-        height={fill ? undefined : imgHeight}
-        loading={imageLoading}
+        width={fill ? undefined : width}
+        height={fill ? undefined : height}
+        loading={loading}
         decoding={priority ? "sync" : "async"}
         fetchPriority={priority ? "high" : undefined}
         style={{
@@ -140,14 +121,22 @@ export function Image({
     );
   }
 
+  if (import.meta.env.DEV) {
+    const validation =
+      src.startsWith("https://") || src.startsWith("http://")
+        ? validateImageSrc(new URL(src), __FUMAPRESS_IMAGE_CONFIG__)
+        : { allowed: true };
+
+    if (!validation.allowed) {
+      throw new Error(`[Fumapress] Image src "${src}" is not allowed: ${validation.reason}`);
+    }
+  }
+
   const config = __FUMAPRESS_IMAGE_CONFIG__;
-  const resolvedQuality = quality ?? config.quality;
-  const targetWidth = imgWidth ?? config.deviceSizes[config.deviceSizes.length - 1]!;
-  const blur = placeholder === "blur" ? (imgBlurDataURL ?? undefined) : undefined;
-  const defaultSrc = buildImageUrl(src, targetWidth, resolvedQuality, config);
-  const srcSet = isSvgSrc(src)
-    ? undefined
-    : generateSrcSet(src, targetWidth, resolvedQuality, config);
+  const targetWidth = width ?? config.deviceSizes[config.deviceSizes.length - 1]!;
+  const blur = placeholder === "blur" ? (blurDataURL ?? undefined) : undefined;
+  const defaultSrc = buildImageUrl(src, targetWidth, quality!, config);
+  const srcSet = isSvgSrc(src) ? undefined : generateSrcSet(src, targetWidth, quality!, config);
 
   return (
     <img
@@ -155,10 +144,9 @@ export function Image({
       src={defaultSrc}
       srcSet={srcSet}
       sizes={sizes ?? (fill ? "100vw" : undefined)}
-      alt={alt}
-      width={fill ? undefined : imgWidth}
-      height={fill ? undefined : imgHeight}
-      loading={imageLoading}
+      width={fill ? undefined : width}
+      height={fill ? undefined : height}
+      loading={loading}
       decoding={priority ? "sync" : "async"}
       fetchPriority={priority ? "high" : undefined}
       style={{
