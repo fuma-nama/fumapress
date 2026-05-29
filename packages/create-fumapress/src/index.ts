@@ -170,13 +170,10 @@ import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 
 export default defineConfig({
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-  }),
+  content: docs.toFumadocsSource(),
   site: {
     name: "Fumapress",
   },

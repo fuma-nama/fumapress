@@ -33,10 +33,7 @@ export interface BlogLayoutPageRenderData {
 }
 
 export interface BlogLayoutPageOptions<C extends ConfigContext = ConfigContext> {
-  render?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<Partial<BlogLayoutPageRenderData>>;
+  render?: (this: AppContext<C>, page: C["page"]) => Awaitable<Partial<BlogLayoutPageRenderData>>;
 }
 
 export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(

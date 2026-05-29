@@ -11,6 +11,7 @@ import { z } from "zod";
 import { Document, type MergedDocumentSearchResults, type DocumentData } from "flexsearch";
 import type { AppContext, ConfigContext } from "fumapress";
 import type { LoaderOutput } from "fumadocs-core/source";
+import type { I18nConfig } from "fumadocs-core/i18n";
 
 export interface PageDocument extends DocumentData {
   url: string;
@@ -44,10 +45,7 @@ type Awaitable<T> = T | Promise<T>;
 export interface AIRouteOptions<C extends ConfigContext = ConfigContext> {
   model: LanguageModel;
   systemPrompt?: string;
-  pageToIndex?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<PageDocument | null>;
+  pageToIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<PageDocument | null>;
 
   /** you can add logic for ratelimiting, validation etc.  */
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
@@ -86,12 +84,15 @@ export function createRouteHandler<C extends ConfigContext>(
     },
   } = options;
 
-  const searchServers = new WeakMap<
-    LoaderOutput<C["loaderConfig"]>,
-    ReturnType<typeof createSearchServer>
-  >();
+  type ContextLoaderOutput = LoaderOutput<{
+    meta: C["meta"];
+    page: C["page"];
+    i18n: C["lang"] extends string ? I18nConfig<C["lang"]> : undefined;
+  }>;
 
-  async function createSearchServer(source: LoaderOutput) {
+  const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
+
+  async function createSearchServer(source: ContextLoaderOutput) {
     const search = new Document<PageDocument>({
       document: {
         id: "url",

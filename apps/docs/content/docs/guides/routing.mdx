@@ -26,22 +26,14 @@ The file path will decide its actual pathname & appearance on sidebar, see [Page
 The pathname generation can be customized from source configuration. For example, `baseDir` adds a directory name in generated URLs:
 
 ```tsx title="press.config.tsx"
-import { loader } from "fumadocs-core/source";
 import { defineConfig } from "fumapress";
 import { docs } from "./.source/server";
 
 export default defineConfig({
-  loader: loader(
-    {
-      docs: docs.toFumadocsSource({
-        // all pages will locate under `docs/`
-        baseDir: "docs",
-      }),
-    },
-    {
-      baseUrl: "/",
-    },
-  ),
+  content: docs.toFumadocsSource({
+    // all pages will locate under `docs/`
+    baseDir: "docs",
+  }),
 });
 ```
 

@@ -13,7 +13,6 @@ Configure the plugin:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 // [!code ++:3]
 import path from "node:path";
@@ -27,18 +26,11 @@ const openapi = createOpenAPI({
 });
 
 export default defineConfig({
-  loader: loader(
-    {
-      docs: docs.toFumadocsSource(),
-      // [!code ++]
-      openapi: await openapi.staticSource(),
-    },
-    {
-      baseUrl: "/",
-      // loader plugin [!code ++]
-      plugins: [openapi.loaderPlugin()],
-    },
-  ),
+  content: {
+    docs: docs.toFumadocsSource(),
+    // [!code ++]
+    openapi: await openapi.staticSource(),
+  },
 })
   // fumapress plugin [!code ++]
   .plugins(openapiPlugin({ server: openapi }));
@@ -60,20 +52,16 @@ It accepts a `baseDir` option. For example, the following will generate all API 
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 
 export default defineConfig({
-  loader: loader(
-    {
-      docs: docs.toFumadocsSource(),
-      openapi: await openapi.staticSource({
-        // [!code highlight]
-        baseDir: "(openapi)",
-      }),
-    },
-    // ...
-  ),
+  content: {
+    docs: docs.toFumadocsSource(),
+    openapi: await openapi.staticSource({
+      // [!code highlight]
+      baseDir: "(openapi)",
+    }),
+  },
 });
 ```
 

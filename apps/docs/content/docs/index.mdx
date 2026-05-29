@@ -29,7 +29,7 @@ Install the dependencies:
 ```npm
 npm i waku fumapress fumadocs-ui fumadocs-core fumadocs-mdx react react-dom react-server-dom-webpack
 
-npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript vite -D
+npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript -D
 ```
 
 Create the config files:
@@ -73,15 +73,12 @@ import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { loader } from "fumadocs-core/source";
 // don't worry if this file is missing, we will run the dev command later to generate this file
 import { docs } from "./.source/server";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 
 export default defineConfig({
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-  }),
+  content: docs.toFumadocsSource(),
   site: {
     name: "Fumapress",
   },

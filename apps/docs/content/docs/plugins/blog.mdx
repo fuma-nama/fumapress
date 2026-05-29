@@ -35,23 +35,17 @@ Add the new collection as `blog` content source (and give the original one a nam
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { loader } from "fumadocs-core/source";
 import { blog, docs } from "./.source/server";
 import { blogPlugin } from "fumapress/plugins/blog";
 
 export default defineConfig({
-  loader: loader(
-    // [!code highlight:6]
-    {
-      docs: docs.toFumadocsSource(),
-      blog: blog.toFumadocsSource({
-        baseDir: "blog",
-      }),
-    },
-    {
-      baseUrl: "/",
-    },
-  ),
+  // [!code highlight:6]
+  content: {
+    docs: docs.toFumadocsSource(),
+    blog: blog.toFumadocsSource({
+      baseDir: "blog",
+    }),
+  },
 })
   // [!code ++]
   .plugins(blogPlugin());
@@ -98,9 +92,7 @@ import { blogPlugin } from "fumapress/plugins/blog";
 import { myCms } from "./my-cms";
 
 export default defineConfig({
-  loader: loader(myCms.toStaticSource(), {
-    baseUrl: "/",
-  }),
+  content: myCms.toStaticSource(),
 }).plugins(
   blogPlugin({
     // since it is not using multi-source, `page.type` will be `undefined`.

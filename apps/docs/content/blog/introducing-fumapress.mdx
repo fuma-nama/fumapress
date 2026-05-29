@@ -40,16 +40,13 @@ In **Fumapress**, features are plugins, and the config is type-safe by default:
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 
 export default defineConfig({
   // content source is composable
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-  }),
+  content: docs.toFumadocsSource(),
 })
   .adapters(fumadocsMdx())
   // plugins bring new features

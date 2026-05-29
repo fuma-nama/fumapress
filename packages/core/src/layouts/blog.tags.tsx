@@ -69,7 +69,7 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
     const { isBlog } = getBlogContext<C>();
     const source = await ctx.getLoader();
 
-    const posts: C["loaderConfig"]["page"][] = [];
+    const posts: C["page"][] = [];
     for (const page of source.getPages(lang)) {
       if (!isBlog.call(ctx, page)) continue;
       const tags = await getTags(ctx, page);

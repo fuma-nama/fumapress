@@ -4,7 +4,7 @@ import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
 
 export interface FlexsearchOptions<C extends ConfigContext = ConfigContext> {
-  buildIndex?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => Awaitable<Index>;
+  buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<Index>;
 }
 
 export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({

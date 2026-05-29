@@ -40,12 +40,11 @@ const sanityIntegration = fumapressSanity({
   },
 });
 
-const loader = dynamicLoader(sanityIntegration.dynamicSource(), { baseUrl: "/" });
-
 export default defineConfig({
+  content: sanityIntegration.dynamicSource(),
+  loaderOptions: { alwaysRevalidate: true },
   mode: "dynamic",
   site: {
     name: "Sanity Example",
   },
-  loader: () => loader.get(),
 }).plugins(sanityPlugin(sanityIntegration), llmsPlugin(), flexsearchPlugin());

@@ -8,10 +8,7 @@ import type { AppContext } from "@/lib/shared";
 import { z } from "zod/mini";
 
 export interface MdxAdapterOptions<C extends ConfigContext = ConfigContext> {
-  getMdxComponents?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<MDXComponents>;
+  getMdxComponents?: (this: AppContext<C>, page: C["page"]) => Awaitable<MDXComponents>;
 }
 
 export function fumadocsMdx<C extends ConfigContext = ConfigContext>(

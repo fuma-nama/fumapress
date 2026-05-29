@@ -1,7 +1,6 @@
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { loader } from "fumadocs-core/source";
 import { blog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
@@ -16,20 +15,17 @@ import { BookIcon, RssIcon } from "lucide-react";
 
 const config = defineConfig({
   mode: "static",
-  loader: loader(
-    {
-      docs: docs.toFumadocsSource({
-        baseDir: "docs",
-      }),
-      blog: blog.toFumadocsSource({
-        baseDir: "blog",
-      }),
-    },
-    {
-      baseUrl: "/",
-      plugins: [lucideIconsPlugin()],
-    },
-  ),
+  content: {
+    docs: docs.toFumadocsSource({
+      baseDir: "docs",
+    }),
+    blog: blog.toFumadocsSource({
+      baseDir: "blog",
+    }),
+  },
+  loaderOptions: {
+    plugins: [lucideIconsPlugin()],
+  },
   site: {
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",

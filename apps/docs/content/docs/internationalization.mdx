@@ -12,7 +12,6 @@ To configure internationalization, define an i18n config:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 import { defineI18n } from "fumadocs-core/i18n";
 import { uiTranslations } from "fumadocs-ui/i18n";
@@ -32,12 +31,7 @@ const translations = i18n
   .extend(fumapressTranslations());
 
 export default defineConfig({
-  loader: loader(docs.toFumadocsSource(), {
-    baseUrl: "/",
-    // [!code ++]
-    i18n,
-  }),
-
+  content: docs.toFumadocsSource(),
   // [!code ++]
   translations,
 });

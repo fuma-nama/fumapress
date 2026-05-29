@@ -1,5 +1,5 @@
 import { createPages as base_createPages } from "waku";
-import { type AppContext, parseConfig, appContext } from "../lib/shared";
+import { type AppContext, initApp, appContext } from "../lib/shared";
 import { FC, Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "../config";
 import { unstable_notFound } from "waku/router/server";
@@ -19,18 +19,8 @@ export interface Router<C extends ConfigContext = ConfigContext> {
 export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
   let _ctx: Promise<AppContext<C>> | undefined;
 
-  async function init(): Promise<AppContext<C>> {
-    const context = await parseConfig<C>(userConfig);
-
-    for (const plugin of context.plugins) {
-      await plugin.init?.call(context);
-    }
-
-    return context;
-  }
-
   async function getAppContext() {
-    return await (_ctx ??= init());
+    return await (_ctx ??= initApp(userConfig));
   }
 
   function createPages(
@@ -75,8 +65,10 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
         if (!page) unstable_notFound();
 
         for (const plugin of context.plugins) {
-          const resolved: C["loaderConfig"]["page"] | false | undefined =
-            await plugin.resolvePage?.call(context, page);
+          const resolved: C["page"] | false | undefined = await plugin.resolvePage?.call(
+            context,
+            page,
+          );
 
           if (typeof resolved === "object") page = resolved;
           else if (resolved === false) unstable_notFound();

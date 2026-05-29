@@ -54,6 +54,11 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
 
       return <ServerPayloadProvider>{fallback}</ServerPayloadProvider>;
     },
+    configureLoader(options) {
+      options.plugins ??= [];
+      options.plugins.push(server.loaderPlugin());
+      return options;
+    },
     async createPages({ createApi }) {
       if (createProxy) {
         const proxyUrl = server.options.proxyUrl;

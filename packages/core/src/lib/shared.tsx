@@ -1,22 +1,41 @@
-import type { BuildMode, ConfigBuilder, ConfigContext, Layouts, MetaConfig } from "@/config";
+import type {
+  BaseConfig,
+  BuildMode,
+  ConfigBuilder,
+  ConfigContext,
+  ConfigContextToLoaderConfig,
+  Layouts,
+} from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import { loader, type LoaderOutput } from "fumadocs-core/source";
-import type { Awaitable, Adapter, ServerPlugin, AppContextData, ServerPluginOption } from "./types";
+import type {
+  Awaitable,
+  Adapter,
+  ServerPlugin,
+  AppContextData,
+  ServerPluginOption,
+  PressLoaderOptions,
+} from "./types";
 import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
-import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import type { Translations } from "fumadocs-ui/i18n";
+import type { I18nConfig } from "fumadocs-core/i18n";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { dynamicLoader } from "fumadocs-core/source/dynamic";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
-  getLoader: () => Awaitable<LoaderOutput<C["loaderConfig"]>>;
+  getLoader: () => Awaitable<LoaderOutput<ConfigContextToLoaderConfig<C>>>;
   plugins: ServerPlugin<C>[];
   adapters: Adapter<C>[];
   layouts: Layouts<C>;
+
+  /** revalidate [dynamic content sources](https://fumadocs.dev/docs/headless/source-api/source#dynamic-source) */
+  revalidateLoader:
+    | (() => void)
+    | (C["source"] extends string ? (name: C["source"]) => void : never);
 
   /** always `undefined`, easier way to infer types */
   $context: C;
@@ -26,11 +45,9 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
    */
   data: AppContextData & Record<string, unknown>;
 
-  i18nConfig?: I18nConfig<C["lang"]>;
-  translationsConfig?:
-    | TranslationsAPI<C["lang"], { ui: Translations }>
-    | SingularTranslationsAPI<{ ui: Translations }>;
-  metaConfig?: MetaConfig<C>;
+  translationsConfig?: BaseConfig<C>["translations"];
+  i18nConfig?: C["lang"] extends string ? I18nConfig<C["lang"]> : undefined;
+  metaConfig?: BaseConfig<C>["meta"];
   siteConfig: {
     name: string;
     baseUrl?: string;
@@ -68,69 +85,92 @@ export function getPressContext<C extends ConfigContext = ConfigContext>(): AppC
   return store as AppContext<C>;
 }
 
-export async function parseConfig<C extends ConfigContext>(
+const PLUGIN_ORDER = {
+  pre: -1,
+  post: 1,
+  _: 0,
+};
+
+export async function initApp<C extends ConfigContext>(
   builder: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
-  const ORDER = {
-    pre: -1,
-    post: 1,
-    _: 0,
-  };
-
-  let EMPTY: LoaderOutput<C["loaderConfig"]> | undefined;
-  function resolvePlugins(plugins: ServerPluginOption<C>[]): ServerPlugin<C>[] {
-    const flat: ServerPlugin<C>[] = plugins.flat(Infinity as never);
+  function resolvePlugins(plugins: ServerPluginOption[]): ServerPlugin[] {
+    const flat: ServerPlugin[] = plugins.flat(Infinity as never);
     flat.push(disableSearchPlugin());
 
-    return flat.sort((a, b) => ORDER[a.enforce ?? "_"] - ORDER[b.enforce ?? "_"]);
+    return flat.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
   }
 
   const config = builder.get();
-  return {
-    getLoader() {
-      if (typeof config.loader === "function") return config.loader();
-      if (config.loader) return config.loader;
-
-      console.warn("[Fumapress] loader is not specified in your config, is it a mistake?");
-      return (EMPTY ??= loader(
-        {},
-        {
-          baseUrl: "/",
-        },
-      ) as never);
-    },
-    layouts: {
-      ...config.layouts,
-      root: config.layouts.root ?? (await import("@/layouts/root")).createRootLayout<C>(),
-      page: config.layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage<C>(),
-      notFound:
-        config.layouts.notFound ??
-        (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
-    },
-
-    plugins: resolvePlugins(config.plugins),
-    adapters: config.adapters,
+  const plugins = resolvePlugins(config.plugins);
+  const { translations, site, mode = "default", layouts } = config;
+  const ctx: AppContext = {
+    getLoader: null as never,
     $context: undefined as never,
-    data: {},
+    revalidateLoader: () => undefined,
     i18nConfig:
-      config.i18n ??
-      (config.translations && "config" in config.translations
-        ? config.translations.config
-        : undefined),
-    translationsConfig: config.translations,
-    mode: config.mode ?? "default",
-    metaConfig: config.meta,
+      translations && "config" in translations
+        ? (translations.config as AppContext["i18nConfig"])
+        : undefined,
+    layouts: {
+      ...layouts,
+      root: layouts.root ?? (await import("@/layouts/root")).createRootLayout(),
+      page: layouts.page ?? (await import("@/layouts/docs")).createDocsLayoutPage(),
+      notFound:
+        layouts.notFound ?? (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
+    },
+    plugins,
+    adapters: config.adapters,
+    data: {},
+    translationsConfig: translations,
+    mode,
+    metaConfig: config.meta as AppContext["metaConfig"],
     siteConfig: {
-      name: config.site?.name ?? "Fumapress",
-      baseUrl: config.site?.baseUrl ?? getDefaultBaseUrl(),
-      git: config.site?.git
+      name: site?.name ?? "Fumapress",
+      baseUrl: site?.baseUrl ?? getDefaultBaseUrl(),
+      git: site?.git
         ? {
-            ...config.site.git,
-            rootDir: config.site.git.rootDir ?? getGitRootDir() ?? process.cwd(),
+            ...site.git,
+            rootDir: site.git.rootDir ?? getGitRootDir() ?? process.cwd(),
           }
         : undefined,
     },
   };
+
+  for (const plugin of plugins) {
+    await plugin.init?.call(ctx);
+  }
+
+  if ("loader" in config && config.loader) {
+    ctx.i18nConfig ??= config.loader._i18n as AppContext["i18nConfig"];
+    ctx.getLoader = () => config.loader as never;
+  } else if ("content" in config) {
+    ctx.i18nConfig ??= config.i18n as AppContext["i18nConfig"];
+    let loaderOptions: PressLoaderOptions = {
+      baseUrl: "/",
+      i18n: ctx.i18nConfig,
+      ...config.loaderOptions,
+    };
+
+    for (const plugin of plugins) {
+      if (!plugin.configureLoader) continue;
+      loaderOptions = await plugin.configureLoader.call(ctx, loaderOptions);
+    }
+
+    const source = dynamicLoader(config.content, loaderOptions);
+    ctx.revalidateLoader = source.revalidate.bind(source);
+    ctx.getLoader = () => {
+      if (config.loaderOptions?.alwaysRevalidate) source.revalidate();
+      return source.get() as never;
+    };
+  } else {
+    console.warn("[Fumapress] loader is not specified in your config, is it a mistake?");
+    const emptyLoader = loader({}, { baseUrl: "/" });
+
+    ctx.getLoader = () => emptyLoader as never;
+  }
+
+  return ctx as unknown as AppContext<C>;
 }
 
 function getDefaultBaseUrl() {
@@ -147,7 +187,7 @@ export function renderRootMeta<C extends ConfigContext>(context: AppContext<C>):
 }
 
 export function renderPageMeta<C extends ConfigContext>(
-  page: C["loaderConfig"]["page"],
+  page: C["page"],
   context: AppContext<C>,
 ): ReactNode {
   return (
@@ -207,7 +247,7 @@ export function createTransformChildren<T>(
 
 export async function renderBody<C extends ConfigContext>(
   ctx: AppContext<C>,
-  page: C["loaderConfig"]["page"],
+  page: C["page"],
   errorMessage: string,
 ) {
   for (const adapter of ctx.adapters) {
@@ -218,10 +258,7 @@ export async function renderBody<C extends ConfigContext>(
   throw new Error(errorMessage);
 }
 
-export async function renderToc<C extends ConfigContext>(
-  ctx: AppContext<C>,
-  page: C["loaderConfig"]["page"],
-) {
+export async function renderToc<C extends ConfigContext>(ctx: AppContext<C>, page: C["page"]) {
   for (const adapter of ctx.adapters) {
     const toc = await adapter["core:render-toc"]?.call(ctx, page);
     if (toc !== undefined) return toc;
@@ -230,7 +267,7 @@ export async function renderToc<C extends ConfigContext>(
 
 export async function getCreationDate<C extends ConfigContext>(
   ctx: AppContext<C>,
-  page: C["loaderConfig"]["page"],
+  page: C["page"],
 ) {
   for (const adapter of ctx.adapters) {
     const date = await adapter["core:get-creation-date"]?.call(ctx, page);
@@ -240,7 +277,7 @@ export async function getCreationDate<C extends ConfigContext>(
 
 export async function getLastModifiedDate<C extends ConfigContext>(
   ctx: AppContext<C>,
-  page: C["loaderConfig"]["page"],
+  page: C["page"],
 ) {
   for (const adapter of ctx.adapters) {
     const date = await adapter["core:get-modified-date"]?.call(ctx, page);

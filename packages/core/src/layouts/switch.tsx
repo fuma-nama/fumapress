@@ -5,7 +5,7 @@ import { unstable_notFound } from "waku/router/server";
 
 export function createLayoutSwitchAuto<C extends ConfigContext = ConfigContext>(
   layouts: Record<
-    C["loaderConfig"]["page"] extends Page<infer Type extends string> ? Type : never,
+    C["page"] extends Page<infer Type extends string> ? Type : never,
     Layouts<C>["page"]
   >,
 ): Layouts<C>["page"] {
@@ -14,7 +14,7 @@ export function createLayoutSwitchAuto<C extends ConfigContext = ConfigContext>(
 
 export function createLayoutSwitch<const T extends string, C extends ConfigContext = ConfigContext>(
   /** detect layout from page */
-  detector: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => T | undefined,
+  detector: (this: AppContext<C>, page: C["page"]) => T | undefined,
   layouts: Record<NoInfer<T>, Layouts<C>["page"]>,
 ): Layouts<C>["page"] {
   return async function (props) {

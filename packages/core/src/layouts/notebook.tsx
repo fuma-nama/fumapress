@@ -34,7 +34,7 @@ export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> 
 
   render?: (
     this: AppContext<C> & { lang?: string },
-    page: C["loaderConfig"]["page"],
+    page: C["page"],
   ) => Awaitable<{
     markdownUrl?: string;
     lastModified?: Date | null;

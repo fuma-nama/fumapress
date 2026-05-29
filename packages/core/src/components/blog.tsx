@@ -8,13 +8,7 @@ import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { joinPathname } from "@/lib/join-pathname";
 
-export function BlogItem<C extends ConfigContext>({
-  page,
-  date,
-}: {
-  page: C["loaderConfig"]["page"];
-  date: Date;
-}) {
+export function BlogItem<C extends ConfigContext>({ page, date }: { page: C["page"]; date: Date }) {
   return (
     <Link
       to={page.url}
@@ -28,14 +22,10 @@ export function BlogItem<C extends ConfigContext>({
   );
 }
 
-export async function OrderedBlogGrid<C extends ConfigContext>({
-  posts,
-}: {
-  posts: C["loaderConfig"]["page"][];
-}) {
+export async function OrderedBlogGrid<C extends ConfigContext>({ posts }: { posts: C["page"][] }) {
   const ctx = getPressContext<C>();
   const currentDate = new Date(Date.now());
-  const orderedPosts: { page: C["loaderConfig"]["page"]; date: Date }[] = [];
+  const orderedPosts: { page: C["page"]; date: Date }[] = [];
 
   for (const page of posts) {
     const date = await getCreationDate(ctx, page);

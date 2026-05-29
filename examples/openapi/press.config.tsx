@@ -1,7 +1,6 @@
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { loader } from "fumadocs-core/source";
 import { docs } from "./.source/server";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
@@ -16,16 +15,13 @@ const openapi = createOpenAPI({
 });
 
 export default defineConfig({
-  loader: loader(
-    {
-      docs: docs.toFumadocsSource(),
-      openapi: await openapi.staticSource(),
-    },
-    {
-      baseUrl: "/",
-      plugins: [lucideIconsPlugin(), openapi.loaderPlugin()],
-    },
-  ),
+  content: {
+    docs: docs.toFumadocsSource(),
+    openapi: await openapi.staticSource(),
+  },
+  loaderOptions: {
+    plugins: [lucideIconsPlugin()],
+  },
   meta: {
     root() {
       return (

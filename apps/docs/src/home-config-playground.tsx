@@ -61,17 +61,16 @@ function createConfigCode(selected: readonly FeatureId[]) {
   return [
     'import { defineConfig } from "fumapress";',
     'import { fumadocsMdx } from "fumapress/adapters/mdx";',
-    'import { loader } from "fumadocs-core/source";',
     ...activeFeatures.map((feature) => feature.importLine),
     hasBlog
       ? 'import { blog, docs } from "./.source/server";'
       : 'import { docs } from "./.source/server";',
     "",
     "export default defineConfig({",
-    "  loader: loader({",
+    "  content: {",
     "    docs: docs.toFumadocsSource(),",
     ...(hasBlog ? [`    blog: blog.toFumadocsSource({ baseDir: "blog" }),`] : []),
-    "  }),",
+    "  },",
     "})",
     ...(plugins.length > 0 ? [`  .plugins(${plugins.join(", ")})`] : []),
     "  .adapters(fumadocsMdx());",

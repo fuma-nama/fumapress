@@ -20,7 +20,7 @@ export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
 
   generate?: (
     this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
+    page: C["page"],
   ) => Awaitable<{
     node: ReactNode;
     options?: Partial<ImageResponseOptions>;

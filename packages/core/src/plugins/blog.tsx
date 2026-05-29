@@ -11,7 +11,7 @@ import type { FC, ReactNode } from "react";
 
 export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   /** default to checking from `page.type` */
-  isBlog?: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => boolean;
+  isBlog?: (this: AppContext<C>, page: C["page"]) => boolean;
   paths?: {
     /**
      * pathname for index page
@@ -49,7 +49,7 @@ export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
 export interface BlogContext<C extends ConfigContext = ConfigContext> {
   indexPath: string | false;
   tagsPath: string | false;
-  isBlog: (this: AppContext<C>, page: C["loaderConfig"]["page"]) => boolean;
+  isBlog: (this: AppContext<C>, page: C["page"]) => boolean;
 }
 
 const blogContext = new AsyncLocalStorage({
@@ -79,7 +79,7 @@ export function getBlogContext<C extends ConfigContext = ConfigContext>(): BlogC
 export type BlogLayoutPage<C extends ConfigContext = ConfigContext> = FC<{
   lang?: string;
   slugs: string[];
-  page: C["loaderConfig"]["page"];
+  page: C["page"];
 }> & { $ctx?: C };
 
 export type BlogLayout<C extends ConfigContext = ConfigContext> = FC<{

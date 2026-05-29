@@ -3,8 +3,9 @@ import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { AppContext } from "@/lib/shared";
+import { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
-import type { Page } from "fumadocs-core/source";
+import type { ContentStorage, LoaderOptions, LoaderPluginOption, Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
 import type { MiddlewareHandler } from "hono";
@@ -21,36 +22,29 @@ export type Awaitable<T> = T | Promise<T>;
 
 /** allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually */
 export interface Adapter<C extends ConfigContext = ConfigContext> {
-  "core:get-text"?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<string | undefined>;
+  "core:get-text"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
   "core:get-structured-data"?: (
     this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
+    page: C["page"],
   ) => Awaitable<StructuredData | undefined>;
-  "core:render-body"?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<ReactNode>;
+  "core:render-body"?: (this: AppContext<C>, page: C["page"]) => Awaitable<ReactNode>;
   "core:render-toc"?: (
     this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
+    page: C["page"],
   ) => Awaitable<TOCItemType[] | undefined>;
 
-  "core:get-creation-date"?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<Date | undefined>;
-  "core:get-modified-date"?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<Date | undefined>;
+  "core:get-creation-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
+  "core:get-modified-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
 
-  "blog:get-tags"?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<string[] | undefined>;
+  "blog:get-tags"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
+}
+
+/** make plugins an array for easier modification */
+export interface PressLoaderOptions<
+  S extends ContentStorage = ContentStorage,
+  I18n extends I18nConfig | undefined = I18nConfig | undefined,
+> extends Omit<LoaderOptions<S, I18n>, "plugins"> {
+  plugins?: LoaderPluginOption[];
 }
 
 export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
@@ -71,18 +65,21 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
    * - `false`: render not found (will also exclude from static pre-rendering).
    * - `undefined`: fallback to default.
    */
-  resolvePage?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<C["loaderConfig"]["page"] | false | undefined>;
+  resolvePage?: (this: AppContext<C>, page: C["page"]) => Awaitable<C["page"] | false | undefined>;
 
   /**
    * Override the page renderer, use default fallback if `undefined` is returned.
    */
   renderPage?: (
     this: AppContext<C>,
-    env: { page: C["loaderConfig"]["page"]; fallback: ReactNode; lang?: string; slugs: string[] },
+    env: { page: C["page"]; fallback: ReactNode; lang?: string; slugs: string[] },
   ) => Awaitable<ReactNode>;
+
+  /** resolve content loader options */
+  configureLoader?: (
+    this: AppContext<C>,
+    options: PressLoaderOptions,
+  ) => Awaitable<PressLoaderOptions>;
 
   createMiddlewares?: (this: AppContext<C>) => MiddlewareHandler[] | undefined;
 }

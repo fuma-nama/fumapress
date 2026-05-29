@@ -16,10 +16,7 @@ export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
    */
   autoRedirect?: boolean;
 
-  getLLMText?: (
-    this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
-  ) => Awaitable<string | undefined>;
+  getLLMText?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
 }
 
 export function llmsPlugin<C extends ConfigContext = ConfigContext>(

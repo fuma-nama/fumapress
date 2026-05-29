@@ -25,7 +25,7 @@ export interface HomeLayoutPageOptions<C extends ConfigContext = ConfigContext> 
 
   render?: (
     this: AppContext<C>,
-    page: C["loaderConfig"]["page"],
+    page: C["page"],
   ) => Awaitable<{
     body?: ReactNode;
     layoutProps?: TransformChildren<HomeLayoutProps>;
