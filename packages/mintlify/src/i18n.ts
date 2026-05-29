@@ -1,29 +1,7 @@
-import { defineI18n, type I18nConfig } from "fumadocs-core/i18n";
-import { uiTranslations } from "fumadocs-ui/i18n";
-import type { AppContext, ConfigContext } from "fumapress";
+import { defineI18n } from "fumadocs-core/i18n";
 import type { MintlifyDocsJson, MintlifyLanguageNav } from "./schema";
 
-const LOCALE_ALIASES: Record<string, string> = {
-  cn: "cn",
-  zh: "cn",
-  "zh-Hans": "cn",
-  en: "en",
-  "zh-Hant": "zh-tw",
-  jp: "ja",
-  "ja-jp": "ja",
-  ja: "ja",
-  "fr-ca": "fr",
-  "fr-CA": "fr",
-  fr: "fr",
-  "pt-BR": "pt",
-  pt: "pt",
-  de: "de",
-  es: "es",
-  ko: "ko",
-  it: "it",
-  ru: "ru",
-};
-
+/** Mintlify locale -> display name */
 const LANGUAGE_LABELS: Record<string, string> = {
   en: "English",
   cn: "Chinese",
@@ -62,109 +40,67 @@ export interface MintlifyI18nOptions {
   defaultLanguage?: string;
 }
 
+export interface I18nConfigExtended {
+  _getMintlifyLanguage?: (locale: string) => string | undefined;
+}
+
 export function getMintlifyLanguages(docs: MintlifyDocsJson): MintlifyLanguageNav[] {
   return docs.navigation.languages ?? docs.navigation.global?.languages ?? [];
 }
 
-export function mintlifyLocaleToPress(locale: string, options: MintlifyI18nOptions = {}): string {
-  const map = { ...LOCALE_ALIASES, ...options.localeMap };
-  return map[locale] ?? locale.toLowerCase();
-}
-
-export function pressLocaleToMintlify(
-  locale: string,
-  docs: MintlifyDocsJson,
-  options: MintlifyI18nOptions = {},
-): string | undefined {
-  const languages = getMintlifyLanguages(docs);
-  if (languages.length === 0) return locale;
-
-  const reverse = new Map<string, string>();
-  for (const entry of languages) {
-    reverse.set(mintlifyLocaleToPress(entry.language, options), entry.language);
-  }
-
-  return (
-    reverse.get(locale) ??
-    languages.find((entry) => mintlifyLocaleToPress(entry.language, options) === locale)
-      ?.language ??
-    languages.find((entry) => entry.default)?.language ??
-    languages[0]?.language
-  );
-}
-
-function languageDisplayName(language: string) {
-  return LANGUAGE_LABELS[language] ?? language;
-}
-
-export function mintlifyI18n(docs: MintlifyDocsJson, options: MintlifyI18nOptions = {}) {
-  const languages = getMintlifyLanguages(docs);
-  if (languages.length === 0) {
+export function defineMintlifyI18n(docs: MintlifyDocsJson, options: MintlifyI18nOptions = {}) {
+  const { localeMap } = options;
+  const languageEntries = getMintlifyLanguages(docs);
+  if (languageEntries.length === 0) {
     throw new Error("[Fumapress Mintlify] docs.json does not define navigation.languages");
   }
 
-  const pressLocales = [
-    ...new Set(languages.map((entry) => mintlifyLocaleToPress(entry.language, options))),
-  ];
-  const defaultMintlify =
-    languages.find((entry) => entry.default)?.language ??
+  function toPressLocale(mintlifyLocale: string) {
+    return localeMap?.[mintlifyLocale] ?? mintlifyLocale;
+  }
+
+  function getMintlifyLanguage(locale: string) {
+    return pressLocaleToMintlify.get(locale);
+  }
+
+  const pressLocaleToMintlify = new Map<string, string>();
+
+  for (const entry of languageEntries) {
+    pressLocaleToMintlify.set(toPressLocale(entry.language), entry.language);
+  }
+
+  const languages = Array.from(pressLocaleToMintlify.keys());
+  const defaultLanguage =
     options.defaultLanguage ??
-    languages[0]!.language;
-  const defaultLanguage = mintlifyLocaleToPress(defaultMintlify, options);
+    languageEntries.find((entry) => entry.default)?.language ??
+    languageEntries[0]!.language;
 
   const i18n = defineI18n({
-    languages: pressLocales,
-    defaultLanguage,
+    languages,
+    defaultLanguage: toPressLocale(defaultLanguage),
   });
 
-  const languageDisplayNames = Object.fromEntries(
-    pressLocales.map((locale) => {
-      const mintlify = pressLocaleToMintlify(locale, docs, options);
-      return [locale, { displayName: languageDisplayName(mintlify ?? locale) }];
-    }),
-  );
+  (i18n as I18nConfigExtended)._getMintlifyLanguage = getMintlifyLanguage;
 
-  const translations = i18n
-    .translations()
-    .extend(uiTranslations())
-    .add("ui", languageDisplayNames as never);
+  const createTranslations = i18n.translations;
+  i18n.translations = () => {
+    const t = createTranslations();
 
-  return {
-    i18n: i18n as I18nConfig<string>,
-    translations,
-    mapLocale(pageLocale: string | undefined) {
-      if (!pageLocale) return pressLocaleToMintlify(defaultLanguage, docs, options);
-      return pressLocaleToMintlify(pageLocale, docs, options);
-    },
+    for (const entry of languageEntries) {
+      const displayName = LANGUAGE_LABELS[entry.language];
+      if (!displayName) continue;
+
+      t.preset(toPressLocale(entry.language), {
+        name: "fumapress:mintlify",
+        value: {
+          ui: {
+            displayName,
+          },
+        },
+      });
+    }
+
+    return t;
   };
-}
-
-export function applyMintlifyTranslations<C extends ConfigContext>(
-  ctx: AppContext<C>,
-  docs: MintlifyDocsJson,
-  options: MintlifyI18nOptions = {},
-) {
-  const languages = getMintlifyLanguages(docs);
-  if (languages.length === 0 || !ctx.translationsConfig) return;
-
-  const languageDisplayNames = Object.fromEntries(
-    languages.map((entry) => {
-      const locale = mintlifyLocaleToPress(entry.language, options);
-      return [locale, { displayName: languageDisplayName(entry.language) }];
-    }),
-  );
-
-  if ("config" in ctx.translationsConfig) {
-    ctx.translationsConfig.add("ui", languageDisplayNames as never);
-    return;
-  }
-
-  const defaultLocale = mintlifyLocaleToPress(
-    languages.find((entry) => entry.default)?.language ?? languages[0]!.language,
-    options,
-  );
-  const fallback = languageDisplayNames[defaultLocale];
-  if (fallback) {
-    ctx.translationsConfig.add("ui", fallback);
-  }
+  return i18n;
 }

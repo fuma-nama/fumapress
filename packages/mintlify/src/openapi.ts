@@ -3,21 +3,20 @@ import { createOpenAPI, type OpenAPIOptions, type OpenAPIServer } from "fumadocs
 import type { MintlifyDocsJson, MintlifyOpenAPISource } from "./schema";
 import { readMintlifyDocs } from "./read-config";
 
-function normalizeSource(source: MintlifyOpenAPISource, root: string): string {
-  if (typeof source === "string") {
-    return path.isAbsolute(source) ? source : path.resolve(root, source);
-  }
-
-  return path.isAbsolute(source.source) ? source.source : path.resolve(root, source.source);
-}
-
 function collectSources(
   value: MintlifyOpenAPISource | MintlifyOpenAPISource[] | undefined,
   root: string,
 ): string[] {
   if (!value) return [];
   const entries = Array.isArray(value) ? value : [value];
-  return entries.map((entry) => normalizeSource(entry, root));
+
+  return entries.map((source) => {
+    if (typeof source === "string") {
+      return path.resolve(root, source);
+    }
+
+    return path.resolve(root, source.source);
+  });
 }
 
 export interface MintlifyOpenAPIOptions extends OpenAPIOptions {

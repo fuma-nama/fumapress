@@ -13,7 +13,7 @@ import type {
 } from "./schema";
 
 export interface ResolveNavigationOptions {
-  /** Fumapress/Mintlify locale for language-specific navigation */
+  /** Mintlify locale for language-specific navigation */
   language?: string;
   /** Active version slug prefix for page lookup */
   version?: string;

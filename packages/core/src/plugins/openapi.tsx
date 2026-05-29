@@ -9,6 +9,10 @@ import { PayloadObject, PayloadProvider, WithPayload } from "@/components/openap
 
 export interface OpenAPIOptions {
   server: OpenAPIServer;
+
+  /** do not add the loader plugin for OpenAPI integration */
+  disableLoaderPlugin?: boolean;
+
   /** must be a client component */
   ClientAPIPage?: FC<ClientApiPageProps>;
 
@@ -20,7 +24,7 @@ export interface OpenAPIOptions {
  * this will register the OpenAPI adapter & required layout configs.
  */
 export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions): ServerPlugin<C> {
-  const { server, createProxy } = options;
+  const { server, disableLoaderPlugin = false, createProxy } = options;
 
   function initRenderers(data: DocsLayoutContextData) {
     const renderers = (data.renderers ??= []);
@@ -55,8 +59,11 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       return <ServerPayloadProvider>{fallback}</ServerPayloadProvider>;
     },
     configureLoader(options) {
-      options.plugins ??= [];
-      options.plugins.push(server.loaderPlugin());
+      if (!disableLoaderPlugin) {
+        options.plugins ??= [];
+        options.plugins.push(server.loaderPlugin());
+      }
+
       return options;
     },
     async createPages({ createApi }) {
