@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "./lib/vitefu";
+import { resolveImageConfig, type ImageConfig, type ResolvedImageConfig } from "./lib/image/config";
 
 export interface PluginOptions {
   /**
@@ -8,6 +9,13 @@ export interface PluginOptions {
    * @default true
    */
   generateViteConfig?: boolean;
+
+  /**
+   * Image optimization config for the `Image` component.
+   *
+   * @default true
+   */
+  image?: ImageConfig | boolean;
 }
 
 export default function press(options?: PluginOptions): Plugin[] {
@@ -28,40 +36,47 @@ export default function press(options?: PluginOptions): Plugin[] {
 }
 
 function core(options: PluginOptions = {}): Plugin {
-  const { generateViteConfig = true } = options;
+  const { generateViteConfig = true, image: imageOptions = true } = options;
 
   return {
     name: "fumapress:core",
-    async config(_, { command }) {
-      if (!generateViteConfig) return;
+    async config(config, { command }) {
+      let resolvedImageOptions: ResolvedImageConfig | false = false;
+      if (imageOptions === true) resolvedImageOptions = resolveImageConfig();
+      else if (imageOptions) resolvedImageOptions = resolveImageConfig(imageOptions);
 
-      const out = await crawlFrameworkPkgs({
-        root: process.cwd(),
-        isBuild: command === "build",
-        isFrameworkPkgByName(pkgName) {
-          if (
-            pkgName.startsWith("@fumapress/") ||
-            pkgName.startsWith("@fumadocs/") ||
-            pkgName.startsWith("fumadocs-") ||
-            pkgName.startsWith("fumapress-") ||
-            pkgName === "fumapress"
-          )
-            return true;
-          switch (pkgName) {
-            case "vite":
-            case "waku":
-            case "shiki":
-              return false;
-          }
-        },
-      });
+      const out = generateViteConfig
+        ? await crawlFrameworkPkgs({
+            root: config.root ?? process.cwd(),
+            isBuild: command === "build",
+            isFrameworkPkgByName(pkgName) {
+              if (
+                pkgName.startsWith("@fumapress/") ||
+                pkgName.startsWith("@fumadocs/") ||
+                pkgName.startsWith("fumadocs-") ||
+                pkgName.startsWith("fumapress-") ||
+                pkgName === "fumapress"
+              )
+                return true;
+              switch (pkgName) {
+                case "vite":
+                case "waku":
+                case "shiki":
+                  return false;
+              }
+            },
+          })
+        : null;
 
       return {
-        ssr: {
-          noExternal: out.ssr.noExternal,
-          external: ["@takumi-rs/image-response"],
+        define: {
+          __FUMAPRESS_IMAGE_CONFIG__: resolvedImageOptions,
         },
-        optimizeDeps: out.optimizeDeps,
+        ssr: {
+          noExternal: out?.ssr.noExternal,
+          external: ["@takumi-rs/image-response", "sharp"],
+        },
+        optimizeDeps: out?.optimizeDeps,
       };
     },
     async resolveId(source, _importer, options) {

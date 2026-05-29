@@ -23,6 +23,7 @@
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
     "./client": "./dist/client.js",
     "./i18n": "./dist/i18n.js",
+    "./image": "./dist/image.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",
@@ -75,6 +76,7 @@
     "hono": "^4.12.23",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "sharp": "^0.34.5",
     "tsdown": "0.22.0",
     "typescript": "^6.0.3",
     "waku": "1.0.0-beta.1"
@@ -87,9 +89,13 @@
     "hono": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sharp": "^0.34.0",
     "waku": "1.0.0-beta.1"
   },
   "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    },
     "hono": {
       "optional": true
     },

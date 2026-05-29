@@ -88,18 +88,23 @@ const PLUGIN_ORDER = {
   _: 0,
 };
 
+async function resolvePlugins(plugins: ServerPluginOption[]): Promise<ServerPlugin[]> {
+  const flat: ServerPlugin[] = plugins.flat(Infinity as never);
+  flat.push(disableSearchPlugin());
+
+  if (__FUMAPRESS_IMAGE_CONFIG__) {
+    const { imagePlugin } = await import("@/plugins/internal/image");
+    flat.push(imagePlugin(__FUMAPRESS_IMAGE_CONFIG__));
+  }
+
+  return flat.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
+}
+
 export async function initApp<C extends ConfigContext>(
   builder: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
-  function resolvePlugins(plugins: ServerPluginOption[]): ServerPlugin[] {
-    const flat: ServerPlugin[] = plugins.flat(Infinity as never);
-    flat.push(disableSearchPlugin());
-
-    return flat.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
-  }
-
   const config = builder.get();
-  const plugins = resolvePlugins(config.plugins);
+  const plugins = await resolvePlugins(config.plugins);
   const { translations, site, mode = "default", layouts } = config;
   const ctx: AppContext = {
     $context: undefined as never,
