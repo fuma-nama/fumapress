@@ -84,11 +84,7 @@ export function createRouteHandler<C extends ConfigContext>(
     },
   } = options;
 
-  type ContextLoaderOutput = LoaderOutput<{
-    meta: C["meta"];
-    page: C["page"];
-    i18n: C["lang"] extends string ? I18nConfig<C["lang"]> : undefined;
-  }>;
+  type ContextLoaderOutput = LoaderOutput<C>;
 
   const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
 

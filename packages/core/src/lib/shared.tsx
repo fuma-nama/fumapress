@@ -1,11 +1,4 @@
-import type {
-  BaseConfig,
-  BuildMode,
-  ConfigBuilder,
-  ConfigContext,
-  ConfigContextToLoaderConfig,
-  Layouts,
-} from "@/config";
+import type { BaseConfig, BuildMode, ConfigBuilder, ConfigContext, Layouts } from "@/config";
 import { getGitRootDir } from "./fs";
 import path from "node:path";
 import { loader, type LoaderOutput } from "fumadocs-core/source";
@@ -21,13 +14,12 @@ import { type ComponentType, Fragment, isValidElement, type ReactNode } from "re
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
-import type { I18nConfig } from "fumadocs-core/i18n";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
-  getLoader: () => Awaitable<LoaderOutput<ConfigContextToLoaderConfig<C>>>;
+  getLoader: () => Awaitable<LoaderOutput<C>>;
   plugins: ServerPlugin<C>[];
   adapters: Adapter<C>[];
   layouts: Layouts<C>;
@@ -46,7 +38,7 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   data: AppContextData & Record<string, unknown>;
 
   translationsConfig?: BaseConfig<C>["translations"];
-  i18nConfig?: C["lang"] extends string ? I18nConfig<C["lang"]> : undefined;
+  i18nConfig?: C["i18n"];
   metaConfig?: BaseConfig<C>["meta"];
   siteConfig: {
     name: string;
@@ -142,10 +134,10 @@ export async function initApp<C extends ConfigContext>(
   }
 
   if ("loader" in config && config.loader) {
-    ctx.i18nConfig ??= config.loader._i18n as AppContext["i18nConfig"];
+    ctx.i18nConfig ??= config.loader._i18n;
     ctx.getLoader = () => config.loader as never;
   } else if ("content" in config) {
-    ctx.i18nConfig ??= config.i18n as AppContext["i18nConfig"];
+    ctx.i18nConfig ??= config.i18n;
     let loaderOptions: PressLoaderOptions = {
       baseUrl: "/",
       i18n: ctx.i18nConfig,

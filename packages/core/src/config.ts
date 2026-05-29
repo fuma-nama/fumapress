@@ -18,7 +18,7 @@ import type { Translations } from "fumadocs-ui/i18n";
 export interface ConfigContext {
   page: Page;
   meta: Meta;
-  lang: string | undefined;
+  i18n: I18nConfig | undefined;
   /** source names in multi-source setup */
   source: string | undefined;
 }
@@ -61,12 +61,6 @@ type GenerateMeta<T extends AnyInput> =
       ? Meta<undefined, D["metaData"]>
       : never;
 
-export interface ConfigContextToLoaderConfig<T extends ConfigContext> {
-  page: T["page"];
-  meta: T["meta"];
-  i18n: T["lang"] extends string ? I18nConfig<T["lang"]> : undefined;
-}
-
 export interface BaseConfig<C extends ConfigContext> {
   /**
    * - `static`: always prefer static, including search etc.
@@ -77,7 +71,9 @@ export interface BaseConfig<C extends ConfigContext> {
   site?: SiteConfig;
 
   translations?:
-    | (C["lang"] extends string ? TranslationsAPI<C["lang"], { ui: Translations }> : never)
+    | (C["i18n"] extends I18nConfig<infer Lang>
+        ? TranslationsAPI<Lang, { ui: Translations }>
+        : never)
     | SingularTranslationsAPI<{ ui: Translations }>;
   meta?: {
     /** render meta tags for any pages */
@@ -91,7 +87,7 @@ export interface BaseConfig<C extends ConfigContext> {
 interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseConfig<{
   meta: NoInfer<L>["meta"];
   page: NoInfer<L>["page"];
-  lang: NoInfer<L>["i18n"] extends I18nConfig<infer Lang> ? Lang : undefined;
+  i18n: NoInfer<L>["i18n"];
   source: undefined;
 }> {
   /** the content loader (static, called once only for every process) */
@@ -100,9 +96,9 @@ interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseCo
 
 interface ConfigWithContent<
   I extends AnyInput = AnyInput,
-  Lang extends string | undefined = string | undefined,
+  I18n extends I18nConfig | undefined = I18nConfig | undefined,
 > extends BaseConfig<{
-  lang: Lang;
+  i18n: I18n;
   meta: GenerateMeta<NoInfer<I>>;
   page: GeneratePage<NoInfer<I>>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
@@ -111,7 +107,7 @@ interface ConfigWithContent<
   content: I;
 
   /** i18n config for core, optional when `translations` is specified */
-  i18n?: Lang extends string ? I18nConfig<Lang> : undefined;
+  i18n?: I18n;
 
   /** Options for Fumadocs Loader API */
   loaderOptions?: Omit<PressLoaderOptions<GenerateStorage<I>, never>, "baseUrl" | "i18n"> & {
@@ -180,19 +176,19 @@ export interface ConfigBuilder<C extends ConfigContext = ConfigContext> {
   useAdapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
 }
 
-export function defineConfig<I extends AnyInput, Lang extends string | undefined = undefined>(
-  config: ConfigWithContent<I, Lang>,
+export function defineConfig<I extends AnyInput, I18n extends I18nConfig | undefined = undefined>(
+  config: ConfigWithContent<I, I18n>,
 ): ConfigBuilder<{
-  lang: Lang;
   meta: GenerateMeta<I>;
   page: GeneratePage<I>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
+  i18n: I18n;
 }>;
 
 export function defineConfig<L extends LoaderConfig>(
   config?: ConfigWithLoader<L>,
 ): ConfigBuilder<{
-  lang: L["i18n"] extends I18nConfig<infer Lang> ? Lang : undefined;
+  i18n: L["i18n"];
   page: L["page"];
   meta: L["meta"];
   source: undefined;

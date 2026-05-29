@@ -17,6 +17,8 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./i18n": "./dist/i18n.mjs",
+    "./openapi": "./dist/openapi.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
