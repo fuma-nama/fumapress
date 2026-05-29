@@ -30,15 +30,15 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.9.1",
-    "fumadocs-ui": "^16.9.1",
+    "fumadocs-core": "^16.9.3",
+    "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
-    "fumadocs-openapi": "^10.9.0",
+    "fumadocs-openapi": "^10.9.1",
     "react": "^19.2.6",
     "tsdown": "0.22.0",
     "typescript": "^6.0.3",

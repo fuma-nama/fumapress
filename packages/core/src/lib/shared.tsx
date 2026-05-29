@@ -26,6 +26,11 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
 
   /** revalidate [dynamic content sources](https://fumadocs.dev/docs/headless/source-api/source#dynamic-source) */
   revalidateLoader:
+    | (() => Promise<void>)
+    | (C["source"] extends string ? (name: C["source"]) => Promise<void> : never);
+
+  /** invalidate [dynamic content sources](https://fumadocs.dev/docs/headless/source-api/source#dynamic-source) */
+  invalidateLoader:
     | (() => void)
     | (C["source"] extends string ? (name: C["source"]) => void : never);
 
@@ -97,9 +102,14 @@ export async function initApp<C extends ConfigContext>(
   const plugins = resolvePlugins(config.plugins);
   const { translations, site, mode = "default", layouts } = config;
   const ctx: AppContext = {
-    getLoader: null as never,
     $context: undefined as never,
-    revalidateLoader: () => undefined,
+    getLoader() {
+      throw new Error(
+        "[Fumapress] Content loader is not initialized yet, please access it after init()",
+      );
+    },
+    revalidateLoader: () => Promise.resolve(undefined),
+    invalidateLoader: () => undefined,
     i18nConfig:
       translations && "config" in translations
         ? (translations.config as AppContext["i18nConfig"])
@@ -129,15 +139,23 @@ export async function initApp<C extends ConfigContext>(
     },
   };
 
-  for (const plugin of plugins) {
-    await plugin.init?.call(ctx);
-  }
-
   if ("loader" in config && config.loader) {
     ctx.i18nConfig ??= config.loader._i18n;
     ctx.getLoader = () => config.loader as never;
   } else if ("content" in config) {
     ctx.i18nConfig ??= config.i18n;
+  } else {
+    console.warn("[Fumapress] loader is not specified in your config, is it a mistake?");
+    const emptyLoader = loader({}, { baseUrl: "/" });
+
+    ctx.getLoader = () => emptyLoader as never;
+  }
+
+  for (const plugin of plugins) {
+    await plugin.init?.call(ctx);
+  }
+
+  if ("content" in config) {
     let loaderOptions: PressLoaderOptions = {
       baseUrl: "/",
       i18n: ctx.i18nConfig,
@@ -151,15 +169,12 @@ export async function initApp<C extends ConfigContext>(
 
     const source = dynamicLoader(config.content, loaderOptions);
     ctx.revalidateLoader = source.revalidate.bind(source);
+    ctx.invalidateLoader = source.invalidate.bind(source);
     ctx.getLoader = () => {
-      if (config.loaderOptions?.alwaysRevalidate) source.revalidate();
+      // only invalidate because `get()` will do the revalidation part
+      if (config.loaderOptions?.alwaysRevalidate) source.invalidate();
       return source.get() as never;
     };
-  } else {
-    console.warn("[Fumapress] loader is not specified in your config, is it a mistake?");
-    const emptyLoader = loader({}, { baseUrl: "/" });
-
-    ctx.getLoader = () => emptyLoader as never;
   }
 
   return ctx as unknown as AppContext<C>;

@@ -1,11 +1,9 @@
 import type { AppContext } from "./lib/shared";
 import type {
-  ContentStorage,
-  ContentStorageMetaFile,
-  ContentStoragePageFile,
   LoaderConfig,
   LoaderOutput,
   Meta,
+  _Internal,
   Page,
   SourceUnion,
 } from "fumadocs-core/source";
@@ -24,42 +22,6 @@ export interface ConfigContext {
 }
 
 export type BuildMode = "static" | "dynamic" | "default";
-
-// TODO: expose from Fumadocs
-type AnyInput = SourceUnion | Record<string, SourceUnion>;
-type GeneratePageFile<T extends AnyInput> =
-  T extends Record<infer K extends string, SourceUnion>
-    ? {
-        [k in K]: T[k] extends SourceUnion<infer D>
-          ? ContentStoragePageFile<k, D["pageData"]>
-          : never;
-      }[K]
-    : T extends SourceUnion<infer D>
-      ? ContentStoragePageFile<undefined, D["pageData"]>
-      : never;
-type GenerateMetaFile<T extends AnyInput> =
-  T extends Record<infer K extends string, SourceUnion>
-    ? {
-        [k in K]: T[k] extends SourceUnion<infer D>
-          ? ContentStorageMetaFile<k, D["metaData"]>
-          : never;
-      }[K]
-    : T extends SourceUnion<infer D>
-      ? ContentStorageMetaFile<undefined, D["metaData"]>
-      : never;
-type GenerateStorage<T extends AnyInput> = ContentStorage<GeneratePageFile<T>, GenerateMetaFile<T>>;
-type GeneratePage<T extends AnyInput> =
-  T extends Record<infer K extends string, SourceUnion>
-    ? { [k in K]: T[k] extends SourceUnion<infer D> ? Page<k, D["pageData"]> : never }[K]
-    : T extends SourceUnion<infer D>
-      ? Page<undefined, D["pageData"]>
-      : never;
-type GenerateMeta<T extends AnyInput> =
-  T extends Record<infer K extends string, SourceUnion>
-    ? { [k in K]: T[k] extends SourceUnion<infer D> ? Meta<k, D["metaData"]> : never }[K]
-    : T extends SourceUnion<infer D>
-      ? Meta<undefined, D["metaData"]>
-      : never;
 
 export interface BaseConfig<C extends ConfigContext> {
   /**
@@ -95,12 +57,12 @@ interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseCo
 }
 
 interface ConfigWithContent<
-  I extends AnyInput = AnyInput,
+  I extends _Internal.AnyInput = _Internal.AnyInput,
   I18n extends I18nConfig | undefined = I18nConfig | undefined,
 > extends BaseConfig<{
   i18n: I18n;
-  meta: GenerateMeta<NoInfer<I>>;
-  page: GeneratePage<NoInfer<I>>;
+  meta: _Internal.GenerateMeta<NoInfer<I>>;
+  page: _Internal.GeneratePage<NoInfer<I>>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
 }> {
   /** The content sources */
@@ -110,7 +72,10 @@ interface ConfigWithContent<
   i18n?: I18n;
 
   /** Options for Fumadocs Loader API */
-  loaderOptions?: Omit<PressLoaderOptions<GenerateStorage<I>, never>, "baseUrl" | "i18n"> & {
+  loaderOptions?: Omit<
+    PressLoaderOptions<_Internal.GenerateStorage<I>, I18n>,
+    "baseUrl" | "i18n"
+  > & {
     /**
      * Always revalidate all dynamic content sources in `content` (on each request).
      * By default, you can revalidate manually with `getPressContext<Ctx>().revalidateLoader(...)`.
@@ -176,11 +141,14 @@ export interface ConfigBuilder<C extends ConfigContext = ConfigContext> {
   useAdapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
 }
 
-export function defineConfig<I extends AnyInput, I18n extends I18nConfig | undefined = undefined>(
+export function defineConfig<
+  I extends _Internal.AnyInput,
+  I18n extends I18nConfig | undefined = undefined,
+>(
   config: ConfigWithContent<I, I18n>,
 ): ConfigBuilder<{
-  meta: GenerateMeta<I>;
-  page: GeneratePage<I>;
+  meta: _Internal.GenerateMeta<I>;
+  page: _Internal.GeneratePage<I>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
   i18n: I18n;
 }>;

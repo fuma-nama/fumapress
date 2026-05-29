@@ -11,7 +11,6 @@ import { z } from "zod";
 import { Document, type MergedDocumentSearchResults, type DocumentData } from "flexsearch";
 import type { AppContext, ConfigContext } from "fumapress";
 import type { LoaderOutput } from "fumadocs-core/source";
-import type { I18nConfig } from "fumadocs-core/i18n";
 
 export interface PageDocument extends DocumentData {
   url: string;

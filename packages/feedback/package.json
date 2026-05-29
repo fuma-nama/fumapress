@@ -36,10 +36,10 @@
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.8",
     "class-variance-authority": "^0.7.1",
-    "fumadocs-core": "^16.9.1",
-    "fumadocs-ui": "^16.9.1",
+    "fumadocs-core": "^16.9.3",
+    "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "octokit": "^5.0.5",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.4.3"

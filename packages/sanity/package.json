@@ -30,8 +30,8 @@
   },
   "dependencies": {
     "@portabletext/react": "^6.2.0",
-    "@sanity/client": "^7.22.0",
-    "fumadocs-core": "^16.9.1",
+    "@sanity/client": "^7.22.1",
+    "fumadocs-core": "^16.9.3",
     "fumapress": "workspace:*",
     "zod": "^4.4.3"
   },

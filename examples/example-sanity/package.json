@@ -12,9 +12,9 @@
   "dependencies": {
     "@fumapress/sanity": "workspace:*",
     "@portabletext/react": "^6.2.0",
-    "@sanity/client": "^7.22.0",
-    "fumadocs-core": "^16.9.1",
-    "fumadocs-ui": "^16.9.1",
+    "@sanity/client": "^7.22.1",
+    "fumadocs-core": "^16.9.3",
+    "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

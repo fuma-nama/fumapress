@@ -3,7 +3,7 @@ import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { AppContext } from "@/lib/shared";
-import { I18nConfig } from "fumadocs-core/i18n";
+import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption, Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
