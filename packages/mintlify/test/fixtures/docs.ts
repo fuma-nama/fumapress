@@ -38,7 +38,6 @@ export const openapiDocs: MintlifyDocsJson = {
       { source: "openapi/petstore.yaml", directory: "api-reference" },
       "openapi/legacy.json",
     ],
-    asyncapi: "async/events.yaml",
     playground: { proxy: false },
     url: "full",
   },

@@ -5,18 +5,10 @@ import type { MiddlewareHandler } from "hono";
 import {
   applyMintlifyTranslations,
   getMintlifyLanguages,
-  mintlifyI18n,
   pressLocaleToMintlify,
   type MintlifyI18nOptions,
 } from "./i18n";
 import { buildPageTreeFromNavigation, createPageIndex } from "./navigation";
-import {
-  assertMintlifyOpenAPI,
-  hasOpenAPIPlugin,
-  mintlifyOpenAPIOptions,
-  mintlifyOpenAPISourceOptions,
-  resolveMintlifyOpenAPIInput,
-} from "./openapi";
 import { readMintlifyDocs, type ReadMintlifyDocsOptions } from "./read-config";
 import type { MintlifyDocsJson, MintlifyNavbarLink } from "./schema";
 
@@ -75,34 +67,6 @@ function navbarLinks(docs: MintlifyDocsJson): LinkItemType[] {
   return links;
 }
 
-function initOpenAPIIntegration<C extends ConfigContext>(
-  ctx: AppContext<C>,
-  docs: MintlifyDocsJson,
-  readOptions: ReadMintlifyDocsOptions,
-) {
-  assertMintlifyOpenAPI(docs, ctx.plugins, readOptions);
-
-  if (!hasOpenAPIPlugin(ctx.plugins)) return;
-
-  const api = docs.api;
-  if (!api) return;
-
-  ctx.data["mintlify:openapi"] = api;
-
-  const renderers = (((ctx.data["core:docs-layout"] ??= {}) as DocsLayoutContextData).renderers ??=
-    []);
-
-  renderers.push(function (data) {
-    if (!("getAPIPageProps" in this.page.data)) return data;
-
-    if (api.url === "full") {
-      data.pageProps.full ??= true;
-    }
-
-    return data;
-  });
-}
-
 export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
   options: MintlifyPluginOptions = {},
 ): ServerPlugin<C> {
@@ -157,8 +121,6 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
         );
       }
 
-      initOpenAPIIntegration(this, docs, readOptions);
-
       if (applyNavbar) {
         const links = navbarLinks(docs);
         const previousDefaultProps = this.layouts.defaultProps;
@@ -199,30 +161,5 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
 
       return [middleware];
     },
-  };
-}
-
-/**
- * Convenience helper for press.config.tsx when migrating from Mintlify.
- *
- * ```tsx
- * const docs = readMintlifyDocs();
- * const { i18n, translations } = mintlifyI18n(docs);
- * const openapi = createOpenAPI(mintlifyOpenAPIOptions(docs));
- * ```
- */
-export function createMintlifyPressConfig(
-  docs: MintlifyDocsJson,
-  options: MintlifyI18nOptions = {},
-) {
-  const languages = getMintlifyLanguages(docs);
-  const i18nBundle = languages.length > 0 ? mintlifyI18n(docs, options) : undefined;
-
-  return {
-    i18n: i18nBundle?.i18n,
-    translations: i18nBundle?.translations,
-    openapi: mintlifyOpenAPIOptions(docs),
-    openapiSource: mintlifyOpenAPISourceOptions(docs),
-    openapiInput: resolveMintlifyOpenAPIInput(docs),
   };
 }

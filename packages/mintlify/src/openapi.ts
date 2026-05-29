@@ -1,11 +1,7 @@
 import path from "node:path";
+import { createOpenAPI, type OpenAPIOptions, type OpenAPIServer } from "fumadocs-openapi/server";
 import type { MintlifyDocsJson, MintlifyOpenAPISource } from "./schema";
-import type { ReadMintlifyDocsOptions } from "./read-config";
-
-export interface MintlifyOpenAPIOptions extends ReadMintlifyDocsOptions {
-  /** Resolve relative OpenAPI paths from this directory. Default: project root */
-  specRoot?: string;
-}
+import { readMintlifyDocs } from "./read-config";
 
 function normalizeSource(source: MintlifyOpenAPISource, root: string): string {
   if (typeof source === "string") {
@@ -24,70 +20,31 @@ function collectSources(
   return entries.map((entry) => normalizeSource(entry, root));
 }
 
-export function resolveMintlifyOpenAPIInput(
-  docs: MintlifyDocsJson,
-  options: MintlifyOpenAPIOptions = {},
-): string[] {
-  const api = docs.api;
-  if (!api) return [];
-
-  const root = path.resolve(options.root ?? process.cwd());
-  const specRoot = path.resolve(options.specRoot ?? root);
-
-  return [...collectSources(api.openapi, specRoot), ...collectSources(api.asyncapi, specRoot)];
+export interface MintlifyOpenAPIOptions extends OpenAPIOptions {
+  /** path to `docs.json` */
+  configPath?: string;
+  /** project directory, default to cwd */
+  root?: string;
+  /** override the content of `docs.json` */
+  _config?: MintlifyDocsJson;
 }
 
-export function mintlifyOpenAPIOptions(
-  docs: MintlifyDocsJson,
-  options: MintlifyOpenAPIOptions = {},
-) {
-  const input = resolveMintlifyOpenAPIInput(docs, options);
+export function createMintlifyOpenAPI(options: MintlifyOpenAPIOptions = {}): OpenAPIServer {
+  const { configPath, root = process.cwd(), _config, ...overrides } = options;
+  const docs = _config ?? readMintlifyDocs({ path: configPath, root });
 
-  return {
-    input: input.length > 0 ? input : undefined,
-    proxyUrl: docs.api?.playground?.proxy === false ? undefined : "/api/proxy",
-  };
-}
+  function getOpenAPIOptions(): OpenAPIOptions | null {
+    if (!docs.api) return null;
+    const input = collectSources(docs.api.openapi, root);
 
-export function mintlifyOpenAPISourceOptions(docs: MintlifyDocsJson) {
-  const openapi = docs.api?.openapi;
-  const entry = Array.isArray(openapi) ? openapi[0] : openapi;
-
-  if (entry && typeof entry !== "string" && entry.directory) {
     return {
-      baseDir: entry.directory,
-      meta: true as const,
+      input: input.length > 0 ? input : undefined,
+      proxyUrl: docs.api?.playground?.proxy === false ? undefined : "/api/proxy",
     };
   }
 
-  return {
-    meta: true as const,
-  };
-}
-
-export function hasOpenAPIPlugin(plugins: Array<{ name?: string }>): boolean {
-  return plugins.some((plugin) => plugin.name === "core:openapi");
-}
-
-export function assertMintlifyOpenAPI(
-  docs: MintlifyDocsJson,
-  plugins: Array<{ name?: string }>,
-  options: MintlifyOpenAPIOptions = {},
-) {
-  const api = docs.api;
-  if (!api?.openapi && !api?.asyncapi) return;
-
-  if (!hasOpenAPIPlugin(plugins)) {
-    console.warn(
-      "[Fumapress Mintlify] docs.json defines api.openapi/asyncapi but openapiPlugin() is not configured",
-    );
-    return;
-  }
-
-  const input = resolveMintlifyOpenAPIInput(docs, options);
-  if (input.length === 0) return;
-
-  console.info(
-    `[Fumapress Mintlify] OpenAPI specs from docs.json: ${input.map((item) => path.relative(options.root ?? process.cwd(), item)).join(", ")}`,
-  );
+  return createOpenAPI({
+    ...getOpenAPIOptions(),
+    ...overrides,
+  });
 }

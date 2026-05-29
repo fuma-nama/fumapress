@@ -36,15 +36,20 @@
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
+    "fumadocs-openapi": "^10.9.0",
     "react": "^19.2.6",
     "tsdown": "0.22.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },
   "peerDependencies": {
+    "fumadocs-openapi": "^10.9.0",
     "hono": "*"
   },
   "peerDependenciesMeta": {
+    "fumadocs-openapi": {
+      "optional": true
+    },
     "hono": {
       "optional": true
     }

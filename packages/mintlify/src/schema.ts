@@ -221,9 +221,9 @@ export const mintlifyOpenAPISourceSchema = z.union([
 
 export const mintlifyApiSchema = z.looseObject({
   openapi: z.optional(z.union([mintlifyOpenAPISourceSchema, z.array(mintlifyOpenAPISourceSchema)])),
-  asyncapi: z.optional(
-    z.union([mintlifyOpenAPISourceSchema, z.array(mintlifyOpenAPISourceSchema)]),
-  ),
+  // asyncapi: z.optional(
+  //   z.union([mintlifyOpenAPISourceSchema, z.array(mintlifyOpenAPISourceSchema)]),
+  // ),
   playground: z.optional(
     z.looseObject({
       // display: z.optional(z.enum(["interactive", "simple", "none", "auth"])),
