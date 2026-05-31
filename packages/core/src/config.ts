@@ -58,7 +58,11 @@ interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseCo
   i18n: NoInfer<L>["i18n"];
   source: undefined;
 }> {
-  /** the content loader (static, called once only for every process) */
+  /**
+   * The content loader.
+   *
+   * @deprecated Pass content sources directly to `content` instead.
+   */
   loader?: LoaderOutput<L>;
 }
 
