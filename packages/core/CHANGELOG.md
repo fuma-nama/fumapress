@@ -1,5 +1,13 @@
 # fumapress
 
+## 0.5.1
+
+### Patch Changes
+
+- 793f82d: Support built-in content loader API with revalidation
+- 6c089fd: Support config alias
+- 9ea0ee6: Support Image Optimization
+
 ## 0.5.0
 
 ### Minor Changes
