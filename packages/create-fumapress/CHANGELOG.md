@@ -1,5 +1,11 @@
 # create-fumapress
 
+## 0.0.9
+
+### Patch Changes
+
+- 793f82d: Support built-in content loader API with revalidation
+
 ## 0.0.8
 
 ## 0.0.7

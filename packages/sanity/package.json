@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/sanity",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Sanity CMS integration for Fumapress",
   "keywords": [
     "Docs",
