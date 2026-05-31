@@ -8,11 +8,11 @@ import {
 import { buildImageUrl, generateImageAttributes } from "@/components/image";
 import {
   ImageOptimizationCache,
-  createSourceCachePolicy,
   getOptimizeCacheKey,
   parseImageParams,
   readResponseBodyWithLimit,
 } from "@/plugins/internal/image";
+import CachePolicy from "http-cache-semantics";
 
 const sourceUrl = "https://example.com/hero.png";
 const cacheRequest = {
@@ -25,15 +25,15 @@ function createFetchResult(cacheControl: string, body = new Uint8Array([1, 2, 3]
   return {
     body,
     contentType: "image/jpeg",
-    policy: createSourceCachePolicy(
-      sourceUrl,
-      new Response(null, {
+    policy: new CachePolicy(
+      { url: sourceUrl, method: "GET", headers: { accept: "image/*" } },
+      {
         status: 200,
         headers: {
-          "Cache-Control": cacheControl,
-          Date: "Wed, 01 Jan 2026 00:00:00 GMT",
+          "cache-control": cacheControl,
+          date: "Wed, 01 Jan 2026 00:00:00 GMT",
         },
-      }),
+      },
     ),
   };
 }

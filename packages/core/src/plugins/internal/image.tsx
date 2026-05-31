@@ -1,7 +1,6 @@
 import type { ServerPlugin } from "@/lib/types";
 import { type ResolvedImageConfig, validateImageSrc } from "@/lib/shared/image";
 import type { ConfigContext } from "@/config";
-import sharp from "sharp";
 import { ConfigProvider } from "@/components/image";
 import CachePolicy from "http-cache-semantics";
 
@@ -23,12 +22,15 @@ interface ParsedImageParams {
   quality: number;
 }
 
-export function parseImageParams(url: URL, config: ResolvedImageConfig): ParsedImageParams | null {
-  const src = url.searchParams.get("src");
+export function parseImageParams(
+  { searchParams }: URL,
+  config: ResolvedImageConfig,
+): ParsedImageParams | null {
+  const src = searchParams.get("src");
   if (!src) return null;
 
-  const width = parseInt(url.searchParams.get("width") ?? "0", 10);
-  const quality = parseInt(url.searchParams.get("quality") ?? String(config.quality), 10);
+  const width = parseInt(searchParams.get("width") ?? "0", 10);
+  const quality = parseInt(searchParams.get("quality") ?? String(config.quality), 10);
 
   if (Number.isNaN(width) || width < 0) return null;
   if (!config.deviceSizes.includes(width) && !config.imageSizes.includes(width)) return null;
@@ -84,25 +86,6 @@ export class ImageOptimizationCache {
   }
 }
 
-export function createSourceCachePolicy(sourceUrl: string, response: Response): CachePolicy {
-  const headers: Record<string, string> = {};
-  response.headers.forEach((value, key) => {
-    headers[key.toLowerCase()] = value;
-  });
-
-  return new CachePolicy(
-    {
-      url: sourceUrl,
-      method: "GET",
-      headers: { accept: "image/*" },
-    },
-    {
-      status: response.status,
-      headers,
-    },
-  );
-}
-
 export function getOptimizeCacheKey(params: ParsedImageParams): string {
   return `${params.width}\0${params.quality}`;
 }
@@ -127,6 +110,7 @@ export function imagePlugin<C extends ConfigContext = ConfigContext>(
       }
 
       const transformer: ImageTransformer = async (input, { width, quality }) => {
+        const { default: sharp } = await import("sharp");
         let pipeline = sharp(input.body);
 
         if (width > 0) {
@@ -214,38 +198,54 @@ export async function readResponseBodyWithLimit(
   return body.buffer;
 }
 
+function createCachePolicyHeaders(headers: Headers) {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    out[key.toLowerCase()] = value;
+  });
+  return out;
+}
+
 export function createImageOptimizer(
   config: ResolvedImageConfig,
   transformer: ImageTransformer,
   cache?: ImageOptimizationCache,
 ) {
   async function fetchSource(
-    sourceUrl: string,
-    accept: string | null,
+    params: ParsedImageParams,
+    request: Request,
   ): Promise<CacheEntry | FetchSourceResult | Response> {
-    const requestHeaders: Record<string, string> = {
-      "X-Fumapress": "image-optimization",
-    };
-    if (accept) requestHeaders.Accept = accept;
+    const srcUrl = new URL(params.src, request.url).href;
+    const headers = new Headers({
+      "x-fumapress": "image-optimization",
+    });
+    const accept = request.headers.get("Accept");
+    if (accept) headers.set("Accept", accept);
 
     const cachePolicyRequest: CachePolicy.Request = {
-      url: sourceUrl,
+      url: srcUrl,
       method: "GET",
-      headers: requestHeaders,
+      headers: createCachePolicyHeaders(headers),
     };
 
-    const cached = cache?.readCache(sourceUrl, cachePolicyRequest);
+    const cached = cache?.readCache(srcUrl, cachePolicyRequest);
     if (cached) return cached;
 
     // TODO: use hono.fetch() for relative `src` when Waku.js exposes it
     // for now, it can fetch anything as the server itself, this assumes "request.url" always has a public hostname like "api.acme.com", which cannot resolve to other private services under the same host/server
-    const res = await fetch(sourceUrl, {
-      headers: requestHeaders,
+    const res = await fetch(srcUrl, {
+      headers: headers,
       signal: AbortSignal.timeout(config.fetchTimeout),
-      redirect: "error",
     });
-    if (!res.ok || !res.body) {
+
+    if (res.status < 200 || res.status >= 400 || !res.body) {
       return new Response("Image not found", { status: 404 });
+    }
+
+    // when a remote URL redirected, check if it's redirecting to localhost to access private services
+    if (res.redirected && !params.src.startsWith("/")) {
+      const validation = validateImageSrc(config, res.url);
+      if (!validation.allowed) return new Response(validation.reason, { status: 403 });
     }
 
     const contentType = res.headers.get("Content-Type");
@@ -258,21 +258,16 @@ export function createImageOptimizer(
       return new Response("Source image is too large", { status: 413 });
     }
 
-    const headers: Record<string, string> = {};
-    res.headers.forEach((value, key) => {
-      headers[key.toLowerCase()] = value;
-    });
-
     const result: FetchSourceResult = {
       body,
       contentType,
       policy: new CachePolicy(cachePolicyRequest, {
         status: res.status,
-        headers,
+        headers: createCachePolicyHeaders(res.headers),
       }),
     };
 
-    return cache?.set(sourceUrl, result) ?? result;
+    return cache?.set(srcUrl, result) ?? result;
   }
 
   function createOptimizedImageResponse(result: OptimizeResult, policy?: CachePolicy): Response {
@@ -281,6 +276,7 @@ export function createImageOptimizer(
     if (policy?.storable()) {
       // responseHeaders() is for proxies, but we also convert & optimize the image, only a subset of headers should be inherited
       for (const [key, value] of Object.entries(policy.responseHeaders())) {
+        if (typeof value !== "string") continue;
         switch (key) {
           case "cache-control":
           case "etag":
@@ -288,7 +284,7 @@ export function createImageOptimizer(
           case "vary":
           case "age":
           case "date":
-            headers.set(key, value as never);
+            headers.set(key, value);
         }
       }
     }
@@ -315,11 +311,10 @@ export function createImageOptimizer(
 
     const validation = validateImageSrc(config, params.src);
     if (!validation.allowed) {
-      return new Response(validation.reason ?? "Forbidden", { status: 403 });
+      return new Response(validation.reason, { status: 403 });
     }
 
-    const sourceUrl = new URL(params.src, requestUrl).href;
-    const source = await fetchSource(sourceUrl, request.headers.get("Accept"));
+    const source = await fetchSource(params, request);
     if (source instanceof Response) return source;
 
     const optimizeKey = getOptimizeCacheKey(params);

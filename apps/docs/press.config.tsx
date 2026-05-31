@@ -22,6 +22,7 @@ const config = defineConfig({
       baseDir: "blog",
     }),
   },
+  unstable_imageOptimization: true,
   loaderOptions: {
     plugins: [lucideIconsPlugin()],
   },

@@ -114,7 +114,7 @@ export async function initApp<C extends ConfigContext>(
     site,
     mode = "default",
     layouts,
-    imageOptimization = config.mode !== "static",
+    unstable_imageOptimization: imageOptimization = false,
   } = config;
 
   const plugins = resolvePlugins([

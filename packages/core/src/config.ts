@@ -47,9 +47,11 @@ export interface BaseConfig<C extends ConfigContext> {
   };
 
   /**
-   * Image optimization config for the `Image` component, enabled by default except for static mode
+   * Image optimization config for the `Image` component.
+   *
+   * @default false
    */
-  imageOptimization?: ImageConfig | boolean;
+  unstable_imageOptimization?: ImageConfig | boolean;
 }
 
 interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseConfig<{

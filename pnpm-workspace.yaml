@@ -4,7 +4,7 @@ packages:
   - "examples/*"
 allowBuilds:
   esbuild: false
-  sharp: false
+  sharp: true
 minimumReleaseAgeExclude:
   - "fumadocs-*"
   - "@fumadocs/*"
