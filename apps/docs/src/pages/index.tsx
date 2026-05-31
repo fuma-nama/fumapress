@@ -5,6 +5,7 @@ import { cn } from "../cn";
 import { BookIcon } from "lucide-react";
 import { HomeConfigPlayground } from "../home-config-playground";
 import { AutoSetupCommand } from "../home.client";
+import { Image } from "fumapress/image";
 
 export default function Page() {
   return (
@@ -39,9 +40,10 @@ export default function Page() {
         </div>
         <div className="relative overflow-hidden max-lg:h-[400px]">
           <div className="absolute inset-0 flex items-center z-2 p-4">
-            <img
+            <Image
               src="/preview.png"
-              className="border-4 border-white/20 rounded-xl max-lg:w-[600px] max-lg:max-w-none shadow-lg shadow-black/50 lg:w-[60vw] lg:max-w-[800px]"
+              sizes="(min-width: 1024px) 800px, 600px"
+              className="border-4 border-white/20 rounded-xl max-lg:min-w-[600px] max-lg:w-[600px] max-lg:max-w-none shadow-lg shadow-black/50 lg:w-[60vw] lg:max-w-[800px]"
               fetchPriority="high"
             />
           </div>

@@ -1,21 +1,26 @@
 import type { Layouts, ConfigContext } from "@/config";
-import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/waku";
 import { getPressContext, renderRootMeta } from "@/lib/shared";
 import { i18nProvider } from "fumadocs-ui/i18n";
 import type { ReactElement } from "react";
+import type { Awaitable } from "@/lib/types";
+import { PressProvider, type PressProviderProps } from "@/components/provider";
+import stylesInline from "virtual:root.css?inline";
+import stylesHref from "virtual:root.css?url";
 
 export interface RootLayoutOptions {
-  providerProps?: Omit<RootProviderProps, "children">;
+  providerProps?: Omit<PressProviderProps, "children">;
 }
 
 let styleTag: ReactElement;
 if (import.meta.env.DEV) {
-  const { default: styles } = await import("virtual:root.css?inline");
-  styleTag = <style>{styles}</style>;
+  styleTag = <style>{stylesInline}</style>;
 } else {
-  const { default: cssUrl } = await import("virtual:root.css?url");
-  styleTag = <link rel="stylesheet" href={cssUrl} />;
+  styleTag = <link rel="stylesheet" href={stylesHref} />;
 }
+
+export type RootLayoutContextData = ((
+  props: PressProviderProps,
+) => Awaitable<PressProviderProps>)[];
 
 export function createRootLayout<C extends ConfigContext = ConfigContext>(
   options?: RootLayoutOptions,
@@ -23,8 +28,9 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
   return async function ({ lang, children }) {
     const ctx = getPressContext<C>();
     const hooks = ctx.data["core:provider"];
-    let providerProps: RootProviderProps = {
+    let providerProps: PressProviderProps = {
       ...options?.providerProps,
+      children,
     };
 
     if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
@@ -46,7 +52,7 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
           {renderRootMeta(ctx)}
         </head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
-          <RootProvider {...providerProps}>{children}</RootProvider>
+          <PressProvider {...providerProps} />
         </body>
       </html>
     );

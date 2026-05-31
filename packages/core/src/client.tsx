@@ -21,7 +21,6 @@ export interface LinkProps extends ComponentProps<"a"> {
   unstable_prefetchOnEnter?: boolean;
   unstable_prefetchOnView?: boolean;
   unstable_startTransition?: ((fn: TransitionFunction) => void) | undefined;
-  href: string;
 }
 
 export interface Router {
@@ -62,7 +61,7 @@ export interface Router {
   hash: string;
 }
 
-export function Link({ href, children, ...props }: LinkProps) {
+export function Link({ href = "#", children, ...props }: LinkProps) {
   return (
     <BaseLink to={href} {...props}>
       {children}

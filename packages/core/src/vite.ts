@@ -1,6 +1,5 @@
 import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "./lib/vitefu";
-import { resolveImageConfig, type ImageConfig, type ResolvedImageConfig } from "./lib/image/config";
 
 export interface PluginOptions {
   /**
@@ -9,13 +8,6 @@ export interface PluginOptions {
    * @default true
    */
   generateViteConfig?: boolean;
-
-  /**
-   * Image optimization config for the `Image` component.
-   *
-   * @default true
-   */
-  image?: ImageConfig | boolean;
 }
 
 export default function press(options?: PluginOptions): Plugin[] {
@@ -36,15 +28,11 @@ export default function press(options?: PluginOptions): Plugin[] {
 }
 
 function core(options: PluginOptions = {}): Plugin {
-  const { generateViteConfig = true, image: imageOptions = true } = options;
+  const { generateViteConfig = true } = options;
 
   return {
     name: "fumapress:core",
     async config(config, { command }) {
-      let resolvedImageOptions: ResolvedImageConfig | false = false;
-      if (imageOptions === true) resolvedImageOptions = resolveImageConfig();
-      else if (imageOptions) resolvedImageOptions = resolveImageConfig(imageOptions);
-
       const out = generateViteConfig
         ? await crawlFrameworkPkgs({
             root: config.root ?? process.cwd(),
@@ -69,9 +57,6 @@ function core(options: PluginOptions = {}): Plugin {
         : null;
 
       return {
-        define: {
-          __FUMAPRESS_IMAGE_CONFIG__: resolvedImageOptions,
-        },
         ssr: {
           noExternal: out?.ssr.noExternal,
           external: ["@takumi-rs/image-response", "sharp"],

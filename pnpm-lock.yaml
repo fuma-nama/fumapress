@@ -386,6 +386,9 @@ importers:
       fumadocs-ui:
         specifier: ^16.9.3
         version: 16.9.3(@emotion/is-prop-valid@1.4.0)(@tailwindcss/oxide@4.3.0)(@takumi-rs/image-response@1.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(flexsearch@0.8.212)(lucide-react@1.17.0(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
+      http-cache-semantics:
+        specifier: ^4.2.0
+        version: 4.2.0
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.6)
@@ -405,6 +408,9 @@ importers:
       '@tailwindcss/oxide':
         specifier: ^4.3.0
         version: 4.3.0
+      '@types/http-cache-semantics':
+        specifier: ^4.2.0
+        version: 4.2.0
       '@types/mdx':
         specifier: ^2.0.13
         version: 2.0.13
@@ -414,6 +420,9 @@ importers:
       '@types/react':
         specifier: ^19.2.15
         version: 19.2.15
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.15)
       fumadocs-mdx:
         specifier: ^15.0.10
         version: 15.0.10(@types/mdast@4.0.4)(@types/mdx@2.0.13)(@types/react@19.2.15)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(flexsearch@0.8.212)(lucide-react@1.17.0(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(waku@1.0.0-beta.1(@types/node@25.9.1)(babel-plugin-react-compiler@1.0.0)(esbuild@0.28.0)(jiti@2.7.0)(react-dom@19.2.6(react@19.2.6))(react-server-dom-webpack@19.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(webpack@5.106.2(esbuild@0.28.0)))(react@19.2.6)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))(zod@4.4.3))(react@19.2.6)(rolldown@1.0.2)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
@@ -4299,6 +4308,9 @@ packages:
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
 
+  '@types/http-cache-semantics@4.2.0':
+    resolution: {integrity: sha512-L3LgimLHXtGkWikKnsPg0/VFx9OGZaC+eN1u4r+OB1XRqH3meBIAVC2zr1WdMH+RHmnRkqliQAOHNJ/E0j/e0Q==}
+
   '@types/jsesc@2.5.1':
     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
 
@@ -5729,6 +5741,9 @@ packages:
 
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
+
+  http-cache-semantics@4.2.0:
+    resolution: {integrity: sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ==}
 
   http-proxy-agent@7.0.2:
     resolution: {integrity: sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig==}
@@ -12062,6 +12077,8 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
+  '@types/http-cache-semantics@4.2.0': {}
+
   '@types/jsesc@2.5.1': {}
 
   '@types/json-schema@7.0.15': {}
@@ -13599,6 +13616,8 @@ snapshots:
       void-elements: 3.1.0
 
   html-void-elements@3.0.0: {}
+
+  http-cache-semantics@4.2.0: {}
 
   http-proxy-agent@7.0.2:
     dependencies:

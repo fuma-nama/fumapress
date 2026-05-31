@@ -1,48 +1,77 @@
+// the following component took reference from Next.js Image for edge cases in production
+/*
+The MIT License (MIT)
+
+Copyright (c) 2025 Vercel, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 "use client";
-import type { CSSProperties, ImgHTMLAttributes } from "react";
-import type { ResolvedImageConfig } from "@/lib/image/config";
-import { validateImageSrc } from "@/lib/image/shared";
+import { type ReactNode, type ImgHTMLAttributes, createContext, use, useMemo } from "react";
+import { normalizeSrc, type ResolvedImageConfig, validateImageSrc } from "@/lib/shared/image";
+import ReactDOM from "react-dom";
+import { useRouter } from "waku";
 
 export interface StaticImageData {
   src: string;
   width: number;
   height: number;
-  blurDataURL?: string;
 }
 
-export interface ImageProps extends Omit<
-  ImgHTMLAttributes<HTMLImageElement>,
-  "src" | "width" | "height"
-> {
-  src: string | StaticImageData;
-  alt: string;
-  width?: number;
-  height?: number;
-  fill?: boolean;
-  sizes?: string;
+export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> {
+  src?: string | StaticImageData;
+
+  /** a value between 1-100, the quality of optimized image */
   quality?: number;
-  priority?: boolean;
-  placeholder?: "blur" | "empty";
-  blurDataURL?: string;
+
+  /** Act like a normal `<img>` tag, default to `false` except for SVG images */
   unoptimized?: boolean;
+
+  /** Preload the image @default true */
+  preload?: boolean;
 }
 
-function resolveSource(props: Pick<ImageProps, "src" | "width" | "height" | "blurDataURL">) {
-  const src = typeof props.src === "string" ? props.src : props.src.src;
-  const width = props.width ?? (typeof props.src === "object" ? props.src.width : undefined);
-  const height = props.height ?? (typeof props.src === "object" ? props.src.height : undefined);
-  const blurDataURL =
-    props.blurDataURL ?? (typeof props.src === "object" ? props.src.blurDataURL : undefined);
+function parseLength(v: string | number | undefined): number | undefined {
+  if (typeof v !== "string") return v;
 
-  return { src, width, height, blurDataURL };
+  const parsed = parseInt(v, 10);
+  if (Number.isNaN(parsed))
+    throw new Error(
+      `[Fumapress] <Image /> only accepts integer values of width/height, received: "${v}"`,
+    );
+  return parsed;
 }
 
-function isSvgSrc(src: string): boolean {
-  const [path] = src.split("?", 2);
-  return path!.endsWith(".svg");
+const ConfigContext = createContext<ResolvedImageConfig | null>(null);
+
+export function ConfigProvider({
+  config,
+  children,
+}: {
+  config: ResolvedImageConfig;
+  children: ReactNode;
+}) {
+  return <ConfigContext value={config}>{children}</ConfigContext>;
 }
 
-function buildImageUrl(
+export function buildImageUrl(
   src: string,
   width: number,
   quality: number,
@@ -57,115 +86,162 @@ function buildImageUrl(
   return `${config.path}?${params.toString()}`;
 }
 
-function generateSrcSet(
-  src: string,
-  originalWidth: number,
-  quality: number,
-  config: ResolvedImageConfig,
-): string {
-  const widths = config.deviceSizes.filter((w) => w <= originalWidth * 2);
-  const entries = widths.length === 0 ? [originalWidth] : widths;
+/** generate widths (ascending order) */
+function getWidths(
+  { deviceSizes, imageSizes }: ResolvedImageConfig,
+  width: number | undefined,
+  sizes: string | undefined,
+): { widths: number[]; kind: "w" | "x" } {
+  const allSizes = [...deviceSizes, ...imageSizes].sort((a, b) => a - b);
 
-  return entries.map((w) => `${buildImageUrl(src, w, quality, config)} ${w}w`).join(", ");
+  if (sizes) {
+    // Find all the "vw" percent sizes used in the sizes prop
+    const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g;
+    const percentSizes = [];
+    for (let match; (match = viewportWidthRe.exec(sizes)); match) {
+      percentSizes.push(parseInt(match[2]!));
+    }
+
+    if (percentSizes.length !== 0) {
+      const minRatio = Math.min(...percentSizes) * 0.01;
+      const minSize = deviceSizes[0]! * minRatio;
+      const minIndex = allSizes.findLastIndex((s) => s < minSize);
+
+      return {
+        widths: minIndex === -1 ? allSizes : allSizes.slice(minIndex + 1),
+        kind: "w",
+      };
+    }
+
+    return { widths: allSizes, kind: "w" };
+  }
+
+  if (typeof width !== "number") {
+    return { widths: deviceSizes, kind: "w" };
+  }
+
+  // > This means that most OLED screens that say they are 3x resolution,
+  // > are actually 3x in the green color, but only 1.5x in the red and
+  // > blue colors. Showing a 3x resolution image in the app vs a 2x
+  // > resolution image will be visually the same, though the 3x image
+  // > takes significantly more data. Even true 3x resolution screens are
+  // > wasteful as the human eye cannot see that level of detail without
+  // > something like a magnifying glass.
+  // https://blog.twitter.com/engineering/en_us/topics/infrastructure/2019/capping-image-fidelity-on-ultra-high-resolution-devices.html
+  const widths = new Set<number>();
+  const defaultWidth = allSizes.at(-1)!;
+  widths.add(allSizes.find((p) => p >= width) ?? defaultWidth);
+  widths.add(allSizes.find((p) => p >= width * 2) ?? defaultWidth);
+  return { widths: Array.from(widths), kind: "x" };
 }
 
-function getFillStyle(): CSSProperties {
+export function generateImageAttributes(
+  config: ResolvedImageConfig,
+  src: string,
+  quality: number | undefined = config.quality,
+  width: number | undefined,
+  sizes: string | undefined,
+) {
+  const { widths, kind } = getWidths(config, width, sizes);
+
   return {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  };
+    sizes: !sizes && kind === "w" ? "100vw" : sizes,
+    srcSet: widths
+      .map((w, i) => `${buildImageUrl(src, w, quality, config)} ${kind === "w" ? w : i + 1}${kind}`)
+      .join(", "),
+
+    // It's intended to keep `src` the last attribute because React updates
+    // attributes in order. If we keep `src` the first one, Safari will
+    // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+    // updated by React. That causes multiple unnecessary requests if `srcSet`
+    // and `sizes` are defined.
+    // This bug cannot be reproduced in Chrome or Firefox.
+    src: buildImageUrl(src, widths.at(-1)!, quality, config),
+  } satisfies ImgHTMLAttributes<HTMLImageElement>;
 }
 
 export function Image({
   src: _src,
   width: _width,
   height: _height,
-  blurDataURL: _blurDataURL,
-  loading: _loading,
-  fill,
   sizes,
-  quality = __FUMAPRESS_IMAGE_CONFIG__?.quality,
-  priority,
-  placeholder,
+  quality,
   unoptimized = false,
-  style,
+  preload = true,
   ...rest
 }: ImageProps) {
-  const { src, width, height, blurDataURL } = resolveSource({
-    src: _src,
-    width: _width,
-    height: _height,
-    blurDataURL: _blurDataURL,
-  });
+  const config = use(ConfigContext);
+  const pathname = useRouter().path;
+  // resolve src to a full pathname if relative
+  const { src, width, height } = useMemo(() => {
+    if (typeof _src === "object") {
+      return {
+        src: normalizeSrc(_src.src, pathname),
+        width: parseLength(_width ?? _src.width),
+        height: parseLength(_height ?? _src.height),
+      };
+    }
 
-  const loading = priority ? "eager" : (_loading ?? "lazy");
+    return {
+      src: _src ? normalizeSrc(_src, pathname) : undefined,
+      width: parseLength(_width),
+      height: parseLength(_height),
+    };
+  }, [_src, _width, _height, pathname]);
 
-  if (!__FUMAPRESS_IMAGE_CONFIG__ || unoptimized) {
-    return (
-      <img
-        {...rest}
-        src={src}
-        width={fill ? undefined : width}
-        height={fill ? undefined : height}
-        loading={loading}
-        decoding={priority ? "sync" : "async"}
-        fetchPriority={priority ? "high" : undefined}
-        style={{
-          ...(fill ? getFillStyle() : undefined),
-          ...style,
-        }}
-      />
-    );
+  // do not optimize SVG
+  if (src && src.split("?", 1)[0]!.endsWith(".svg")) {
+    unoptimized = true;
+  }
+
+  if (!src || !config || unoptimized) {
+    return <img {...rest} width={width} height={height} sizes={sizes} src={src} />;
   }
 
   if (import.meta.env.DEV) {
-    const validation =
-      src.startsWith("https://") || src.startsWith("http://")
-        ? validateImageSrc(new URL(src), __FUMAPRESS_IMAGE_CONFIG__)
-        : { allowed: true };
+    const validation = validateImageSrc(config, src);
 
     if (!validation.allowed) {
       throw new Error(`[Fumapress] Image src "${src}" is not allowed: ${validation.reason}`);
     }
   }
 
-  const config = __FUMAPRESS_IMAGE_CONFIG__;
-  const targetWidth = width ?? config.deviceSizes[config.deviceSizes.length - 1]!;
-  const blur = placeholder === "blur" ? (blurDataURL ?? undefined) : undefined;
-  const defaultSrc = buildImageUrl(src, targetWidth, quality!, config);
-  const srcSet = isSvgSrc(src) ? undefined : generateSrcSet(src, targetWidth, quality!, config);
+  const generatedProps = generateImageAttributes(config, src, quality, width, sizes);
+  let preloadElement: ReactNode;
+
+  if (preload) {
+    const preloadOptions: ReactDOM.PreloadOptions = {
+      as: "image",
+      imageSrcSet: generatedProps.srcSet,
+      imageSizes: generatedProps.sizes,
+      crossOrigin: rest.crossOrigin,
+      referrerPolicy: rest.referrerPolicy,
+      fetchPriority: rest.fetchPriority,
+    };
+
+    if (ReactDOM.preload) {
+      ReactDOM.preload(generatedProps.src, preloadOptions);
+    } else {
+      preloadElement = (
+        <link
+          key={"press-img-" + generatedProps.src + generatedProps.srcSet + generatedProps.sizes}
+          rel="preload"
+          // Note how we omit the `href` attribute, as it would only be relevant
+          // for browsers that do not support `imagesrcset`, and in those cases
+          // it would cause the incorrect image to be preloaded.
+          //
+          // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+          href={generatedProps.srcSet ? undefined : generatedProps.src}
+          {...preloadOptions}
+        />
+      );
+    }
+  }
 
   return (
-    <img
-      {...rest}
-      src={defaultSrc}
-      srcSet={srcSet}
-      sizes={sizes ?? (fill ? "100vw" : undefined)}
-      width={fill ? undefined : width}
-      height={fill ? undefined : height}
-      loading={loading}
-      decoding={priority ? "sync" : "async"}
-      fetchPriority={priority ? "high" : undefined}
-      style={{
-        ...style,
-        ...(fill ? getFillStyle() : undefined),
-        ...(blur
-          ? {
-              backgroundImage: `url(${blur})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-          : undefined),
-      }}
-    />
+    <>
+      {preloadElement}
+      <img {...rest} width={width} height={height} {...generatedProps} />
+    </>
   );
 }
-
-/** internal use only, do not use it */
-export const _internal = {
-  generateSrcSet,
-  buildImageUrl,
-};

@@ -14,7 +14,6 @@ import { createHomeLayout } from "fumapress/layouts/home";
 import { BookIcon, RssIcon } from "lucide-react";
 
 const config = defineConfig({
-  mode: "static",
   content: {
     docs: docs.toFumadocsSource({
       baseDir: "docs",

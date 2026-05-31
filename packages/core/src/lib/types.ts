@@ -2,12 +2,12 @@ import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
+import type { RootLayoutContextData } from "@/layouts/root";
 import type { AppContext } from "@/lib/shared";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption, Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import type { RootProviderProps } from "fumadocs-ui/provider/base";
 import type { MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import type {
@@ -106,6 +106,9 @@ export interface RouteFns extends BaseRouteFns {
 
 export type ServerPluginOption<C extends ConfigContext = ConfigContext> =
   | ServerPlugin<C>
+  | false
+  | undefined
+  | null
   | ServerPluginOption<C>[];
 
 /** can be extended from other libraries */
@@ -114,7 +117,7 @@ export interface AppContextData {
   "core:notebook-layout"?: NotebookLayoutContextData;
   "core:docs-layout"?: DocsLayoutContextData;
   "core:home-layout"?: HomeLayoutContextData;
-  "core:provider"?: ((props: RootProviderProps) => Awaitable<RootProviderProps>)[];
+  "core:provider"?: RootLayoutContextData;
 }
 
 /**

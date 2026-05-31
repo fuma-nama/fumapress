@@ -16,6 +16,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
+import { resolveImageConfig } from "./shared/image";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -88,24 +89,42 @@ const PLUGIN_ORDER = {
   _: 0,
 };
 
-async function resolvePlugins(plugins: ServerPluginOption[]): Promise<ServerPlugin[]> {
-  const flat: ServerPlugin[] = plugins.flat(Infinity as never);
-  flat.push(disableSearchPlugin());
-
-  if (__FUMAPRESS_IMAGE_CONFIG__) {
-    const { imagePlugin } = await import("@/plugins/internal/image");
-    flat.push(imagePlugin(__FUMAPRESS_IMAGE_CONFIG__));
+function flattenPlugins(plugins: ServerPluginOption[]): ServerPlugin[] {
+  const out: ServerPlugin[] = [];
+  for (const plugin of plugins) {
+    if (!plugin) continue;
+    if (Array.isArray(plugin)) out.push(...flattenPlugins(plugin));
+    else out.push(plugin);
   }
+  return out;
+}
 
-  return flat.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
+function resolvePlugins(plugins: ServerPluginOption[]): ServerPlugin[] {
+  return flattenPlugins(plugins).sort(
+    (a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"],
+  );
 }
 
 export async function initApp<C extends ConfigContext>(
   builder: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
   const config = builder.get();
-  const plugins = await resolvePlugins(config.plugins);
-  const { translations, site, mode = "default", layouts } = config;
+  const {
+    translations,
+    site,
+    mode = "default",
+    layouts,
+    imageOptimization = config.mode !== "static",
+  } = config;
+
+  const plugins = resolvePlugins([
+    ...config.plugins,
+    disableSearchPlugin(),
+    imageOptimization &&
+      (await import("@/plugins/internal/image")).imagePlugin(
+        imageOptimization === true ? resolveImageConfig() : resolveImageConfig(imageOptimization),
+      ),
+  ]);
   const ctx: AppContext = {
     $context: undefined as never,
     getLoader() {
