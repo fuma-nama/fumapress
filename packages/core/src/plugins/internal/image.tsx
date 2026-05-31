@@ -17,8 +17,6 @@ const SAFE_IMAGE_CONTENT_TYPES = new Set([
   "image/tiff",
 ]);
 
-type SupportedFormat = "image/jpeg" | "image/png" | "image/webp" | "image/avif";
-
 interface ParsedImageParams {
   src: string;
   width: number;
@@ -39,76 +37,50 @@ export function parseImageParams(url: URL, config: ResolvedImageConfig): ParsedI
 }
 
 type ImageTransformer = (
-  body: ArrayBuffer,
-  options: { width: number; format: SupportedFormat; quality: number },
-) => Promise<{ body: Buffer }>;
+  input: FetchSourceResult,
+  options: { width: number; quality: number },
+) => Promise<OptimizeResult>;
 
 interface OptimizeResult {
   body: Uint8Array<ArrayBuffer>;
-  contentType: SupportedFormat;
+  contentType: string;
 }
 
-interface CachedImage {
+interface FetchSourceResult {
   body: ArrayBuffer;
   policy: CachePolicy;
+  contentType: string | null;
+}
+
+interface CacheEntry extends FetchSourceResult {
   optimized: Map<string, OptimizeResult>;
 }
 
 export class ImageOptimizationCache {
-  private readonly store = new Map<string, CachedImage>();
+  private readonly store = new Map<string, CacheEntry>();
 
-  private getEntry(src: string): CachedImage | null {
+  readCache(src: string, req?: CachePolicy.HttpRequest): CacheEntry | null {
     const entry = this.store.get(src);
     if (!entry) return null;
 
-    if (entry.policy.timeToLive() <= 0) {
-      this.store.delete(src);
-      return null;
+    if (!req || entry.policy.satisfiesWithoutRevalidation(req)) {
+      return entry;
     }
 
-    return entry;
+    this.store.delete(src);
+    return null;
   }
 
-  getSource(src: string): Pick<CachedImage, "body" | "policy"> | null {
-    const entry = this.getEntry(src);
-    if (!entry) return null;
-
-    return { body: entry.body, policy: entry.policy };
-  }
-
-  getOptimized(
-    src: string,
-    optimizeKey: string,
-  ): (OptimizeResult & { policy: CachePolicy }) | null {
-    const entry = this.getEntry(src);
-    if (!entry) return null;
-
-    const optimized = entry.optimized.get(optimizeKey);
-    if (!optimized) return null;
-
-    return { ...optimized, policy: entry.policy };
-  }
-
-  setSource(src: string, body: ArrayBuffer, policy: CachePolicy): void {
-    if (!policy.storable() || policy.timeToLive() <= 0) return;
-
-    this.store.set(src, {
-      body,
-      policy,
+  set(src: string, result: FetchSourceResult): CacheEntry | null {
+    const { policy } = result;
+    if (!policy.storable() || policy.timeToLive() <= 0) return null;
+    const entry = {
+      ...result,
       optimized: new Map(),
-    });
-  }
+    };
 
-  setOptimized(
-    src: string,
-    optimizeKey: string,
-    body: Uint8Array<ArrayBuffer>,
-    contentType: SupportedFormat,
-  ): void {
-    const entry = this.getEntry(src);
-    if (!entry) return;
-
-    entry.optimized.set(optimizeKey, { body, contentType });
+    this.store.set(src, entry);
+    return entry;
   }
 }
 
@@ -131,8 +103,8 @@ export function createSourceCachePolicy(sourceUrl: string, response: Response): 
   );
 }
 
-export function getOptimizeCacheKey(params: ParsedImageParams, format: SupportedFormat): string {
-  return `${params.width}\0${params.quality}\0${format}`;
+export function getOptimizeCacheKey(params: ParsedImageParams): string {
+  return `${params.width}\0${params.quality}`;
 }
 
 export function imagePlugin<C extends ConfigContext = ConfigContext>(
@@ -154,8 +126,8 @@ export function imagePlugin<C extends ConfigContext = ConfigContext>(
         );
       }
 
-      const transformer: ImageTransformer = async (body, { width, format, quality }) => {
-        let pipeline = sharp(body);
+      const transformer: ImageTransformer = async (input, { width, quality }) => {
+        let pipeline = sharp(input.body);
 
         if (width > 0) {
           pipeline = pipeline.resize(width, undefined, {
@@ -164,43 +136,38 @@ export function imagePlugin<C extends ConfigContext = ConfigContext>(
           });
         }
 
-        switch (format) {
+        switch (input.contentType) {
           case "image/avif":
             pipeline = pipeline.avif({ quality });
-            return { body: await pipeline.toBuffer() };
-          case "image/webp":
-            pipeline = pipeline.webp({ quality });
-            return { body: await pipeline.toBuffer() };
+            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/avif" };
           case "image/png":
             pipeline = pipeline.png({ quality });
-            return { body: await pipeline.toBuffer() };
-          default:
+            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/png" };
+          case "image/jpeg":
+          case "image/jpg":
             pipeline = pipeline.jpeg({ quality, mozjpeg: true });
-            return { body: await pipeline.toBuffer() };
+            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/jpg" };
+          default:
+            pipeline = pipeline.webp({ quality });
+            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/webp" };
         }
       };
 
-      const cache = import.meta.env.DEV ? undefined : new ImageOptimizationCache();
+      const optimizer = createImageOptimizer(
+        config,
+        transformer,
+        import.meta.env.DEV ? undefined : new ImageOptimizationCache(),
+      );
 
       createApi({
         render: "dynamic",
         path: config.path,
         handlers: {
-          async GET(req) {
-            return handleImageOptimization(req, config, transformer, cache);
-          },
+          GET: optimizer,
         },
       });
     },
   };
-}
-
-function negotiateImageFormat(acceptHeader: string | null): SupportedFormat {
-  if (!acceptHeader) return "image/jpeg";
-  if (acceptHeader.includes("image/avif")) return "image/avif";
-  if (acceptHeader.includes("image/webp")) return "image/webp";
-  if (acceptHeader.includes("image/png")) return "image/png";
-  return "image/jpeg";
 }
 
 function isSafeImageContentType(contentType: string | null): boolean {
@@ -247,108 +214,134 @@ export async function readResponseBodyWithLimit(
   return body.buffer;
 }
 
-export async function handleImageOptimization(
-  request: Request,
+export function createImageOptimizer(
   config: ResolvedImageConfig,
-  transformImage: ImageTransformer,
+  transformer: ImageTransformer,
   cache?: ImageOptimizationCache,
-): Promise<Response> {
-  const requestUrl = new URL(request.url);
-  const params = parseImageParams(requestUrl, config);
+) {
+  async function fetchSource(
+    sourceUrl: string,
+    accept: string | null,
+  ): Promise<CacheEntry | FetchSourceResult | Response> {
+    const requestHeaders: Record<string, string> = {
+      "X-Fumapress": "image-optimization",
+    };
+    if (accept) requestHeaders.Accept = accept;
 
-  if (
-    !params ||
-    // avoid `src` that resolves to the `/_img` route itself
-    request.headers.get("X-Fumapress") === "image-optimization"
-  ) {
-    return new Response("Bad Request", { status: 400 });
-  }
+    const cachePolicyRequest: CachePolicy.Request = {
+      url: sourceUrl,
+      method: "GET",
+      headers: requestHeaders,
+    };
 
-  const validation = validateImageSrc(config, params.src);
-  if (!validation.allowed) {
-    return new Response(validation.reason ?? "Forbidden", { status: 403 });
-  }
+    const cached = cache?.readCache(sourceUrl, cachePolicyRequest);
+    if (cached) return cached;
 
-  const sourceUrl = new URL(params.src, requestUrl).href;
-  const format = negotiateImageFormat(request.headers.get("Accept"));
-  const optimizeKey = getOptimizeCacheKey(params, format);
-
-  const optimized = cache?.getOptimized(sourceUrl, optimizeKey);
-  if (optimized) {
-    return createOptimizedImageResponse(optimized.body, optimized.contentType, optimized.policy);
-  }
-
-  let sourceBody: ArrayBuffer;
-  let sourcePolicy: CachePolicy;
-
-  const fetched = cache?.getSource(sourceUrl);
-  if (fetched) {
-    sourceBody = fetched.body;
-    sourcePolicy = fetched.policy;
-  } else {
     // TODO: use hono.fetch() for relative `src` when Waku.js exposes it
     // for now, it can fetch anything as the server itself, this assumes "request.url" always has a public hostname like "api.acme.com", which cannot resolve to other private services under the same host/server
-    const source = await fetch(sourceUrl, {
-      headers: {
-        Accept: "image/*",
-        "X-Fumapress": "image-optimization",
-      },
+    const res = await fetch(sourceUrl, {
+      headers: requestHeaders,
       signal: AbortSignal.timeout(config.fetchTimeout),
       redirect: "error",
     });
-    if (!source.ok || !source.body) {
+    if (!res.ok || !res.body) {
       return new Response("Image not found", { status: 404 });
     }
 
-    const sourceContentType = source.headers.get("Content-Type");
-    if (!isSafeImageContentType(sourceContentType)) {
+    const contentType = res.headers.get("Content-Type");
+    if (!isSafeImageContentType(contentType)) {
       return new Response("The requested resource is not an allowed image type", { status: 400 });
     }
 
-    const body = await readResponseBodyWithLimit(source, config.maxSourceSize);
+    const body = await readResponseBodyWithLimit(res, config.maxSourceSize);
     if (body === "too-large") {
       return new Response("Source image is too large", { status: 413 });
     }
 
-    sourcePolicy = createSourceCachePolicy(sourceUrl, source);
-    sourceBody = body;
-    cache?.setSource(sourceUrl, sourceBody, sourcePolicy);
-  }
-
-  try {
-    const transformed = await transformImage(sourceBody, {
-      width: params.width,
-      format,
-      quality: params.quality,
+    const headers: Record<string, string> = {};
+    res.headers.forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
     });
 
-    const optimizedBody = new Uint8Array(transformed.body);
-    cache?.setOptimized(sourceUrl, optimizeKey, optimizedBody, format);
+    const result: FetchSourceResult = {
+      body,
+      contentType,
+      policy: new CachePolicy(cachePolicyRequest, {
+        status: res.status,
+        headers,
+      }),
+    };
 
-    return createOptimizedImageResponse(optimizedBody, format, sourcePolicy);
-  } catch (error) {
-    console.error("[Fumapress] Image optimization error:", error);
-    return new Response("Failed to optimize image", { status: 500 });
+    return cache?.set(sourceUrl, result) ?? result;
   }
-}
 
-function createOptimizedImageResponse(
-  body: Uint8Array<ArrayBuffer>,
-  contentType: SupportedFormat,
-  policy?: CachePolicy,
-): Response {
-  const headers = new Headers();
-  headers.set("Content-Type", contentType);
-  headers.set("Vary", "Accept");
-  headers.set("Content-Security-Policy", "script-src 'none'; frame-src 'none'; sandbox;");
-  headers.set("X-Content-Type-Options", "nosniff");
-  headers.set("Content-Disposition", "inline");
+  function createOptimizedImageResponse(result: OptimizeResult, policy?: CachePolicy): Response {
+    const headers = new Headers();
 
-  if (policy?.storable()) {
-    for (const [key, value] of Object.entries(policy.responseHeaders())) {
-      headers.set(key, value as never);
+    if (policy?.storable()) {
+      // responseHeaders() is for proxies, but we also convert & optimize the image, only a subset of headers should be inherited
+      for (const [key, value] of Object.entries(policy.responseHeaders())) {
+        switch (key) {
+          case "cache-control":
+          case "etag":
+          case "last-modified":
+          case "vary":
+          case "age":
+          case "date":
+            headers.set(key, value as never);
+        }
+      }
     }
+
+    headers.set("Content-Type", result.contentType);
+    headers.set("Content-Security-Policy", "script- src 'none'; frame-src 'none'; sandbox;");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Content-Disposition", "inline");
+
+    return new Response(result.body, { status: 200, headers });
   }
 
-  return new Response(body, { status: 200, headers });
+  return async function onRequest(request: Request): Promise<Response> {
+    const requestUrl = new URL(request.url);
+    const params = parseImageParams(requestUrl, config);
+
+    if (
+      !params ||
+      // avoid `src` that resolves to the `/_img` route itself
+      request.headers.get("X-Fumapress") === "image-optimization"
+    ) {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    const validation = validateImageSrc(config, params.src);
+    if (!validation.allowed) {
+      return new Response(validation.reason ?? "Forbidden", { status: 403 });
+    }
+
+    const sourceUrl = new URL(params.src, requestUrl).href;
+    const source = await fetchSource(sourceUrl, request.headers.get("Accept"));
+    if (source instanceof Response) return source;
+
+    const optimizeKey = getOptimizeCacheKey(params);
+    if ("optimized" in source) {
+      const cached = source.optimized.get(optimizeKey);
+      if (cached) return createOptimizedImageResponse(cached, source.policy);
+    }
+
+    try {
+      const transformed = await transformer(source, {
+        width: params.width,
+        quality: params.quality,
+      });
+
+      if ("optimized" in source) {
+        source.optimized.set(optimizeKey, transformed);
+      }
+
+      return createOptimizedImageResponse(transformed, source.policy);
+    } catch (error) {
+      console.error("[Fumapress] Image optimization error:", error);
+      return new Response("Failed to optimize image", { status: 500 });
+    }
+  };
 }

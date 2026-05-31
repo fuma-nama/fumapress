@@ -14,6 +14,30 @@ import {
   readResponseBodyWithLimit,
 } from "@/plugins/internal/image";
 
+const sourceUrl = "https://example.com/hero.png";
+const cacheRequest = {
+  url: sourceUrl,
+  method: "GET" as const,
+  headers: { accept: "image/*" },
+};
+
+function createFetchResult(cacheControl: string, body = new Uint8Array([1, 2, 3]).buffer) {
+  return {
+    body,
+    contentType: "image/jpeg",
+    policy: createSourceCachePolicy(
+      sourceUrl,
+      new Response(null, {
+        status: 200,
+        headers: {
+          "Cache-Control": cacheControl,
+          Date: "Wed, 01 Jan 2026 00:00:00 GMT",
+        },
+      }),
+    ),
+  };
+}
+
 describe("image config", () => {
   it("matches remote patterns", () => {
     const url = new URL("https://cdn.example.com/assets/photo.jpg");
@@ -115,106 +139,72 @@ describe("readResponseBodyWithLimit", () => {
 });
 
 describe("image cache", () => {
-  it("expires source and nested optimize entries together", () => {
+  it("stores source entries with an empty optimize map", () => {
+    const cache = new ImageOptimizationCache();
+    const result = createFetchResult("public, max-age=60");
+
+    const entry = cache.set(sourceUrl, result);
+
+    expect(entry).toEqual({
+      ...result,
+      optimized: new Map(),
+    });
+    expect(cache.readCache(sourceUrl, cacheRequest)).toBe(entry);
+  });
+
+  it("invalidates source and nested optimize entries together", () => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
     const cache = new ImageOptimizationCache();
-    const policy = createSourceCachePolicy(
-      "https://example.com/hero.png",
-      new Response(null, {
-        status: 200,
-        headers: { "Cache-Control": "public, max-age=60" },
-      }),
-    );
-    const sourceBody = new Uint8Array([1, 2, 3]).buffer;
-    const optimizeKey = getOptimizeCacheKey(
-      { src: "/hero.png", width: 640, quality: 75 },
-      "image/jpeg",
-    );
-    const optimizedBody = new Uint8Array([4, 5, 6]);
-
-    cache.setSource("/hero.png", sourceBody, policy);
-    cache.setOptimized("/hero.png", optimizeKey, optimizedBody, "image/jpeg");
-
-    expect(cache.getSource("/hero.png")).toEqual({ body: sourceBody, policy });
-    expect(cache.getOptimized("/hero.png", optimizeKey)).toEqual({
-      body: optimizedBody,
+    const optimizeKey = getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 });
+    const entry = cache.set(sourceUrl, createFetchResult("public, max-age=60"))!;
+    entry.optimized.set(optimizeKey, {
+      body: new Uint8Array([4, 5, 6]),
       contentType: "image/jpeg",
-      policy,
+    });
+
+    expect(cache.readCache(sourceUrl, cacheRequest)?.optimized.get(optimizeKey)).toEqual({
+      body: new Uint8Array([4, 5, 6]),
+      contentType: "image/jpeg",
     });
 
     vi.advanceTimersByTime(60_000);
-    expect(cache.getSource("/hero.png")).toBeNull();
-    expect(cache.getOptimized("/hero.png", optimizeKey)).toBeNull();
+    expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
 
     vi.useRealTimers();
   });
 
-  it("reuses cached source for different optimize keys", () => {
+  it("keeps multiple optimize variants on the same source entry", () => {
     const cache = new ImageOptimizationCache();
-    const policy = createSourceCachePolicy(
-      "https://example.com/hero.png",
-      new Response(null, {
-        status: 200,
-        headers: { "Cache-Control": "public, max-age=60" },
-      }),
-    );
-    const sourceBody = new Uint8Array([1]).buffer;
+    const entry = cache.set(sourceUrl, createFetchResult("public, max-age=60"))!;
+    const key640 = getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 });
+    const key1280 = getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 });
 
-    cache.setSource("/hero.png", sourceBody, policy);
-    cache.setOptimized(
-      "/hero.png",
-      getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }, "image/jpeg"),
-      new Uint8Array([2]),
-      "image/jpeg",
-    );
-    cache.setOptimized(
-      "/hero.png",
-      getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 }, "image/jpeg"),
-      new Uint8Array([3]),
-      "image/jpeg",
-    );
+    entry.optimized.set(key640, { body: new Uint8Array([2]), contentType: "image/jpeg" });
+    entry.optimized.set(key1280, { body: new Uint8Array([3]), contentType: "image/jpeg" });
 
-    expect(cache.getSource("/hero.png")?.body).toBe(sourceBody);
-    expect(
-      cache.getOptimized(
-        "/hero.png",
-        getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }, "image/jpeg"),
-      )?.body,
-    ).toEqual(new Uint8Array([2]));
-    expect(
-      cache.getOptimized(
-        "/hero.png",
-        getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 }, "image/jpeg"),
-      )?.body,
-    ).toEqual(new Uint8Array([3]));
+    const cached = cache.readCache(sourceUrl, cacheRequest);
+    expect(cached?.body).toBe(entry.body);
+    expect(cached?.optimized.get(key640)?.body).toEqual(new Uint8Array([2]));
+    expect(cached?.optimized.get(key1280)?.body).toEqual(new Uint8Array([3]));
   });
 
-  it("does not cache no-cache responses", () => {
-    const policy = createSourceCachePolicy(
-      "https://example.com/hero.png",
-      new Response(null, {
-        status: 200,
-        headers: { "Cache-Control": "no-cache" },
-      }),
+  it("builds optimize keys from width and quality", () => {
+    expect(getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 })).toBe(
+      `640${String.fromCharCode(0)}75`,
     );
+    expect(getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 })).not.toBe(
+      getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }),
+    );
+  });
+
+  it("does not store no-store or no-cache responses", () => {
     const cache = new ImageOptimizationCache();
 
-    cache.setSource("/hero.png", new Uint8Array([1]).buffer, policy);
-    cache.setOptimized(
-      "/hero.png",
-      getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }, "image/jpeg"),
-      new Uint8Array([2]),
-      "image/jpeg",
-    );
-
-    expect(cache.getSource("/hero.png")).toBeNull();
-    expect(
-      cache.getOptimized(
-        "/hero.png",
-        getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }, "image/jpeg"),
-      ),
-    ).toBeNull();
+    expect(cache.set(sourceUrl, createFetchResult("no-store"))).toBeNull();
+    expect(cache.set(sourceUrl, createFetchResult("no-cache"))).toBeNull();
+    expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
   });
 });
 
