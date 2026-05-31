@@ -1,8 +1,6 @@
-import type { ServerPlugin } from "@/lib/types";
-import { type ResolvedImageConfig, validateImageSrc } from "@/lib/shared/image";
-import type { ConfigContext } from "@/config";
-import { ConfigProvider } from "@/components/image";
 import CachePolicy from "http-cache-semantics";
+import type { RemotePattern, SelfHostedImageOptions } from "./self-hosted";
+import { isPlainPathname } from "@/lib/is-pathname";
 
 const SAFE_IMAGE_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -37,11 +35,6 @@ export function parseImageParams(
   if (Number.isNaN(quality) || quality < 1 || quality > 100) return null;
   return { src, width, quality };
 }
-
-type ImageTransformer = (
-  input: FetchSourceResult,
-  options: { width: number; quality: number },
-) => Promise<OptimizeResult>;
 
 interface OptimizeResult {
   body: Uint8Array<ArrayBuffer>;
@@ -88,70 +81,6 @@ export class ImageOptimizationCache {
 
 export function getOptimizeCacheKey(params: ParsedImageParams): string {
   return `${params.width}\0${params.quality}`;
-}
-
-export function imagePlugin<C extends ConfigContext = ConfigContext>(
-  config: ResolvedImageConfig,
-): ServerPlugin<C> {
-  return {
-    name: "core:image",
-    init() {
-      const hooks = (this.data["core:provider"] ??= []);
-      hooks.push((props) => {
-        props.children = <ConfigProvider config={config}>{props.children}</ConfigProvider>;
-        return props;
-      });
-    },
-    createPages({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error(
-          "[Fumapress] Image Optimization is not compatible with static mode, please disable it",
-        );
-      }
-
-      const transformer: ImageTransformer = async (input, { width, quality }) => {
-        const { default: sharp } = await import("sharp");
-        let pipeline = sharp(input.body);
-
-        if (width > 0) {
-          pipeline = pipeline.resize(width, undefined, {
-            fit: "inside",
-            withoutEnlargement: true,
-          });
-        }
-
-        switch (input.contentType) {
-          case "image/avif":
-            pipeline = pipeline.avif({ quality });
-            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/avif" };
-          case "image/png":
-            pipeline = pipeline.png({ quality });
-            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/png" };
-          case "image/jpeg":
-          case "image/jpg":
-            pipeline = pipeline.jpeg({ quality, mozjpeg: true });
-            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/jpg" };
-          default:
-            pipeline = pipeline.webp({ quality });
-            return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/webp" };
-        }
-      };
-
-      const optimizer = createImageOptimizer(
-        config,
-        transformer,
-        import.meta.env.DEV ? undefined : new ImageOptimizationCache(),
-      );
-
-      createApi({
-        render: "dynamic",
-        path: config.path,
-        handlers: {
-          GET: optimizer,
-        },
-      });
-    },
-  };
 }
 
 function isSafeImageContentType(contentType: string | null): boolean {
@@ -206,39 +135,62 @@ function createCachePolicyHeaders(headers: Headers) {
   return out;
 }
 
-export function createImageOptimizer(
-  config: ResolvedImageConfig,
-  transformer: ImageTransformer,
-  cache?: ImageOptimizationCache,
-) {
+export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageOptimizationCache) {
+  async function transformImage(
+    input: FetchSourceResult,
+    { width, quality }: { width: number; quality: number },
+  ): Promise<OptimizeResult> {
+    const { default: sharp } = await import("sharp");
+    let pipeline = sharp(input.body);
+
+    if (width > 0) {
+      pipeline = pipeline.resize(width, undefined, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    }
+
+    switch (input.contentType) {
+      case "image/avif":
+        pipeline = pipeline.avif({ quality });
+        return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/avif" };
+      case "image/png":
+        pipeline = pipeline.png({ quality });
+        return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/png" };
+      case "image/jpeg":
+      case "image/jpg":
+        pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+        return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/jpg" };
+      default:
+        pipeline = pipeline.webp({ quality });
+        return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/webp" };
+    }
+  }
   async function fetchSource(
     params: ParsedImageParams,
     request: Request,
   ): Promise<CacheEntry | FetchSourceResult | Response> {
-    const srcUrl = new URL(params.src, request.url).href;
     const headers = new Headers({
-      "x-fumapress": "image-optimization",
+      "X-Fumapress": "image-optimization",
     });
     const accept = request.headers.get("Accept");
     if (accept) headers.set("Accept", accept);
 
     const cachePolicyRequest: CachePolicy.Request = {
-      url: srcUrl,
-      method: "GET",
       headers: createCachePolicyHeaders(headers),
     };
 
-    const cached = cache?.readCache(srcUrl, cachePolicyRequest);
+    const cached = cache?.readCache(params.src, cachePolicyRequest);
     if (cached) return cached;
 
     // TODO: use hono.fetch() for relative `src` when Waku.js exposes it
     // for now, it can fetch anything as the server itself, this assumes "request.url" always has a public hostname like "api.acme.com", which cannot resolve to other private services under the same host/server
-    const res = await fetch(srcUrl, {
-      headers: headers,
+    const res = await fetch(new URL(params.src, request.url), {
+      headers,
       signal: AbortSignal.timeout(config.fetchTimeout),
     });
 
-    if (res.status < 200 || res.status >= 400 || !res.body) {
+    if (!res.ok || !res.body) {
       return new Response("Image not found", { status: 404 });
     }
 
@@ -267,7 +219,7 @@ export function createImageOptimizer(
       }),
     };
 
-    return cache?.set(srcUrl, result) ?? result;
+    return cache?.set(params.src, result) ?? result;
   }
 
   function createOptimizedImageResponse(result: OptimizeResult, policy?: CachePolicy): Response {
@@ -324,7 +276,7 @@ export function createImageOptimizer(
     }
 
     try {
-      const transformed = await transformer(source, {
+      const transformed = await transformImage(source, {
         width: params.width,
         quality: params.quality,
       });
@@ -339,4 +291,65 @@ export function createImageOptimizer(
       return new Response("Failed to optimize image", { status: 500 });
     }
   };
+}
+
+export type ResolvedImageConfig = Required<SelfHostedImageOptions>;
+
+export function resolveImageConfig(options: SelfHostedImageOptions = {}): ResolvedImageConfig {
+  return {
+    path: options.path ?? "/_img",
+    allowedHosts: options.allowedHosts ?? [],
+    imageSizes: options.imageSizes
+      ? options.imageSizes.sort((a, b) => a - b)
+      : [16, 32, 48, 64, 96, 128, 256, 384],
+    deviceSizes: options.deviceSizes
+      ? options.deviceSizes.sort((a, b) => a - b)
+      : [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    quality: options.quality ?? 75,
+    fetchTimeout: options.fetchTimeout ?? 4000,
+    maxSourceSize: options.maxSourceSize ?? 64_000_000,
+  };
+}
+
+/**
+ * Validate the `src` property of image to be optimized.
+ *
+ * @param src - the src, must be either a pathname `/...` or absolute URL.
+ */
+export function validateImageSrc(
+  config: ResolvedImageConfig,
+  src: string,
+): { allowed: true } | { allowed: false; reason: string } {
+  if (src.startsWith("https://") || src.startsWith("http://")) {
+    const resolved = new URL(src);
+
+    const hasAllowedHost = config.allowedHosts.some((entry) => {
+      if (typeof entry === "string") return resolved.hostname === entry;
+      return matchRemotePattern(entry, resolved);
+    });
+
+    if (!hasAllowedHost) {
+      return {
+        allowed: false,
+        reason: `Image URL "${src}" is not in allowedHosts`,
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  if (isPlainPathname(src)) return { allowed: true };
+
+  return { allowed: false, reason: `Image URL "${src}" is not normalized` };
+}
+
+function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
+  if (pattern.protocol !== undefined && pattern.protocol !== url.protocol.replace(/:$/, ""))
+    return false;
+
+  if (pattern.port !== undefined && pattern.port !== url.port) return false;
+  if (!pattern.hostname.test(url.hostname)) return false;
+  if (pattern.pathname && !pattern.pathname.test(url.pathname)) return false;
+
+  return true;
 }

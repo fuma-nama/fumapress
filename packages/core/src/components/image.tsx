@@ -25,9 +25,34 @@ SOFTWARE.
 
 "use client";
 import { type ReactNode, type ImgHTMLAttributes, createContext, use, useMemo } from "react";
-import { normalizeSrc, type ResolvedImageConfig, validateImageSrc } from "@/lib/shared/image";
 import ReactDOM from "react-dom";
 import { useRouter } from "waku";
+
+export type ClientImageContext = {
+  provider: ClientImageProvider;
+};
+
+export interface ClientImageProvider {
+  name: string;
+  /**
+   * All allowed sizes. If `undefined`, it assumes the provider allows any given width.
+   * (Ascending order)
+   */
+  sizes?: number[];
+
+  /**
+   * A subset of `sizes` that can potentially be the viewport width, will be used to generate `srcset`.
+   * (Ascending order)
+   */
+  deviceSizes: number[];
+  defaultQuality: number;
+
+  /** run check on `src` if specified */
+  validate?: (src: string) => void;
+  /** check if the image can be optimized */
+  canOptimize?: (src: string) => boolean;
+  buildImageUrl: (params: { src: string; width: number; quality: number }) => string;
+}
 
 export interface StaticImageData {
   src: string;
@@ -59,42 +84,39 @@ function parseLength(v: string | number | undefined): number | undefined {
   return parsed;
 }
 
-const ConfigContext = createContext<ResolvedImageConfig | null>(null);
+/**
+ * resolve src to a full pathname if relative
+ */
+function normalizeSrc(src: string, basePathname: string): string {
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
 
-export function ConfigProvider({
-  config,
-  children,
-}: {
-  config: ResolvedImageConfig;
-  children: ReactNode;
-}) {
-  return <ConfigContext value={config}>{children}</ConfigContext>;
+  const base = new URL(basePathname, "http://localhost");
+  const resolved = new URL(src, base);
+
+  if (resolved.hostname !== base.hostname)
+    throw new Error(`The src attribute "${src}" is not a valid relative path`);
+  return resolved.pathname;
 }
 
-export function buildImageUrl(
-  src: string,
-  width: number,
-  quality: number,
-  config: ResolvedImageConfig,
-): string {
-  const params = new URLSearchParams({
-    src,
-    width: String(width),
-    quality: String(quality),
-  });
+const ImageContext = createContext<ClientImageContext | null>(null);
 
-  return `${config.path}?${params.toString()}`;
+export function ImageProvider({
+  provider,
+  children,
+}: ClientImageContext & {
+  children: ReactNode;
+}) {
+  return <ImageContext value={useMemo(() => ({ provider }), [provider])}>{children}</ImageContext>;
 }
 
 /** generate widths (ascending order) */
 function getWidths(
-  { deviceSizes, imageSizes }: ResolvedImageConfig,
+  provider: ClientImageProvider,
   width: number | undefined,
   sizes: string | undefined,
 ): { widths: number[]; kind: "w" | "x" } {
-  const allSizes = [...deviceSizes, ...imageSizes].sort((a, b) => a - b);
-
   if (sizes) {
+    const allSizes = provider.sizes ?? provider.deviceSizes;
     // Find all the "vw" percent sizes used in the sizes prop
     const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g;
     const percentSizes = [];
@@ -104,7 +126,7 @@ function getWidths(
 
     if (percentSizes.length !== 0) {
       const minRatio = Math.min(...percentSizes) * 0.01;
-      const minSize = deviceSizes[0]! * minRatio;
+      const minSize = provider.deviceSizes[0]! * minRatio;
       const minIndex = allSizes.findLastIndex((s) => s < minSize);
 
       return {
@@ -117,7 +139,7 @@ function getWidths(
   }
 
   if (typeof width !== "number") {
-    return { widths: deviceSizes, kind: "w" };
+    return { widths: provider.deviceSizes, kind: "w" };
   }
 
   // > This means that most OLED screens that say they are 3x resolution,
@@ -128,26 +150,34 @@ function getWidths(
   // > wasteful as the human eye cannot see that level of detail without
   // > something like a magnifying glass.
   // https://blog.twitter.com/engineering/en_us/topics/infrastructure/2019/capping-image-fidelity-on-ultra-high-resolution-devices.html
-  const widths = new Set<number>();
-  const defaultWidth = allSizes.at(-1)!;
-  widths.add(allSizes.find((p) => p >= width) ?? defaultWidth);
-  widths.add(allSizes.find((p) => p >= width * 2) ?? defaultWidth);
-  return { widths: Array.from(widths), kind: "x" };
+  if (provider.sizes) {
+    const widths = new Set<number>();
+    const sizes = provider.sizes;
+    const defaultWidth = sizes.at(-1)!;
+    widths.add(sizes.find((p) => p >= width) ?? defaultWidth);
+    widths.add(sizes.find((p) => p >= width * 2) ?? defaultWidth);
+    return { widths: Array.from(widths), kind: "x" };
+  }
+
+  return { widths: [width, width * 2], kind: "x" };
 }
 
 export function generateImageAttributes(
-  config: ResolvedImageConfig,
+  provider: ClientImageProvider,
   src: string,
-  quality: number | undefined = config.quality,
+  quality: number | undefined = provider.defaultQuality,
   width: number | undefined,
   sizes: string | undefined,
 ) {
-  const { widths, kind } = getWidths(config, width, sizes);
+  const { widths, kind } = getWidths(provider, width, sizes);
 
   return {
     sizes: !sizes && kind === "w" ? "100vw" : sizes,
     srcSet: widths
-      .map((w, i) => `${buildImageUrl(src, w, quality, config)} ${kind === "w" ? w : i + 1}${kind}`)
+      .map(
+        (w, i) =>
+          `${provider.buildImageUrl({ src, width: w, quality })} ${kind === "w" ? w : i + 1}${kind}`,
+      )
       .join(", "),
 
     // It's intended to keep `src` the last attribute because React updates
@@ -156,7 +186,7 @@ export function generateImageAttributes(
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: buildImageUrl(src, widths.at(-1)!, quality, config),
+    src: provider.buildImageUrl({ src, width: widths.at(-1)!, quality }),
   } satisfies ImgHTMLAttributes<HTMLImageElement>;
 }
 
@@ -170,9 +200,8 @@ export function Image({
   preload = true,
   ...rest
 }: ImageProps) {
-  const config = use(ConfigContext);
+  const ctx = use(ImageContext);
   const pathname = useRouter().path;
-  // resolve src to a full pathname if relative
   const { src, width, height } = useMemo(() => {
     if (typeof _src === "object") {
       return {
@@ -189,24 +218,18 @@ export function Image({
     };
   }, [_src, _width, _height, pathname]);
 
-  // do not optimize SVG
-  if (src && src.split("?", 1)[0]!.endsWith(".svg")) {
+  if (src && ctx?.provider.canOptimize && !ctx.provider.canOptimize(src)) {
     unoptimized = true;
   }
 
-  if (!src || !config || unoptimized) {
+  if (!src || !ctx || unoptimized) {
     return <img {...rest} width={width} height={height} sizes={sizes} src={src} />;
   }
 
-  if (import.meta.env.DEV) {
-    const validation = validateImageSrc(config, src);
+  const { provider } = ctx;
+  provider.validate?.(src);
 
-    if (!validation.allowed) {
-      throw new Error(`[Fumapress] Image src "${src}" is not allowed: ${validation.reason}`);
-    }
-  }
-
-  const generatedProps = generateImageAttributes(config, src, quality, width, sizes);
+  const generatedProps = generateImageAttributes(provider, src, quality, width, sizes);
   let preloadElement: ReactNode;
 
   if (preload) {

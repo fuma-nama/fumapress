@@ -1,18 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  hasAllowedHost,
-  matchRemotePattern,
   resolveImageConfig,
   validateImageSrc,
-} from "@/lib/shared/image";
-import { buildImageUrl, generateImageAttributes } from "@/components/image";
-import {
   ImageOptimizationCache,
   getOptimizeCacheKey,
   parseImageParams,
   readResponseBodyWithLimit,
-} from "@/plugins/internal/image";
+} from "@/plugins/image/self-hosted.utils";
+import { generateImageAttributes } from "@/components/image";
 import CachePolicy from "http-cache-semantics";
+import { createProvider } from "@/plugins/image/self-hosted.client";
 
 const sourceUrl = "https://example.com/hero.png";
 const cacheRequest = {
@@ -37,23 +34,6 @@ function createFetchResult(cacheControl: string, body = new Uint8Array([1, 2, 3]
     ),
   };
 }
-
-describe("image config", () => {
-  it("matches remote patterns", () => {
-    const url = new URL("https://cdn.example.com/assets/photo.jpg");
-    expect(matchRemotePattern({ hostname: /cdn\.example\.com/, pathname: /^\/assets/ }, url)).toBe(
-      true,
-    );
-    expect(matchRemotePattern({ hostname: /evil\.com/ }, url)).toBe(false);
-  });
-
-  it("checks allowed hosts", () => {
-    const url = new URL("https://images.example.com/a.png");
-    expect(hasAllowedHost(["images.example.com"], url)).toBe(true);
-    expect(hasAllowedHost(["other.example.com"], url)).toBe(false);
-  });
-});
-
 describe("image optimization params", () => {
   it("parses valid query params", () => {
     const url = new URL("/_img?src=%2Flogo.png&width=640&quality=80", "https://localhost");
@@ -62,6 +42,22 @@ describe("image optimization params", () => {
       width: 640,
       quality: 80,
     });
+  });
+
+  it("matches remote patterns", () => {
+    const url = "https://cdn.example.com/assets/photo.jpg";
+    expect(
+      validateImageSrc(
+        resolveImageConfig({
+          allowedHosts: [{ hostname: /cdn\.example\.com/, pathname: /^\/assets/ }],
+        }),
+        url,
+      ).allowed,
+    ).toBe(true);
+    expect(
+      validateImageSrc(resolveImageConfig({ allowedHosts: [{ hostname: /evil\.com/ }] }), url)
+        .allowed,
+    ).toBe(false);
   });
 
   it("rejects invalid src values", () => {
@@ -209,18 +205,10 @@ describe("image cache", () => {
 });
 
 describe("Image URLs", () => {
-  it("builds optimization URLs", () => {
-    const config = resolveImageConfig({ deviceSizes: [640, 1280] });
-
-    expect(buildImageUrl("/hero.png", 640, 75, config)).toBe(
-      "/_img?src=%2Fhero.png&width=640&quality=75",
-    );
-  });
-
   it("generates srcset entries", () => {
     expect(
       generateImageAttributes(
-        resolveImageConfig({ deviceSizes: [640, 1280], quality: 80 }),
+        createProvider(resolveImageConfig({ deviceSizes: [640, 1280], quality: 80 })),
         "/hero.png",
         75,
         1280,
@@ -236,7 +224,7 @@ describe("Image URLs", () => {
 
     expect(
       generateImageAttributes(
-        resolveImageConfig({ quality: 80 }),
+        createProvider(resolveImageConfig({ quality: 80 })),
         "/hero.png",
         undefined,
         1280,

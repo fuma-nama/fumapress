@@ -13,6 +13,7 @@ export default defineConfig({
     "src/router/fs.tsx",
     "src/adapters/**",
     "src/{layouts,plugins}/*",
+    "src/plugins/image/{vercel,self-hosted}.tsx",
   ],
   unbundle: true,
   platform: "neutral",
@@ -24,7 +25,7 @@ export default defineConfig({
     },
   },
   deps: {
-    onlyBundle: ["@fastify/deepmerge"],
+    onlyBundle: ["@fastify/deepmerge", "http-cache-semantics"],
     neverBundle: [/^virtual:/, /^node:/],
   },
   async onSuccess() {

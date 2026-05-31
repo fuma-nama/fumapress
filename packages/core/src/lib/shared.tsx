@@ -16,7 +16,6 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { disableSearchPlugin } from "@/plugins/internal/disable-search";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
-import { resolveImageConfig } from "./shared/image";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -109,22 +108,9 @@ export async function initApp<C extends ConfigContext>(
   builder: ConfigBuilder<C>,
 ): Promise<AppContext<C>> {
   const config = builder.get();
-  const {
-    translations,
-    site,
-    mode = "default",
-    layouts,
-    unstable_imageOptimization: imageOptimization = false,
-  } = config;
+  const { translations, site, mode = "default", layouts } = config;
 
-  const plugins = resolvePlugins([
-    ...config.plugins,
-    disableSearchPlugin(),
-    imageOptimization &&
-      (await import("@/plugins/internal/image")).imagePlugin(
-        imageOptimization === true ? resolveImageConfig() : resolveImageConfig(imageOptimization),
-      ),
-  ]);
+  const plugins = resolvePlugins([...config.plugins, disableSearchPlugin()]);
   const ctx: AppContext = {
     $context: undefined as never,
     getLoader() {

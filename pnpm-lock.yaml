@@ -389,9 +389,6 @@ importers:
       fumadocs-ui:
         specifier: ^16.9.3
         version: 16.9.3(@emotion/is-prop-valid@1.4.0)(@tailwindcss/oxide@4.3.0)(@takumi-rs/image-response@1.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(fumadocs-core@16.9.3(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(flexsearch@0.8.212)(lucide-react@1.17.0(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
-      http-cache-semantics:
-        specifier: ^4.2.0
-        version: 4.2.0
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.6)
@@ -435,6 +432,9 @@ importers:
       hono:
         specifier: ^4.12.23
         version: 4.12.23
+      http-cache-semantics:
+        specifier: ^4.2.0
+        version: 4.2.0
       react:
         specifier: ^19.2.6
         version: 19.2.6

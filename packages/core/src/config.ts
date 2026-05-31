@@ -12,7 +12,6 @@ import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumad
 import type { FC, ReactNode } from "react";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import type { Translations } from "fumadocs-ui/i18n";
-import type { ImageConfig } from "@/lib/shared/image";
 
 export interface ConfigContext {
   page: Page;
@@ -45,13 +44,6 @@ export interface BaseConfig<C extends ConfigContext> {
     /** render meta tags for page */
     page?: (this: AppContext<C>, page: C["page"]) => ReactNode;
   };
-
-  /**
-   * Image optimization config for the `Image` component.
-   *
-   * @default false
-   */
-  unstable_imageOptimization?: ImageConfig | boolean;
 }
 
 interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseConfig<{

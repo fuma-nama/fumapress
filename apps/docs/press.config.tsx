@@ -11,6 +11,7 @@ import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
+import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { BookIcon, RssIcon } from "lucide-react";
 
 const config = defineConfig({
@@ -22,7 +23,6 @@ const config = defineConfig({
       baseDir: "blog",
     }),
   },
-  unstable_imageOptimization: true,
   loaderOptions: {
     plugins: [lucideIconsPlugin()],
   },
@@ -82,7 +82,7 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
+  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), imagePlugin())
   .layouts({
     defaultProps() {
       return {
