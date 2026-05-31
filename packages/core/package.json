@@ -118,6 +118,7 @@
     }
   },
   "inlinedDependencies": {
-    "@fastify/deepmerge": "3.2.1"
+    "@fastify/deepmerge": "3.2.1",
+    "http-cache-semantics": "4.2.0"
   }
 }

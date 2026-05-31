@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
 import { ImageResponse, type ImageResponseOptions } from "@takumi-rs/image-response";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 
 export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
   /**

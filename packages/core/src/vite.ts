@@ -87,7 +87,7 @@ function core(options: PluginOptions = {}): Plugin {
 }
 
 function getManagedServerEntry() {
-  return `import adapter from 'waku/adapters/default';
+  return `import _adapter from 'waku/adapters/default';
 import pressConfig from 'virtual:fumapress-core/config';
 import { createRouter } from 'fumapress/router';
 import { fsRouterFn } from 'fumapress/router/fs';
@@ -99,6 +99,7 @@ const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
 const router = createRouter(pressConfig);
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
+const adapter = await router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 `;

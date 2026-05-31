@@ -82,7 +82,14 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin(), imagePlugin())
+  .plugins(
+    flexsearchPlugin(),
+    llmsPlugin(),
+    takumiPlugin(),
+    imagePlugin({
+      formats: ["image/webp", "image/png"],
+    }),
+  )
   .layouts({
     defaultProps() {
       return {

@@ -5,7 +5,7 @@ import { unstable_notFound } from "waku/router/server";
 import type { AppContext } from "@/lib/shared";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 
 export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
   /**

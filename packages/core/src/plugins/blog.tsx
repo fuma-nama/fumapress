@@ -2,7 +2,7 @@ import type { ConfigContext } from "@/config";
 import { createBlogLayout, createBlogLayoutPage } from "@/layouts/blog";
 import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 import { type AppContext } from "@/lib/shared";
 import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
 import type { ServerPlugin } from "@/lib/types";
@@ -56,18 +56,8 @@ const blogContext = new AsyncLocalStorage({
   name: "fumapress:blog",
 });
 
-declare global {
-  // TODO: Waku.js doesn't run middlewares during build, must set the context stores somewhere else
-  var blogContextTemp: BlogContext | undefined;
-}
-
 export function getBlogContext<C extends ConfigContext = ConfigContext>(): BlogContext<C> {
-  let store = blogContext.getStore();
-  if (!store) {
-    store = global.blogContextTemp;
-  } else {
-    delete global.blogContextTemp;
-  }
+  const store = blogContext.getStore();
 
   if (!store)
     throw new Error(
@@ -128,14 +118,13 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
     createMiddlewares() {
       return [(_c, next) => blogContext.run(blogCtx, next)];
     },
+    unstable_onSSGRequest(_req, next) {
+      return blogContext.run(blogCtx, next);
+    },
     async createPages({ createPage, createLayout }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
       const source = await this.getLoader();
-      const blogPages = source.getPages().filter((page) => isBlog.call(this, page));
-
-      if (import.meta.env.PROD) {
-        global.blogContextTemp = blogCtx as unknown as BlogContext;
-      }
+      const blogPages = source.getPages().filter(isBlog.bind(this));
 
       createLayout({
         render: renderMode,

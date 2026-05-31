@@ -54,5 +54,14 @@ export function imagePlugin<C extends ConfigContext = ConfigContext>(
         return props;
       });
     },
+    unstable_onServerEntry(entry) {
+      if (import.meta.env.PROD) {
+        entry.buildEnhancers ??= [];
+        entry.buildOptions ??= {};
+        entry.buildOptions.FUMAPRESS_IMAGE_CONFIG = config;
+        entry.buildEnhancers.push("fumapress/plugins/image/vercel.enhancer");
+      }
+      return entry;
+    },
   };
 }

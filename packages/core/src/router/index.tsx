@@ -5,6 +5,7 @@ import type { ConfigBuilder, ConfigContext } from "../config";
 import { unstable_notFound } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
 import type { MiddlewareHandler } from "hono";
+import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 
 type Options = Parameters<typeof base_createPages>[1];
 
@@ -14,6 +15,9 @@ export interface Router<C extends ConfigContext = ConfigContext> {
     options?: Options,
   ) => ReturnType<typeof base_createPages>;
   createMiddlewares: () => (() => MiddlewareHandler)[];
+  patchAdapter: <Options>(
+    adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
+  ) => Promise<ReturnType<typeof unstable_createServerEntryAdapter<Options>>>;
 }
 
 export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
@@ -29,11 +33,6 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
   ) {
     return base_createPages(async (_fns) => {
       const context = await getAppContext();
-
-      if (import.meta.env.PROD) {
-        global.appContextTemp = context as unknown as AppContext;
-      }
-
       const layouts = context.layouts;
 
       const fns: RouteFns = {
@@ -233,8 +232,51 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     };
   }
 
+  async function patchAdapter<Options>(
+    adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
+  ): Promise<ReturnType<typeof unstable_createServerEntryAdapter<Options>>> {
+    const ctx = await getAppContext();
+
+    return (handlers, options) => {
+      let entry = adapter(
+        {
+          ...handlers,
+          handleBuild(utils) {
+            const hooks: (<T>(req: Request, fn: () => T) => T)[] = [];
+            hooks.push(utils.withRequest);
+            hooks.push((_req, fn) => appContext.run(ctx, fn));
+
+            for (const plugin of ctx.plugins) {
+              if (plugin.unstable_onSSGRequest) hooks.push(plugin.unstable_onSSGRequest);
+            }
+
+            function runHook<T>(req: Request, fn: () => T, index = 0): T {
+              const hook = hooks[index];
+              if (!hook) return fn();
+
+              return hook(req, () => runHook(req, fn, index + 1));
+            }
+
+            return handlers.handleBuild({
+              ...utils,
+              withRequest: runHook,
+            });
+          },
+        },
+        options,
+      );
+
+      for (const plugin of ctx.plugins) {
+        if (plugin.unstable_onServerEntry) entry = plugin.unstable_onServerEntry(entry);
+      }
+
+      return entry;
+    };
+  }
+
   return {
     createPages,
+    patchAdapter,
     createMiddlewares() {
       return [contextMiddleware, pluginsMiddleware];
     },

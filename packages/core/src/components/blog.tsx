@@ -6,7 +6,7 @@ import { Link } from "waku";
 import { I18nLabel } from "./i18n";
 import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 
 export function BlogItem<C extends ConfigContext>({ page, date }: { page: C["page"]; date: Date }) {
   return (

@@ -57,22 +57,12 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
   };
 }
 
-declare global {
-  // TODO: Waku.js doesn't run middlewares during build, must set the context stores somewhere else
-  var appContextTemp: AppContext | undefined;
-}
-
 export const appContext = new AsyncLocalStorage({
   name: "fumapress:core",
 });
 
 export function getPressContext<C extends ConfigContext = ConfigContext>(): AppContext<C> {
-  let store = appContext.getStore();
-  if (!store) {
-    store = global.appContextTemp;
-  } else {
-    delete global.appContextTemp;
-  }
+  const store = appContext.getStore();
 
   if (!store)
     throw new Error(

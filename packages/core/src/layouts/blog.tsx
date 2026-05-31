@@ -15,7 +15,7 @@ import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
 import { getTags } from "@/lib/shared/blog";
 import { getBlogContext, type BlogLayout, type BlogLayoutPage } from "@/plugins/blog";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 import { LinkToHome } from "@/components/blog";
 import { createHomeLayout, type HomeLayoutOptions } from "./home";
 

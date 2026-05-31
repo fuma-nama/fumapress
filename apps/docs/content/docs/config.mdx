@@ -134,7 +134,7 @@ You can change the color theme or add custom styles, like:
 The server entry file is optional, you can create one if needed. Useful for implementing custom router.
 
 ```tsx title="src/waku.server.tsx"
-import adapter from "waku/adapters/default";
+import _adapter from "waku/adapters/default";
 // your main config file
 import pressConfig from "../press.config";
 import { createRouter } from "fumapress/router";
@@ -149,6 +149,7 @@ const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
 // file-system router
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
+const adapter = await router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 ```
@@ -156,7 +157,7 @@ export default adapter(pages, { middlewareFns });
 You can also use [Waku Config-based Routing](https://waku.gg/#routing) instead of the file-system router, see the linked docs for usage.
 
 ```tsx title="src/waku.server.tsx"
-import adapter from "waku/adapters/default";
+import _adapter from "waku/adapters/default";
 // your main config file
 import pressConfig from "../press.config";
 import { createRouter } from "fumapress/router";
@@ -175,6 +176,7 @@ const pages = router.createPages(async ({ createPage }) => {
 });
 
 const middlewareFns = router.createMiddlewares();
+const adapter = await router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 ```

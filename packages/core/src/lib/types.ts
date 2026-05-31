@@ -10,6 +10,7 @@ import type { ContentStorage, LoaderOptions, LoaderPluginOption, Page } from "fu
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
+import { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type {
   CreatePage,
   CreateLayout,
@@ -81,7 +82,13 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
     options: PressLoaderOptions,
   ) => Awaitable<PressLoaderOptions>;
 
+  /** create Hono middlewares */
   createMiddlewares?: (this: AppContext<C>) => MiddlewareHandler[] | undefined;
+
+  unstable_onSSGRequest?: <T>(req: Request, next: () => T) => T;
+  unstable_onServerEntry?: (
+    entry: ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>,
+  ) => ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>;
 }
 
 export interface BaseRouteFns {

@@ -1,6 +1,6 @@
 import CachePolicy from "http-cache-semantics";
 import type { RemotePattern, SelfHostedImageOptions } from "./self-hosted";
-import { isPlainPathname } from "@/lib/is-pathname";
+import { isPlainPathname } from "@/lib/pathname";
 
 const SAFE_IMAGE_CONTENT_TYPES = new Set([
   "image/jpeg",

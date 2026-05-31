@@ -5,7 +5,7 @@ import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext } from "@/lib/shared";
 import type { ConfigContext } from "@/config";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);

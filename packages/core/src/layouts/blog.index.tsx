@@ -2,7 +2,7 @@ import { OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
 import { I18nLabel } from "@/components/i18n";
 import { cn } from "@/lib/cn";
-import { joinPathname } from "@/lib/join-pathname";
+import { joinPathname } from "@/lib/pathname";
 import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
