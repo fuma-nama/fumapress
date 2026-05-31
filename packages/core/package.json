@@ -36,6 +36,7 @@
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/image/self-hosted": "./dist/plugins/image/self-hosted.js",
     "./plugins/image/vercel": "./dist/plugins/image/vercel.js",
+    "./plugins/image/vercel.enhancer": "./dist/plugins/image/vercel.enhancer.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",

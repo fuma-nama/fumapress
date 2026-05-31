@@ -85,15 +85,13 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
       const staticPaths: string[][] = [];
       const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
 
-      if (defaultRenderMode === "static") {
-        outer: for (const page of (await context.getLoader()).getPages()) {
-          for (const plugin of context.plugins) {
-            const resolved = await plugin.resolvePage?.call(context, page);
-            if (resolved === false) continue outer;
-          }
-
-          staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
+      outer: for (const page of (await context.getLoader()).getPages()) {
+        for (const plugin of context.plugins) {
+          const resolved = await plugin.resolvePage?.call(context, page);
+          if (resolved === false) continue outer;
         }
+
+        staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
       }
 
       if (context.i18nConfig) {
