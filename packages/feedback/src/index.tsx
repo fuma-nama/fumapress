@@ -24,8 +24,8 @@ export function feedbackPlugin<C extends ConfigContext = ConfigContext>(
       if (onPageFeedbackAction) {
         const { Feedback } = await import("./components/feedback/client");
 
-        data.layoutProps.children ??= [];
-        data.layoutProps.children.push((children) => (
+        data.pageProps.children ??= [];
+        data.pageProps.children.push((children) => (
           <>
             {children}
             <Feedback onSendAction={onPageFeedbackAction} />
