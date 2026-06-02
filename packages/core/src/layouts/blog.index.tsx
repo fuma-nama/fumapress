@@ -7,7 +7,7 @@ import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "waku";
+import { Link } from "@/client";
 import { getPressContext } from "@/lib/shared";
 
 export interface BlogIndexPageOptions {
@@ -33,7 +33,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
           </p>
           {tagsPath !== false && (
             <Link
-              to={lang ? joinPathname(lang, tagsPath) : tagsPath}
+              href={lang ? joinPathname(lang, tagsPath) : tagsPath}
               className={cn(
                 buttonVariants({
                   variant: "primary",

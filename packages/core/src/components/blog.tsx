@@ -1,8 +1,8 @@
 import { ConfigContext } from "@/config";
 import { cn } from "@/lib/cn";
-import { AppContext, getCreationDate, getPressContext } from "@/lib/shared";
-import { getBlogContext, type BlogContext } from "@/plugins/blog";
-import { Link } from "waku";
+import { getCreationDate, getPressContext } from "@/lib/shared";
+import { getBlogContext } from "@/plugins/blog";
+import { Link } from "@/client";
 import { I18nLabel } from "./i18n";
 import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
@@ -11,7 +11,7 @@ import { joinPathname } from "@/lib/pathname";
 export function BlogItem<C extends ConfigContext>({ page, date }: { page: C["page"]; date: Date }) {
   return (
     <Link
-      to={page.url}
+      href={page.url}
       className="flex flex-col bg-fd-card rounded-2xl border shadow-sm p-4 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
     >
       <p className="font-medium">{page.data.title}</p>
@@ -49,7 +49,7 @@ export function LinkToHome({ lang }: { lang?: string }) {
 
   return (
     <Link
-      to={lang ? joinPathname(lang, indexPath) : indexPath}
+      href={lang ? joinPathname(lang, indexPath) : indexPath}
       className={cn(
         buttonVariants({
           variant: "ghost",

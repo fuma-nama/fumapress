@@ -10,7 +10,7 @@ import {
 import type { Awaitable } from "@/lib/types";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { ReactNode } from "react";
-import { Link } from "waku";
+import { Link } from "@/client";
 import { TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
 import { getTags } from "@/lib/shared/blog";
@@ -76,7 +76,7 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
                   return (
                     <Link
                       key={t}
-                      to={joinPathname(lang ?? "", tagsPath, t)}
+                      href={joinPathname(lang ?? "", tagsPath, t)}
                       className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
                     >
                       {t}

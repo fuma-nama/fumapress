@@ -5,7 +5,7 @@ import { getTags, groupTags } from "@/lib/shared/blog";
 import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "waku";
+import { Link } from "@/client";
 import { getPressContext } from "@/lib/shared";
 
 export interface BlogTagsPageOptions {
@@ -46,7 +46,7 @@ export function createBlogTagsPage<C extends ConfigContext = ConfigContext>({
             .map(([tag, count]) => (
               <Link
                 key={tag}
-                to={`/blog/tags/${tag}`}
+                href={`/blog/tags/${tag}`}
                 className="flex flex-row items-center gap-2 bg-fd-card text-fd-card-foreground border font-mono rounded-lg px-2 py-1 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
               >
                 <TagIcon className="size-3.5 text-fd-muted-foreground" />

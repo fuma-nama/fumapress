@@ -69,6 +69,6 @@ export function Link({ href = "#", children, ...props }: LinkProps) {
   );
 }
 
-export function useRouter() {
+export function useRouter(): Router {
   return useRouterBase() as Router;
 }
