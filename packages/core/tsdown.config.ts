@@ -13,6 +13,7 @@ export default defineConfig({
     "src/router/fs.tsx",
     "src/adapters/**",
     "src/{layouts,plugins}/*",
+    "!src/plugins/*.client.tsx",
     "src/plugins/image/{vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
   ],
   unbundle: true,

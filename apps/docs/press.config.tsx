@@ -12,6 +12,7 @@ import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { imagePlugin } from "fumapress/plugins/image/vercel";
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { BookIcon, RssIcon } from "lucide-react";
 
 const config = defineConfig({
@@ -90,6 +91,7 @@ const config = defineConfig({
     imagePlugin({
       formats: ["image/webp", "image/png"],
     }),
+    linkValidationPlugin(),
   )
   .layouts({
     defaultProps() {
