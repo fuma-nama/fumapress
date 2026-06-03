@@ -102,12 +102,9 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
       createApiIsomorphic({
         render: renderMode,
         path: joinPathname(this.i18nConfig ? "[lang]" : "", basePath, "[...slugs]"),
-        staticPaths:
-          renderMode === "static"
-            ? (await this.getLoader())
-                .getPages()
-                .map((page) => slugsToImagePath(page.slugs, page.locale).staticPath)
-            : undefined,
+        staticPaths: (await this.getLoader())
+          .getPages()
+          .map((page) => slugsToImagePath(page.slugs, page.locale).staticPath),
         handler: async (_, { params }) => {
           const source = await this.getLoader();
           const page = source.getPage(

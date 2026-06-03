@@ -96,10 +96,10 @@ const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
   base: '/src',
 });
 
-const router = createRouter(pressConfig);
+const router = await createRouter(pressConfig);
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
-const adapter = await router.patchAdapter(_adapter);
+const adapter = router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 `;

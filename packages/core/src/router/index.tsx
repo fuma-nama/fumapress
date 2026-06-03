@@ -17,26 +17,25 @@ export interface Router<C extends ConfigContext = ConfigContext> {
   createMiddlewares: () => (() => MiddlewareHandler)[];
   patchAdapter: <Options>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
-  ) => Promise<ReturnType<typeof unstable_createServerEntryAdapter<Options>>>;
+  ) => ReturnType<typeof unstable_createServerEntryAdapter<Options>>;
 }
 
-export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<C>): Router<C> {
-  let _ctx: Promise<AppContext<C>> | undefined;
-
-  async function getAppContext() {
-    return await (_ctx ??= initApp(userConfig));
-  }
+export async function createRouter<C extends ConfigContext>(
+  userConfig: ConfigBuilder<C>,
+): Promise<Router<C>> {
+  const context = await initApp(userConfig);
 
   function createPages(
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     createPagesOptions?: Options,
   ) {
-    return base_createPages(async (_fns) => {
-      const context = await getAppContext();
+    const result = base_createPages(async (_fns) => {
       const layouts = context.layouts;
-
       const fns: RouteFns = {
         ..._fns,
+        unstable_getCreated() {
+          return result;
+        },
         createApiIsomorphic(config) {
           if (config.render === "static") {
             _fns.createApi({
@@ -181,21 +180,18 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
 
       return null as never;
     }, createPagesOptions);
+    return result;
   }
 
   function contextMiddleware(): MiddlewareHandler {
-    return async (_c, next) => {
-      const ctx = await getAppContext();
-      return appContext.run(ctx, next);
-    };
+    return (_c, next) => appContext.run(context, next);
   }
 
   function pluginsMiddleware(): MiddlewareHandler {
     async function init(): Promise<MiddlewareHandler[]> {
-      const ctx = await getAppContext();
       const out: MiddlewareHandler[] = [];
       const resolved = await Promise.all(
-        ctx.plugins.map((plugin) => plugin.createMiddlewares?.call(ctx)),
+        context.plugins.map((plugin) => plugin.createMiddlewares?.call(context)),
       );
 
       for (const v of resolved) {
@@ -230,11 +226,9 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
     };
   }
 
-  async function patchAdapter<Options>(
+  function patchAdapter<Options>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
-  ): Promise<ReturnType<typeof unstable_createServerEntryAdapter<Options>>> {
-    const ctx = await getAppContext();
-
+  ): ReturnType<typeof unstable_createServerEntryAdapter<Options>> {
     return (handlers, options) => {
       let entry = adapter(
         {
@@ -242,9 +236,9 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
           handleBuild(utils) {
             const hooks: (<T>(req: Request, fn: () => T) => T)[] = [];
             hooks.push(utils.withRequest);
-            hooks.push((_req, fn) => appContext.run(ctx, fn));
+            hooks.push((_req, fn) => appContext.run(context, fn));
 
-            for (const plugin of ctx.plugins) {
+            for (const plugin of context.plugins) {
               if (plugin.unstable_onSSGRequest) hooks.push(plugin.unstable_onSSGRequest);
             }
 
@@ -264,7 +258,7 @@ export function createRouter<C extends ConfigContext>(userConfig: ConfigBuilder<
         options,
       );
 
-      for (const plugin of ctx.plugins) {
+      for (const plugin of context.plugins) {
         if (plugin.unstable_onServerEntry) entry = plugin.unstable_onServerEntry(entry);
       }
 

@@ -140,7 +140,7 @@ import pressConfig from "../press.config";
 import { createRouter } from "fumapress/router";
 import { fsRouterFn } from "fumapress/router/fs";
 
-const router = createRouter(pressConfig);
+const router = await createRouter(pressConfig);
 
 const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
   base: "/src",
@@ -149,7 +149,7 @@ const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
 // file-system router
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
-const adapter = await router.patchAdapter(_adapter);
+const adapter = router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 ```
@@ -162,7 +162,7 @@ import _adapter from "waku/adapters/default";
 import pressConfig from "../press.config";
 import { createRouter } from "fumapress/router";
 
-const router = createRouter(pressConfig);
+const router = await createRouter(pressConfig);
 
 const pages = router.createPages(async ({ createPage }) => {
   // note: root element is already created by Fumapress
@@ -176,7 +176,7 @@ const pages = router.createPages(async ({ createPage }) => {
 });
 
 const middlewareFns = router.createMiddlewares();
-const adapter = await router.patchAdapter(_adapter);
+const adapter = router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 ```

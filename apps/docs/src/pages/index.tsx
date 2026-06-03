@@ -44,6 +44,7 @@ export default function Page() {
               src="/preview.png"
               sizes="(min-width: 1024px) 800px, 600px"
               className="border-4 border-white/20 rounded-xl max-lg:min-w-[600px] max-lg:w-[600px] max-lg:max-w-none shadow-lg shadow-black/50 lg:w-[60vw] lg:max-w-[800px]"
+              loading="eager"
               fetchPriority="high"
             />
           </div>

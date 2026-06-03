@@ -19,7 +19,9 @@ export interface LinkProps extends ComponentProps<"a"> {
 }
 
 export function Link({ href = "#", children, ...props }: LinkProps) {
-  global.LINK_SSG_CONTEXT?.links.push({ href, fromPathname: useRouter().path });
+  if (typeof global !== "undefined" && global.LINK_SSG_CONTEXT) {
+    global.LINK_SSG_CONTEXT.links.push({ href, fromPathname: useRouter().path });
+  }
 
   return (
     <BaseLink to={href} {...props}>

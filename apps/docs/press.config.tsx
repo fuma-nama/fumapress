@@ -13,6 +13,7 @@ import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, RssIcon } from "lucide-react";
 
 const config = defineConfig({
@@ -92,6 +93,7 @@ const config = defineConfig({
       formats: ["image/webp", "image/png"],
     }),
     linkValidationPlugin(),
+    sitemapPlugin(),
   )
   .layouts({
     defaultProps() {

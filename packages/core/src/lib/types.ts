@@ -12,6 +12,7 @@ import type { MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type {
+  createPages,
   CreatePage,
   CreateLayout,
   CreateRoot,
@@ -83,7 +84,7 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   ) => Awaitable<PressLoaderOptions>;
 
   /** create Hono middlewares */
-  createMiddlewares?: (this: AppContext<C>) => MiddlewareHandler[] | undefined;
+  createMiddlewares?: (this: AppContext<C>) => Awaitable<MiddlewareHandler[] | undefined>;
 
   unstable_onSSGRequest?: <T>(req: Request, next: () => T) => T;
   unstable_onServerEntry?: (
@@ -99,6 +100,8 @@ export interface BaseRouteFns {
   createSlice: CreateSlice;
 }
 
+export type CreatePagesResult = ReturnType<typeof createPages>;
+
 export interface RouteFns extends BaseRouteFns {
   createApiIsomorphic: (config: {
     render: "static" | "dynamic";
@@ -109,6 +112,9 @@ export interface RouteFns extends BaseRouteFns {
       ctx: { params: Record<string, string | string[]> },
     ) => Promise<Response>;
   }) => void;
+
+  /** access `createPages()` output */
+  unstable_getCreated: () => CreatePagesResult;
 }
 
 export type ServerPluginOption<C extends ConfigContext = ConfigContext> =
