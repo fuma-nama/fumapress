@@ -1,6 +1,7 @@
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
+import { TypeTable } from "fumadocs-ui/components/type-table";
 import { blog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
@@ -61,6 +62,7 @@ const config = defineConfig({
 
         return {
           ...defaultMdxComponents,
+          TypeTable,
           a: createRelativeLink(source, page),
           DocsCategory() {
             const dir = path.dirname(page.path);

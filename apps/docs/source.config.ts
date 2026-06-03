@@ -1,4 +1,5 @@
 import { defineConfig, defineDocs } from "fumadocs-mdx/config";
+import { remarkAutoTypeTable, createGenerator } from "fumadocs-typescript";
 import {
   blogMetaSchema,
   blogPageSchema,
@@ -6,6 +7,8 @@ import {
   pageSchema,
 } from "fumapress/adapters/mdx/schema";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
+
+const generator = createGenerator();
 
 export const docs = defineDocs({
   dir: "content/docs",
@@ -37,4 +40,13 @@ export const blog = defineDocs({
 
 export default defineConfig({
   plugins: [lastModified()],
+  mdxOptions: {
+    remarkPlugins: [[remarkAutoTypeTable, { generator }]],
+    rehypeCodeOptions: {
+      themes: {
+        light: "vitesse-light",
+        dark: "catppuccin-mocha",
+      },
+    },
+  },
 });

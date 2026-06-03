@@ -1,0 +1,78 @@
+---
+title: Link Validation
+description: Detect broken links during build.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Enable the plugin in your Fumapress config:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .plugins(linkValidationPlugin());
+```
+
+During static generation, the plugin collects links rendered with `<Link />` component. After the build finishes pre-rendering, it validates each unique `href`:
+
+- **Relative links** — fetched against your app. A `404` response fails the build.
+- **Absolute URLs** — skipped unless you provide an `externalLink` callback.
+
+If any link is broken, the build throws an error listing the source page and target URL:
+
+```text
+In "/docs/getting-started": link "/docs/missing-page" not-found
+```
+
+## Options
+
+### `ignored`
+
+Skip validation for specific links:
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  linkValidationPlugin({
+    ignored(href) {
+      return href.startsWith("https://example.com");
+    },
+  }),
+);
+```
+
+### `externalLink`
+
+Validate external (absolute) URLs. Return `"not-found"` to fail the build, or `null` when the link
+is valid:
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  linkValidationPlugin({
+    async externalLink(href) {
+      const res = await fetch(href, { method: "HEAD" });
+      return res.ok ? null : "not-found";
+    },
+  }),
+);
+```
+
+<Callout>
+  Only links rendered through `Link` from `fumapress/client` during pre-rendering are tracked, it
+  doesn't work for normal `<a />` tags.
+</Callout>

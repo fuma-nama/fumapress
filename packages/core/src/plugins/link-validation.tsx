@@ -35,6 +35,7 @@ export function linkValidationPlugin<C extends ConfigContext>(
 
         await Promise.all(
           Array.from(hrefMap.keys()).map(async (href) => {
+            if (href.startsWith("mailto:") || href.startsWith("#")) return;
             if (ignored && ignored(href)) return;
 
             // on absolute URL

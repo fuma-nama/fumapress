@@ -67,6 +67,7 @@ export function BlogPanel() {
     </Collapsible>
   );
 }
+
 export function BlogProvider({ toc, children }: { toc: TOCItemType[]; children: ReactNode }) {
   return <TOCProvider toc={toc}>{children}</TOCProvider>;
 }

@@ -15,6 +15,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "fumadocs-core": "^16.9.3",
     "fumadocs-mdx": "^15.0.10",
+    "fumadocs-typescript": "^5.2.6",
     "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
     "lucide-react": "^1.17.0",

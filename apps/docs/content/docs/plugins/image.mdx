@@ -1,0 +1,125 @@
+---
+title: Image Optimization
+description: Optimize images under different viewports.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Choose a provider based on where you deploy:
+
+- **Vercel** — uses [Vercel Image Optimization](https://vercel.com/docs/image-optimization), works with static mode.
+- **Self-hosted** — runs a dynamic optimization endpoint powered by [Sharp](https://sharp.pixelplumbing.com/), cannot be served statically.
+
+Install Sharp when using the self-hosted provider:
+
+```npm
+npm i sharp
+```
+
+Enable the plugin in your Fumapress config:
+
+```tsx tab="Vercel" title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { imagePlugin } from "fumapress/plugins/image/vercel";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++:5]
+  .plugins(
+    imagePlugin({
+      // See https://vercel.com/docs/project-configuration/vercel-json#images
+    }),
+  );
+```
+
+```tsx tab="Self-hosted" title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { imagePlugin } from "fumapress/plugins/image/self-hosted";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++:6]
+  .plugins(
+    imagePlugin({
+      // e.g. if your images are hosted on cdn.example.com:
+      allowedHosts: ["cdn.example.com"],
+    }),
+  );
+```
+
+## Usage
+
+Use the `Image` component from `fumapress/image`.
+
+```tsx
+import { Image } from "fumapress/image";
+
+export default function Hero() {
+  return <Image src="/hero.png" alt="Hero" width={1200} height={630} className="rounded-lg" />;
+}
+```
+
+When image optimization is enabled, it generates responsive `srcSet` values and serves optimized formats automatically. This allows the browser to pick a suitable size of image, and compress the size of images.
+
+Remote images must be explicitly allowed (self-hosted) or match your Vercel image configuration.
+Local paths such as `/logo.png` are always allowed.
+
+SVG images are not optimized by default.
+
+## Options
+
+### Vercel provider
+
+<auto-type-table type="import('fumapress/plugins/image/vercel').VercelImageOptions" />
+
+These options are written to your Vercel build output during production builds. See [Vercel image configuration](https://vercel.com/docs/project-configuration/vercel-json#images) for details.
+
+```tsx title="press.config.tsx"
+import { imagePlugin } from "fumapress/plugins/image/vercel";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  imagePlugin({
+    formats: ["image/webp", "image/png"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.example.com",
+        pathname: "/assets/**",
+      },
+    ],
+  }),
+);
+```
+
+### Self-hosted provider
+
+<auto-type-table type="import('fumapress/plugins/image/self-hosted').SelfHostedImageOptions" />
+
+```tsx title="press.config.tsx"
+import { imagePlugin } from "fumapress/plugins/image/self-hosted";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  imagePlugin({
+    allowedHosts: [
+      "images.example.com",
+      {
+        protocol: "https",
+        hostname: /cdn\.example\.com/,
+        pathname: /^\/assets/,
+      },
+    ],
+  }),
+);
+```
+
+In development, invalid image sources throw immediately. In production, disallowed sources return `403`.

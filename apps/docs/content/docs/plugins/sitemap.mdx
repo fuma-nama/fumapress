@@ -1,0 +1,112 @@
+---
+title: Sitemap
+description: Generate a sitemap.xml for your Fumapress site.
+---
+
+## Installation
+
+This plugin is included in `fumapress`.
+
+Set `site.baseUrl` in your config, sitemap entries must be fully-qualified URLs:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
+
+export default defineConfig({
+  site: {
+    // [!code highlight]
+    baseUrl: "https://example.com",
+  },
+})
+  // [!code ++]
+  .plugins(sitemapPlugin());
+```
+
+The plugin creates a sitemap at `/sitemap.xml`.
+
+By default, every page from your content source is included with a `priority` of `0.8`, and **static routes** are included as well.
+
+## Options
+
+### `path`
+
+Change the sitemap route. Default: `"/sitemap.xml"`.
+
+```tsx title="press.config.tsx"
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  sitemapPlugin({
+    path: "/sitemap.xml",
+  }),
+);
+```
+
+### `getEntry`
+
+Customize or exclude entries. Return `undefined` to omit a page:
+
+```tsx title="press.config.tsx"
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  sitemapPlugin({
+    async getEntry(page) {
+      if (page.path.startsWith("drafts/")) return;
+
+      return {
+        loc: new URL(page.url, this.siteConfig.baseUrl).href,
+        lastmod: page.data.lastModified,
+        changefreq: "weekly",
+        priority: page.path === "index" ? 1 : 0.8,
+      };
+    },
+  }),
+);
+```
+
+`getEntry` receives the app context as `this`, so you can access `siteConfig`, and other plugin APIs.
+
+### `additionalEntries`
+
+Append extra URLs that are not backed by content pages. Each entry's `loc` must be a fully-qualified
+URL:
+
+```tsx title="press.config.tsx"
+import { sitemapPlugin } from "fumapress/plugins/sitemap";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  sitemapPlugin({
+    additionalEntries: [
+      {
+        loc: "https://example.com/changelog",
+        changefreq: "weekly",
+        priority: 0.5,
+      },
+    ],
+  }),
+);
+```
+
+Pass a function to compute entries at build time:
+
+```tsx title="press.config.tsx"
+sitemapPlugin({
+  additionalEntries() {
+    return [
+      {
+        loc: new URL("/rss.xml", this.siteConfig.baseUrl).href,
+        changefreq: "daily",
+      },
+    ];
+  },
+});
+```
