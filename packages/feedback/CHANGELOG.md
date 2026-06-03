@@ -1,5 +1,14 @@
 # @fumapress/feedback
 
+## 0.5.2
+
+### Patch Changes
+
+- 6ce388d: fix feedback footer placement
+- Updated dependencies [a7e1829]
+- Updated dependencies [4a73ee5]
+  - fumapress@0.5.2
+
 ## 0.5.1
 
 ### Patch Changes
