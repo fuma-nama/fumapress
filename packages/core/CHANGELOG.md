@@ -1,5 +1,12 @@
 # fumapress
 
+## 0.5.2
+
+### Patch Changes
+
+- a7e1829: Support link validation
+- 4a73ee5: Support sitemap plugin
+
 ## 0.5.1
 
 ### Patch Changes
