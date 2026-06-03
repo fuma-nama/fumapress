@@ -29,22 +29,24 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.9.3",
-    "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
+    "fumadocs-core": "^16.9.3",
     "fumadocs-openapi": "^10.9.1",
+    "fumadocs-ui": "^16.9.3",
     "react": "^19.2.6",
     "tsdown": "0.22.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },
   "peerDependencies": {
-    "fumadocs-openapi": "^10.9.0",
+    "fumadocs-core": "*",
+    "fumadocs-openapi": "*",
+    "fumadocs-ui": "*",
     "hono": "*"
   },
   "peerDependenciesMeta": {
