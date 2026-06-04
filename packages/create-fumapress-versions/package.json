@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress-versions",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "private": true,
   "dependencies": {
     "fumadocs-core": "^16.9.3",
