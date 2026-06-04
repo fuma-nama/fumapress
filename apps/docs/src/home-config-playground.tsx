@@ -1,15 +1,11 @@
 "use client";
 
-import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "shiki-magic-move/core";
-import { ShikiMagicMove } from "shiki-magic-move/react";
-import { createHighlighterCoreSync } from "shiki/core";
-import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import typescript from "shiki/langs/typescript.mjs";
-import vesper from "shiki/themes/vesper.mjs";
-import "shiki-magic-move/style.css";
+import { ShikiMagicMove } from "@shikijs/magic-move/react";
+import "@shikijs/magic-move/style.css";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "./cn";
+import { highlighter, magicMoveOptions } from "./home.client";
 
 const features = [
   {
@@ -46,13 +42,6 @@ type FeatureId = (typeof features)[number]["id"];
 
 const initialSelected = ["search", "llms"] satisfies FeatureId[];
 
-const magicMoveOptions: MagicMoveRenderOptions & MagicMoveDifferOptions = {
-  containerStyle: false,
-  duration: 400,
-  lineNumbers: true,
-  stagger: 0.3,
-};
-
 function createConfigCode(selected: readonly FeatureId[]) {
   const activeFeatures = features.filter((feature) => selected.includes(feature.id));
   const plugins = activeFeatures.map((feature) => feature.plugin);
@@ -76,12 +65,6 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "  .adapters(fumadocsMdx());",
   ].join("\n");
 }
-
-const highlighter = createHighlighterCoreSync({
-  engine: createJavaScriptRegexEngine(),
-  themes: [vesper],
-  langs: [typescript],
-});
 
 export function HomeConfigPlayground() {
   const [selected, setSelected] = useState<FeatureId[]>(() => [...initialSelected]);

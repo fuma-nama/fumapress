@@ -10,6 +10,7 @@ This plugin is included in `fumapress`.
 Choose a provider based on where you deploy:
 
 - **Vercel** — uses [Vercel Image Optimization](https://vercel.com/docs/image-optimization), works with static mode.
+- **Cloudflare** — uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) via `/cdn-cgi/image/`, works with static mode when your zone has transformations enabled.
 - **Self-hosted** — runs a dynamic optimization endpoint powered by [Sharp](https://sharp.pixelplumbing.com/), cannot be served statically.
 
 Install Sharp when using the self-hosted provider:
@@ -32,6 +33,22 @@ export default defineConfig({
   .plugins(
     imagePlugin({
       // See https://vercel.com/docs/project-configuration/vercel-json#images
+    }),
+  );
+```
+
+```tsx tab="Cloudflare" title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { imagePlugin } from "fumapress/plugins/image/cloudflare";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++:5]
+  .plugins(
+    imagePlugin({
+      // See https://developers.cloudflare.com/images/transform-images/transform-via-url/
     }),
   );
 ```
@@ -67,7 +84,7 @@ export default function Hero() {
 
 When image optimization is enabled, it generates responsive `srcSet` values and serves optimized formats automatically. This allows the browser to pick a suitable size of image, and compress the size of images.
 
-Remote images must be explicitly allowed (self-hosted) or match your Vercel image configuration.
+Remote images must be explicitly allowed (self-hosted), match your Vercel image configuration, or be permitted in your Cloudflare zone's transformation settings.
 Local paths such as `/logo.png` are always allowed.
 
 SVG images are not optimized by default.
@@ -95,6 +112,25 @@ export default defineConfig({
         pathname: "/assets/**",
       },
     ],
+  }),
+);
+```
+
+### Cloudflare provider
+
+<auto-type-table type="import('fumapress/plugins/image/cloudflare').CloudflareImageOptions" />
+
+Enable [Image Transformations](https://developers.cloudflare.com/images/get-started/#enable-transformations) on your zone before deploying. Remote sources are controlled in the Cloudflare dashboard, not in this plugin.
+
+```tsx title="press.config.tsx"
+import { imagePlugin } from "fumapress/plugins/image/cloudflare";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  imagePlugin({
+    format: "auto",
+    fit: "scale-down",
   }),
 );
 ```

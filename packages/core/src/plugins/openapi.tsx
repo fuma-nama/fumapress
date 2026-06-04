@@ -6,6 +6,7 @@ import type { OpenAPIPageData, OpenAPIServer } from "fumadocs-openapi/server";
 import type { ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
 import type { FC, ReactNode } from "react";
 import { PayloadObject, PayloadProvider, WithPayload } from "@/components/openapi.payload";
+import { isPlainPathname } from "@/lib/pathname";
 
 export interface OpenAPIOptions {
   server: OpenAPIServer;
@@ -16,7 +17,11 @@ export interface OpenAPIOptions {
   /** must be a client component */
   ClientAPIPage?: FC<ClientApiPageProps>;
 
-  /** create proxy server */
+  /**
+   * Create proxy server.
+   *
+   * By default, it will create one when `proxyUrl` is specified in `createOpenAPI()`.
+   */
   createProxy?: boolean | (() => Awaitable<ReturnType<OpenAPIServer["createProxy"]>>);
 }
 
@@ -24,7 +29,7 @@ export interface OpenAPIOptions {
  * this will register the OpenAPI adapter & required layout configs.
  */
 export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions): ServerPlugin<C> {
-  const { server, disableLoaderPlugin = false, createProxy } = options;
+  const { server, disableLoaderPlugin = false } = options;
 
   function initRenderers(data: DocsLayoutContextData) {
     const renderers = (data.renderers ??= []);
@@ -67,8 +72,10 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       return options;
     },
     async createPages({ createApi }) {
+      const proxyUrl = server.options.proxyUrl;
+      const { createProxy = typeof proxyUrl === "string" && isPlainPathname(proxyUrl) } = options;
+
       if (createProxy) {
-        const proxyUrl = server.options.proxyUrl;
         if (!proxyUrl)
           throw new Error(
             `[Fumapress] The "proxyUrl" option in createOpenAPI() is required to create proxy server`,

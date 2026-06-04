@@ -14,7 +14,7 @@ export default defineConfig({
     "src/adapters/**",
     "src/{layouts,plugins}/*",
     "!src/plugins/*.client.tsx",
-    "src/plugins/image/{vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
+    "src/plugins/image/{cloudflare,vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
   ],
   unbundle: true,
   platform: "neutral",

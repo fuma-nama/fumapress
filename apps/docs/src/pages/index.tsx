@@ -4,12 +4,16 @@ import { Link } from "fumapress/client";
 import { cn } from "../cn";
 import { BookIcon } from "lucide-react";
 import { HomeConfigPlayground } from "../home-config-playground";
+import { HomePluginExplorer } from "../home-plugin-explorer";
 import { AutoSetupCommand } from "../home.client";
 import { Image } from "fumapress/image";
 
 export default function Page() {
   return (
     <>
+      <title>Fumapress</title>
+      <meta property="og:title" content="Fumapress" />
+      <meta property="og:description" content="The composable site generator powered by Fumadocs" />
       <section className="relative grid grid-cols-1 min-h-[50vh] border lg:grid-cols-2 lg:divide-x lg:divide-fd-border">
         <div className="flex flex-col px-6 py-12 md:px-12 md:py-24">
           <p className="text-fd-muted-foreground">
@@ -62,6 +66,7 @@ export default function Page() {
       </section>
 
       <HomeConfigPlayground />
+      <HomePluginExplorer />
     </>
   );
 }

@@ -5,7 +5,7 @@ description: Different ways to create a new page.
 
 ## Overview
 
-Fumapress supports creating routes from content sources, plugins, and local page files, while keeping the file-based routing model from [Waku](https://waku.gg).
+Fumapress supports creating routes from content sources, plugins, and local page files using the file-based routing model from [Waku](https://waku.gg).
 
 In most apps, you will use content files for documentation pages, file-based routes for custom pages like landing page, and plugins for advanced use cases like generated blog routes.
 
@@ -200,4 +200,24 @@ function allDocsPlugin<C extends ConfigContext>(): ServerPlugin<C> {
 export default defineConfig({
   // ...
 }).plugins(allDocsPlugin());
+```
+
+### Navigation (Client)
+
+To handle navigation on client:
+
+```tsx
+import { Link, useRouter } from "fumapress/client";
+
+// use <Link> instead of <a> for in-app links
+return <Link href="/my-page">Click Me</Link>;
+
+function MyComp() {
+  const router = useRouter();
+  // access router info
+  console.log(router.path);
+
+  // or to open another page
+  router.push("/hello-world");
+}
 ```

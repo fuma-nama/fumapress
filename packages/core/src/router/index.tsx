@@ -4,6 +4,7 @@ import { FC, Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "../config";
 import { unstable_notFound } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
+import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 
@@ -14,7 +15,7 @@ export interface Router<C extends ConfigContext = ConfigContext> {
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
   ) => ReturnType<typeof base_createPages>;
-  createMiddlewares: () => (() => MiddlewareHandler)[];
+  createMiddlewares: () => ((opts: { app: Hono }) => MiddlewareHandler)[];
   patchAdapter: <Options>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
   ) => ReturnType<typeof unstable_createServerEntryAdapter<Options>>;
@@ -74,6 +75,8 @@ export async function createRouter<C extends ConfigContext>(
 
         return page;
       }
+
+      fns.createInterceptor((next) => appContext.run(context, next));
 
       await base?.call(context, fns);
 
@@ -183,15 +186,11 @@ export async function createRouter<C extends ConfigContext>(
     return result;
   }
 
-  function contextMiddleware(): MiddlewareHandler {
-    return (_c, next) => appContext.run(context, next);
-  }
-
-  function pluginsMiddleware(): MiddlewareHandler {
+  function pluginsMiddleware(opts: { app: Hono }): MiddlewareHandler {
     async function init(): Promise<MiddlewareHandler[]> {
       const out: MiddlewareHandler[] = [];
       const resolved = await Promise.all(
-        context.plugins.map((plugin) => plugin.createMiddlewares?.call(context)),
+        context.plugins.map((plugin) => plugin.createMiddlewares?.call(context, opts)),
       );
 
       for (const v of resolved) {
@@ -230,33 +229,7 @@ export async function createRouter<C extends ConfigContext>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
   ): ReturnType<typeof unstable_createServerEntryAdapter<Options>> {
     return (handlers, options) => {
-      let entry = adapter(
-        {
-          ...handlers,
-          handleBuild(utils) {
-            const hooks: (<T>(req: Request, fn: () => T) => T)[] = [];
-            hooks.push(utils.withRequest);
-            hooks.push((_req, fn) => appContext.run(context, fn));
-
-            for (const plugin of context.plugins) {
-              if (plugin.unstable_onSSGRequest) hooks.push(plugin.unstable_onSSGRequest);
-            }
-
-            function runHook<T>(req: Request, fn: () => T, index = 0): T {
-              const hook = hooks[index];
-              if (!hook) return fn();
-
-              return hook(req, () => runHook(req, fn, index + 1));
-            }
-
-            return handlers.handleBuild({
-              ...utils,
-              withRequest: runHook,
-            });
-          },
-        },
-        options,
-      );
+      let entry = adapter(handlers, options);
 
       for (const plugin of context.plugins) {
         if (plugin.unstable_onServerEntry) entry = plugin.unstable_onServerEntry(entry);
@@ -270,7 +243,7 @@ export async function createRouter<C extends ConfigContext>(
     createPages,
     patchAdapter,
     createMiddlewares() {
-      return [contextMiddleware, pluginsMiddleware];
+      return [pluginsMiddleware];
     },
   };
 }

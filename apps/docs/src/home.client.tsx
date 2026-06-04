@@ -2,12 +2,30 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { TerminalIcon } from "lucide-react";
+import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "@shikijs/magic-move/types";
+import { createHighlighterCoreSync } from "shiki/core";
+import typescript from "shiki/dist/langs/typescript.mjs";
+import vesper from "shiki/dist/themes/vesper.mjs";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
 const commands = {
   npm: "npm create fumapress",
   pnpm: "pnpm create fumapress",
   yarn: "yarn create fumapress",
   bun: "bunx create-fumapress",
+};
+
+export const highlighter = createHighlighterCoreSync({
+  engine: createJavaScriptRegexEngine(),
+  themes: [vesper],
+  langs: [typescript],
+});
+
+export const magicMoveOptions: MagicMoveRenderOptions & MagicMoveDifferOptions = {
+  containerStyle: false,
+  duration: 400,
+  lineNumbers: true,
+  stagger: 0.3,
 };
 
 export function AutoSetupCommand() {

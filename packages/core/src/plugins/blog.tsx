@@ -115,16 +115,12 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
         </Layout>
       );
     },
-    createMiddlewares() {
-      return [(_c, next) => blogContext.run(blogCtx, next)];
-    },
-    unstable_onSSGRequest(_req, next) {
-      return blogContext.run(blogCtx, next);
-    },
-    async createPages({ createPage, createLayout }) {
+    async createPages({ createPage, createLayout, createInterceptor }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
       const source = await this.getLoader();
       const blogPages = source.getPages().filter(isBlog.bind(this));
+
+      createInterceptor((next) => blogContext.run(blogCtx, next));
 
       createLayout({
         render: renderMode,

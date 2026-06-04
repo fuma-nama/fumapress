@@ -1,5 +1,14 @@
 # fumapress
 
+## 0.5.3
+
+### Patch Changes
+
+- 719a1da: pass Hono `app` into middlewares
+- ea0439d: create proxy server when proxy url is defined
+- 67609a3: Support Cloudflare CDN provider
+- 5f93010: use waku beta 2
+
 ## 0.5.2
 
 ### Patch Changes
