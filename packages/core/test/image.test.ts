@@ -9,6 +9,8 @@ import {
 } from "@/plugins/image/self-hosted.utils";
 import { generateImageAttributes } from "@/components/image";
 import CachePolicy from "http-cache-semantics";
+import { createProvider as createCloudflareProvider } from "@/plugins/image/cloudflare.client";
+import { resolveCloudflareImageConfig } from "@/plugins/image/cloudflare.utils";
 import { createProvider } from "@/plugins/image/self-hosted.client";
 
 const sourceUrl = "https://example.com/hero.png";
@@ -201,6 +203,25 @@ describe("image cache", () => {
     expect(cache.set(sourceUrl, createFetchResult("no-store"))).toBeNull();
     expect(cache.set(sourceUrl, createFetchResult("no-cache"))).toBeNull();
     expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
+  });
+});
+
+describe("Cloudflare image URLs", () => {
+  it("builds cdn-cgi transformation URLs", () => {
+    const provider = createCloudflareProvider(resolveCloudflareImageConfig({ qualities: [80] }));
+
+    expect(provider.buildImageUrl({ src: "/hero.png", width: 640, quality: 80 })).toBe(
+      "/cdn-cgi/image/width=640,quality=80,format=auto/hero.png",
+    );
+    expect(
+      provider.buildImageUrl({
+        src: "https://cdn.example.com/photo.jpg",
+        width: 1280,
+        quality: 80,
+      }),
+    ).toBe(
+      "/cdn-cgi/image/width=1280,quality=80,format=auto/https://cdn.example.com/photo.jpg",
+    );
   });
 });
 

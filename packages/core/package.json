@@ -34,6 +34,7 @@
     "./layouts/switch": "./dist/layouts/switch.js",
     "./plugins/blog": "./dist/plugins/blog.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
+    "./plugins/image/cloudflare": "./dist/plugins/image/cloudflare.js",
     "./plugins/image/self-hosted": "./dist/plugins/image/self-hosted.js",
     "./plugins/image/vercel": "./dist/plugins/image/vercel.js",
     "./plugins/image/vercel.enhancer": "./dist/plugins/image/vercel.enhancer.js",

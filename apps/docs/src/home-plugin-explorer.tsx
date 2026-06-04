@@ -89,7 +89,7 @@ export default defineConfig({
   {
     id: "image",
     name: "Image Optimization",
-    description: "Responsive images via Vercel Image Optimization or a self-hosted Sharp endpoint.",
+    description: "Responsive & optimized images via CDNs or a self-hosted endpoint.",
     keywords: ["image", "sharp", "vercel"],
     docsHref: "/docs/plugins/image",
     usage: `import { defineConfig } from "fumapress";

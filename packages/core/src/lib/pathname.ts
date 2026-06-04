@@ -1,8 +1,12 @@
 export function joinPathname(...paths: string[]): string {
-  let combined = paths.join("/").replaceAll(/\/+/g, "/");
-  if (!combined.startsWith("/")) combined = "/" + combined;
-  if (combined.endsWith("/")) combined = combined.slice(0, -1);
-  return combined;
+  const segs: string[] = [];
+  for (let p of paths) {
+    if (p.startsWith("/")) p = p.slice(1);
+    if (p.endsWith("/")) p = p.slice(0, -1);
+    if (p.length > 0) segs.push(p);
+  }
+
+  return "/" + segs.join("/");
 }
 
 const PATHNAME_SEGMENT_REGEX = /^[A-Za-z0-9\-._~!$&'()*+,;=:@]+$/;
