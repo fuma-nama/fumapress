@@ -10,6 +10,7 @@ import "shiki-magic-move/style.css";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "./cn";
+import { highlighter, magicMoveOptions } from "./home.client";
 
 const features = [
   {
@@ -46,13 +47,6 @@ type FeatureId = (typeof features)[number]["id"];
 
 const initialSelected = ["search", "llms"] satisfies FeatureId[];
 
-const magicMoveOptions: MagicMoveRenderOptions & MagicMoveDifferOptions = {
-  containerStyle: false,
-  duration: 400,
-  lineNumbers: true,
-  stagger: 0.3,
-};
-
 function createConfigCode(selected: readonly FeatureId[]) {
   const activeFeatures = features.filter((feature) => selected.includes(feature.id));
   const plugins = activeFeatures.map((feature) => feature.plugin);
@@ -76,12 +70,6 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "  .adapters(fumadocsMdx());",
   ].join("\n");
 }
-
-const highlighter = createHighlighterCoreSync({
-  engine: createJavaScriptRegexEngine(),
-  themes: [vesper],
-  langs: [typescript],
-});
 
 export function HomeConfigPlayground() {
   const [selected, setSelected] = useState<FeatureId[]>(() => [...initialSelected]);

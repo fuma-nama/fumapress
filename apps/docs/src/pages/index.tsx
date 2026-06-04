@@ -4,6 +4,7 @@ import { Link } from "fumapress/client";
 import { cn } from "../cn";
 import { BookIcon } from "lucide-react";
 import { HomeConfigPlayground } from "../home-config-playground";
+import { HomePluginExplorer } from "../home-plugin-explorer";
 import { AutoSetupCommand } from "../home.client";
 import { Image } from "fumapress/image";
 
@@ -65,6 +66,7 @@ export default function Page() {
       </section>
 
       <HomeConfigPlayground />
+      <HomePluginExplorer />
     </>
   );
 }
