@@ -4,6 +4,7 @@ import { FC, Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "../config";
 import { unstable_notFound } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
+import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 
@@ -14,7 +15,7 @@ export interface Router<C extends ConfigContext = ConfigContext> {
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
   ) => ReturnType<typeof base_createPages>;
-  createMiddlewares: () => (() => MiddlewareHandler)[];
+  createMiddlewares: () => ((opts: { app: Hono }) => MiddlewareHandler)[];
   patchAdapter: <Options>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
   ) => ReturnType<typeof unstable_createServerEntryAdapter<Options>>;
@@ -185,11 +186,11 @@ export async function createRouter<C extends ConfigContext>(
     return result;
   }
 
-  function pluginsMiddleware(): MiddlewareHandler {
+  function pluginsMiddleware(opts: { app: Hono }): MiddlewareHandler {
     async function init(): Promise<MiddlewareHandler[]> {
       const out: MiddlewareHandler[] = [];
       const resolved = await Promise.all(
-        context.plugins.map((plugin) => plugin.createMiddlewares?.call(context)),
+        context.plugins.map((plugin) => plugin.createMiddlewares?.call(context, opts)),
       );
 
       for (const v of resolved) {

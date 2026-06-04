@@ -1,7 +1,7 @@
 "use client";
 
 import { ShikiMagicMove } from "@shikijs/magic-move/react";
-import "shiki-magic-move/style.css";
+import "@shikijs/magic-move/style.css";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "./cn";

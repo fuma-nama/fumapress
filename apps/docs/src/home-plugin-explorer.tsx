@@ -2,7 +2,7 @@
 
 import { Link } from "fumapress/client";
 import { ArrowRightIcon, SearchIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { cn } from "./cn";
 import { ShikiMagicMove } from "@shikijs/magic-move/react";
 import { highlighter, magicMoveOptions } from "./home.client";
@@ -226,7 +226,11 @@ export function HomePluginExplorer() {
         currentIndex === -1 ? 0 : (currentIndex + direction + filtered.length) % filtered.length;
       const next = filtered[nextIndex];
 
-      if (next) setActiveId(next.id);
+      if (next) {
+        setActiveId(next.id);
+        const item = listRef.current?.querySelector<HTMLElement>(`[data-plugin-id="${next.id}"]`);
+        item?.scrollIntoView({ block: "nearest" });
+      }
     }
 
     if (event.key === "ArrowDown") {
@@ -237,11 +241,6 @@ export function HomePluginExplorer() {
       moveSelection(-1);
     }
   }
-
-  useEffect(() => {
-    const item = listRef.current?.querySelector<HTMLElement>(`[data-plugin-id="${activeId}"]`);
-    item?.scrollIntoView({ block: "nearest" });
-  }, [activeId, filtered]);
 
   return (
     <section className="mx-auto grid w-full max-w-[1400px] gap-8 border-x border-b border-fd-border px-6 py-10 md:px-12 md:py-14">
