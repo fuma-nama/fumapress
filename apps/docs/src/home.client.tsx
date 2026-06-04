@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { TerminalIcon } from "lucide-react";
-import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "shiki-magic-move/types";
+import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "@shikijs/magic-move/types";
 import { createHighlighterCoreSync } from "shiki/core";
 import typescript from "shiki/dist/langs/typescript.mjs";
 import vesper from "shiki/dist/themes/vesper.mjs";

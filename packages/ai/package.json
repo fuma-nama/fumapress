@@ -32,9 +32,9 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.193",
+    "@ai-sdk/react": "^3.0.197",
     "@radix-ui/react-presence": "^1.1.5",
-    "ai": "^6.0.191",
+    "ai": "^6.0.195",
     "flexsearch": "^0.8.212",
     "fumapress": "workspace:*",
     "lucide-react": "^1.17.0",
@@ -47,12 +47,12 @@
     "@types/hast": "^3.0.4",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.16",
     "fumadocs-core": "^16.9.3",
     "fumadocs-ui": "^16.9.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tsdown": "0.22.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tsdown": "0.22.1",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

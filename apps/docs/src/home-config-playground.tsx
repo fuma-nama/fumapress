@@ -1,11 +1,6 @@
 "use client";
 
-import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "shiki-magic-move/core";
-import { ShikiMagicMove } from "shiki-magic-move/react";
-import { createHighlighterCoreSync } from "shiki/core";
-import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import typescript from "shiki/langs/typescript.mjs";
-import vesper from "shiki/themes/vesper.mjs";
+import { ShikiMagicMove } from "@shikijs/magic-move/react";
 import "shiki-magic-move/style.css";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";

@@ -18,6 +18,7 @@ import type {
   CreateRoot,
   CreateApi,
   CreateSlice,
+  CreateInterceptor,
 } from "waku/router/server";
 
 export type Awaitable<T> = T | Promise<T>;
@@ -86,7 +87,6 @@ export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
   /** create Hono middlewares */
   createMiddlewares?: (this: AppContext<C>) => Awaitable<MiddlewareHandler[] | undefined>;
 
-  unstable_onSSGRequest?: <T>(req: Request, next: () => T) => T;
   unstable_onServerEntry?: (
     entry: ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>,
   ) => ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>;
@@ -98,6 +98,7 @@ export interface BaseRouteFns {
   createRoot: CreateRoot;
   createApi: CreateApi;
   createSlice: CreateSlice;
+  createInterceptor: CreateInterceptor;
 }
 
 export type CreatePagesResult = ReturnType<typeof createPages>;

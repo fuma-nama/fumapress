@@ -219,9 +219,7 @@ describe("Cloudflare image URLs", () => {
         width: 1280,
         quality: 80,
       }),
-    ).toBe(
-      "/cdn-cgi/image/width=1280,quality=80,format=auto/https://cdn.example.com/photo.jpg",
-    );
+    ).toBe("/cdn-cgi/image/width=1280,quality=80,format=auto/https://cdn.example.com/photo.jpg");
   });
 });
 

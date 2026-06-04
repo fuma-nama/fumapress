@@ -15,16 +15,16 @@
   "dependencies": {
     "@sanity/code-input": "^7.1.2",
     "@sanity/icons": "^3.7.4",
-    "@sanity/vision": "^5.27.0",
+    "@sanity/vision": "^5.30.0",
     "fumadocs-core": "^16.9.3",
     "fumadocs-ui": "^16.9.3",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "sanity": "^5.27.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sanity": "^5.30.0",
     "styled-components": "^6.1.18"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.16",
     "typescript": "^6.0.3"
   }
 }

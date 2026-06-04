@@ -4,7 +4,7 @@ import { Link } from "fumapress/client";
 import { ArrowRightIcon, SearchIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "./cn";
-import { ShikiMagicMove } from "shiki-magic-move/react";
+import { ShikiMagicMove } from "@shikijs/magic-move/react";
 import { highlighter, magicMoveOptions } from "./home.client";
 
 const plugins = [
