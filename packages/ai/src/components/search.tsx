@@ -18,11 +18,10 @@ import { useChat, type UseChatHelpers } from "@ai-sdk/react";
 import { DefaultChatTransport, type Tool, type UIToolInvocation } from "ai";
 import { Markdown } from "./markdown";
 import { Presence } from "@radix-ui/react-presence";
-import type { ChatUIMessage } from "@/chat";
+import type { ChatUIMessage, SearchTool } from "@/chat";
 import { useTranslations } from "@/components/i18n";
 import { renderTranslation } from "fumadocs-core/i18n";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import type { SearchTool } from "@/search";
 
 const Context = createContext<{
   open: boolean;

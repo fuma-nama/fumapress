@@ -1,7 +1,17 @@
-import { convertToModelMessages, LanguageModel, stepCountIs, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  LanguageModel,
+  stepCountIs,
+  streamText,
+  type Tool,
+  tool,
+  type UIMessage,
+} from "ai";
 import type { ConfigContext, ServerPlugin } from "fumapress";
-import { createSearch, type SearchOptions } from "./search";
+import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
+import z from "zod";
+import type { MergedDocumentSearchResults } from "flexsearch";
 
 export type ChatUIMessage = UIMessage<
   never,
@@ -79,7 +89,20 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
           "If you cannot find the answer in search results, say you do not know and suggest a better search query.",
         ].join("\n"),
       } = options;
-      const { searchTool } = createSearch(options, this);
+
+      const searchServer = createSearch(options, this);
+      const searchTool = tool({
+        description:
+          "Search the docs content and return raw JSON results.\nIt will always return search results in the preferred locale selected by user.",
+        inputSchema: z.object({
+          query: z.string(),
+          limit: z.number().int().min(1).max(100).default(10),
+        }),
+        async execute({ query, limit }, options) {
+          const context = options.experimental_context as { locale: string | null };
+          return searchServer.execute(query, limit, context.locale);
+        },
+      });
 
       createApi({
         path: "/api/ai",
@@ -129,3 +152,11 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
     },
   };
 }
+
+export type SearchTool = Tool<
+  {
+    query: string;
+    limit: number;
+  },
+  MergedDocumentSearchResults<PageDocument>
+>;

@@ -36,6 +36,8 @@
     "@fumapress/feedback": "workspace:*",
     "@types/node": "^25.9.1",
     "fumadocs-core": "^16.9.3",
+    "fumadocs-openapi": "^10.10.3",
+    "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",
     "tsdown": "0.22.1",
     "typescript": "^6.0.3"

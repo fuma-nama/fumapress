@@ -30,11 +30,6 @@ export interface McpOptions<C extends ConfigContext = ConfigContext> extends Sea
   server?: Partial<Implementation>;
 
   /**
-   * Preferred locale for search results.
-   */
-  locale?: string | null;
-
-  /**
    * Register additional tools on the MCP server.
    */
   tools?: (this: AppContext<C>, server: McpServer) => void | Promise<void>;
@@ -43,7 +38,7 @@ export interface McpOptions<C extends ConfigContext = ConfigContext> extends Sea
 export function mcpPlugin<C extends ConfigContext = ConfigContext>(
   options: McpOptions<NoInfer<C>> = {},
 ): ServerPlugin<C> {
-  const { path = "", server: serverInfo, locale = null, tools: registerTools } = options;
+  const { path = "", server: serverInfo, tools: registerTools } = options;
 
   return {
     name: "ai:mcp",
@@ -65,15 +60,20 @@ export function mcpPlugin<C extends ConfigContext = ConfigContext>(
           "search",
           {
             title: "Search",
-            description:
-              "Search the docs content and return raw JSON results.\nIt will always return search results in the preferred locale selected by user.",
+            description: "Search the docs content and return raw JSON results",
             inputSchema: z.object({
               query: z.string().describe("the search query"),
               limit: z.int().min(1).max(100).optional().describe("maximum number of results"),
+              ...(this.i18nConfig && {
+                locale: z
+                  .literal(this.i18nConfig.languages)
+                  .describe("the locale to search & return search results")
+                  .default(this.i18nConfig.defaultLanguage),
+              }),
             }),
           },
-          async ({ query, limit = 10 }) => {
-            const results = await execute(query, limit, locale);
+          async ({ query, limit = 10, locale }) => {
+            const results = await execute(query, limit, locale as string | undefined);
 
             return {
               content: results.map((v) => ({ type: "text", text: JSON.stringify(v.doc, null, 2) })),
@@ -132,7 +132,8 @@ export function mcpPlugin<C extends ConfigContext = ConfigContext>(
           "list_pages",
           {
             title: "List Pages",
-            description: "List all documentation pages as a structured index",
+            description:
+              "List all documentation pages as a structured index, use the get_page tool to retrieve full content",
             inputSchema: z.object({}),
           },
           async () => {

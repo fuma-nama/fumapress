@@ -32,9 +32,8 @@ export function createSearch<C extends ConfigContext>(
   ctx: AppContext<C>,
 ) {
   const { getLoader } = ctx;
-  const pageToIndex =
-    options.pageToIndex ??
-    (async function (page): Promise<PageDocument | null> {
+  const {
+    pageToIndex = async function (page): Promise<PageDocument | null> {
       for (const adapter of this.adapters) {
         const txt = await adapter["core:get-text"]?.call(this, page);
 
@@ -50,7 +49,8 @@ export function createSearch<C extends ConfigContext>(
       }
 
       return null;
-    } as SearchOptions<C>["pageToIndex"]);
+    },
+  } = options;
 
   type ContextLoaderOutput = LoaderOutput<C>;
   const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
@@ -65,7 +65,7 @@ export function createSearch<C extends ConfigContext>(
       },
     });
 
-    const docs = await chunkedAll(source.getPages().map(pageToIndex!.bind(ctx)));
+    const docs = await chunkedAll(source.getPages().map(pageToIndex.bind(ctx)));
 
     for (const doc of docs) {
       if (doc) search.add(doc);
@@ -96,26 +96,5 @@ export function createSearch<C extends ConfigContext>(
     });
   }
 
-  const searchTool = tool({
-    description:
-      "Search the docs content and return raw JSON results.\nIt will always return search results in the preferred locale selected by user.",
-    inputSchema: z.object({
-      query: z.string(),
-      limit: z.number().int().min(1).max(100).default(10),
-    }),
-    async execute({ query, limit }, options) {
-      const context = options.experimental_context as { locale: string | null };
-      return execute(query, limit, context.locale);
-    },
-  });
-
-  return { searchTool, execute, pageToIndex: pageToIndex!.bind(ctx) };
+  return { execute, pageToIndex: pageToIndex.bind(ctx) };
 }
-
-export type SearchTool = Tool<
-  {
-    query: string;
-    limit: number;
-  },
-  MergedDocumentSearchResults<PageDocument>
->;
