@@ -1,0 +1,31 @@
+---
+title: Adapters
+description: Connect content sources to Fumapress.
+icon: Plug
+---
+
+## Overview
+
+Adapters translate your content source into page data that Fumapress can render. They handle tasks such as rendering MDX bodies, extracting table of contents, and exposing plain text for search or LLM exports.
+
+If you use a custom CMS or another content format, you can implement your own adapter to integrate it with Fumapress.
+
+<DocsCategory />
+
+## Usage
+
+Register adapters on your Fumapress config with `.adapters()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+
+export default defineConfig({
+  content: docs.toFumadocsSource(),
+})
+  // [!code ++]
+  .adapters(fumadocsMdx());
+```
+
+You can register multiple adapters for different content sources.
