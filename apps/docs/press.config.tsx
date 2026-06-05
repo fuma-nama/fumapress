@@ -16,6 +16,7 @@ import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, RssIcon } from "lucide-react";
+import { mcpPlugin } from "@fumapress/ai";
 
 const config = defineConfig({
   content: {
@@ -95,6 +96,7 @@ const config = defineConfig({
     }),
     linkValidationPlugin(),
     sitemapPlugin(),
+    mcpPlugin(),
   )
   .layouts({
     defaultProps() {

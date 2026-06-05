@@ -1,0 +1,108 @@
+---
+title: Fumadocs MDX
+description: Adapter for Fumadocs MDX.
+---
+
+## Installation
+
+The adapter is included in `fumapress`, install [Fumadocs MDX](https://fumadocs.dev/docs/mdx) as a dependency:
+
+```npm
+npm i fumadocs-mdx
+```
+
+## Setup
+
+Fumadocs MDX needs three pieces of configuration:
+
+- The Vite plugin.
+- A `source.config.ts` file for collections.
+- The Fumapress adapter in `press.config.tsx`.
+
+```ts tab="waku.config.ts"
+import { defineConfig } from "waku/config";
+import tailwindcss from "@tailwindcss/vite";
+import press from "fumapress/vite";
+import mdx from "fumadocs-mdx/vite";
+
+export default defineConfig({
+  vite: {
+    plugins: [
+      press(),
+      // [!code ++]
+      mdx(),
+      tailwindcss(),
+    ],
+  },
+});
+```
+
+```ts tab="source.config.ts"
+import { defineDocs } from "fumadocs-mdx/config";
+// necessary so that page frontmatter matches what Fumapress expects:
+import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+
+export const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    postprocess: {
+      // Plugins such as `llms.txt` require this
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
+```
+
+```tsx tab="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+
+export default defineConfig({
+  // [!code ++] import the generated collection
+  content: docs.toFumadocsSource(),
+})
+  // [!code ++] register adapter
+  .adapters(fumadocsMdx());
+```
+
+Run `npm run dev` to generate `.source/server` and start writing content under your collection directory.
+
+## Options
+
+The adapter only handle body rendering, see the [Fumadocs MDX documentation](https://fumadocs.dev/docs/mdx) for other available configurations.
+
+### MDX Components
+
+By default, `fumadocsMdx()` renders pages with Fumadocs UI's built-in MDX components.
+
+Override `getMdxComponents` to add custom components:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
+import { TypeTable } from "fumadocs-ui/components/type-table";
+
+export default defineConfig({
+  content: docs.toFumadocsSource(),
+}).adapters(
+  fumadocsMdx({
+    async getMdxComponents(page) {
+      const source = await this.getLoader();
+
+      return {
+        ...defaultMdxComponents,
+        TypeTable,
+        a: createRelativeLink(source, page),
+      };
+    },
+  }),
+);
+```
