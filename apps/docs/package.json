@@ -15,7 +15,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@shikijs/magic-move": "^4.2.0",
     "fumadocs-core": "^16.9.3",
-    "fumadocs-mdx": "^15.0.10",
+    "fumadocs-mdx": "^15.0.11",
     "fumadocs-typescript": "^5.2.6",
     "fumadocs-ui": "^16.9.3",
     "fumapress": "workspace:*",

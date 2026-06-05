@@ -32,14 +32,13 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.197",
-    "@modelcontextprotocol/sdk": "1.26.0",
+    "@ai-sdk/react": "^3.0.198",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@radix-ui/react-presence": "^1.1.5",
-    "ai": "^6.0.195",
+    "ai": "^6.0.196",
     "flexsearch": "^0.8.212",
     "fumapress": "workspace:*",
     "lucide-react": "^1.17.0",
-    "mcp-handler": "^1.1.0",
     "tailwind-merge": "^3.5.0",
     "unist-util-visit": "^5.1.0",
     "zod": "^4.4.3"
