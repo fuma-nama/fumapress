@@ -33,10 +33,8 @@ export interface BaseConfig<C extends ConfigContext> {
   site?: SiteConfig;
 
   translations?:
-    | (C["i18n"] extends I18nConfig<infer Lang>
-        ? TranslationsAPI<Lang, { ui: Translations }>
-        : never)
-    | SingularTranslationsAPI<{ ui: Translations }>;
+    | (C["i18n"] extends I18nConfig<infer Lang> ? TranslationsAPI<Lang> : never)
+    | SingularTranslationsAPI;
   meta?: {
     /** render meta tags for any pages */
     root?: (this: AppContext<C>) => ReactNode;

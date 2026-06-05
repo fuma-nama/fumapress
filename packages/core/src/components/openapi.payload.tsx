@@ -1,6 +1,6 @@
 "use client";
 
-import { ClientApiPagePayload, ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
+import type { ClientApiPagePayload, ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
 import { createContext, type FC, ReactNode, use, useMemo } from "react";
 
 export type PayloadObject = Record<string, ClientApiPagePayload>;
