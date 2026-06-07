@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/mintlify",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Mintlify auto-migration for Fumapress",
   "keywords": [
     "Docs",
@@ -39,7 +39,7 @@
     "fumadocs-openapi": "^10.10.3",
     "fumadocs-ui": "^16.9.3",
     "react": "^19.2.7",
-    "tsdown": "0.22.1",
+    "tsdown": "0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },

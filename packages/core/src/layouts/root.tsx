@@ -1,6 +1,6 @@
 import type { Layouts, ConfigContext } from "@/config";
 import { getPressContext, renderRootMeta } from "@/lib/shared";
-import { i18nProvider } from "fumadocs-ui/i18n";
+import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { ReactElement } from "react";
 import type { Awaitable } from "@/lib/types";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
@@ -34,9 +34,9 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
     };
 
     if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
-      providerProps.i18n ??= i18nProvider(ctx.translationsConfig, lang);
+      providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()), lang);
     } else if (ctx.translationsConfig) {
-      providerProps.i18n ??= i18nProvider(ctx.translationsConfig);
+      providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()));
     }
 
     if (hooks) {

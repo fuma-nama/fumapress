@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/sanity",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Sanity CMS integration for Fumapress",
   "keywords": [
     "Docs",
@@ -40,7 +40,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "react": "^19.2.7",
-    "tsdown": "0.22.1",
+    "tsdown": "0.22.2",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

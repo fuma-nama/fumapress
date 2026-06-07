@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.5.4
+
+### Patch Changes
+
+- fe349d3: fix peer deps
+
 ## 0.5.3
 
 ### Patch Changes

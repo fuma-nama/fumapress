@@ -13,9 +13,9 @@ import type {
 import { type ComponentType, Fragment, isValidElement, type ReactNode } from "react";
 import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import { disableSearchPlugin } from "@/plugins/internal/disable-search";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
+import { applyDefaultsPlugin } from "@/plugins/internal/defaults";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -100,7 +100,7 @@ export async function initApp<C extends ConfigContext>(
   const config = builder.get();
   const { translations, site, mode = "default", layouts } = config;
 
-  const plugins = resolvePlugins([...config.plugins, disableSearchPlugin()]);
+  const plugins = resolvePlugins([...config.plugins, ...applyDefaultsPlugin()]);
   const ctx: AppContext = {
     $context: undefined as never,
     getLoader() {

@@ -1,6 +1,6 @@
 import {
   convertToModelMessages,
-  LanguageModel,
+  type LanguageModel,
   stepCountIs,
   streamText,
   type Tool,
@@ -12,6 +12,7 @@ import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
+import { aiTranslations } from "./i18n";
 
 export type ChatUIMessage = UIMessage<
   never,
@@ -62,7 +63,6 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
     name: "ai:main",
     async init() {
       if (this.translationsConfig) {
-        const { aiTranslations } = await import("./i18n");
         // ensure language pack works correctly without calling `extend()`
         this.translationsConfig.extend(aiTranslations());
       }

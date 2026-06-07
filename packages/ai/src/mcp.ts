@@ -6,24 +6,11 @@ import { createMcpRequestHandler } from "./mcp-server";
 import { createSearch, type SearchOptions } from "./search";
 import type { Implementation } from "@modelcontextprotocol/sdk/types";
 
-function joinPathname(...paths: string[]) {
-  const segs: string[] = [];
-  for (let p of paths) {
-    if (p.startsWith("/")) p = p.slice(1);
-    if (p.endsWith("/")) p = p.slice(0, -1);
-    if (p.length > 0) segs.push(p);
-  }
-
-  return "/" + segs.join("/");
-}
-
 export interface McpOptions<C extends ConfigContext = ConfigContext> extends SearchOptions<C> {
   /**
    * Base path for MCP routes.
    *
-   * The streamable HTTP endpoint will be available at `{path}/mcp`.
-   *
-   * @default ""
+   * @default "/mcp"
    */
   path?: string;
 
@@ -38,7 +25,7 @@ export interface McpOptions<C extends ConfigContext = ConfigContext> extends Sea
 export function mcpPlugin<C extends ConfigContext = ConfigContext>(
   options: McpOptions<NoInfer<C>> = {},
 ): ServerPlugin<C> {
-  const { path = "", server: serverInfo, tools: registerTools } = options;
+  const { path = "/mcp", server: serverInfo, tools: registerTools } = options;
 
   return {
     name: "ai:mcp",
@@ -159,7 +146,7 @@ export function mcpPlugin<C extends ConfigContext = ConfigContext>(
 
       createApi({
         render: "dynamic",
-        path: joinPathname(path, "mcp"),
+        path,
         handlers: {
           all: handler,
         },

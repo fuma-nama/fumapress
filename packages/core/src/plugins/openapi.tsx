@@ -7,6 +7,7 @@ import type { ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
 import type { FC, ReactNode } from "react";
 import { PayloadObject, PayloadProvider, WithPayload } from "@/components/openapi.payload";
 import { isPlainPathname } from "@/lib/pathname";
+import { openapiTranslations } from "fumadocs-openapi/i18n";
 
 export interface OpenAPIOptions {
   server: OpenAPIServer;
@@ -57,6 +58,10 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       this.adapters.push(adapter(options));
       initRenderers((this.data["core:docs-layout"] ??= {}));
       initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+
+      if (this.translationsConfig) {
+        this.translationsConfig.extend(openapiTranslations());
+      }
     },
     renderPage({ page, fallback }) {
       if (!isOpenAPI(page.data)) return;

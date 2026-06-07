@@ -84,13 +84,9 @@ npm i @fumapress/language
 
 ```tsx title="press.config.tsx"
 import { zhCN } from "@fumapress/language/zh-cn";
-import { fumapressTranslations } from "fumapress/i18n";
-import { uiTranslations } from "fumadocs-ui/i18n";
 
 const translations = i18n
   .translations()
-  .extend(uiTranslations())
-  .extend(fumapressTranslations())
   // add Traditional Chinese translations to `cn` locale [!code ++]
   .preset("cn", zhCN());
 ```

@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Initialize a Fumapress app",
   "keywords": [
     "Docs",
@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "tsdown": "0.22.1",
+    "tsdown": "0.22.2",
     "typescript": "^6.0.3"
   }
 }
