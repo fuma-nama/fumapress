@@ -1,5 +1,13 @@
 # @fumapress/ai
 
+## 0.5.4
+
+### Patch Changes
+
+- cae103b: Support MCP server
+- Updated dependencies [fe349d3]
+  - fumapress@0.5.4
+
 ## 0.5.3
 
 ### Patch Changes
