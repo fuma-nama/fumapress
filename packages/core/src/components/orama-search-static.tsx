@@ -13,6 +13,7 @@ import {
 import { useDocsSearch } from "fumadocs-core/search/client";
 import { create } from "@orama/orama";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
+import { resolveBaseUrl } from "@/lib/pathname";
 
 function initOrama() {
   return create({
@@ -27,6 +28,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
     type: "static",
     initOrama,
     locale,
+    from: resolveBaseUrl(import.meta.env.BASE_URL, "/api/search"),
   });
 
   return (

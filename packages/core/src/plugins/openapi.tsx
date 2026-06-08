@@ -6,7 +6,7 @@ import type { OpenAPIPageData, OpenAPIServer } from "fumadocs-openapi/server";
 import type { ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
 import type { FC, ReactNode } from "react";
 import { PayloadObject, PayloadProvider, WithPayload } from "@/components/openapi.payload";
-import { isPlainPathname } from "@/lib/pathname";
+import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
 
 export interface OpenAPIOptions {
@@ -44,9 +44,17 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
 
   async function ServerPayloadProvider({ children }: { children: ReactNode }) {
     const payload: PayloadObject = {};
+    let clientProxyUrl: string | undefined;
+
+    if (typeof server.options.proxyUrl === "string") {
+      const proxyUrl = server.options.proxyUrl;
+      clientProxyUrl = isFullPathname(proxyUrl)
+        ? resolveBaseUrl(import.meta.env.BASE_URL, proxyUrl)
+        : proxyUrl;
+    }
 
     for (const [schemaId, schema] of Object.entries(await server.getSchemas())) {
-      payload[schemaId] = { bundled: schema.bundled, proxyUrl: server.options.proxyUrl };
+      payload[schemaId] = { bundled: schema.bundled, proxyUrl: clientProxyUrl };
     }
 
     return <PayloadProvider payload={JSON.stringify(payload)}>{children}</PayloadProvider>;
@@ -78,7 +86,7 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
     },
     async createPages({ createApi }) {
       const proxyUrl = server.options.proxyUrl;
-      const { createProxy = typeof proxyUrl === "string" && isPlainPathname(proxyUrl) } = options;
+      const { createProxy = typeof proxyUrl === "string" && isFullPathname(proxyUrl) } = options;
 
       if (createProxy) {
         if (!proxyUrl)

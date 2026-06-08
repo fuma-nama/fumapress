@@ -22,6 +22,7 @@ import type { ChatUIMessage, SearchTool } from "@/chat";
 import { useTranslations } from "@/components/i18n";
 import { renderTranslation } from "fumadocs-core/i18n";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
+import { resolveBaseUrl } from "@/lib/pathname";
 
 const Context = createContext<{
   open: boolean;
@@ -324,7 +325,7 @@ export function AISearch({ children }: { children: ReactNode }) {
   const chat = useChat<ChatUIMessage>({
     id: "search",
     transport: new DefaultChatTransport({
-      api: "/api/chat",
+      api: resolveBaseUrl(import.meta.env.BASE_URL, "/api/ai"),
     }),
   });
 

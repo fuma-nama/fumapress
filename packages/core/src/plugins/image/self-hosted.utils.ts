@@ -1,6 +1,6 @@
 import CachePolicy from "http-cache-semantics";
 import type { RemotePattern, SelfHostedImageOptions } from "./self-hosted";
-import { isPlainPathname } from "@/lib/pathname";
+import { isFullPathname } from "@/lib/pathname";
 
 const SAFE_IMAGE_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -338,7 +338,7 @@ export function validateImageSrc(
     return { allowed: true };
   }
 
-  if (isPlainPathname(src)) return { allowed: true };
+  if (isFullPathname(src)) return { allowed: true };
 
   return { allowed: false, reason: `Image URL "${src}" is not normalized` };
 }

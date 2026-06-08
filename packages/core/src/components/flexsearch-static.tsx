@@ -13,11 +13,15 @@ import {
 import { useDocsSearch } from "fumadocs-core/search/client";
 import { flexsearchStaticClient } from "fumadocs-core/search/client/flexsearch-static";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
+import { resolveBaseUrl } from "@/lib/pathname";
 
 export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n();
   const { search, setSearch, query } = useDocsSearch({
-    client: flexsearchStaticClient({ locale }),
+    client: flexsearchStaticClient({
+      locale,
+      from: resolveBaseUrl(import.meta.env.BASE_URL, "/api/search"),
+    }),
   });
 
   return (
