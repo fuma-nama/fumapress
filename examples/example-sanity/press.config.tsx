@@ -6,7 +6,6 @@ import { tabsComponents } from "@/components/sanity/tabs";
 import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
 import { PortableText } from "@portabletext/react";
 import { createClient } from "@sanity/client";
-import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import { defineConfig } from "fumapress";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";

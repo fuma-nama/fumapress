@@ -1,5 +1,12 @@
 # @fumapress/mintlify
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [892ff9f]
+  - fumapress@0.5.5
+
 ## 0.0.5
 
 ### Patch Changes

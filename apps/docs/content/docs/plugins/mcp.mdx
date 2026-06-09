@@ -1,0 +1,143 @@
+---
+title: MCP
+description: Expose your documentation to MCP clients.
+---
+
+## Installation
+
+The MCP plugin is included in `@fumapress/ai`.
+
+```npm
+npm i @fumapress/ai
+```
+
+Add the plugin to your Fumapress config:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { mcpPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .plugins(mcpPlugin());
+```
+
+The plugin creates an MCP server at `/mcp` using the [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) transport.
+
+## Connect MCP Clients
+
+Point your MCP client at the server URL. For local development, that is usually `http://localhost:3000/mcp`.
+
+In production, use your site URL with the configured path (for example, `https://press.fumadocs.dev/mcp`).
+
+## Built-in Tools
+
+The plugin registers three tools on the MCP server:
+
+| Tool         | Description                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| `search`     | Full-text search over your documentation. Returns matching pages as JSON.                 |
+| `get_page`   | Fetch the full text content of a page by URL path (for example, `/docs/getting-started`). |
+| `list_pages` | Return a structured index of all documentation pages.                                     |
+
+When i18n is configured, the `search` tool accepts a `locale` parameter to filter results by language.
+
+## Options
+
+### `path`
+
+Change the MCP endpoint path.
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  mcpPlugin({
+    path: "/api/mcp",
+  }),
+);
+```
+
+### `server`
+
+Customize MCP server metadata. By default, the server name comes from `site.name` in your config.
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  mcpPlugin({
+    server: {
+      name: "My Docs",
+      version: "2.0.0",
+    },
+  }),
+);
+```
+
+### `pageToIndex`
+
+By default, the plugin asks your configured adapters for each page's plain text content.
+Define `pageToIndex` to customize what gets indexed for search and page retrieval:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  mcpPlugin({
+    pageToIndex(page) {
+      return {
+        title: page.data.title ?? "",
+        description: page.data.description ?? "",
+        url: page.url,
+        content: page.data.description ?? "",
+        locale: page.locale ?? "",
+      };
+    },
+  }),
+);
+```
+
+Return `null` to exclude a page from search.
+
+### `tools`
+
+Register additional tools on the MCP server:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+import { z } from "zod";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  mcpPlugin({
+    tools(server) {
+      server.registerTool(
+        "get_site_name",
+        {
+          title: "Get Site Name",
+          description: "Return the site name from Fumapress config",
+          inputSchema: z.object({}),
+        },
+        async () => ({
+          content: [{ type: "text", text: this.siteConfig.name }],
+        }),
+      );
+    },
+  }),
+);
+```

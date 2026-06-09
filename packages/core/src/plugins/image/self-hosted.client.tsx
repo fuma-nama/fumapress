@@ -1,5 +1,6 @@
 "use client";
 import { type ClientImageProvider, ImageProvider } from "@/components/image";
+import { resolveBaseUrl } from "@/lib/pathname";
 import { type ResolvedImageConfig, validateImageSrc } from "./self-hosted.utils";
 import { type ReactNode, useMemo } from "react";
 
@@ -16,7 +17,7 @@ export function createProvider(config: ResolvedImageConfig): ClientImageProvider
         quality: String(quality),
       });
 
-      return `${config.path}?${params.toString()}`;
+      return `${resolveBaseUrl(import.meta.env.BASE_URL, config.path)}?${params.toString()}`;
     },
     validate(src) {
       if (import.meta.env.DEV) {

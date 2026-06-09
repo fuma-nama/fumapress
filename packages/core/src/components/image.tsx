@@ -27,6 +27,7 @@ SOFTWARE.
 import { type ReactNode, type ImgHTMLAttributes, createContext, use, useMemo } from "react";
 import ReactDOM from "react-dom";
 import { useRouter } from "waku";
+import { resolveBaseUrl } from "@/lib/pathname";
 
 export type ClientImageContext = {
   provider: ClientImageProvider;
@@ -85,17 +86,20 @@ function parseLength(v: string | number | undefined): number | undefined {
 }
 
 /**
- * resolve src to a full pathname if relative
+ * resolve src to a full pathname with base URL included (or keep absolute URLs as-is)
  */
 function normalizeSrc(src: string, basePathname: string): string {
-  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
+    return src;
+  }
 
   const base = new URL(basePathname, "http://localhost");
   const resolved = new URL(src, base);
 
   if (resolved.hostname !== base.hostname)
     throw new Error(`The src attribute "${src}" is not a valid relative path`);
-  return resolved.pathname;
+
+  return resolveBaseUrl(import.meta.env.BASE_URL, resolved.pathname);
 }
 
 const ImageContext = createContext<ClientImageContext | null>(null);

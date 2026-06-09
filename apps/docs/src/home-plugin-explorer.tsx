@@ -174,6 +174,19 @@ export default defineConfig({
 );`,
   },
   {
+    id: "mcp",
+    name: "MCP Server",
+    description: "Expose your documentation to MCP clients over Streamable HTTP.",
+    keywords: ["mcp", "model context protocol", "tools", "agents"],
+    docsHref: "/docs/plugins/mcp",
+    usage: `import { defineConfig } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+
+export default defineConfig({
+  // ...
+}).plugins(mcpPlugin());`,
+  },
+  {
     id: "feedback",
     name: "Feedback",
     description: "Collect page and text feedback with server actions or integrations.",
