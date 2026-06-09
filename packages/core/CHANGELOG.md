@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.5.5
+
+### Patch Changes
+
+- 892ff9f: Fix handling of `basePath` in plugins
+
 ## 0.5.4
 
 ### Patch Changes
