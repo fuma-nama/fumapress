@@ -13,13 +13,13 @@
     "@fumapress/sanity": "workspace:*",
     "@portabletext/react": "^6.2.0",
     "@sanity/client": "^7.22.1",
-    "fumadocs-core": "^16.10.1",
-    "fumadocs-ui": "^16.10.1",
+    "fumadocs-core": "^16.10.2",
+    "fumadocs-ui": "^16.10.2",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-server-dom-webpack": "^19.2.7",
-    "waku": "1.0.0-beta.2"
+    "waku": "1.0.0-beta.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

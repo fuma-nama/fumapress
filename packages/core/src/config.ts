@@ -11,7 +11,6 @@ import type { Awaitable, Adapter, ServerPluginOption, PressLoaderOptions } from 
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { FC, ReactNode } from "react";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import type { Translations } from "fumadocs-ui/i18n";
 
 export interface ConfigContext {
   page: Page;
@@ -32,9 +31,6 @@ export interface BaseConfig<C extends ConfigContext> {
   mode?: BuildMode;
   site?: SiteConfig;
 
-  translations?:
-    | (C["i18n"] extends I18nConfig<infer Lang> ? TranslationsAPI<Lang> : never)
-    | SingularTranslationsAPI;
   meta?: {
     /** render meta tags for any pages */
     root?: (this: AppContext<C>) => ReactNode;
@@ -56,13 +52,17 @@ interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseCo
    * @deprecated Pass content sources directly to `content` instead.
    */
   loader?: LoaderOutput<L>;
+
+  translations?:
+    | (L["i18n"] extends I18nConfig<infer Lang> ? TranslationsAPI<Lang, any> : never)
+    | SingularTranslationsAPI<any>;
 }
 
 interface ConfigWithContent<
   I extends _Internal.AnyInput = _Internal.AnyInput,
-  I18n extends I18nConfig | undefined = I18nConfig | undefined,
+  Lang extends string | undefined = string | undefined,
 > extends BaseConfig<{
-  i18n: I18n;
+  i18n: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
   meta: _Internal.GenerateMeta<NoInfer<I>>;
   page: _Internal.GeneratePage<NoInfer<I>>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
@@ -71,11 +71,18 @@ interface ConfigWithContent<
   content: I;
 
   /** i18n config for core, optional when `translations` is specified */
-  i18n?: I18n;
+  i18n?: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
+
+  translations?:
+    | ([Lang] extends [string] ? TranslationsAPI<Lang, any> : never)
+    | SingularTranslationsAPI<any>;
 
   /** Options for Fumadocs Loader API */
   loaderOptions?: Omit<
-    PressLoaderOptions<_Internal.GenerateStorage<I>, I18n>,
+    PressLoaderOptions<
+      _Internal.GenerateStorage<I>,
+      [Lang] extends [string] ? I18nConfig<Lang> : undefined
+    >,
     "baseUrl" | "i18n"
   > & {
     /**
@@ -145,14 +152,14 @@ export interface ConfigBuilder<C extends ConfigContext = ConfigContext> {
 
 export function defineConfig<
   I extends _Internal.AnyInput,
-  I18n extends I18nConfig | undefined = undefined,
+  Lang extends string | undefined = undefined,
 >(
-  config: ConfigWithContent<I, I18n>,
+  config: ConfigWithContent<I, Lang>,
 ): ConfigBuilder<{
   meta: _Internal.GenerateMeta<I>;
   page: _Internal.GeneratePage<I>;
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
-  i18n: I18n;
+  i18n: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
 }>;
 
 export function defineConfig<L extends LoaderConfig>(

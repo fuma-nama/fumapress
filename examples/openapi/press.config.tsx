@@ -8,17 +8,27 @@ import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { openapiPlugin } from "fumapress/plugins/openapi";
 import path from "node:path";
+import { defineI18n } from "fumadocs-core/i18n";
+import { zhTW } from "@fumapress/language/zh-tw";
 
 const openapi = createOpenAPI({
   input: [path.resolve("./scalar.yaml")],
   proxyUrl: "/_proxy",
 });
 
+const translations = defineI18n({
+  languages: ["cn", "en"],
+  defaultLanguage: "en",
+})
+  .translations()
+  .preset("cn", zhTW());
+
 export default defineConfig({
   content: {
     docs: docs.toFumadocsSource(),
     openapi: await openapi.staticSource(),
   },
+  translations,
   loaderOptions: {
     plugins: [lucideIconsPlugin()],
   },

@@ -16,6 +16,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import { applyDefaultsPlugin } from "@/plugins/internal/defaults";
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 
 export interface AppContext<C extends ConfigContext = ConfigContext> {
   mode: BuildMode;
@@ -42,7 +43,9 @@ export interface AppContext<C extends ConfigContext = ConfigContext> {
    */
   data: AppContextData & Record<string, unknown>;
 
-  translationsConfig?: BaseConfig<C>["translations"];
+  translationsConfig?:
+    | (C["i18n"] extends I18nConfig<infer Lang> ? TranslationsAPI<Lang> : never)
+    | SingularTranslationsAPI;
   i18nConfig?: C["i18n"];
   metaConfig?: BaseConfig<C>["meta"];
   siteConfig: {

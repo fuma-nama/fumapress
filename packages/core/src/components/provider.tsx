@@ -31,7 +31,7 @@ const framework: Framework = {
       {...props}
     />
   ),
-  Link,
+  Link: ({ prefetch = true, ...props }) => <Link unstable_prefetchOnEnter={prefetch} {...props} />,
 };
 
 export type PressProviderProps = RootProviderProps;

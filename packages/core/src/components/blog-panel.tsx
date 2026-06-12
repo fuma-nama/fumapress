@@ -3,7 +3,7 @@
 import type { TOCItemType } from "fumadocs-core/toc";
 import { TOCProvider, TOCScrollArea, useTOCItems } from "fumadocs-ui/components/toc";
 import { ReactNode, useState } from "react";
-import { TOCItem, TOCItems } from "fumadocs-ui/components/toc/clerk";
+import { TOCItem, TOCItems } from "fumadocs-ui/components/toc/default";
 import {
   Collapsible,
   CollapsibleContent,

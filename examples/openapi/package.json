@@ -10,16 +10,17 @@
     "types:check": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.10.1",
+    "@fumapress/language": "workspace:*",
+    "fumadocs-core": "^16.10.2",
     "fumadocs-mdx": "^15.0.12",
     "fumadocs-openapi": "^11.0.1",
-    "fumadocs-ui": "^16.10.1",
+    "fumadocs-ui": "^16.10.2",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-server-dom-webpack": "^19.2.7",
     "shiki": "^4.2.0",
-    "waku": "1.0.0-beta.2"
+    "waku": "1.0.0-beta.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
