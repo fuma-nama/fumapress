@@ -29,6 +29,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@fuma-translate/react':
+        specifier: ^1.0.2
+        version: 1.0.2(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@fumapress/ai':
         specifier: workspace:*
         version: link:../../packages/ai
