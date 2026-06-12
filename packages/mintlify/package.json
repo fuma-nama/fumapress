@@ -33,11 +33,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.10.0",
+    "fumadocs-core": "^16.10.1",
     "fumadocs-openapi": "^11.0.1",
-    "fumadocs-ui": "^16.10.0",
+    "fumadocs-ui": "^16.10.1",
     "hono": "^4.12.25",
     "react": "^19.2.7",
     "tsdown": "0.22.2",

@@ -13,14 +13,13 @@ import { ChevronDown, ShareIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { cva } from "class-variance-authority";
 import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
-import { useTranslations } from "@fuma-translate/react";
+import { T } from "@fuma-translate/react";
 
 const panelButtonVariants = cva(
   "inline-flex items-center font-medium gap-2 px-3 py-2 transition-all duration-150 rounded-lg hover:text-fd-accent-foreground hover:bg-fd-accent active:scale-95",
 );
 
 export function BlogPanel() {
-  const t = useTranslations({ note: "blog panel" });
   const items = useTOCItems();
   const [open, setOpen] = useState(false);
   const [isSuccessful, onCopy] = useCopyButton(() => {
@@ -48,7 +47,9 @@ export function BlogPanel() {
       </CollapsibleContent>
       <div className="flex flex-row gap-2">
         <CollapsibleTrigger className={cn(panelButtonVariants(), "min-w-0")}>
-          <span className="truncate">{t("Table of Contents")}</span>
+          <span className="truncate">
+            <T text="Table of Contents" note="blog panel" />
+          </span>
           <ChevronDown
             className={cn(
               "size-3.5 shrink-0 text-fd-muted-foreground transition-transform",
@@ -61,7 +62,11 @@ export function BlogPanel() {
           onClick={onCopy}
         >
           <ShareIcon className="size-3.5 shrink-0" />
-          {isSuccessful ? t("Copied") : t("Share")}
+          {isSuccessful ? (
+            <T text="Copied" note="blog panel" />
+          ) : (
+            <T text="Share" note="blog panel" />
+          )}
         </button>
       </div>
     </Collapsible>

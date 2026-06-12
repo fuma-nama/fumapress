@@ -1,11 +1,6 @@
 import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
-import {
-  AllTagsLabel,
-  MatchingBlogPostsLabel,
-  TagTitleLabel,
-  TagsInTotalLabel,
-} from "@/components/blog-labels";
+import { T } from "@fuma-translate/react";
 import { getTags, groupTags } from "@/lib/shared/blog";
 import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
@@ -34,12 +29,18 @@ export function createBlogTagsPage<C extends ConfigContext = ConfigContext>({
       <>
         <div className="flex flex-col items-start gap-4 border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
           <LinkToHome lang={lang} />
-          <h1 className="font-semibold text-2xl">{heading ?? <AllTagsLabel />}</h1>
+          <h1 className="font-semibold text-2xl">
+            {heading ?? <T text="All Tags" note="blog tags page" />}
+          </h1>
           <p className="text-fd-muted-foreground empty:hidden">
             {description ?? (
               <span className="flex items-center gap-1">
                 <TagIcon className="size-3.5 text-fd-primary" />
-                <TagsInTotalLabel count={String(grouped.size)} />
+                <T
+                  text="{count} tags in total."
+                  note="blog tags page"
+                  variables={{ count: String(grouped.size) }}
+                />
               </span>
             )}
           </p>
@@ -91,7 +92,7 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
             {heading ?? (
               <span className="inline-flex gap-2 items-center">
                 <TagIcon className="text-fd-primary size-6" />
-                <TagTitleLabel tag={tag} />
+                <T text='Tag "{tag}"' note="blog tag page" variables={{ tag }} />
               </span>
             )}
           </h1>
@@ -99,7 +100,11 @@ export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
             {description ?? (
               <span className="inline-flex items-center gap-1">
                 <NewspaperIcon className="text-fd-primary size-3.5" />
-                <MatchingBlogPostsLabel count={String(posts.length)} />
+                <T
+                  text="{count} matching blog posts."
+                  note="blog tag page"
+                  variables={{ count: String(posts.length) }}
+                />
               </span>
             )}
           </p>

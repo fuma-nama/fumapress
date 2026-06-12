@@ -32,13 +32,13 @@
     "@fumadocs/language": "^0.1.0"
   },
   "devDependencies": {
-    "@fumapress/ai": "workspace:*",
-    "@fumapress/feedback": "workspace:*",
-    "@types/node": "^25.9.2",
-    "fumadocs-core": "^16.10.0",
+    "@fumapress/ai": "^0.5.5",
+    "@fumapress/feedback": "^0.5.5",
+    "@types/node": "^25.9.3",
+    "fumadocs-core": "^16.10.1",
     "fumadocs-openapi": "^11.0.1",
-    "fumadocs-ui": "^16.10.0",
-    "fumapress": "workspace:*",
+    "fumadocs-ui": "^16.10.1",
+    "fumapress": "^0.5.5",
     "tsdown": "0.22.2",
     "typescript": "^6.0.3"
   },
