@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.6.0
+
+### Minor Changes
+
+- 16d246d: Support OpenAPI v11
+
 ## 0.5.5
 
 ### Patch Changes
