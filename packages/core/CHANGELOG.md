@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.6.1
+
+### Patch Changes
+
+- 944bd1c: hotfix Vite RSC resolution issues in monorepo
+
 ## 0.6.0
 
 ### Minor Changes
