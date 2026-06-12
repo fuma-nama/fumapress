@@ -1,5 +1,12 @@
 # @fumapress/feedback
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [944bd1c]
+  - fumapress@0.6.1
+
 ## 0.6.0
 
 ### Patch Changes
