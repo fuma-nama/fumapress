@@ -1,5 +1,12 @@
 # @fumapress/sanity
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [16d246d]
+  - fumapress@0.6.0
+
 ## 0.0.7
 
 ### Patch Changes
