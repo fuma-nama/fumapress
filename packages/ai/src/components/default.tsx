@@ -1,13 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { useTranslations } from "@/components/i18n";
+import { useTranslations } from "@fuma-translate/react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { MessageCircleIcon } from "lucide-react";
 import { AISearch, AISearchPanel, AISearchTrigger } from "./search";
 
 export function DefaultComponent() {
-  const t = useTranslations();
+  const t = useTranslations({ note: "AI chat trigger" });
 
   return (
     <AISearch>
@@ -22,7 +22,7 @@ export function DefaultComponent() {
         )}
       >
         <MessageCircleIcon className="size-4.5" />
-        {t.askAi}
+        {t("Ask AI")}
       </AISearchTrigger>
     </AISearch>
   );

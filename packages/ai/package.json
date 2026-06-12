@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.201",
+    "@fuma-translate/react": "1.0.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@radix-ui/react-presence": "^1.1.6",
     "ai": "^6.0.199",

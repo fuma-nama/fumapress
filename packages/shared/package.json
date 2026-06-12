@@ -1,0 +1,9 @@
+{
+  "name": "shared",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "fuma-translate": "1.0.1"
+  }
+}

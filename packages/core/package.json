@@ -60,6 +60,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@fuma-translate/react": "1.0.1",
     "@orama/orama": "^3.1.18",
     "@takumi-rs/image-response": "^1.8.1",
     "class-variance-authority": "^0.7.1",
@@ -86,7 +87,7 @@
     "http-cache-semantics": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "sharp": "^0.35.0",
+    "sharp": "^0.35.1",
     "tsdown": "0.22.2",
     "typescript": "^6.0.3",
     "waku": "1.0.0-beta.2"
@@ -94,10 +95,10 @@
   "peerDependencies": {
     "@types/mdx": "*",
     "@types/react": "*",
-    "fumadocs-core": "^16.9.3",
+    "fumadocs-core": "^16.10.0",
     "fumadocs-mdx": "^15.0.0",
     "fumadocs-openapi": "^11.0.0",
-    "fumadocs-ui": "^16.9.3",
+    "fumadocs-ui": "^16.10.0",
     "hono": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
