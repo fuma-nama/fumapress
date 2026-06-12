@@ -45,14 +45,13 @@ const translations = i18n
   .extend(uiTranslations())
   .extend(fumapressTranslations())
   // [!code ++:10]
-  .add("ui", {
+  .add({
     en: { displayName: "English" },
-    cn: { displayName: "Chinese", search: "搜尋文檔" },
-  })
-  .add("fumapress", {
     cn: {
-      blog: "博客",
-      allTags: "全部标签",
+      displayName: "Chinese",
+      "Search(search dialog)": "搜尋文檔",
+      "Blog(blog)": "博客",
+      "All Tags(blog tags page)": "全部标签",
     },
   });
 ```

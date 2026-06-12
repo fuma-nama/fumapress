@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
@@ -60,8 +60,9 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@fuma-translate/react": "^1.0.2",
     "@orama/orama": "^3.1.18",
-    "@takumi-rs/image-response": "^1.7.0",
+    "@takumi-rs/image-response": "^1.8.1",
     "class-variance-authority": "^0.7.1",
     "flexsearch": "^0.8.212",
     "lucide-react": "^1.17.0",
@@ -74,35 +75,35 @@
     "@fastify/deepmerge": "^3.2.1",
     "@tailwindcss/oxide": "^4.3.0",
     "@types/http-cache-semantics": "^4.2.0",
-    "@types/mdx": "^2.0.13",
-    "@types/node": "^25.9.1",
-    "@types/react": "^19.2.16",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.9.3",
-    "fumadocs-mdx": "^15.0.11",
-    "fumadocs-openapi": "^10.10.3",
-    "fumadocs-ui": "^16.9.3",
-    "hono": "^4.12.23",
+    "fumadocs-core": "^16.10.2",
+    "fumadocs-mdx": "^15.0.12",
+    "fumadocs-openapi": "^11.0.1",
+    "fumadocs-ui": "^16.10.2",
+    "hono": "^4.12.25",
     "http-cache-semantics": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.1",
     "tsdown": "0.22.2",
     "typescript": "^6.0.3",
-    "waku": "1.0.0-beta.2"
+    "waku": "1.0.0-beta.3"
   },
   "peerDependencies": {
     "@types/mdx": "*",
     "@types/react": "*",
-    "fumadocs-core": "^16.9.3",
+    "fumadocs-core": "^16.10.0",
     "fumadocs-mdx": "^15.0.0",
-    "fumadocs-openapi": "^10.8.0",
-    "fumadocs-ui": "^16.9.3",
+    "fumadocs-openapi": "^11.0.0",
+    "fumadocs-ui": "^16.10.0",
     "hono": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.34.0",
-    "waku": "1.0.0-beta.2"
+    "waku": "1.0.0-beta.3"
   },
   "peerDependenciesMeta": {
     "sharp": {

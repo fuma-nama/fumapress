@@ -71,18 +71,18 @@ export default defineConfig({
 
 Create the renderer for API pages explicitly:
 
-```tsx title="src/components/api.tsx"
+```tsx title="src/components/openapi.tsx"
 "use client";
-import { createClientAPIPage } from "fumadocs-openapi/ui/create-client";
+import { createOpenAPIPage } from "fumadocs-openapi/ui";
 
-export const ClientAPIPage = createClientAPIPage();
+export const OpenAPIPage = createClientAPIPage();
 ```
 
 And import it from the OpenAPI plugin:
 
 ```tsx title="press.config.tsx"
 // [!code ++]
-import { ClientAPIPage } from "./src/components/api";
+import { OpenAPIPage } from "./src/components/openapi";
 
 export default defineConfig({
   // ...
@@ -90,7 +90,7 @@ export default defineConfig({
   openapiPlugin({
     server: openapi,
     // [!code ++]
-    ClientAPIPage,
+    ClientAPIPage: OpenAPIPage,
   }),
 );
 ```

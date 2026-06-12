@@ -2,7 +2,7 @@ import { createPages as base_createPages } from "waku";
 import { type AppContext, initApp, appContext } from "../lib/shared";
 import { FC, Fragment, ReactNode } from "react";
 import type { ConfigBuilder, ConfigContext } from "../config";
-import { unstable_notFound } from "waku/router/server";
+import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
 import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
@@ -137,15 +137,13 @@ export async function createRouter<C extends ConfigContext>(
           component: layouts.notFound,
         });
 
-        const defaultLanguage = context.i18nConfig.defaultLanguage;
-        fns.createPage({
-          render: defaultRenderMode,
-          path: "/404",
-          staticPaths: [],
-          component() {
-            return <layouts.notFound lang={defaultLanguage} />;
-          },
-        });
+        if (context.mode !== "static") {
+          fns.createPage({
+            render: "dynamic",
+            path: "/404",
+            component: () => unstable_redirect(`/${context.i18nConfig!.defaultLanguage}`),
+          });
+        }
       } else {
         fns.createRoot({
           render: defaultRenderMode,

@@ -7,5 +7,7 @@ allowBuilds:
   sharp: false
 minimumReleaseAgeExclude:
   - "fumadocs-*"
+  - "fuma-translate"
   - "@fumadocs/*"
+  - "@fuma-translate/*"
   - "@next/*"

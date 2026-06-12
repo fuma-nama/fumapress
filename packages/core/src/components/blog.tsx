@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 import { getCreationDate, getPressContext } from "@/lib/shared";
 import { getBlogContext } from "@/plugins/blog";
 import { Link } from "@/client";
-import { I18nLabel } from "./i18n";
+import { T } from "@fuma-translate/react";
 import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { joinPathname } from "@/lib/pathname";
@@ -58,7 +58,7 @@ export function LinkToHome({ lang }: { lang?: string }) {
       )}
     >
       <CornerLeftUpIcon className="size-3.5" />
-      <I18nLabel label="backToHome" />
+      <T text="Back to Home" note="blog" />
     </Link>
   );
 }

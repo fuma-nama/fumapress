@@ -1,6 +1,6 @@
 import { OrderedBlogGrid } from "@/components/blog";
 import type { ConfigContext } from "@/config";
-import { I18nLabel } from "@/components/i18n";
+import { T } from "@fuma-translate/react";
 import { cn } from "@/lib/cn";
 import { joinPathname } from "@/lib/pathname";
 import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
@@ -27,7 +27,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
     return (
       <>
         <div className="flex flex-col gap-4 items-start border-2 border-dashed border-fd-primary rounded-xl bg-fd-primary/10 p-4 z-2 md:p-8">
-          <h1 className="text-3xl font-semibold">{heading ?? <I18nLabel label="blog" />}</h1>
+          <h1 className="text-3xl font-semibold">{heading ?? <T text="Blog" note="blog" />}</h1>
           <p className="text-fd-primary overline decoration-fd-primary empty:hidden">
             {description}
           </p>
@@ -42,7 +42,7 @@ export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
               )}
             >
               <ListIcon className="size-4" />
-              <I18nLabel label="allTags" />
+              <T text="All Tags" note="blog tags page" />
             </Link>
           )}
         </div>
