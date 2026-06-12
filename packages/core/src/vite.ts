@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "./lib/vitefu";
+import { fileURLToPath } from "node:url";
 
 export interface PluginOptions {
   /**
@@ -64,9 +65,16 @@ function core(options: PluginOptions = {}): Plugin {
         optimizeDeps: out?.optimizeDeps,
       };
     },
-    async resolveId(source, _importer, options) {
+    async resolveId(source, importer, options) {
       if (source === "virtual:fumapress-core/config") {
         return this.resolve("/press.config", undefined, options);
+      }
+
+      if (source === "@fuma-translate/react" && importer && isRscClientReferencesModule(importer)) {
+        // see https://github.com/vitejs/vite-plugin-react/issues/1247
+        // TODO: remove this once fixed upstream
+        // we use this file as parent to resolve `source` because `@fuma-translate/react` is already a dep of `fumapress`
+        return fileURLToPath(import.meta.resolve(source));
       }
 
       if (source.startsWith("virtual:root.css")) {
@@ -84,6 +92,13 @@ function core(options: PluginOptions = {}): Plugin {
       }
     },
   };
+}
+
+function isRscClientReferencesModule(id: string) {
+  return (
+    id.startsWith("\0virtual:vite-rsc/client-references") ||
+    id.startsWith("virtual:vite-rsc/client-references")
+  );
 }
 
 function getManagedServerEntry() {
