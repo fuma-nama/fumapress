@@ -1,4 +1,4 @@
 "use client";
-import { createClientAPIPage } from "fumadocs-openapi/ui/create-client";
+import { createOpenAPIPage } from "fumadocs-openapi/ui";
 
-export default createClientAPIPage();
+export default createOpenAPIPage();

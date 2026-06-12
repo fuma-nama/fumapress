@@ -3,11 +3,10 @@ import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { Awaitable, ServerPlugin } from "@/lib/types";
 import type { Adapter } from "@/lib/types";
 import type { OpenAPIPageData, OpenAPIServer } from "fumadocs-openapi/server";
-import type { ClientApiPageProps } from "fumadocs-openapi/ui/create-client";
-import type { FC, ReactNode } from "react";
-import { PayloadObject, PayloadProvider, WithPayload } from "@/components/openapi.payload";
+import type { FC } from "react";
 import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
+import type { OpenAPIPageProps } from "fumadocs-openapi/ui";
 
 export interface OpenAPIOptions {
   server: OpenAPIServer;
@@ -16,7 +15,7 @@ export interface OpenAPIOptions {
   disableLoaderPlugin?: boolean;
 
   /** must be a client component */
-  ClientAPIPage?: FC<ClientApiPageProps>;
+  ClientAPIPage?: FC<OpenAPIPageProps>;
 
   /**
    * Create proxy server.
@@ -42,24 +41,6 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
     });
   }
 
-  async function ServerPayloadProvider({ children }: { children: ReactNode }) {
-    const payload: PayloadObject = {};
-    let clientProxyUrl: string | undefined;
-
-    if (typeof server.options.proxyUrl === "string") {
-      const proxyUrl = server.options.proxyUrl;
-      clientProxyUrl = isFullPathname(proxyUrl)
-        ? resolveBaseUrl(import.meta.env.BASE_URL, proxyUrl)
-        : proxyUrl;
-    }
-
-    for (const [schemaId, schema] of Object.entries(await server.getSchemas())) {
-      payload[schemaId] = { bundled: schema.bundled, proxyUrl: clientProxyUrl };
-    }
-
-    return <PayloadProvider payload={JSON.stringify(payload)}>{children}</PayloadProvider>;
-  }
-
   return {
     name: "core:openapi",
     init() {
@@ -70,11 +51,6 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       if (this.translationsConfig) {
         this.translationsConfig.extend(openapiTranslations());
       }
-    },
-    renderPage({ page, fallback }) {
-      if (!isOpenAPI(page.data)) return;
-
-      return <ServerPayloadProvider>{fallback}</ServerPayloadProvider>;
     },
     configureLoader(options) {
       if (!disableLoaderPlugin) {
@@ -117,9 +93,20 @@ function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
       if (isOpenAPI(page.data)) {
         const ClientAPIPage =
           options.ClientAPIPage ?? (await import("@/components/openapi")).default;
-        const props = page.data.getAPIPageProps();
+        const { payload, ...props } = page.data.getOpenAPIPageProps();
 
-        return <WithPayload schemaId={props.document} Comp={ClientAPIPage} props={props} />;
+        return (
+          <ClientAPIPage
+            payload={{
+              ...payload,
+              proxyUrl:
+                payload.proxyUrl && isFullPathname(payload.proxyUrl)
+                  ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
+                  : payload.proxyUrl,
+            }}
+            {...props}
+          />
+        );
       }
     },
     "core:render-toc"(page) {
