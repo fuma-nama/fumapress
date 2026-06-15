@@ -17,6 +17,7 @@ import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
+import { Image } from "fumapress/image";
 
 const config = defineConfig({
   content: {
@@ -104,7 +105,7 @@ const config = defineConfig({
         nav: {
           title: (
             <>
-              <img
+              <Image
                 src="/logo.png"
                 width={64}
                 height={64}
