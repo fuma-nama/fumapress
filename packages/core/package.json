@@ -73,6 +73,7 @@
   },
   "devDependencies": {
     "@fastify/deepmerge": "^3.2.1",
+    "@fumadocs/asyncapi": "^0.0.2",
     "@tailwindcss/oxide": "^4.3.0",
     "@types/http-cache-semantics": "^4.2.0",
     "@types/mdx": "^2.0.14",
@@ -93,6 +94,7 @@
     "waku": "1.0.0-beta.3"
   },
   "peerDependencies": {
+    "@fumadocs/asyncapi": "0.x.x",
     "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-core": "^16.10.0",
@@ -106,6 +108,9 @@
     "waku": "1.0.0-beta.3"
   },
   "peerDependenciesMeta": {
+    "@fumadocs/asyncapi": {
+      "optional": true
+    },
     "sharp": {
       "optional": true
     },

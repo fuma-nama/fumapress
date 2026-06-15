@@ -2,7 +2,7 @@ import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { Awaitable, ServerPlugin } from "@/lib/types";
 import type { Adapter } from "@/lib/types";
-import type { OpenAPIPageData, OpenAPIServer } from "fumadocs-openapi/server";
+import type { OpenAPIPageData, OpenAPIServer, Proxy } from "fumadocs-openapi/server";
 import type { FC } from "react";
 import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
@@ -22,7 +22,7 @@ export interface OpenAPIOptions {
    *
    * By default, it will create one when `proxyUrl` is specified in `createOpenAPI()`.
    */
-  createProxy?: boolean | (() => Awaitable<ReturnType<OpenAPIServer["createProxy"]>>);
+  createProxy?: boolean | (() => Awaitable<Proxy>);
 }
 
 /**
@@ -121,5 +121,5 @@ function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
 }
 
 function isOpenAPI(data: object): data is OpenAPIPageData {
-  return "getAPIPageProps" in data && typeof data.getAPIPageProps === "function";
+  return "getOpenAPIPageProps" in data && typeof data.getOpenAPIPageProps === "function";
 }
