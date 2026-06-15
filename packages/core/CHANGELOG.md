@@ -1,5 +1,12 @@
 # fumapress
 
+## 0.6.2
+
+### Patch Changes
+
+- ca207d9: Fix i18n: the blog index, blog tags-list, and localized 404 pages were registered under numeric locale paths (`/0`, `/1`, …) instead of locale codes, because their `staticPaths` used `Object.keys(i18nConfig.languages)` on the `languages` array (which yields its indices). Use the `languages` array directly.
+- 5d7e41d: Support AsyncAPI integration
+
 ## 0.6.1
 
 ### Patch Changes
