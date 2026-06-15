@@ -136,7 +136,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
           path: this.i18nConfig
             ? (joinPathname("/[lang]/(blog)", blogCtx.indexPath) as "/[lang]")
             : (joinPathname("/(blog)", blogCtx.indexPath) as "/[lang]"),
-          staticPaths: this.i18nConfig ? Object.keys(this.i18nConfig.languages) : [],
+          staticPaths: this.i18nConfig ? this.i18nConfig.languages : [],
           component: IndexPage,
         });
       }
@@ -148,7 +148,7 @@ export function blogPlugin<C extends ConfigContext = ConfigContext>({
         createPage({
           path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath) as "/[lang]",
           render: renderMode,
-          staticPaths: Object.keys(this.i18nConfig.languages),
+          staticPaths: this.i18nConfig.languages,
           component: TagsPage,
         });
 
