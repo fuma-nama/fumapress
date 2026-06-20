@@ -41,6 +41,7 @@
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
+    "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
     "./plugins/sitemap": "./dist/plugins/sitemap.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",

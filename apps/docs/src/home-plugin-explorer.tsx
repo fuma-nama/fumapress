@@ -156,6 +156,26 @@ export default defineConfig({
 }).plugins(openapiPlugin({ server: openapi }));`,
   },
   {
+    id: "asyncapi",
+    name: "AsyncAPI",
+    description: "Generate event-driven API reference pages from an AsyncAPI spec.",
+    keywords: ["api", "asyncapi", "events", "messaging"],
+    docsHref: "/docs/plugins/asyncapi",
+    usage: `import { defineConfig } from "fumapress";
+import { createAsyncAPI } from "@fumadocs/asyncapi/server";
+import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+
+const asyncapi = createAsyncAPI({
+  input: ["./asyncapi.yaml"],
+});
+
+export default defineConfig({
+  content: {
+    asyncapi: await asyncapi.staticSource(),
+  },
+}).plugins(asyncapiPlugin({ server: asyncapi }));`,
+  },
+  {
     id: "ai",
     name: "AI",
     description: 'Add an "Ask AI" chat powered by the Vercel AI SDK.',
