@@ -10,7 +10,6 @@
     "types:check": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
-    "@fuma-translate/react": "^1.0.2",
     "@fumapress/ai": "workspace:*",
     "@paper-design/shaders-react": "^0.0.76",
     "@radix-ui/react-tabs": "^1.1.14",

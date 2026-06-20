@@ -133,7 +133,7 @@ export async function createRouter<C extends ConfigContext>(
         fns.createPage({
           render: defaultRenderMode,
           path: "/[lang]/404",
-          staticPaths: Object.keys(context.i18nConfig.languages),
+          staticPaths: context.i18nConfig.languages,
           component: layouts.notFound,
         });
 

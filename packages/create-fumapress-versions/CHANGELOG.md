@@ -1,5 +1,20 @@
 # create-fumapress-versions
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [ca207d9]
+- Updated dependencies [5d7e41d]
+  - fumapress@0.6.2
+
+## 0.0.15
+
+### Patch Changes
+
+- Updated dependencies [944bd1c]
+  - fumapress@0.6.1
+
 ## 0.0.14
 
 ### Patch Changes

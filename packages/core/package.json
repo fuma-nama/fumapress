@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
@@ -41,6 +41,7 @@
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
+    "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
     "./plugins/sitemap": "./dist/plugins/sitemap.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",
@@ -73,6 +74,7 @@
   },
   "devDependencies": {
     "@fastify/deepmerge": "^3.2.1",
+    "@fumadocs/asyncapi": "^0.0.2",
     "@tailwindcss/oxide": "^4.3.0",
     "@types/http-cache-semantics": "^4.2.0",
     "@types/mdx": "^2.0.14",
@@ -93,6 +95,7 @@
     "waku": "1.0.0-beta.3"
   },
   "peerDependencies": {
+    "@fumadocs/asyncapi": "0.x.x",
     "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-core": "^16.10.0",
@@ -106,6 +109,9 @@
     "waku": "1.0.0-beta.3"
   },
   "peerDependenciesMeta": {
+    "@fumadocs/asyncapi": {
+      "optional": true
+    },
     "sharp": {
       "optional": true
     },

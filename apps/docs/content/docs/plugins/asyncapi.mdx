@@ -1,0 +1,96 @@
+---
+title: AsyncAPI
+description: Build event-driven API documentations with Fumapress.
+---
+
+## Installation
+
+```npm
+npm i @fumadocs/asyncapi shiki
+```
+
+Configure the plugin:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+// [!code ++:3]
+import path from "node:path";
+import { createAsyncAPI } from "@fumadocs/asyncapi/server";
+import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+
+// [!code ++:4]
+const asyncapi = createAsyncAPI({
+  // path or URL to your AsyncAPI spec
+  input: [path.resolve("./asyncapi.yaml")],
+});
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    // [!code ++]
+    asyncapi: await asyncapi.staticSource(),
+  },
+})
+  // fumapress plugin [!code ++]
+  .plugins(asyncapiPlugin({ server: asyncapi }));
+```
+
+Update the path/URL to your AsyncAPI spec (e.g. `./asyncapi.yaml`), the API pages will be automatically generated based on your spec.
+
+## Options
+
+You can see [Fumadocs AsyncAPI](https://www.fumadocs.dev/docs/integrations/asyncapi) for details of advanced options.
+
+### `asyncapi.staticSource()`
+
+It support a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/asyncapi/generate-files).
+
+<Callout title="How to customize its output file structure?">
+
+It accepts a `baseDir` option. For example, the following will generate all API pages under the `(asyncapi)` folder:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    asyncapi: await asyncapi.staticSource({
+      // [!code highlight]
+      baseDir: "(asyncapi)",
+    }),
+  },
+});
+```
+
+</Callout>
+
+### Client UI
+
+Create the renderer for API pages explicitly:
+
+```tsx title="src/components/asyncapi.tsx"
+"use client";
+import { createAsyncAPIPage } from "@fumadocs/asyncapi/ui";
+
+export const AsyncAPIPage = createAsyncAPIPage();
+```
+
+And import it from the AsyncAPI plugin:
+
+```tsx title="press.config.tsx"
+// [!code ++]
+import { AsyncAPIPage } from "./src/components/asyncapi";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  asyncapiPlugin({
+    server: asyncapi,
+    // [!code ++]
+    ClientAPIPage: AsyncAPIPage,
+  }),
+);
+```
