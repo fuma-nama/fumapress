@@ -6,6 +6,7 @@ import type { AppContext } from "@/lib/shared";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { joinPathname } from "@/lib/pathname";
+import { DocsLayoutContextData } from "@/layouts/docs";
 
 export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
   /**
@@ -60,6 +61,14 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
     };
   }
 
+  function initRenderers(data: DocsLayoutContextData) {
+    data.renderers ??= [];
+    data.renderers.push(function (res) {
+      res.markdownUrl ??= slugsToMarkdownPath(this.page.slugs, this.page.locale).pathname;
+      return res;
+    });
+  }
+
   return {
     name: "core:llms.txt",
     init() {
@@ -67,12 +76,8 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
         basePath = "/_llms.txt";
       }
 
-      this.data["core:docs-layout"] ??= {};
-      this.data["core:docs-layout"].renderers ??= [];
-      this.data["core:docs-layout"].renderers.push(function (res) {
-        res.markdownUrl ??= slugsToMarkdownPath(this.page.slugs, this.page.locale).pathname;
-        return res;
-      });
+      initRenderers((this.data["core:docs-layout"] ??= {}));
+      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
     },
     createMiddlewares({ app }) {
       if (this.mode === "static") return;
