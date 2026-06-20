@@ -1,5 +1,11 @@
 # fumapress
 
+## 0.6.3
+
+### Patch Changes
+
+- 6e2a44c: fix notebook doesn't show Markdown URL with llms.txt plugin
+
 ## 0.6.2
 
 ### Patch Changes

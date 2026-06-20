@@ -1,5 +1,12 @@
 # @fumapress/ai
 
+## 0.6.3
+
+### Patch Changes
+
+- Updated dependencies [6e2a44c]
+  - fumapress@0.6.3
+
 ## 0.6.2
 
 ### Patch Changes
