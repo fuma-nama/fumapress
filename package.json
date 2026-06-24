@@ -9,13 +9,13 @@
     "lint:format": "oxfmt --check",
     "format": "oxfmt",
     "types:check": "turbo run types:check",
-    "version": "changeset version",
-    "release": "turbo run build --filter=./packages/* && changeset publish"
+    "tegami": "node scripts/tegami.mts"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.0",
     "oxfmt": "^0.54.0",
     "oxlint": "^1.69.0",
+    "tegami": "^0.1.4",
+    "tinyexec": "^1.2.4",
     "turbo": "^2.9.18",
     "typescript": "6.0.3",
     "vitest": "^4.1.8"
