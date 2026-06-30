@@ -1,5 +1,5 @@
 import { tegami } from "tegami";
-import { createCli } from "tegami/cli";
+import { runCli } from "tegami/cli";
 import { github } from "tegami/plugins/github";
 import { x } from "tinyexec";
 
@@ -10,10 +10,8 @@ const paper = tegami({
   plugins: [
     github({
       repo: "fuma-nama/fumapress",
-      cli: {
-        versionPr: {
-          base: "dev",
-        },
+      versionPr: {
+        base: "dev",
       },
     }),
     {
@@ -45,4 +43,4 @@ const paper = tegami({
   },
 });
 
-void createCli(paper).parseAsync();
+void runCli(paper);
