@@ -1,3 +1,9 @@
+## @fumapress/feedback@0.6.3
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.
+
 # @fumapress/feedback
 
 ## 0.6.2
