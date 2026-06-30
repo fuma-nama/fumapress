@@ -1,3 +1,9 @@
+## @fumapress/sanity@0.0.11
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.
+
 # @fumapress/sanity
 
 ## 0.0.10

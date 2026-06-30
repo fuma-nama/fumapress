@@ -1,3 +1,9 @@
+## create-fumapress-versions@0.0.17
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.
+
 # create-fumapress-versions
 
 ## 0.0.16

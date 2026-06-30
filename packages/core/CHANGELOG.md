@@ -1,3 +1,13 @@
+## fumapress@0.6.3
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.
+
+### Fix notebook Markdown URL with llms.txt plugin
+
+Notebook doesn't show Markdown URL with llms.txt plugin.
+
 # fumapress
 
 ## 0.6.2

@@ -1,0 +1,50 @@
+core:changelogs:
+  - content: "---\npackages:\n  group:fumapress:\n    type: patch\n  group:cli:\n    type: patch\n  npm:@fumapress/ai:\n    type: patch\n  npm:fumapress:\n    type: patch\n  npm:create-fumapress:\n    type: patch\n  npm:create-fumapress-versions:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n  npm:@fumapress/language:\n    type: patch\n  npm:@fumapress/mintlify:\n    type: patch\n  npm:@fumapress/sanity:\n    type: patch\n---\n\n## Bump deps\n\nUse Waku beta 6 and AI SDK 7.\n"
+    filename: 2026-07-01-mr0uwym4.md
+    v: 0.0.0
+  - content: "---\npackages:\n  fumapress:\n    type: patch\n---\n\n## Fix notebook Markdown URL with llms.txt plugin\n\nNotebook doesn't show Markdown URL with llms.txt plugin.\n"
+    filename: fix-notebook-llms-txt.md
+    v: 0.0.0
+core:packages:
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:@fumapress/ai
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+      - fix-notebook-llms-txt.md
+    id: npm:fumapress
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:create-fumapress
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:create-fumapress-versions
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:@fumapress/feedback
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:@fumapress/language
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:@fumapress/mintlify
+    updated: true
+  - changelogIds:
+      - 2026-07-01-mr0uwym4.md
+    id: npm:@fumapress/sanity
+    updated: true
+npm:packages:
+  - id: npm:@fumapress/ai
+  - id: npm:fumapress
+  - id: npm:create-fumapress
+  - id: npm:create-fumapress-versions
+  - id: npm:@fumapress/feedback
+  - id: npm:@fumapress/language
+  - id: npm:@fumapress/mintlify
+  - id: npm:@fumapress/sanity

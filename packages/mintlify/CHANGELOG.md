@@ -1,3 +1,9 @@
+## @fumapress/mintlify@0.0.10
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.
+
 # @fumapress/mintlify
 
 ## 0.0.9
