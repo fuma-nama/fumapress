@@ -12,30 +12,30 @@
   "dependencies": {
     "@fumapress/ai": "workspace:*",
     "@paper-design/shaders-react": "^0.0.76",
-    "@radix-ui/react-tabs": "^1.1.14",
-    "@shikijs/magic-move": "^4.2.0",
-    "fumadocs-core": "^16.10.2",
-    "fumadocs-mdx": "^15.0.12",
-    "fumadocs-typescript": "^5.2.6",
-    "fumadocs-ui": "^16.10.2",
+    "@radix-ui/react-tabs": "^1.1.15",
+    "@shikijs/magic-move": "^4.3.0",
+    "fumadocs-core": "^16.10.7",
+    "fumadocs-mdx": "^15.0.13",
+    "fumadocs-typescript": "^5.2.7",
+    "fumadocs-ui": "^16.10.7",
     "fumapress": "workspace:*",
-    "lucide-react": "^1.17.0",
+    "lucide-react": "^1.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-server-dom-webpack": "^19.2.7",
-    "sharp": "^0.35.0",
-    "shiki": "^4.2.0",
+    "sharp": "^0.35.2",
+    "shiki": "^4.3.0",
     "tailwind-merge": "^3.6.0",
-    "waku": "1.0.0-beta.3"
+    "waku": "1.0.0-beta.6"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.0",
+    "@tailwindcss/vite": "^4.3.2",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "tailwindcss": "^4.3.0",
+    "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.1.0"
   }
 }

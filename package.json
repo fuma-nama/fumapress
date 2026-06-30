@@ -12,13 +12,13 @@
     "tegami": "node scripts/tegami.mts"
   },
   "devDependencies": {
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.69.0",
-    "tegami": "^0.1.4",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "tegami": "^1.0.1",
     "tinyexec": "^1.2.4",
-    "turbo": "^2.9.18",
+    "turbo": "^2.10.0",
     "typescript": "6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=24"
