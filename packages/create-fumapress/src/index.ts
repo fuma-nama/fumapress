@@ -177,6 +177,20 @@ export default defineConfig({
   site: {
     name: "Fumapress",
   },
+  meta: {
+    root() {
+      return (
+        <>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+            rel="stylesheet"
+          />
+        </>
+      );
+    },
+  },
 })
   .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .adapters(fumadocsMdx());
@@ -202,6 +216,11 @@ export const docs = defineDocs({
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumapress/css/preset.css";
+
+@theme {
+  --font-mono: "JetBrains Mono", monospace;
+  --default-font-family: "Geist", sans-serif;
+}
 `,
     "tsconfig.json": `${JSON.stringify(getTsConfig(), null, 2)}\n`,
     "waku.config.ts": `import { defineConfig } from "waku/config";
