@@ -14,9 +14,9 @@
   "devDependencies": {
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
-    "tegami": "^1.1.2",
+    "tegami": "^1.2.2",
     "tinyexec": "^1.2.4",
-    "turbo": "^2.10.2",
+    "turbo": "^2.10.3",
     "typescript": "6.0.3",
     "vitest": "^4.1.9"
   },
