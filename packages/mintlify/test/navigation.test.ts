@@ -3,6 +3,7 @@ import {
   buildPageTreeFromNavigation,
   createPageIndex,
   getMintlifyVersions,
+  getNavigablePages,
   resolveNavigationContainer,
 } from "@/navigation";
 import { minimalDocs, multilingualDocs } from "./fixtures/docs";
@@ -37,18 +38,21 @@ describe("resolveNavigationContainer", () => {
 });
 
 describe("buildPageTreeFromNavigation", () => {
-  it("builds a page tree from Mintlify navigation entries", () => {
+  it("builds a page tree from Mintlify navigation entries", async () => {
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = buildPageTreeFromNavigation(minimalDocs.navigation, pageIndex);
+    const tree = await buildPageTreeFromNavigation(minimalDocs.navigation, pageIndex);
 
     expect(tree).toHaveLength(2);
     expect(tree[0]).toMatchObject({ type: "page", name: "Getting Started" });
     expect(tree[1]).toMatchObject({ type: "page", name: "Setup Guide" });
   });
 
-  it("creates external pages for http links", () => {
+  it("creates external pages for http links", async () => {
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = buildPageTreeFromNavigation({ pages: ["https://example.com/docs"] }, pageIndex);
+    const tree = await buildPageTreeFromNavigation(
+      { pages: ["https://example.com/docs"] },
+      pageIndex,
+    );
 
     expect(tree).toEqual([
       expect.objectContaining({
@@ -59,9 +63,9 @@ describe("buildPageTreeFromNavigation", () => {
     ]);
   });
 
-  it("builds nested groups and skips hidden entries", () => {
+  it("builds nested groups and skips hidden entries", async () => {
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = buildPageTreeFromNavigation(
+    const tree = await buildPageTreeFromNavigation(
       {
         groups: [
           {
@@ -85,21 +89,42 @@ describe("buildPageTreeFromNavigation", () => {
       type: "folder",
       name: "Guides",
       defaultOpen: true,
-      icon: "book",
     });
+    // icons resolve to rendered Lucide components
+    expect(tree[0]?.type === "folder" && tree[0].icon).toBeTruthy();
     expect(tree[0]?.type === "folder" && tree[0].children[0]).toMatchObject({
       type: "page",
       name: "Setup Guide",
     });
   });
 
-  it("builds versioned navigation roots", () => {
+  it("renders group tags as badges", async () => {
+    const pageIndex = createPageIndex(sampleRoot);
+    const tree = await buildPageTreeFromNavigation(
+      {
+        groups: [
+          {
+            group: "Guides",
+            tag: "NEW",
+            pages: ["guides/setup"],
+          },
+        ],
+      },
+      pageIndex,
+    );
+
+    // the name becomes a fragment with the group label + badge
+    const name = tree[0]?.type === "folder" ? tree[0].name : undefined;
+    expect(name).toBeTypeOf("object");
+  });
+
+  it("builds versioned navigation roots", async () => {
     const pageIndex = createPageIndex({
       ...sampleRoot,
       children: [page("v2/docs/overview", "Overview v2")],
     });
 
-    const tree = buildPageTreeFromNavigation(
+    const tree = await buildPageTreeFromNavigation(
       {
         versions: [
           {
@@ -129,5 +154,31 @@ describe("getMintlifyVersions", () => {
     });
 
     expect(versions).toEqual([{ version: "v1", pages: ["getting-started"] }]);
+  });
+});
+
+describe("getNavigablePages", () => {
+  it("collects page paths across languages, versions, tabs and groups", () => {
+    const pages = getNavigablePages({
+      pages: ["index"],
+      tabs: [
+        {
+          tab: "Guides",
+          groups: [{ group: "Setup", root: "setup/index", pages: ["setup/install"] }],
+        },
+      ],
+      languages: [{ language: "en", pages: ["en/home"] }],
+      versions: [{ version: "v2", pages: ["v2/changes"] }],
+    });
+
+    expect(pages).toEqual(
+      new Set(["index", "setup/index", "setup/install", "en/home", "v2/changes"]),
+    );
+  });
+
+  it("ignores external links", () => {
+    const pages = getNavigablePages({ pages: ["https://example.com", "docs/page"] });
+
+    expect(pages).toEqual(new Set(["page"]));
   });
 });

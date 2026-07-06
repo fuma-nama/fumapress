@@ -17,6 +17,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./asyncapi": "./dist/asyncapi.mjs",
     "./openapi": "./dist/openapi.mjs",
     "./package.json": "./package.json"
   },
@@ -30,10 +31,12 @@
   },
   "dependencies": {
     "fumapress": "workspace:*",
+    "lucide-react": "^1.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
+    "@fumadocs/asyncapi": "^0.0.3",
+    "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "fumadocs-core": "^16.10.7",
     "fumadocs-openapi": "^11.0.6",
@@ -45,12 +48,17 @@
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
+    "@fumadocs/asyncapi": "*",
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
-    "hono": "*"
+    "hono": "*",
+    "react": "*"
   },
   "peerDependenciesMeta": {
+    "@fumadocs/asyncapi": {
+      "optional": true
+    },
     "fumadocs-openapi": {
       "optional": true
     },

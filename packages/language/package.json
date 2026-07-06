@@ -34,7 +34,7 @@
   "devDependencies": {
     "@fumapress/ai": "workspace:*",
     "@fumapress/feedback": "workspace:*",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.1.0",
     "fumadocs-core": "^16.10.7",
     "fumadocs-openapi": "^11.0.6",
     "fumadocs-ui": "^16.10.7",

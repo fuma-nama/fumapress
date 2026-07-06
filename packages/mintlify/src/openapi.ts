@@ -1,23 +1,7 @@
-import path from "node:path";
 import { createOpenAPI, type OpenAPIOptions, type OpenAPIServer } from "fumadocs-openapi/server";
-import type { MintlifyDocsJson, MintlifyOpenAPISource } from "./schema";
+import type { MintlifyApiSource, MintlifyDocsJson } from "./schema";
 import { readMintlifyDocs } from "./read-config";
-
-function collectSources(
-  value: MintlifyOpenAPISource | MintlifyOpenAPISource[] | undefined,
-  root: string,
-): string[] {
-  if (!value) return [];
-  const entries = Array.isArray(value) ? value : [value];
-
-  return entries.map((source) => {
-    if (typeof source === "string") {
-      return path.resolve(root, source);
-    }
-
-    return path.resolve(root, source.source);
-  });
-}
+import { collectApiSources } from "./api-sources";
 
 export interface MintlifyOpenAPIOptions extends OpenAPIOptions {
   /** path to `docs.json` */
@@ -34,7 +18,7 @@ export function createMintlifyOpenAPI(options: MintlifyOpenAPIOptions = {}): Ope
 
   function getOpenAPIOptions(): OpenAPIOptions | null {
     if (!docs.api) return null;
-    const input = collectSources(docs.api.openapi, root);
+    const input = collectApiSources(docs.api.openapi, root);
 
     return {
       input: input.length > 0 ? input : undefined,
@@ -47,3 +31,5 @@ export function createMintlifyOpenAPI(options: MintlifyOpenAPIOptions = {}): Ope
     ...overrides,
   });
 }
+
+export type { MintlifyApiSource };

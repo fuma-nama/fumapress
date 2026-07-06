@@ -1,0 +1,166 @@
+---
+title: Mintlify
+description: Migrate from Mintlify, powered by your docs.json file.
+---
+
+## Overview
+
+`@fumapress/mintlify` reads your existing Mintlify `docs.json` file and configures Fumapress from it.
+
+## Installation
+
+```npm
+npm i @fumapress/mintlify
+```
+
+Add the plugin to your config, with `docs.json` located in your project root:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+// [!code ++]
+import { mintlifyPlugin } from "@fumapress/mintlify";
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+  },
+})
+  // [!code ++]
+  .plugins(mintlifyPlugin());
+```
+
+Your MDX pages should live in the `content/docs` folder (paths in `docs.json` are resolved against it, a `docs/` or `content/docs/` prefix in navigation entries is ignored).
+
+## Options
+
+```tsx title="press.config.tsx"
+mintlifyPlugin({
+  // path to docs.json, relative to project root
+  path: "docs.json",
+  // docs collection folder name inside `content/`
+  docsDir: "docs",
+  // disable individual features to take manual control
+  features: {
+    navigation: true,
+    navbar: true,
+    theme: true,
+    appearance: true,
+    banner: true,
+    footer: true,
+    redirects: true,
+    notFound: true,
+    search: true,
+    metadata: true,
+  },
+});
+```
+
+## Internationalization
+
+When `docs.json` defines `navigation.languages`, configure i18n with `defineMintlifyI18n()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { defineMintlifyI18n, mintlifyPlugin, readMintlifyDocs } from "@fumapress/mintlify";
+
+const mintlifyDocs = readMintlifyDocs();
+
+export default defineConfig({
+  content: {
+    // ...
+  },
+  translations: defineMintlifyI18n(mintlifyDocs, {
+    // optionally map Mintlify locales to your own locale codes
+    localeMap: { cn: "zh" },
+  }).translations(),
+}).plugins(mintlifyPlugin());
+```
+
+## OpenAPI & AsyncAPI
+
+`api.openapi` sources (file paths or URLs) can be forwarded to [Fumadocs OpenAPI](/docs/plugins/openapi):
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { docs } from "./.source/server";
+import { mintlifyPlugin } from "@fumapress/mintlify";
+import { createMintlifyOpenAPI } from "@fumapress/mintlify/openapi";
+import { openapiPlugin } from "fumapress/plugins/openapi";
+
+const openapi = createMintlifyOpenAPI();
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    openapi: await openapi.staticSource(),
+  },
+}).plugins(mintlifyPlugin(), openapiPlugin({ server: openapi }));
+```
+
+`api.asyncapi` sources work the same way with `createMintlifyAsyncAPI` from `@fumapress/mintlify/asyncapi` and the [AsyncAPI plugin](/docs/plugins/asyncapi).
+
+`api.playground.proxy` is respected (proxy enabled by default at `/api/proxy`). Other `api` options are not supported, see the support matrix.
+
+## Support Matrix
+
+All valid `docs.json` files parse successfully — unsupported properties are accepted and ignored, so migration never breaks on them.
+
+> This page covers `docs.json` only. MDX content (Mintlify components like `<Card>`, `<Accordion>`, frontmatter conventions) is handled by your content adapter, not by this plugin.
+
+### Supported
+
+| Property                                | Notes                                                                                                                                                                                                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                  | Navbar title (when no logo is set).                                                                                                                                                                                                                |
+| `description`                           | `<meta name="description">` on every page.                                                                                                                                                                                                         |
+| `colors.primary` / `colors.light`       | Mapped to `--color-fd-primary` in light/dark mode, with an automatically computed foreground color.                                                                                                                                                |
+| `logo`                                  | Single or light/dark image, optional `href`.                                                                                                                                                                                                       |
+| `favicon`                               | Single or light/dark icon (via `prefers-color-scheme`).                                                                                                                                                                                            |
+| `navigation`                            | `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions`, `languages` and `global`, rendered into the sidebar page tree. Per-item `icon`, `tag` (badge), `hidden`, `root`, `expanded` and external `href`s are supported. |
+| `navbar`                                | Links with labels and/or icons, GitHub/Discord brand icons, and the `primary` CTA (`button`, `github`, `discord`).                                                                                                                                 |
+| `appearance`                            | `default` color scheme; `strict` hides the theme toggle (and forces the default scheme when it is explicit).                                                                                                                                       |
+| `background.color` / `background.image` | Applied via CSS, light/dark variants included.                                                                                                                                                                                                     |
+| `fonts`                                 | Google Fonts loaded automatically; self-hosted `woff`/`woff2` via `@font-face`; separate `heading`/`body` fonts.                                                                                                                                   |
+| `banner`                                | Content with inline Markdown (links, bold, italic, code), `dismissible`, `type` (info/warning/critical) and custom `color`.                                                                                                                        |
+| `footer`                                | Social links (brand icons) and up to 4 link columns.                                                                                                                                                                                               |
+| `redirects`                             | Exact paths plus `:param` and `:param*` patterns; `permanent` maps to 308/307.                                                                                                                                                                     |
+| `errors.404`                            | Mintlify semantics: redirect to home page by default, or a 404 page with custom `title`/`description` when `redirect: false`.                                                                                                                      |
+| `seo.metatags`                          | Added to every page (`og:*` keys rendered as `property`).                                                                                                                                                                                          |
+| `seo.indexing`                          | With `navigable` (default), pages not referenced in navigation get `<meta name="robots" content="noindex">`.                                                                                                                                       |
+| `search.prompt`                         | Replaces the search UI placeholder text.                                                                                                                                                                                                           |
+| `metadata.timestamp`                    | Mintlify semantics: last-modified dates are hidden unless set to `true`.                                                                                                                                                                           |
+| `api.openapi` / `api.asyncapi`          | Via `createMintlifyOpenAPI()` / `createMintlifyAsyncAPI()`.                                                                                                                                                                                        |
+| `api.playground.proxy`                  | Enables/disables the API proxy.                                                                                                                                                                                                                    |
+
+### Partially supported
+
+| Property         | Notes                                                                                                                                                                                                                                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `icons.library`  | All icons render with [Lucide](https://lucide.dev). Lucide names map 1:1; Font Awesome and Tabler names are matched best-effort (exact name or a translation table for common icons), unknown names are skipped with a warning.                                                                                   |
+| `colors.dark`    | No Fumadocs equivalent for a separate button/hover color; `primary`/`light` drive the theme.                                                                                                                                                                                                                      |
+| `integrations`   | Script-based analytics are injected into `<head>`: `amplitude`, `clarity`, `fathom`, `ga4`, `gtm`, `heap`, `hotjar`, `intercom`, `koala`, `logrocket`, `mixpanel`, `pirsch`, `plausible`, `posthog`, `segment`. Not supported: `adobe`, `clearbit`, `frontchat`, `hightouch`, `onetrust`, `telemetry`, `cookies`. |
+| `contextual`     | Fumapress always shows page actions (copy Markdown, open in AI tools) on docs pages; the `options` list and `display` position are not configurable.                                                                                                                                                              |
+| `footer.socials` | Brand glyphs are included for all platforms Mintlify accepts; `website`/`earth-americas`/`podcast` use generic icons.                                                                                                                                                                                             |
+
+### Not supported
+
+| Property                                                                                                                | Notes                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`                                                                                                                 | Mintlify theme variants (`mint`, `maple`, `palm`, ...) don't map to Fumapress; the value is accepted and ignored. Customize with [Fumadocs CSS](https://fumadocs.dev/docs/ui/theme) instead. |
+| `background.decoration`                                                                                                 | Decorations are Mintlify theme assets. Add your own via `src/app.css`.                                                                                                                       |
+| `styling.eyebrows`                                                                                                      | Fumapress shows breadcrumbs by default.                                                                                                                                                      |
+| `styling.codeblocks`                                                                                                    | Code block themes are compiled at build time — configure Shiki themes in your MDX adapter options.                                                                                           |
+| `thumbnails`                                                                                                            | Use the [Takumi plugin](/docs/plugins/takumi) to auto-generate social images.                                                                                                                |
+| `interaction.drilldown`                                                                                                 | Sidebar folder behavior is not configurable.                                                                                                                                                 |
+| `variables`                                                                                                             | Content-level templating is up to your content adapter.                                                                                                                                      |
+| `markdown.schema` / `markdown.instructions`                                                                             | See the [llms.txt plugin](/docs/plugins/llms.txt) for Markdown serving to AI agents.                                                                                                         |
+| `api.params` / `api.examples` / `api.url` / `api.mdx` / `api.playground.display` / `api.playground.credentials`         | Not configurable in Fumadocs OpenAPI.                                                                                                                                                        |
+| `navigation` extras: `directory`, `align`, `searchable`, `public`, `boost`, `color`, `hidden` languages/versions `href` | Search/access-control and layout hints without a Fumapress equivalent.                                                                                                                       |
+| `$schema`, `public`                                                                                                     | Hosting-level options, not applicable.                                                                                                                                                       |
+
+## Notes
+
+- **Icons**: navigation, navbar and group icons resolve to Lucide components on the server, no extra client JavaScript is shipped.
+- **Banner & footer** are rendered outside the docs layout so they appear on every page.
+- **`$ref` resolution**: `docs.json` may reference other JSON files with `$ref`, they are resolved (and validated to stay inside your project root) before parsing.
