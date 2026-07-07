@@ -1,8 +1,11 @@
 import type { Folder, Item, Node, Root } from "fumadocs-core/page-tree";
+import type { ReactNode } from "react";
+import { renderMintlifyIcon } from "./icons";
 import type {
   MintlifyAnchor,
   MintlifyDropdown,
   MintlifyGroup,
+  MintlifyIcon,
   MintlifyMenuItem,
   MintlifyNavEntry,
   MintlifyNavigation,
@@ -47,7 +50,7 @@ function nextId(prefix: string) {
   return `mintlify:${prefix}:${nodeId}`;
 }
 
-function normalizeMintPath(pagePath: string) {
+export function normalizeMintPath(pagePath: string) {
   return pagePath
     .replace(/^\//, "")
     .replace(/^content\/(?:docs\/)?/, "")
@@ -63,9 +66,31 @@ function versionFolderSlug(version: string) {
     .replace(/-+/g, "-");
 }
 
-function iconName(icon: MintlifyGroup["icon"]): string | undefined {
-  if (typeof icon === "string") return icon;
-  if (icon && typeof icon === "object" && "name" in icon) return icon.name;
+async function icon(value: MintlifyIcon | undefined): Promise<ReactNode> {
+  return renderMintlifyIcon(value);
+}
+
+function withTag(name: string, tag: string | undefined): ReactNode {
+  if (!tag) return name;
+
+  return (
+    <>
+      {name}
+      <span
+        style={{
+          marginInlineStart: "0.5rem",
+          borderRadius: "9999px",
+          backgroundColor: "color-mix(in srgb, var(--color-fd-primary) 10%, transparent)",
+          color: "var(--color-fd-primary)",
+          padding: "0.125rem 0.5rem",
+          fontSize: "0.75em",
+          fontWeight: 500,
+        }}
+      >
+        {tag}
+      </span>
+    </>
+  );
 }
 
 export function createPageIndex(root: Root): Map<string, Item> {
@@ -139,7 +164,7 @@ function findPage(
   );
 }
 
-function buildExternalPage(name: string, href: string, icon?: string): Item {
+function buildExternalPage(name: ReactNode, href: string, icon?: ReactNode): Item {
   return {
     $id: nextId("external"),
     type: "page",
@@ -150,16 +175,16 @@ function buildExternalPage(name: string, href: string, icon?: string): Item {
   };
 }
 
-function buildGroupFolder(
+async function buildGroupFolder(
   group: MintlifyGroup,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Folder | undefined {
+): Promise<Folder | undefined> {
   if (group.hidden) return undefined;
 
   const children: Node[] = [];
   for (const entry of group.pages ?? []) {
-    const node = buildNavEntry(entry, pageIndex, options);
+    const node = await buildNavEntry(entry, pageIndex, options);
     if (node) children.push(node);
   }
 
@@ -168,8 +193,8 @@ function buildGroupFolder(
   const folder: Folder = {
     $id: nextId("group"),
     type: "folder",
-    name: group.group,
-    icon: iconName(group.icon),
+    name: withTag(group.group, group.tag),
+    icon: await icon(group.icon),
     defaultOpen: group.expanded,
     children,
     $ref: { folder: normalizeMintPath(group.root ?? group.group) },
@@ -183,11 +208,11 @@ function buildGroupFolder(
   return folder;
 }
 
-function buildNavEntry(
+async function buildNavEntry(
   entry: MintlifyNavEntry,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Node | undefined {
+): Promise<Node | undefined> {
   if (typeof entry === "string") {
     const page = findPage(entry, pageIndex, options);
     if (page) return page;
@@ -203,60 +228,66 @@ function buildNavEntry(
   return buildGroupFolder(entry, pageIndex, options);
 }
 
-function buildSection(
-  name: string,
+async function buildSection(
+  name: ReactNode,
   container: NavigationSection,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-  icon?: string,
+  icon?: ReactNode,
   href?: string,
-): Node | undefined {
+): Promise<Node | undefined> {
   if (href) {
     return buildExternalPage(name, href, icon);
   }
 
-  const children = buildNavigationChildren(container, pageIndex, options);
+  const children = await buildNavigationChildren(container, pageIndex, options);
   if (children.length === 0) return undefined;
 
-  return {
+  const folder: Folder = {
     $id: nextId("section"),
     type: "folder",
     name,
     icon,
     children,
-    $ref: { folder: name.toLowerCase().replace(/\s+/g, "-") },
-  } satisfies Folder;
+  };
+
+  if (typeof name === "string") {
+    folder.$ref = { folder: name.toLowerCase().replace(/\s+/g, "-") };
+  }
+
+  return folder;
 }
 
-function buildNavigationChildren(
+async function buildNavigationChildren(
   container: NavigationSection,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Node[] {
+): Promise<Node[]> {
   const nodes: Node[] = [];
 
   if (container.pages) {
     for (const entry of container.pages) {
-      const node = buildNavEntry(entry, pageIndex, options);
+      const node = await buildNavEntry(entry, pageIndex, options);
       if (node) nodes.push(node);
     }
   }
 
   if (container.groups) {
     for (const group of container.groups) {
-      const node = buildGroupFolder(group, pageIndex, options);
+      const node = await buildGroupFolder(group, pageIndex, options);
       if (node) nodes.push(node);
     }
   }
 
   if (container.menu) {
     for (const item of container.menu) {
-      const node = buildSection(
+      if (item.hidden) continue;
+      const node = await buildSection(
         item.item,
         item,
         pageIndex,
         options,
-        iconName(item.icon),
+        await icon(item.icon),
         item.href,
       );
       if (node) nodes.push(node);
@@ -266,7 +297,14 @@ function buildNavigationChildren(
   if (container.tabs) {
     for (const tab of container.tabs) {
       if (tab.hidden) continue;
-      const node = buildSection(tab.tab, tab, pageIndex, options, iconName(tab.icon), tab.href);
+      const node = await buildSection(
+        tab.tab,
+        tab,
+        pageIndex,
+        options,
+        await icon(tab.icon),
+        tab.href,
+      );
       if (node) nodes.push(node);
     }
   }
@@ -274,12 +312,12 @@ function buildNavigationChildren(
   if (container.anchors) {
     for (const anchor of container.anchors) {
       if (anchor.hidden) continue;
-      const node = buildSection(
+      const node = await buildSection(
         anchor.anchor,
         anchor,
         pageIndex,
         options,
-        iconName(anchor.icon),
+        await icon(anchor.icon),
         anchor.href,
       );
       if (node) nodes.push(node);
@@ -289,12 +327,12 @@ function buildNavigationChildren(
   if (container.dropdowns) {
     for (const dropdown of container.dropdowns) {
       if (dropdown.hidden) continue;
-      const node = buildSection(
+      const node = await buildSection(
         dropdown.dropdown,
         dropdown,
         pageIndex,
         options,
-        iconName(dropdown.icon),
+        await icon(dropdown.icon),
         dropdown.href,
       );
       if (node) nodes.push(node);
@@ -304,12 +342,12 @@ function buildNavigationChildren(
   if (container.products) {
     for (const product of container.products) {
       if (product.hidden) continue;
-      const node = buildSection(
+      const node = await buildSection(
         product.name ?? product.product,
         product,
         pageIndex,
         options,
-        iconName(product.icon),
+        await icon(product.icon),
         product.href,
       );
       if (node) nodes.push(node);
@@ -344,11 +382,11 @@ export function resolveNavigationContainer(
   return container;
 }
 
-function buildVersionRootFolder(
+async function buildVersionRootFolder(
   version: MintlifyVersionNav,
   pageIndex: Map<string, Item>,
   options: ResolveNavigationOptions,
-): Folder | undefined {
+): Promise<Folder | undefined> {
   if (version.hidden) return undefined;
 
   const matchOptions: PageMatchOptions = {
@@ -356,13 +394,13 @@ function buildVersionRootFolder(
     version: version.version,
   };
 
-  const children = buildNavigationChildren(version, pageIndex, matchOptions);
+  const children = await buildNavigationChildren(version, pageIndex, matchOptions);
   if (children.length === 0) return undefined;
 
   return {
     $id: nextId("version"),
     type: "folder",
-    name: version.version,
+    name: withTag(version.version, version.tag),
     root: true,
     defaultOpen: version.default,
     children,
@@ -370,19 +408,22 @@ function buildVersionRootFolder(
   };
 }
 
-export function buildPageTreeFromNavigation(
+export async function buildPageTreeFromNavigation(
   navigation: MintlifyNavigation,
   pageIndex: Map<string, Item>,
   options: ResolveNavigationOptions = {},
-): Node[] {
+): Promise<Node[]> {
   nodeId = 0;
   const container = resolveNavigationContainer(navigation, options);
   const matchOptions: PageMatchOptions = { docsDir: options.docsDir };
 
   if (container.versions?.length) {
-    return container.versions
-      .map((version) => buildVersionRootFolder(version, pageIndex, options))
-      .filter((node): node is Folder => node !== undefined);
+    const folders: Folder[] = [];
+    for (const version of container.versions) {
+      const node = await buildVersionRootFolder(version, pageIndex, options);
+      if (node) folders.push(node);
+    }
+    return folders;
   }
 
   return buildNavigationChildren(container, pageIndex, matchOptions);
@@ -391,4 +432,43 @@ export function buildPageTreeFromNavigation(
 export function getMintlifyVersions(navigation: MintlifyNavigation): MintlifyVersionNav[] {
   const container = resolveNavigationContainer(navigation, {});
   return container.versions ?? [];
+}
+
+/**
+ * Collect every page path referenced from navigation (all languages, versions,
+ * tabs, ...), normalized with {@link normalizeMintPath}.
+ *
+ * Used to implement `seo.indexing: "navigable"`.
+ */
+export function getNavigablePages(navigation: MintlifyNavigation): Set<string> {
+  const pages = new Set<string>();
+
+  function walkEntries(entries: MintlifyNavEntry[] | undefined) {
+    for (const entry of entries ?? []) {
+      if (typeof entry === "string") {
+        if (!/^https?:\/\//.test(entry)) pages.add(normalizeMintPath(entry));
+        continue;
+      }
+
+      if (entry.root) pages.add(normalizeMintPath(entry.root));
+      walkEntries(entry.pages);
+    }
+  }
+
+  function walkContainer(container: NavigationSection | undefined) {
+    if (!container) return;
+    walkEntries(container.pages);
+    for (const group of container.groups ?? []) walkEntries([group]);
+    for (const tab of container.tabs ?? []) walkContainer(tab);
+    for (const anchor of container.anchors ?? []) walkContainer(anchor);
+    for (const dropdown of container.dropdowns ?? []) walkContainer(dropdown);
+    for (const product of container.products ?? []) walkContainer(product);
+    for (const item of container.menu ?? []) walkContainer(item);
+    for (const language of container.languages ?? []) walkContainer(language);
+    for (const version of container.versions ?? []) walkContainer(version);
+  }
+
+  walkContainer(navigation);
+  walkContainer(navigation.global as NavigationSection | undefined);
+  return pages;
 }

@@ -6,6 +6,7 @@ export default defineConfig({
   vite: {
     resolve: {
       tsconfigPaths: true,
+      dedupe: ["fumadocs-ui"],
     },
     plugins: [press(), tailwindcss()],
   },

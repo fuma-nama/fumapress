@@ -1,6 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createMintlifyOpenAPI } from "@/openapi";
+import { collectApiSources } from "@/api-sources";
 import { openapiDocs } from "./fixtures/docs";
 
 const projectRoot = path.resolve("/tmp/fumapress-mintlify");
@@ -24,5 +25,19 @@ describe("createMintlifyOpenAPI", () => {
     });
 
     expect(server.options.proxyUrl).toBe("/custom-proxy");
+  });
+});
+
+describe("collectApiSources", () => {
+  it("keeps URLs as-is and resolves relative paths", () => {
+    expect(
+      collectApiSources(["https://example.com/openapi.json", "specs/api.yaml"], projectRoot),
+    ).toEqual(["https://example.com/openapi.json", path.join(projectRoot, "specs/api.yaml")]);
+  });
+
+  it("supports source objects", () => {
+    expect(collectApiSources({ source: "spec.yaml", directory: "api" }, projectRoot)).toEqual([
+      path.join(projectRoot, "spec.yaml"),
+    ]);
   });
 });

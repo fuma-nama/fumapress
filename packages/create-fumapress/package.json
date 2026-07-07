@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress",
-  "version": "0.0.16",
+  "version": "0.1.0",
   "description": "Initialize a Fumapress app",
   "keywords": [
     "Docs",
@@ -32,13 +32,13 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@clack/prompts": "^1.5.1",
+    "@clack/prompts": "^1.7.0",
     "commander": "^15.0.0",
     "tinyexec": "^1.2.4"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "tsdown": "0.22.2",
+    "@types/node": "^26.1.0",
+    "tsdown": "0.22.3",
     "typescript": "^6.0.3"
   }
 }

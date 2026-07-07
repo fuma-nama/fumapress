@@ -75,13 +75,19 @@ export async function crawlFrameworkPkgs(
   });
 
   const optimizeDepsIncludeByPkgJsonPath = new Map<string, string>();
+  const optimizeDepsSubpathsByPkgJsonPath = new Map<string, string[]>();
   let optimizeDepsInclude: string[] = [];
   let optimizeDepsExclude: string[] = [];
   let ssrNoExternal: string[] = [];
   let ssrExternal: string[] = [];
 
   await crawl(pkgJsonPath, pkgJson);
-  optimizeDepsInclude = [...optimizeDepsIncludeByPkgJsonPath.values()];
+  optimizeDepsInclude = [...optimizeDepsIncludeByPkgJsonPath.entries()].flatMap(
+    ([depPkgJsonPath, chain]) =>
+      (optimizeDepsSubpathsByPkgJsonPath.get(depPkgJsonPath) ?? ["."]).map((subpath) =>
+        subpath === "." ? chain : chain + subpath.slice(1),
+      ),
+  );
 
   if (options.viteUserConfig) {
     const userOptimizeDepsExclude = options.viteUserConfig.optimizeDeps?.exclude;
@@ -184,7 +190,7 @@ export async function crawlFrameworkPkgs(
         const needsOptimization = await pkgNeedsOptimization(depPkgJson, depPkgJsonPath);
 
         if (needsOptimization) {
-          addOptimizedDep(depPkgJsonPath, depChain);
+          addOptimizedDep(depPkgJsonPath, depChain, depPkgJson);
         } else {
           await crawl(depPkgJsonPath, depPkgJson, depChain, false, true);
         }
@@ -196,12 +202,16 @@ export async function crawlFrameworkPkgs(
     );
   }
 
-  function addOptimizedDep(depPkgJsonPath: string, depChain: string[]) {
+  function addOptimizedDep(depPkgJsonPath: string, depChain: string[], depPkgJson: PackageJson) {
     const includePath = depChain.join(" > ");
     const current = optimizeDepsIncludeByPkgJsonPath.get(depPkgJsonPath);
 
     if (!current || compareDepChains(includePath, current) < 0) {
       optimizeDepsIncludeByPkgJsonPath.set(depPkgJsonPath, includePath);
+    }
+
+    if (!optimizeDepsSubpathsByPkgJsonPath.has(depPkgJsonPath)) {
+      optimizeDepsSubpathsByPkgJsonPath.set(depPkgJsonPath, getExportsSubpaths(depPkgJson.exports));
     }
   }
 }
@@ -234,7 +244,11 @@ export async function pkgNeedsOptimization(
   pkgJson: PackageJson,
   pkgJsonPath: string,
 ): Promise<boolean> {
-  if (pkgJson.module || pkgJson.exports || pkgJson.type === "module") return false;
+  if (pkgJson.module || pkgJson.type === "module") return false;
+
+  // an export map alone doesn't imply ESM: CJS-only packages (e.g. `use-sync-external-store`)
+  // ship one too, and still need pre-bundling for the browser
+  if (pkgJson.exports) return !exportsHasEsmEntry(pkgJson.exports);
 
   if (pkgJson.main) {
     const entryExt = path.extname(pkgJson.main);
@@ -247,6 +261,33 @@ export async function pkgNeedsOptimization(
   } catch {
     return false;
   }
+}
+
+function exportsHasEsmEntry(exportsField: unknown): boolean {
+  if (typeof exportsField === "string") return exportsField.endsWith(".mjs");
+  if (Array.isArray(exportsField)) return exportsField.some(exportsHasEsmEntry);
+  if (exportsField && typeof exportsField === "object") {
+    return Object.entries(exportsField).some(
+      ([key, value]) => key === "import" || key === "module" || exportsHasEsmEntry(value),
+    );
+  }
+  return false;
+}
+
+// Vite only pre-bundles the entries listed in `optimizeDeps.include`, so a CJS package's
+// deep imports (e.g. `use-sync-external-store/shim`) must each become their own entry.
+// Keys with wildcards or file extensions (incl. `.native`) are skipped: they either can't be
+// listed as-is or duplicate an extensionless key.
+function getExportsSubpaths(exportsField: unknown): string[] {
+  if (!exportsField || typeof exportsField !== "object" || Array.isArray(exportsField)) {
+    return ["."];
+  }
+
+  const subpathKeys = Object.keys(exportsField).filter((key) => key.startsWith("."));
+  if (subpathKeys.length === 0) return ["."];
+
+  const subpaths = subpathKeys.filter((key) => key === "." || /^\.\/[^*.]+$/.test(key));
+  return subpaths.length > 0 ? subpaths : ["."];
 }
 
 async function findDepPkgJsonPath(

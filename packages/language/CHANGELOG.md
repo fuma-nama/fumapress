@@ -1,0 +1,19 @@
+## @fumapress/language@0.1.0
+
+### Default to Base UI
+
+CLI & internal packages now use Base UI over Radix UI by default.
+
+### Auto-detect CJS deps with export maps
+
+The Vite plugin now pre-bundles CJS dependencies that ship an `exports` field (e.g. `use-sync-external-store` pulled in by Base UI), including their deep imports. The manual `optimizeDeps.include` workaround and the direct `use-sync-external-store` dependency are no longer needed.
+
+### Use cnfast for class merging
+
+Class name helpers now use `cnfast` instead of `tailwind-merge` directly for compatible Tailwind class merging with faster runtime performance.
+
+## @fumapress/language@0.0.2
+
+### Bump deps
+
+Use Waku beta 6 and AI SDK 7.

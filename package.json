@@ -9,16 +9,16 @@
     "lint:format": "oxfmt --check",
     "format": "oxfmt",
     "types:check": "turbo run types:check",
-    "version": "changeset version",
-    "release": "turbo run build --filter=./packages/* && changeset publish"
+    "tegami": "node scripts/tegami.mts"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.0",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.69.0",
-    "turbo": "^2.9.18",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "tegami": "^1.2.2",
+    "tinyexec": "^1.2.4",
+    "turbo": "^2.10.3",
     "typescript": "6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=24"

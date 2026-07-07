@@ -1,6 +1,6 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
+import { Tabs } from "@base-ui/react/tabs";
 import { TerminalIcon } from "lucide-react";
 import type { MagicMoveDifferOptions, MagicMoveRenderOptions } from "@shikijs/magic-move/types";
 import { createHighlighterCoreSync } from "shiki/core";
@@ -30,23 +30,23 @@ export const magicMoveOptions: MagicMoveRenderOptions & MagicMoveDifferOptions =
 
 export function AutoSetupCommand() {
   return (
-    <Tabs
+    <Tabs.Root
       defaultValue="npm"
       className="mt-auto -mx-6 -mb-12 px-6 py-4 text-sm border-t bg-fd-card text-fd-card-foreground md:-mx-12 md:-mb-24 md:px-12"
     >
-      <TabsList className="flex flex-row mb-4 border w-fit rounded-lg items-center text-fd-muted-foreground bg-fd-muted shadow-md">
+      <Tabs.List className="flex flex-row mb-4 border w-fit rounded-lg items-center text-fd-muted-foreground bg-fd-muted shadow-md">
         {Object.keys(commands).map((name) => (
-          <TabsTrigger
+          <Tabs.Tab
             key={name}
             value={name}
-            className="px-2 py-1 rounded-lg font-medium font-mono hover:text-fd-accent-foreground hover:bg-fd-accent data-[state=active]:text-fd-primary data-[state=active]:bg-fd-primary/10"
+            className="px-2 py-1 rounded-lg font-medium font-mono hover:text-fd-accent-foreground hover:bg-fd-accent data-active:text-fd-primary data-active:bg-fd-primary/10"
           >
             {name}
-          </TabsTrigger>
+          </Tabs.Tab>
         ))}
-      </TabsList>
+      </Tabs.List>
       {Object.entries(commands).map(([name, cmd]) => (
-        <TabsContent key={name} value={name}>
+        <Tabs.Panel key={name} value={name}>
           <code className="flex flex-row gap-2 items-center">
             <TerminalIcon className="size-3.5 text-fd-muted-foreground" />
             {cmd}
@@ -63,8 +63,8 @@ export function AutoSetupCommand() {
 ◆  Created my-site
 │`}
           </pre>
-        </TabsContent>
+        </Tabs.Panel>
       ))}
-    </Tabs>
+    </Tabs.Root>
   );
 }

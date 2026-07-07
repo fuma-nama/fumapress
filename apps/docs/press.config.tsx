@@ -18,6 +18,7 @@ import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
+import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
 const config = defineConfig({
   content: {
@@ -123,7 +124,7 @@ const config = defineConfig({
         },
       };
     },
-    page: createDocsLayoutPage({
+    page: createNotebookLayoutPage({
       async render({ locale }) {
         let pageTree = (await this.getLoader()).getPageTree(locale);
 

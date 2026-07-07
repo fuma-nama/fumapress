@@ -11,13 +11,13 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { Loader2, MessageCircleIcon, RefreshCw, SearchIcon, Send, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { useChat, type UseChatHelpers } from "@ai-sdk/react";
 import { DefaultChatTransport, type Tool, type UIToolInvocation } from "ai";
 import { Markdown } from "./markdown";
-import { Presence } from "@radix-ui/react-presence";
 import type { ChatUIMessage, SearchTool } from "@/chat";
 import { useTranslations } from "@fuma-translate/react";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
@@ -366,20 +366,24 @@ export function AISearchTrigger({
 
 export function AISearchPanel() {
   const { open, setOpen } = useAISearchContext();
+  const [actualOpen, setActualOpen] = useState(open);
   useHotKey();
+
+  if (open && !actualOpen) setActualOpen(true);
 
   return (
     <>
-      <Presence present={open}>
+      {actualOpen && (
         <div
           className={cn(
             "fixed inset-0 z-30 backdrop-blur-xs bg-fd-overlay lg:hidden",
             open ? "animate-fd-fade-in" : "animate-fd-fade-out",
           )}
           onClick={() => setOpen(false)}
+          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
         />
-      </Presence>
-      <Presence present={open}>
+      )}
+      {actualOpen && (
         <div
           className={cn(
             "overflow-hidden z-30 bg-fd-card text-fd-card-foreground [--ai-chat-width:400px] 2xl:[--ai-chat-width:460px]",
@@ -389,6 +393,7 @@ export function AISearchPanel() {
               ? "animate-fd-dialog-in lg:animate-fd-ask-ai-open"
               : "animate-fd-dialog-out lg:animate-fd-ask-ai-close",
           )}
+          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
         >
           <div className="flex flex-col size-full p-2 lg:p-3 lg:w-(--ai-chat-width)">
             <AISearchPanelHeader />
@@ -401,7 +406,7 @@ export function AISearchPanel() {
             </div>
           </div>
         </div>
-      </Presence>
+      )}
     </>
   );
 }

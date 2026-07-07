@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
@@ -32,6 +32,7 @@
     "./layouts/notebook": "./dist/layouts/notebook.js",
     "./layouts/root": "./dist/layouts/root.js",
     "./layouts/switch": "./dist/layouts/switch.js",
+    "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/blog": "./dist/plugins/blog.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/image/cloudflare": "./dist/plugins/image/cloudflare.js",
@@ -41,7 +42,6 @@
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
-    "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
     "./plugins/sitemap": "./dist/plugins/sitemap.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",
@@ -63,36 +63,36 @@
   "dependencies": {
     "@fuma-translate/react": "^1.0.2",
     "@orama/orama": "^3.1.18",
-    "@takumi-rs/image-response": "^1.8.1",
+    "@takumi-rs/image-response": "^1.8.7",
     "class-variance-authority": "^0.7.1",
+    "cnfast": "^0.0.8",
     "flexsearch": "^0.8.212",
-    "lucide-react": "^1.17.0",
-    "tailwind-merge": "^3.6.0",
-    "vite": "^8.0.16",
+    "lucide-react": "^1.23.0",
+    "vite": "^8.1.3",
     "xml-js": "^1.6.11",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@fastify/deepmerge": "^3.2.1",
-    "@fumadocs/asyncapi": "^0.0.2",
-    "@tailwindcss/oxide": "^4.3.0",
+    "@fumadocs/asyncapi": "0.1.0",
+    "@tailwindcss/oxide": "^4.3.2",
     "@types/http-cache-semantics": "^4.2.0",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.10.2",
-    "fumadocs-mdx": "^15.0.12",
-    "fumadocs-openapi": "^11.0.1",
-    "fumadocs-ui": "^16.10.2",
-    "hono": "^4.12.25",
+    "fumadocs-core": "^16.11.0",
+    "fumadocs-mdx": "^15.1.0",
+    "fumadocs-openapi": "^11.1.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "hono": "^4.12.28",
     "http-cache-semantics": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "sharp": "^0.35.1",
-    "tsdown": "0.22.2",
+    "sharp": "^0.35.3",
+    "tsdown": "0.22.3",
     "typescript": "^6.0.3",
-    "waku": "1.0.0-beta.3"
+    "waku": "1.0.0-beta.6"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "0.x.x",
@@ -106,7 +106,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.34.0",
-    "waku": "1.0.0-beta.3"
+    "waku": "1.0.0-beta.6"
   },
   "peerDependenciesMeta": {
     "@fumadocs/asyncapi": {

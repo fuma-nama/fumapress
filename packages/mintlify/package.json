@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/mintlify",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "Mintlify auto-migration for Fumapress",
   "keywords": [
     "Docs",
@@ -17,6 +17,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./asyncapi": "./dist/asyncapi.mjs",
     "./openapi": "./dist/openapi.mjs",
     "./package.json": "./package.json"
   },
@@ -29,28 +30,36 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumapress": "workspace:*",
+    "lucide-react": "^1.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
+    "@fumadocs/asyncapi": "^0.1.0",
+    "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.10.2",
-    "fumadocs-openapi": "^11.0.1",
-    "fumadocs-ui": "^16.10.2",
-    "hono": "^4.12.25",
+    "fumadocs-core": "^16.11.0",
+    "fumadocs-openapi": "^11.1.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "fumapress": "workspace:*",
+    "hono": "^4.12.28",
     "react": "^19.2.7",
-    "tsdown": "0.22.2",
+    "tsdown": "0.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
+    "@fumadocs/asyncapi": "*",
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
-    "hono": "*"
+    "fumapress": "workspace:*",
+    "hono": "*",
+    "react": "*"
   },
   "peerDependenciesMeta": {
+    "@fumadocs/asyncapi": {
+      "optional": true
+    },
     "fumadocs-openapi": {
       "optional": true
     },
