@@ -1,7 +1,9 @@
 "use client";
 import {
+  cloneElement,
   type ComponentProps,
   createContext,
+  type ReactElement,
   type ReactNode,
   type SyntheticEvent,
   use,
@@ -17,7 +19,6 @@ import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { useChat, type UseChatHelpers } from "@ai-sdk/react";
 import { DefaultChatTransport, type Tool, type UIToolInvocation } from "ai";
 import { Markdown } from "./markdown";
-import { Presence } from "@radix-ui/react-presence";
 import type { ChatUIMessage, SearchTool } from "@/chat";
 import { useTranslations } from "@fuma-translate/react";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
@@ -239,6 +240,25 @@ function List(props: Omit<ComponentProps<"div">, "dir">) {
       {props.children}
     </div>
   );
+}
+
+function Presence({
+  present,
+  children,
+}: {
+  present: boolean;
+  children: ReactElement<ComponentProps<"div">>;
+}) {
+  const [mounted, setMounted] = useState(present);
+  if (present && !mounted) setMounted(true);
+  if (!mounted) return null;
+
+  return cloneElement(children, {
+    onAnimationEnd(e) {
+      children.props.onAnimationEnd?.(e);
+      if (!present && e.target === e.currentTarget) setMounted(false);
+    },
+  });
 }
 
 function Input(props: ComponentProps<"textarea">) {

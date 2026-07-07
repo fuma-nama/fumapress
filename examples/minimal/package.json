@@ -10,12 +10,13 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.10.7",
-    "fumadocs-ui": "^16.10.7",
+    "fumadocs-core": "^16.11.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-server-dom-webpack": "^19.2.7",
+    "use-sync-external-store": "^1.6.0",
     "waku": "1.0.0-beta.6"
   },
   "devDependencies": {

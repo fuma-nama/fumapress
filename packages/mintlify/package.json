@@ -30,28 +30,29 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumapress": "workspace:*",
     "lucide-react": "^1.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@fumadocs/asyncapi": "^0.0.4",
+    "@fumadocs/asyncapi": "^0.1.0",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.10.7",
-    "fumadocs-openapi": "^11.0.6",
-    "fumadocs-ui": "^16.10.7",
-    "hono": "^4.12.27",
+    "fumadocs-core": "^16.11.0",
+    "fumadocs-openapi": "^11.1.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "fumapress": "workspace:*",
+    "hono": "^4.12.28",
     "react": "^19.2.7",
     "tsdown": "0.22.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "*",
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
+    "fumapress": "workspace:*",
     "hono": "*",
     "react": "*"
   },

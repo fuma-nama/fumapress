@@ -1,17 +1,18 @@
 ---
-title: Using Base UI
-description: Use the Base UI component library instead of Radix UI.
+title: Using Radix UI
+description: Use the Radix UI component library instead of Base UI.
 ---
 
 ## Overview
 
-Fumapress uses the [Radix UI](https://radix-ui.com) headless component library by default.
-If you are using [Base UI](https://base-ui.com), Fumapress also offers [native support for Base UI](https://fumadocs.dev/docs/ui/component-library).
+Fumapress uses the [Base UI](https://base-ui.com) headless component library by default, same as Fumadocs.
+If you are using [Radix UI](https://radix-ui.com), Fumapress also supports the [Radix UI build of Fumadocs UI](https://fumadocs.dev/docs/ui/component-library).
 
-You can enable it by aliasing `fumadocs-ui`:
+You can enable it by installing `fumadocs-ui` without the `@fumadocs/base-ui` alias:
 
 ```npm
-npm i @base-ui/react fumadocs-ui@npm:@fumadocs/base-ui use-sync-external-store
+npm i fumadocs-ui
+npm un @base-ui/react use-sync-external-store
 ```
 
 And update your Vite config:
@@ -29,7 +30,7 @@ export default defineConfig({
       dedupe: ["fumadocs-ui"],
     },
     optimizeDeps: {
-      // [!code ++]
+      // [!code --]
       include: ["use-sync-external-store/shim/with-selector", "use-sync-external-store/shim"],
     },
     plugins: [press(), mdx(), tailwindcss()],

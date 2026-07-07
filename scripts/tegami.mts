@@ -34,12 +34,14 @@ const paper = tegami({
       syncGitTag: true,
     },
   },
-  packages: {
-    fumapress: { group: "fumapress" },
-    "@fumapress/ai": { group: "fumapress" },
-    "@fumapress/feedback": { group: "fumapress" },
-    "create-fumapress": { group: "cli" },
-    "create-fumapress-versions": { group: "cli" },
+  packages: ({ name }) => {
+    switch (name) {
+      case "create-fumapress":
+        return { group: "cli" };
+      case "create-fumapress-versions":
+        return { group: "cli" };
+    }
+    if (name === "fumapress" || name.startsWith("@fumapress/")) return { group: "fumapress" };
   },
 });
 

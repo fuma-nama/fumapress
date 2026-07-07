@@ -230,6 +230,9 @@ import mdx from "fumadocs-mdx/vite";
 
 export default defineConfig({
   vite: {
+    optimizeDeps: {
+      include: ["use-sync-external-store/shim/with-selector", "use-sync-external-store/shim"],
+    },
     plugins: [press(), mdx(), tailwindcss()],
   },
 });

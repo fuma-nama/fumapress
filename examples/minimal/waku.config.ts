@@ -6,6 +6,10 @@ export default defineConfig({
   vite: {
     resolve: {
       tsconfigPaths: true,
+      dedupe: ["fumadocs-ui"],
+    },
+    optimizeDeps: {
+      include: ["use-sync-external-store/shim/with-selector", "use-sync-external-store/shim"],
     },
     plugins: [press(), tailwindcss()],
   },
