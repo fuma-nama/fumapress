@@ -3,7 +3,7 @@
     "target": "ES2023",
     "lib": ["dom", "dom.iterable", "ES2023"],
     "allowImportingTsExtensions": true,
-    "types": [],
+    "types": ["vite/client"],
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "bundler",

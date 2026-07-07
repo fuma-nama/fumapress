@@ -98,9 +98,11 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
           query: z.string(),
           limit: z.number().int().min(1).max(100).default(10),
         }),
+        contextSchema: z.object({
+          locale: z.string().nullable(),
+        }),
         async execute({ query, limit }, options) {
-          const context = options.experimental_context as { locale: string | null };
-          return searchServer.execute(query, limit, context.locale);
+          return searchServer.execute(query, limit, options.context.locale);
         },
       });
 
@@ -139,8 +141,10 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
                   }
                 },
               }),
-              experimental_context: {
-                locale,
+              toolsContext: {
+                search: {
+                  locale,
+                },
               },
               toolChoice: "auto",
             });

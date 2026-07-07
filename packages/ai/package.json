@@ -49,12 +49,14 @@
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "fumadocs-core": "^16.11.0",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tsdown": "0.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.1.3"
   },
   "peerDependencies": {
     "@types/react": "*",

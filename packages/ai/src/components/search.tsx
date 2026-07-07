@@ -1,9 +1,7 @@
 "use client";
 import {
-  cloneElement,
   type ComponentProps,
   createContext,
-  type ReactElement,
   type ReactNode,
   type SyntheticEvent,
   use,
@@ -13,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { Loader2, MessageCircleIcon, RefreshCw, SearchIcon, Send, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
@@ -242,25 +241,6 @@ function List(props: Omit<ComponentProps<"div">, "dir">) {
   );
 }
 
-function Presence({
-  present,
-  children,
-}: {
-  present: boolean;
-  children: ReactElement<ComponentProps<"div">>;
-}) {
-  const [mounted, setMounted] = useState(present);
-  if (present && !mounted) setMounted(true);
-  if (!mounted) return null;
-
-  return cloneElement(children, {
-    onAnimationEnd(e) {
-      children.props.onAnimationEnd?.(e);
-      if (!present && e.target === e.currentTarget) setMounted(false);
-    },
-  });
-}
-
 function Input(props: ComponentProps<"textarea">) {
   const ref = useRef<HTMLDivElement>(null);
   const shared = cn("col-start-1 row-start-1", props.className);
@@ -386,20 +366,24 @@ export function AISearchTrigger({
 
 export function AISearchPanel() {
   const { open, setOpen } = useAISearchContext();
+  const [actualOpen, setActualOpen] = useState(open);
   useHotKey();
+
+  if (open && !actualOpen) setActualOpen(true);
 
   return (
     <>
-      <Presence present={open}>
+      {actualOpen && (
         <div
           className={cn(
             "fixed inset-0 z-30 backdrop-blur-xs bg-fd-overlay lg:hidden",
             open ? "animate-fd-fade-in" : "animate-fd-fade-out",
           )}
           onClick={() => setOpen(false)}
+          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
         />
-      </Presence>
-      <Presence present={open}>
+      )}
+      {actualOpen && (
         <div
           className={cn(
             "overflow-hidden z-30 bg-fd-card text-fd-card-foreground [--ai-chat-width:400px] 2xl:[--ai-chat-width:460px]",
@@ -409,6 +393,7 @@ export function AISearchPanel() {
               ? "animate-fd-dialog-in lg:animate-fd-ask-ai-open"
               : "animate-fd-dialog-out lg:animate-fd-ask-ai-close",
           )}
+          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
         >
           <div className="flex flex-col size-full p-2 lg:p-3 lg:w-(--ai-chat-width)">
             <AISearchPanelHeader />
@@ -421,7 +406,7 @@ export function AISearchPanel() {
             </div>
           </div>
         </div>
-      </Presence>
+      )}
     </>
   );
 }
