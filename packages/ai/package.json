@@ -36,10 +36,10 @@
     "@fuma-translate/react": "^1.0.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ai": "^7.0.15",
+    "cnfast": "^0.0.8",
     "flexsearch": "^0.8.212",
     "fumapress": "workspace:*",
     "lucide-react": "^1.23.0",
-    "tailwind-merge": "^3.6.0",
     "unist-util-visit": "^5.1.0",
     "zod": "^4.4.3"
   },
