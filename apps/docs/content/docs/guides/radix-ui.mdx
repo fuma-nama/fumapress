@@ -12,10 +12,10 @@ You can enable it by installing `fumadocs-ui` without the `@fumadocs/base-ui` al
 
 ```npm
 npm i fumadocs-ui
-npm un @base-ui/react use-sync-external-store
+npm uninstall @base-ui/react
 ```
 
-And update your Vite config:
+Optionally, update your Vite config:
 
 ```ts title="waku.config.ts"
 import { defineConfig } from "waku/config";
@@ -28,10 +28,6 @@ export default defineConfig({
     resolve: {
       // optional, but often solves some weird problems in monorepo
       dedupe: ["fumadocs-ui"],
-    },
-    optimizeDeps: {
-      // [!code --]
-      include: ["use-sync-external-store/shim/with-selector", "use-sync-external-store/shim"],
     },
     plugins: [press(), mdx(), tailwindcss()],
   },

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "example-minimal",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/minimal", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/docs", "dev"],
+      "port": 3000
+    }
+  ]
+}

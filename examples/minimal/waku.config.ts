@@ -8,9 +8,6 @@ export default defineConfig({
       tsconfigPaths: true,
       dedupe: ["fumadocs-ui"],
     },
-    optimizeDeps: {
-      include: ["use-sync-external-store/shim/with-selector", "use-sync-external-store/shim"],
-    },
     plugins: [press(), tailwindcss()],
   },
 });
