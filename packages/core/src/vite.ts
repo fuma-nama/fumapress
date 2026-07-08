@@ -60,7 +60,7 @@ function core(options: PluginOptions = {}): Plugin {
       return {
         ssr: {
           noExternal: out?.ssr.noExternal,
-          external: ["@takumi-rs/image-response", "sharp"],
+          external: ["sharp"],
         },
         optimizeDeps: out?.optimizeDeps,
       };

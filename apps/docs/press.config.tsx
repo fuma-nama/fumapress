@@ -6,7 +6,6 @@ import { blog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { blogPlugin } from "fumapress/plugins/blog";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";

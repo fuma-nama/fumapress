@@ -32,10 +32,10 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.16",
+    "@ai-sdk/react": "^4.0.17",
     "@fuma-translate/react": "^1.0.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "ai": "^7.0.15",
+    "ai": "^7.0.16",
     "cnfast": "^0.0.8",
     "flexsearch": "^0.8.212",
     "fumapress": "workspace:*",
@@ -50,8 +50,8 @@
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.11.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "fumadocs-core": "^16.11.1",
+    "fumadocs-ui": "^16.11.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tsdown": "0.22.3",

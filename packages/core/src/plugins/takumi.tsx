@@ -3,7 +3,7 @@ import { unstable_notFound } from "waku/router/server";
 import type { ReactNode } from "react";
 import type { ConfigContext } from "@/config";
 import type { AppContext } from "@/lib/shared";
-import { ImageResponse, type ImageResponseOptions } from "@takumi-rs/image-response";
+import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 
 export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
@@ -23,7 +23,7 @@ export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
     page: C["page"],
   ) => Awaitable<{
     node: ReactNode;
-    options?: Partial<ImageResponseOptions>;
+    options?: Omit<Partial<ImageResponseOptions>, "format">;
   }>;
 }
 
@@ -33,11 +33,9 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
   const {
     width = 1200,
     height = 630,
-    generate = async function generateDefault(page) {
-      const { generate } = await import("fumadocs-ui/og/takumi");
-
+    generate = function fn(page) {
       return {
-        node: generate({
+        node: generateDefault({
           title: page.data.title,
           description: page.data.description,
           site: this.siteConfig.name,
@@ -124,4 +122,93 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
       });
     },
   };
+}
+
+function generateDefault({
+  site,
+  title,
+  description,
+}: {
+  title?: string;
+  description?: string;
+  site?: string;
+}) {
+  const primaryColor = "rgba(255,150,255,0.3)";
+  const primaryTextColor = "rgb(255,150,255)";
+  const icon = (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="56"
+      height="56"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="lucide lucide-book-icon lucide-book"
+    >
+      <circle cx="12" cy="12" r="11" stroke={primaryTextColor} strokeWidth="2" />
+    </svg>
+  );
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+        color: "white",
+        padding: "4rem",
+        backgroundColor: "#0c0c0c",
+        borderBottom: `18px solid ${primaryColor}`,
+      }}
+    >
+      <p
+        style={{
+          fontWeight: 800,
+          fontSize: "82px",
+          margin: 0,
+        }}
+      >
+        {title}
+      </p>
+      <p
+        style={{
+          fontSize: "52px",
+          color: "rgba(240,240,240,0.8)",
+          margin: 0,
+          marginTop: "16px",
+          paddingBottom: "28px",
+          borderBottom: `10px dashed ${primaryColor}`,
+        }}
+      >
+        {description}
+      </p>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: "20px",
+          marginTop: "auto",
+          color: primaryTextColor,
+        }}
+      >
+        {icon}
+        {site && (
+          <p
+            style={{
+              fontSize: "56px",
+              fontWeight: 600,
+              margin: 0,
+            }}
+          >
+            {site}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
