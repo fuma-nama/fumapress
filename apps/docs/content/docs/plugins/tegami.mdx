@@ -1,0 +1,171 @@
+---
+title: Tegami
+description: Publish package changelogs to a filterable timeline page.
+---
+
+## Overview
+
+`@fumapress/tegami` connects [Tegami](https://tegami.fuma-nama.dev) releases to a Fumapress changelog page.
+
+When you apply a Tegami draft, `fumapressPlugin` writes MDX release notes into your content directory. `changelogPlugin` renders those entries on a single index page (`/changelog` by default) with package filters, date range, search, and load-more pagination.
+
+## Installation
+
+```npm
+npm i @fumapress/tegami tegami
+```
+
+Import the CSS preset:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/tegami/css/preset.css";
+```
+
+Add `fumapressPlugin()` into your Tegami config:
+
+```ts title="tegami.config.ts"
+import { tegami } from "tegami";
+import { fumapressPlugin } from "@fumapress/tegami/tegami";
+
+export default tegami({
+  plugins: [
+    fumapressPlugin({
+      dir: "content/changelog",
+    }),
+  ],
+});
+```
+
+### Fumadocs MDX
+
+Create a changelog collection with the Tegami schemas:
+
+```ts title="source.config.ts"
+import { defineDocs } from "fumadocs-mdx/config";
+// [!code ++]
+import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
+
+// [!code ++:13]
+export const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: {
+    async: true,
+    schema: changelogPageSchema,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: changelogMetaSchema,
+  },
+});
+```
+
+Register the collection and enable the plugin:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { changelog, docs } from "./.source/server";
+// [!code ++]
+import { changelogPlugin } from "@fumapress/tegami";
+
+export default defineConfig({
+  // [!code highlight:6]
+  content: {
+    docs: docs.toFumadocsSource(),
+    changelog: changelog.toFumadocsSource({
+      baseDir: "changelog",
+    }),
+  },
+})
+  // [!code ++]
+  .plugins(changelogPlugin());
+```
+
+By default, pages from the `changelog` content source are included. Override with `isChangelog()` if needed:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { changelogPlugin } from "@fumapress/tegami";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  changelogPlugin({
+    isChangelog: (page) => page.type === "changelog",
+  }),
+);
+```
+
+### Other Content Sources
+
+Without Fumadocs MDX, keep your `content` config and detect changelog pages yourself:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { changelogPlugin } from "@fumapress/tegami";
+import { myCms } from "./my-cms";
+
+export default defineConfig({
+  content: myCms.toStaticSource(),
+}).plugins(
+  changelogPlugin({
+    isChangelog: (page) => page.path.startsWith("changelog/"),
+  }),
+);
+```
+
+## Options
+
+### `paths`
+
+Override the index pathname (default `/changelog`). Set to `false` to skip creating the index route.
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { changelogPlugin } from "@fumapress/tegami";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  changelogPlugin({
+    paths: {
+      index: "/releases",
+    },
+  }),
+);
+```
+
+### `layouts`
+
+Override the shared layout or index page renderer:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import {
+  changelogPlugin,
+  createChangelogIndexPage,
+  createChangelogLayout,
+} from "@fumapress/tegami";
+import { createHomeLayout } from "fumapress/layouts/home";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  changelogPlugin({
+    layouts: {
+      layout: createHomeLayout(),
+      index: createChangelogIndexPage({
+        heading: "Releases",
+        description: "What shipped recently.",
+        pageSize: 10,
+      }),
+    },
+  }),
+);
+```

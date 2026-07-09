@@ -1,64 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:fumapress:\n    type: minor\n  group:cli:\n    type: minor\n---\n\n## Default to Base UI\n\nCLI & internal packages now use Base UI over Radix UI by default.\n"
-    filename: 2026-07-07-base-ui.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:fumapress:\n    type: patch\n  group:cli:\n    type: patch\n---\n\n## Auto-detect CJS deps with export maps\n\nThe Vite plugin now pre-bundles CJS dependencies that ship an `exports` field (e.g. `use-sync-external-store` pulled in by Base UI), including their deep imports. The manual `optimizeDeps.include` workaround and the direct `use-sync-external-store` dependency are no longer needed.\n"
-    filename: 2026-07-07-cjs-optimize-deps.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:fumapress:\n    type: patch\n---\n\n## Use cnfast for class merging\n\nClass name helpers now use `cnfast` instead of `tailwind-merge` directly for compatible Tailwind class merging with faster runtime performance.\n"
-    filename: 2026-07-07-ea47fa4.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/mintlify:\n    type: minor\n---\n\n## Port the full Mintlify docs.json feature surface\n\n`mintlifyPlugin()` now applies (in addition to navigation, navbar links, redirects and OpenAPI):\n\n- `colors` (`primary` / `light`) mapped to the Fumadocs theme, with automatic foreground colors\n- `logo` (single or light/dark, with `href`) and `favicon` (single or light/dark)\n- `appearance` (`default` color scheme, `strict` hides the theme toggle)\n- `background` color & image (light/dark variants)\n- `fonts` — Google Fonts are loaded automatically, self-hosted `woff`/`woff2` supported, separate `heading`/`body` fonts\n- navigation icons rendered with Lucide (Font Awesome/Tabler names matched best-effort) and `tag` badges on groups/versions\n- navbar link icons, GitHub/Discord brand icons and the `primary` CTA (`button`/`github`/`discord`)\n- `banner` with inline Markdown, dismiss button and `type`/`color` styling\n- `footer` with social brand icons and link columns\n- `redirects` path patterns (`:param`, `:param*`) with parameter substitution\n- `errors.404` (redirect to home by default, or custom title/description)\n- `seo.metatags` and `seo.indexing` (noindex for pages outside the navigation)\n- `search.prompt`, `description` and `metadata.timestamp` (Mintlify semantics: last-updated hidden unless enabled)\n- analytics `integrations`: GA4, GTM, Plausible, Fathom, PostHog, Mixpanel, Amplitude, Clarity, Heap, Hotjar, Intercom, Koala, LogRocket, Pirsch, Segment\n- `api.asyncapi` sources via the new `createMintlifyAsyncAPI()` in `@fumapress/mintlify/asyncapi`\n\nUnsupported properties are still parsed (migration never fails on a valid `docs.json`) and documented in the new Mintlify integration docs page.\n\n### Breaking changes\n\n- `applyNavbar` / `applyRedirects` plugin options were replaced by the `features` toggle map, e.g. `mintlifyPlugin({ features: { navbar: false } })`.\n- `buildPageTreeFromNavigation()` is now async (icons are resolved on the server).\n- Last-updated timestamps on docs pages are now hidden unless `metadata.timestamp` is `true`, matching Mintlify. Disable with `features: { metadata: false }`.\n"
-    filename: 2026-07-06-mintlify-port.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Use Takumi v2\n\nThe Takumi plugin now use Takumi v2 instead of the old v1 usage.\n"
+    filename: 2026-07-09-mrccs9fg.md
     v: 0.0.0
 core:packages:
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
-    id: npm:@fumapress/ai
+  - id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
+      - 2026-07-09-mrccs9fg.md
     id: npm:fumapress
     updated: true
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-    id: npm:create-fumapress
+  - id: npm:create-fumapress
     updated: true
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-    id: npm:create-fumapress-versions
+  - id: npm:create-fumapress-versions
     updated: true
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
-    id: npm:@fumapress/feedback
+  - id: npm:@fumapress/feedback
     updated: true
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
-    id: npm:@fumapress/language
+  - id: npm:@fumapress/language
     updated: true
-  - changelogIds:
-      - 2026-07-06-mintlify-port.md
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
-    id: npm:@fumapress/mintlify
+  - id: npm:@fumapress/mintlify
     updated: true
-  - changelogIds:
-      - 2026-07-07-base-ui.md
-      - 2026-07-07-cjs-optimize-deps.md
-      - 2026-07-07-ea47fa4.md
-    id: npm:@fumapress/sanity
+  - id: npm:@fumapress/sanity
     updated: true
+  - id: npm:@fumapress/tegami
+    updated: true
+npm:mark-latest:
+  - id: npm:@fumapress/tegami
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
@@ -68,8 +34,9 @@ npm:packages:
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/sanity
+  - id: npm:@fumapress/tegami
+  - id: npm:docs
   - id: npm:example-sanity
   - id: npm:example-openapi
-  - id: npm:docs
   - id: npm:example-minimal
   - id: npm:example-radix-ui

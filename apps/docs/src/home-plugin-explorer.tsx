@@ -226,6 +226,23 @@ export default defineConfig({
   }),
 );`,
   },
+  {
+    id: "tegami",
+    name: "Tegami",
+    description: "Publish package changelogs to a filterable timeline page.",
+    keywords: ["changelog", "releases", "tegami", "versioning"],
+    docsHref: "/docs/plugins/tegami",
+    usage: `import { defineConfig } from "fumapress";
+import { changelog, docs } from "./.source/server";
+import { changelogPlugin } from "@fumapress/tegami";
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
+  },
+}).plugins(changelogPlugin());`,
+  },
 ] as const;
 
 type Plugin = (typeof plugins)[number];

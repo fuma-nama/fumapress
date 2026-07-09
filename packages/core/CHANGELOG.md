@@ -1,3 +1,15 @@
+## fumapress@0.7.2
+
+### Use Takumi v2
+
+The Takumi plugin now use Takumi v2 instead of the old v1 usage.
+
+## fumapress@0.7.1
+
+### Fix base URL for `<Image />`
+
+The image component will no longer append base URL by default.
+
 ## fumapress@0.7.0
 
 ### Default to Base UI

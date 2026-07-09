@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/feedback",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "description": "Feedback integration for Fumapress",
   "keywords": [
     "Docs",
@@ -44,14 +44,14 @@
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.2",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.11.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "fumadocs-core": "^16.11.1",
+    "fumadocs-ui": "^16.11.1",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tsdown": "0.22.3",
+    "tsdown": "0.22.4",
     "typescript": "^6.0.3",
     "vite": "^8.1.3"
   },

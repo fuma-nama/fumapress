@@ -1,11 +1,15 @@
 import { tegami } from "tegami";
 import { runCli } from "tegami/cli";
 import { github } from "tegami/plugins/github";
+import { fumapressPlugin } from "@fumapress/tegami/tegami";
 import { x } from "tinyexec";
 
 const paper = tegami({
   npm: {
-    updateLockFile: true,
+    trustedPublish: {
+      provider: "github",
+      workflow: "release.yml",
+    },
   },
   plugins: [
     github({
@@ -13,6 +17,9 @@ const paper = tegami({
       versionPr: {
         base: "dev",
       },
+    }),
+    fumapressPlugin({
+      dir: "apps/docs/content/changelog",
     }),
     {
       name: "build",

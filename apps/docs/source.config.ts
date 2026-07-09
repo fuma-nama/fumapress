@@ -6,6 +6,7 @@ import {
   metaSchema,
   pageSchema,
 } from "fumapress/adapters/mdx/schema";
+import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
 
 const generator = createGenerator();
@@ -35,6 +36,20 @@ export const blog = defineDocs({
   },
   meta: {
     schema: blogMetaSchema,
+  },
+});
+
+export const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: {
+    async: true,
+    schema: changelogPageSchema,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: changelogMetaSchema,
   },
 });
 

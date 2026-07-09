@@ -1,12 +1,12 @@
 {
   "name": "create-fumapress-versions",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "fumadocs-core": "^16.11.0",
+    "fumadocs-core": "^16.11.1",
     "fumadocs-mdx": "^15.1.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.1",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -16,7 +16,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.2",

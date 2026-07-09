@@ -27,7 +27,6 @@ SOFTWARE.
 import { type ReactNode, type ImgHTMLAttributes, createContext, use, useMemo } from "react";
 import ReactDOM from "react-dom";
 import { useRouter } from "waku";
-import { resolveBaseUrl } from "@/lib/pathname";
 
 export type ClientImageContext = {
   provider: ClientImageProvider;
@@ -99,7 +98,7 @@ function normalizeSrc(src: string, basePathname: string): string {
   if (resolved.hostname !== base.hostname)
     throw new Error(`The src attribute "${src}" is not a valid relative path`);
 
-  return resolveBaseUrl(import.meta.env.BASE_URL, resolved.pathname);
+  return resolved.pathname;
 }
 
 const ImageContext = createContext<ClientImageContext | null>(null);
