@@ -95,9 +95,10 @@ function core(options: PluginOptions = {}): Plugin {
 }
 
 function isRscClientReferencesModule(id: string) {
+  if (id.startsWith("\0")) id = id.slice(1);
   return (
-    id.startsWith("\0virtual:vite-rsc/client-references") ||
-    id.startsWith("virtual:vite-rsc/client-references")
+    id.startsWith("virtual:vite-rsc/client-references") ||
+    id.startsWith("virtual:vite-rsc/client-package-proxy")
   );
 }
 

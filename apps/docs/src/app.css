@@ -2,6 +2,7 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumapress/css/preset.css";
+@import "@fumapress/tegami/css/preset.css";
 
 @theme {
   --font-mono: "JetBrains Mono", monospace;

@@ -1,10 +1,11 @@
 {
-  "name": "@fumapress/feedback",
+  "name": "@fumapress/tegami",
   "version": "0.7.1",
-  "description": "Feedback integration for Fumapress",
+  "description": "Tegami integration for Fumapress",
   "keywords": [
     "Docs",
-    "Fumadocs"
+    "Fumadocs",
+    "Tegami"
   ],
   "homepage": "https://press.fumadocs.dev",
   "license": "MIT",
@@ -18,10 +19,8 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
-    "./email": "./dist/email.mjs",
-    "./github": "./dist/github.mjs",
-    "./i18n": "./dist/i18n.mjs",
     "./schema": "./dist/schema.mjs",
+    "./tegami": "./dist/tegami.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"
   },
@@ -31,15 +30,14 @@
   "scripts": {
     "dev": "tsdown --watch",
     "build": "tsdown",
+    "test": "vitest",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@floating-ui/react-dom": "^2.1.8",
-    "@fuma-translate/react": "^1.0.2",
-    "class-variance-authority": "^0.7.1",
+    "@base-ui/react": "^1.6.0",
     "cnfast": "^0.0.8",
+    "js-yaml": "^5.2.1",
     "lucide-react": "^1.23.0",
-    "octokit": "^5.0.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -51,9 +49,11 @@
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "tegami": "^1.2.5",
     "tsdown": "0.22.4",
     "typescript": "^6.0.3",
-    "vite": "^8.1.3"
+    "vite": "^8.1.3",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -61,7 +61,8 @@
     "fumadocs-ui": "*",
     "fumapress": "workspace:*",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "tegami": "^1.2.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {

@@ -11,3 +11,4 @@ minimumReleaseAgeExclude:
   - "@fumadocs/*"
   - "@fuma-translate/*"
   - "@next/*"
+  - tegami@1.2.5
