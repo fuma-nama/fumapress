@@ -1,3 +1,9 @@
+## fumapress@0.7.2
+
+### Use Takumi v2
+
+The Takumi plugin now use Takumi v2 instead of the old v1 usage.
+
 ## fumapress@0.7.1
 
 ### Fix base URL for `<Image />`

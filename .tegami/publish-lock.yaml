@@ -1,19 +1,19 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Fix base URL for `<Image />`\n\nThe image component will no longer append base URL by default.\n"
-    filename: 2026-07-08-mrbsdesw.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Use Takumi v2\n\nThe Takumi plugin now use Takumi v2 instead of the old v1 usage.\n"
+    filename: 2026-07-09-mrccs9fg.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-07-08-mrbsdesw.md
+      - 2026-07-09-mrccs9fg.md
     id: npm:fumapress
     updated: true
   - id: npm:create-fumapress
     updated: true
-  - id: npm:@fumapress/feedback
-    updated: true
   - id: npm:create-fumapress-versions
+    updated: true
+  - id: npm:@fumapress/feedback
     updated: true
   - id: npm:@fumapress/language
     updated: true
@@ -21,17 +21,22 @@ core:packages:
     updated: true
   - id: npm:@fumapress/sanity
     updated: true
+  - id: npm:@fumapress/tegami
+    updated: true
+npm:mark-latest:
+  - id: npm:@fumapress/tegami
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
   - id: npm:create-fumapress
-  - id: npm:@fumapress/feedback
   - id: npm:create-fumapress-versions
+  - id: npm:@fumapress/feedback
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/sanity
+  - id: npm:@fumapress/tegami
+  - id: npm:docs
   - id: npm:example-sanity
   - id: npm:example-openapi
-  - id: npm:docs
   - id: npm:example-minimal
   - id: npm:example-radix-ui
