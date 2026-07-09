@@ -1,6 +1,5 @@
 import type { ConfigContext, ServerPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
-import { notFound, redirect } from "fumapress/router";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
 import { joinPathname } from "./lib/pathname.ts";
@@ -51,13 +50,6 @@ export function changelogPlugin<C extends ConfigContext = ConfigContext>({
 
   return {
     name: "tegami:changelog",
-    renderPage({ page, lang }) {
-      if (!isChangelog.call(this, page)) return;
-
-      // Entries live on the index; old entry URLs redirect there.
-      if (changelogCtx.indexPath === false) return notFound();
-      return redirect(lang ? joinPathname(lang, changelogCtx.indexPath) : changelogCtx.indexPath);
-    },
     async createPages({ createPage, createLayout, createInterceptor }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
 

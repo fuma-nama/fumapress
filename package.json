@@ -9,7 +9,7 @@
     "lint:format": "oxfmt --check",
     "format": "oxfmt",
     "types:check": "turbo run types:check",
-    "tegami": "node scripts/tegami.mts"
+    "tegami": "turbo run build --filter=@fumapress/tegami && node scripts/tegami.mts"
   },
   "devDependencies": {
     "@fumapress/tegami": "workspace:*",
