@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/mintlify",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Mintlify auto-migration for Fumapress",
   "keywords": [
     "Docs",
