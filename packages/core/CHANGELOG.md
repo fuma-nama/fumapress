@@ -1,3 +1,13 @@
+## fumapress@0.7.3
+
+### Support `renderBody` option
+
+Override renderer/props for `<DocsBody />` component.
+
+### Fix tegami files date parsing
+
+Tegami plugin now use a separate adapter hook for date.
+
 ## fumapress@0.7.2
 
 ### Use Takumi v2
