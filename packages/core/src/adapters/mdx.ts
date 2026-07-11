@@ -76,7 +76,13 @@ export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
         return parsed.success ? parsed.data.tags : undefined;
       }
     },
-  };
+    "tegami:get-date"(page: C["page"]) {
+      if ((isSyncEntry(page.data) || isAsyncEntry(page.data)) && "date" in page.data) {
+        if (page.data.date instanceof Date) return page.data.date;
+        if (typeof page.data.date === "string") return new Date(page.data.date);
+      }
+    },
+  } as Adapter<C>;
 }
 
 const tagsSchema = z.looseObject({

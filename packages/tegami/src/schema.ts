@@ -29,5 +29,3 @@ export const changelogPageSchema = pageSchema.extend({
 });
 
 export const changelogMetaSchema = metaSchema;
-
-export type ChangelogPageData = z.infer<typeof changelogPageSchema>;

@@ -25,7 +25,7 @@ import {
   type DocsPageProps,
   PageLastUpdate,
 } from "fumadocs-ui/layouts/notebook/page";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> {
   inherit?: {
@@ -42,6 +42,17 @@ export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> 
     layoutProps?: Partial<TransformChildren<DocsLayoutProps>>;
     pageProps?: TransformChildren<DocsPageProps>;
   }>;
+
+  /** props/renderer for `<DocsBody />` */
+  renderBody?: (
+    this: AppContext<C>,
+    opts: {
+      lang?: string;
+      page: C["page"];
+      props: ComponentProps<"div">;
+      default: (props: ComponentProps<"div">) => ReactNode;
+    },
+  ) => ReactNode;
 }
 
 export interface NotebookLayoutRenderData {
@@ -61,6 +72,7 @@ export interface NotebookLayoutContextData {
 
 export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext>({
   render,
+  renderBody: renderDocsBody,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: NotebookLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
   const TDocsLayout = createTransformChildren(DocsLayout);
@@ -110,6 +122,14 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
       }
     }
 
+    let dynamicDocsBody: (props: ComponentProps<"div">) => ReactNode = (props) => (
+      <DocsBody {...props} />
+    );
+    if (renderDocsBody) {
+      dynamicDocsBody = (props) =>
+        renderDocsBody.call(ctx, { lang, page, props, default: dynamicDocsBody });
+    }
+
     return (
       <TDocsLayout props={result.layoutProps}>
         {renderPageMeta(page, ctx)}
@@ -123,7 +143,7 @@ export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext
               githubUrl={page.absolutePath ? getGitHubFileUrl(ctx, page.absolutePath) : undefined}
             />
           </div>
-          <DocsBody>{result.body}</DocsBody>
+          {dynamicDocsBody({ children: result.body })}
           {result.lastModified && <PageLastUpdate date={result.lastModified} />}
         </TDocsPage>
       </TDocsLayout>
