@@ -19,6 +19,7 @@ import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+import { SponsorsMarquee } from "./src/sponsors-marquee";
 
 const config = defineConfig({
   content: {
@@ -144,6 +145,11 @@ const config = defineConfig({
           layoutProps: {
             tree: pageTree,
           },
+          pageProps: {
+            tableOfContent: {
+              footer: <SponsorsMarquee />,
+            },
+          },
         };
       },
     }),
@@ -169,6 +175,11 @@ export const HomeLayout = createHomeLayout<Ctx>({
         text: "Changelog",
         icon: <HistoryIcon />,
         active: "nested-url",
+      },
+      {
+        url: "https://fuma-nama.dev/sponsors",
+        text: "Sponsors",
+        external: true,
       },
     ],
   },
