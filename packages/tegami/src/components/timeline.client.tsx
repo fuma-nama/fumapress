@@ -61,8 +61,8 @@ export function ChangelogTimelineProvider({
 
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    const from = range.from;
-    const to = range.to ?? range.from;
+    const from = range.from && new Date(range.from);
+    const to = (range.to && new Date(range.to)) || from;
 
     return entries.filter((entry) => {
       if (packages.length > 0 && !entry.packages.some((pkg) => packages.includes(pkg.name))) {
@@ -195,7 +195,7 @@ export function ChangelogContent() {
                 <span className="absolute -start-6 translate-x-[calc(-50%-0.5px)] top-1.5 size-2.5 rounded-full border-2 border-fd-primary bg-fd-background" />
                 <div className="flex flex-wrap items-center gap-1.5 mb-4">
                   <time
-                    dateTime={entry.date}
+                    dateTime={entry.date.toISOString()}
                     className="text-xs font-medium tabular-nums text-fd-primary pe-2"
                   >
                     {formatDay(entry.date)}
@@ -242,16 +242,16 @@ function groupByMonth(entries: ChangelogEntryView[]): [string, ChangelogEntryVie
   return Array.from(map.entries());
 }
 
-function formatMonth(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+function formatMonth(d: Date): string {
+  return new Date(d).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   });
 }
 
-function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+function formatDay(d: Date): string {
+  return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     timeZone: "UTC",

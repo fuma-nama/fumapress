@@ -12,6 +12,12 @@ import {
   ChangelogTimelineProvider,
 } from "./timeline.client.tsx";
 
+declare module "fumapress" {
+  export interface Adapter<C extends ConfigContext = ConfigContext> {
+    "tegami:get-date"?: (page: C["page"]) => Date | Promise<Date>;
+  }
+}
+
 export function createChangelogLayout<C extends ConfigContext>(
   options?: HomeLayoutOptions<C>,
 ): ChangelogLayout<C> {
@@ -67,7 +73,7 @@ async function collectEntries<C extends ConfigContext>(
   for (const page of pages) {
     let date: Date | undefined;
     for (const adapter of ctx.adapters) {
-      date = await adapter["core:get-creation-date"]?.call(ctx, page);
+      date = await adapter["tegami:get-date"]?.call(ctx, page);
       if (date) break;
     }
     date ??= new Date();
@@ -90,7 +96,7 @@ async function collectEntries<C extends ConfigContext>(
       url: page.url,
       title: page.data.title ?? page.url,
       description: page.data.description,
-      date: date.toISOString().slice(0, 10),
+      date,
       packages: Object.entries(packages)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name, { version }]) => ({
@@ -101,6 +107,6 @@ async function collectEntries<C extends ConfigContext>(
     });
   }
 
-  entries.sort((a, b) => b.date.localeCompare(a.date));
+  entries.sort((a, b) => b.date.getTime() - a.date.getTime());
   return entries;
 }

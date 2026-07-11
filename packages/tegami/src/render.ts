@@ -1,5 +1,7 @@
 import { dump } from "js-yaml";
 import type { ChangelogEntry, WorkspacePackage } from "tegami";
+import type z from "zod";
+import type { changelogPageSchema } from "./schema";
 
 export interface ChangelogPackageInfo {
   version: string;
@@ -23,11 +25,7 @@ export function renderEntryMdx(
 
   const title = entry.subject ?? entry.sections[0]?.title ?? entry.filename;
 
-  return `${toFrontmatter({ title, date: formatDate(date), packages })}${formatSections(entry)}\n`;
-}
-
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return `${toFrontmatter({ title, date, packages })}${formatSections(entry)}\n`;
 }
 
 function formatSections(entry: ChangelogEntry): string {
@@ -39,10 +37,6 @@ function formatSections(entry: ChangelogEntry): string {
   return lines.join("\n").trim();
 }
 
-function toFrontmatter(data: {
-  title: string;
-  date: string;
-  packages: Record<string, ChangelogPackageInfo>;
-}): string {
+function toFrontmatter(data: z.input<typeof changelogPageSchema>): string {
   return `---\n${dump(data, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
 }
