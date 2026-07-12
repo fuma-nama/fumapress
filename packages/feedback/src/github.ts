@@ -1,6 +1,6 @@
 import { App, Octokit } from "octokit";
 import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
-import type { ConfigContext, ServerPlugin, ServerPluginOption } from "fumapress";
+import type { AppShape, PressPlugin, PressPluginOption } from "fumapress";
 import { feedbackPlugin } from ".";
 import { onPageFeedbackAction, onTextFeedbackAction } from "./github.client";
 
@@ -31,9 +31,9 @@ interface RepositoryInfo {
   };
 }
 
-export function githubFeedbackPlugin<C extends ConfigContext = ConfigContext>(
+export function githubFeedbackPlugin<C extends AppShape = AppShape>(
   options: GitHubFeedbackPluginOptions,
-): ServerPluginOption<C> {
+): PressPluginOption<C> {
   const { beforeRequest } = options;
   const { owner, repo, category: FeedbackCategory } = options.storage;
   let instance: Promise<Octokit> | undefined;
@@ -149,7 +149,7 @@ export function githubFeedbackPlugin<C extends ConfigContext = ConfigContext>(
     onTextFeedbackAction,
   });
 
-  const additional: ServerPlugin<C> = {
+  const additional: PressPlugin<C> = {
     name: "feedback:github",
     createPages({ createApi }) {
       if (this.mode === "static")

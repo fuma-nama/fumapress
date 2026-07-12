@@ -1,12 +1,4 @@
-import type { ConfigContext } from "@/config";
-import {
-  type AppContext,
-  getCreationDate,
-  getPressContext,
-  renderBody,
-  renderPageMeta,
-  renderToc,
-} from "@/lib/shared";
+import { type AppContext, type AppShape, getPressContext } from "@/app/context";
 import type { Awaitable } from "@/lib/types";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { ReactNode } from "react";
@@ -20,7 +12,7 @@ import { LinkToHome } from "@/components/blog";
 import { createHomeLayout, type HomeLayoutOptions } from "./home";
 
 /** You can use `createHomeLayout()` directly, this is only a wrapper */
-export function createBlogLayout<C extends ConfigContext>(
+export function createBlogLayout<C extends AppShape>(
   options?: HomeLayoutOptions<C>,
 ): BlogLayout<C> {
   return createHomeLayout(options);
@@ -32,11 +24,11 @@ export interface BlogLayoutPageRenderData {
   body: ReactNode;
 }
 
-export interface BlogLayoutPageOptions<C extends ConfigContext = ConfigContext> {
+export interface BlogLayoutPageOptions<C extends AppShape = AppShape> {
   render?: (this: AppContext<C>, page: C["page"]) => Awaitable<Partial<BlogLayoutPageRenderData>>;
 }
 
-export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
+export function createBlogLayoutPage<C extends AppShape = AppShape>(
   options: BlogLayoutPageOptions<C> = {},
 ): BlogLayoutPage<C> {
   const { render } = options;
@@ -46,21 +38,19 @@ export function createBlogLayoutPage<C extends ConfigContext = ConfigContext>(
     const { tagsPath } = getBlogContext<C>();
     const tags = await getTags(ctx, page);
     const _raw = await render?.call(ctx, page);
+    const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
+    if (body == null) {
+      throw new Error("[Fumapress] Please specify the `render` option in createBlogLayoutPage()");
+    }
     const result: BlogLayoutPageRenderData = {
-      body:
-        _raw?.body ??
-        (await renderBody(
-          ctx,
-          page,
-          "[Fumapress] Please specify the `render` option in createBlogLayoutPage()",
-        )),
-      toc: _raw?.toc ?? (await renderToc(ctx, page)) ?? [],
-      creationDate: _raw?.creationDate ?? (await getCreationDate(ctx, page)),
+      body,
+      toc: _raw?.toc ?? (await ctx.getPageToc(page)) ?? [],
+      creationDate: _raw?.creationDate ?? (await ctx.getPageCreatedAt(page)),
     };
 
     return (
       <BlogProvider toc={result.toc}>
-        {renderPageMeta(page, ctx)}
+        {ctx.renderPageMeta(page)}
         <div className="flex flex-col gap-4 items-center border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
           <div className="flex flex-row items-center gap-2 w-full max-w-[900px]">
             <LinkToHome lang={lang} />

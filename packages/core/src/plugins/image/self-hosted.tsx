@@ -1,5 +1,5 @@
-import type { ConfigContext } from "@/config";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import { SelfHostedImageProvider } from "./self-hosted.client";
 import {
   createImageOptimizer,
@@ -32,9 +32,9 @@ export interface SelfHostedImageOptions {
   maxSourceSize?: number;
 }
 
-export function imagePlugin<C extends ConfigContext = ConfigContext>(
+export function imagePlugin<C extends AppShape = AppShape>(
   _options: SelfHostedImageOptions,
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const config = resolveImageConfig(_options);
 
   return {

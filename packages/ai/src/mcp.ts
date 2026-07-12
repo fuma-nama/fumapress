@@ -1,12 +1,12 @@
 import { llms } from "fumadocs-core/source/llms";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { AppContext, ConfigContext, ServerPlugin } from "fumapress";
+import type { AppContext, AppShape, PressPlugin } from "fumapress";
 import { z } from "zod";
 import { createMcpRequestHandler } from "./mcp-server";
 import { createSearch, type SearchOptions } from "./search";
 import type { Implementation } from "@modelcontextprotocol/sdk/types";
 
-export interface McpOptions<C extends ConfigContext = ConfigContext> extends SearchOptions<C> {
+export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
   /**
    * Base path for MCP routes.
    *
@@ -22,9 +22,9 @@ export interface McpOptions<C extends ConfigContext = ConfigContext> extends Sea
   tools?: (this: AppContext<C>, server: McpServer) => void | Promise<void>;
 }
 
-export function mcpPlugin<C extends ConfigContext = ConfigContext>(
+export function mcpPlugin<C extends AppShape = AppShape>(
   options: McpOptions<NoInfer<C>> = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const { path = "/mcp", server: serverInfo, tools: registerTools } = options;
 
   return {
@@ -53,9 +53,9 @@ export function mcpPlugin<C extends ConfigContext = ConfigContext>(
               limit: z.int().min(1).max(100).optional().describe("maximum number of results"),
               ...(this.i18nConfig && {
                 locale: z
-                  .literal(this.i18nConfig.languages)
+                  .literal(this.i18nConfig.languages as [string, ...string[]])
                   .describe("the locale to search & return search results")
-                  .default(this.i18nConfig.defaultLanguage),
+                  .default(this.i18nConfig.defaultLanguage as string),
               }),
             }),
           },

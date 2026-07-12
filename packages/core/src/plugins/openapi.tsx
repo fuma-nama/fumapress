@@ -1,6 +1,7 @@
-import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import type { Adapter } from "@/lib/types";
 import type { OpenAPIPageData, OpenAPIServer, Proxy } from "fumadocs-openapi/server";
 import type { FC } from "react";
@@ -28,13 +29,13 @@ export interface OpenAPIOptions {
 /**
  * this will register the OpenAPI adapter & required layout configs.
  */
-export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions): ServerPlugin<C> {
+export function openapiPlugin<C extends AppShape>(options: OpenAPIOptions): PressPlugin<C> {
   const { server, disableLoaderPlugin = false } = options;
 
-  function initRenderers(data: DocsLayoutContextData) {
-    const renderers = (data.renderers ??= []);
-    renderers.push(function (data) {
-      if (isOpenAPI(this.page.data)) {
+  function initTransformers(data: DocsLayoutContextData<C>) {
+    const transformers = (data.transformers ??= []);
+    transformers.push(({ data, page }) => {
+      if (isOpenAPI(page.data)) {
         data.pageProps.full ??= true;
       }
       return data;
@@ -45,8 +46,8 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
     name: "core:openapi",
     init() {
       this.adapters.push(adapter(options));
-      initRenderers((this.data["core:docs-layout"] ??= {}));
-      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+      initTransformers((this.data["core:docs-layout"] ??= {}));
+      initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
 
       if (this.translationsConfig) {
         this.translationsConfig.extend(openapiTranslations());
@@ -87,26 +88,28 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
   };
 }
 
-function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
+function adapter<C extends AppShape>(options: OpenAPIOptions): Adapter<C> {
   return {
-    async "core:render-body"(page) {
+    async "core:get-body"(page) {
       if (isOpenAPI(page.data)) {
         const ClientAPIPage =
           options.ClientAPIPage ?? (await import("@/components/openapi")).default;
         const { payload, ...props } = page.data.getOpenAPIPageProps();
 
-        return (
-          <ClientAPIPage
-            payload={{
-              ...payload,
-              proxyUrl:
-                payload.proxyUrl && isFullPathname(payload.proxyUrl)
-                  ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
-                  : payload.proxyUrl,
-            }}
-            {...props}
-          />
-        );
+        return {
+          node: (
+            <ClientAPIPage
+              payload={{
+                ...payload,
+                proxyUrl:
+                  payload.proxyUrl && isFullPathname(payload.proxyUrl)
+                    ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
+                    : payload.proxyUrl,
+              }}
+              {...props}
+            />
+          ),
+        };
       }
     },
     "core:render-toc"(page) {

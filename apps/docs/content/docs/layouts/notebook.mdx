@@ -11,17 +11,20 @@ It is a good fit for API references, generated content, or dense technical pages
 
 ## Config
 
-Configure it as the default page renderer with `useLayouts()`:
+Define the layout and pass it through `renderPage`.
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
-export default defineConfig({
+const NotebookLayout = createNotebookLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
   // ...
-}).layouts({
-  page: createNotebookLayoutPage(),
+  renderPage: (props) => <NotebookLayout {...props} />,
 });
+
+export default config;
 ```
 
 The notebook layout accepts the same kind of `render` option as the docs layout:
@@ -30,19 +33,27 @@ The notebook layout accepts the same kind of `render` option as the docs layout:
 import { defineConfig } from "fumapress";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  page: createNotebookLayoutPage({
-    render(page) {
-      return {
-        pageProps: {
-          full: true,
-        },
-      };
-    },
-  }),
+const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
+  async render(page) {
+    let pageTree = (await this.getLoader()).getPageTree(page.locale);
+
+    return {
+      layoutProps: {
+        tree: pageTree,
+      },
+      pageProps: {
+        full: true,
+      },
+    };
+  },
 });
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => <NotebookLayout {...props} />,
+});
+
+export default config;
 ```
 
 The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.

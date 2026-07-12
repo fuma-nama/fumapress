@@ -1,12 +1,12 @@
-import type { Awaitable, ServerPlugin } from "@/lib/types";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
 import type { ReactNode } from "react";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 
-export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
+export interface TakumiOptions<C extends AppShape = AppShape> {
   /**
    * The base route for generated images.
    *
@@ -27,9 +27,9 @@ export interface TakumiOptions<C extends ConfigContext = ConfigContext> {
   }>;
 }
 
-export function takumiPlugin<C extends ConfigContext = ConfigContext>(
+export function takumiPlugin<C extends AppShape = AppShape>(
   options: TakumiOptions<NoInfer<C>> = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const {
     width = 1200,
     height = 630,
@@ -75,12 +75,12 @@ export function takumiPlugin<C extends ConfigContext = ConfigContext>(
       const renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
 
-      const hooks = (this.data["core:page-meta"] ??= []);
-      hooks.push((page) => {
+      this.interceptPageMeta(({ page, next }) => {
         const pathname = slugsToImagePath(page.slugs, page.locale).pathname;
 
         return (
           <>
+            {next()}
             <meta
               property="og:image"
               content={

@@ -154,18 +154,23 @@ import {
 } from "@fumapress/tegami";
 import { createHomeLayout } from "fumapress/layouts/home";
 
-export default defineConfig({
+const HomeLayout = createHomeLayout<typeof config.$context>();
+const ChangelogIndex = createChangelogIndexPage<typeof config.$context>({
+  heading: "Releases",
+  description: "What shipped recently.",
+  pageSize: 10,
+});
+
+const config = defineConfig({
   // ...
 }).plugins(
   changelogPlugin({
     layouts: {
-      layout: createHomeLayout(),
-      index: createChangelogIndexPage({
-        heading: "Releases",
-        description: "What shipped recently.",
-        pageSize: 10,
-      }),
+      layout: (props) => <HomeLayout {...props} />,
+      index: (props) => <ChangelogIndex {...props} />,
     },
   }),
 );
+
+export default config;
 ```

@@ -9,15 +9,15 @@ icon: Blocks
 Plugins allow you to customize Fumapress and encapsulate the complexity into a plugin.
 
 ```tsx title="my-plugin.tsx"
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 
-export function myPlugin<C extends ConfigContext = ConfigContext>(): ServerPlugin<C> {
+export function myPlugin<C extends AppShape = AppShape>(): PressPlugin<C> {
   return {
     init() {
       // access internal hooks
       this.data["core:docs-layout"] ??= {};
-      const renderers = (this.data["core:docs-layout"].renderers ??= []);
-      renderers.push((data) => {
+      const transformers = (this.data["core:docs-layout"].transformers ??= []);
+      transformers.push(({ data }) => {
         // add element below page body
         data.body = (
           <>

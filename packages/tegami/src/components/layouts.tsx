@@ -1,4 +1,4 @@
-import type { ConfigContext } from "fumapress";
+import type { AppShape } from "fumapress";
 import { getPressContext, type AppContext } from "fumapress";
 import { createHomeLayout, type HomeLayoutOptions } from "fumapress/layouts/home";
 import type { ReactNode } from "react";
@@ -13,18 +13,18 @@ import {
 } from "./timeline.client.tsx";
 
 declare module "fumapress" {
-  export interface Adapter<C extends ConfigContext = ConfigContext> {
+  export interface Adapter<C extends AppShape = AppShape> {
     "tegami:get-date"?: (page: C["page"]) => Date | Promise<Date>;
   }
 }
 
-export function createChangelogLayout<C extends ConfigContext>(
+export function createChangelogLayout<C extends AppShape>(
   options?: HomeLayoutOptions<C>,
 ): ChangelogLayout<C> {
   return createHomeLayout(options);
 }
 
-export interface ChangelogIndexPageOptions<C extends ConfigContext = ConfigContext> {
+export interface ChangelogIndexPageOptions<C extends AppShape = AppShape> {
   heading?: ReactNode;
   description?: ReactNode;
   /** How many entries to show before "Load more". @default 10 */
@@ -32,7 +32,7 @@ export interface ChangelogIndexPageOptions<C extends ConfigContext = ConfigConte
   render?: (this: AppContext<C>, page: C["page"]) => Promise<{ body?: ReactNode } | undefined>;
 }
 
-export function createChangelogIndexPage<C extends ConfigContext = ConfigContext>({
+export function createChangelogIndexPage<C extends AppShape = AppShape>({
   heading,
   description,
   pageSize = 10,
@@ -63,7 +63,7 @@ export function createChangelogIndexPage<C extends ConfigContext = ConfigContext
   };
 }
 
-async function collectEntries<C extends ConfigContext>(
+async function collectEntries<C extends AppShape>(
   ctx: AppContext<C>,
   pages: C["page"][],
   render?: (this: AppContext<C>, page: C["page"]) => Promise<{ body?: ReactNode } | undefined>,
@@ -80,10 +80,7 @@ async function collectEntries<C extends ConfigContext>(
 
     let body = (await render?.call(ctx, page))?.body;
     if (body === undefined) {
-      for (const adapter of ctx.adapters) {
-        body = await adapter["core:render-body"]?.call(ctx, page);
-        if (body !== undefined) break;
-      }
+      body = (await ctx.getPageBody(page))?.node;
     }
     if (body === undefined) {
       throw new Error(

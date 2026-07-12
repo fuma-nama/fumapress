@@ -1,4 +1,4 @@
-import type { AppContext, ConfigContext, ServerPlugin } from "fumapress";
+import type { AppContext, AppShape, PressPlugin } from "fumapress";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
 import type { MiddlewareHandler } from "hono";
 import { getMintlifyLanguages, I18nConfigExtended, type MintlifyI18nOptions } from "./i18n";
@@ -55,18 +55,18 @@ export interface MintlifyPluginOptions extends ReadMintlifyDocsOptions, Mintlify
   features?: MintlifyFeatures;
 }
 
-export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
+export function mintlifyPlugin<C extends AppShape = AppShape>(
   options: MintlifyPluginOptions = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const { docsDir = "docs", features = {}, ...readOptions } = options;
   const enabled = (feature: keyof MintlifyFeatures) => features[feature] !== false;
 
   let docs: MintlifyDocsJson;
 
-  function initNavigationRenderer(data: DocsLayoutContextData, ctx: AppContext<C>) {
-    const renderers = (data.renderers ??= []);
+  function initNavigationTransformer(data: DocsLayoutContextData<C>, ctx: AppContext<C>) {
+    const transformers = (data.transformers ??= []);
 
-    renderers.push(async function (props) {
+    transformers.push(async function ({ data: props, page }) {
       if (enabled("metadata") && docs.metadata?.timestamp !== true) {
         // Mintlify hides last-modified timestamps unless `metadata.timestamp` is enabled
         props.lastModified = null;
@@ -75,13 +75,13 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
       if (!enabled("navigation")) return props;
 
       const source = await ctx.getLoader();
-      const root = source.getPageTree(this.page.locale);
+      const root = source.getPageTree(page.locale);
       const pageIndex = createPageIndex(root);
       let mintlifyLanguage: string | undefined;
 
-      if (this.page.locale && ctx.i18nConfig) {
+      if (page.locale && ctx.i18nConfig) {
         const { _getMintlifyLanguage } = ctx.i18nConfig as I18nConfigExtended;
-        mintlifyLanguage = _getMintlifyLanguage?.(this.page.locale);
+        mintlifyLanguage = _getMintlifyLanguage?.(page.locale);
       }
 
       const children = await buildPageTreeFromNavigation(docs.navigation, pageIndex, {
@@ -115,26 +115,18 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
       // ---- head: colors, background, fonts, favicon, seo, integrations ----
       if (enabled("theme")) {
         const head = buildRootHead(docs);
-        const previousMeta = this.metaConfig;
-
-        this.metaConfig = {
-          ...previousMeta,
-          root() {
-            return (
-              <>
-                {previousMeta?.root?.call(this)}
-                {head}
-              </>
-            );
-          },
-        };
+        this.interceptRootMeta(({ next }) => (
+          <>
+            {next()}
+            {head}
+          </>
+        ));
 
         // seo.indexing: noindex pages that are not part of the navigation
         if (docs.seo?.indexing !== "all") {
           const navigable = getNavigablePages(docs.navigation);
-          const hooks = (this.data["core:page-meta"] ??= []);
 
-          hooks.push((page) => {
+          this.interceptPageMeta(({ page, next }) => {
             const candidates = [page.url, (page as { path?: string }).path].filter(
               (value): value is string => typeof value === "string",
             );
@@ -152,7 +144,12 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
                 return false;
               });
 
-            if (!isNavigable) return <meta name="robots" content="noindex" />;
+            return (
+              <>
+                {next()}
+                {!isNavigable && <meta name="robots" content="noindex" />}
+              </>
+            );
           });
         }
       }
@@ -160,10 +157,10 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
       // ---- navbar: links, primary CTA, logo & site name ----
       if (enabled("navbar")) {
         const { title, url } = buildNavTitle(docs);
-        const previousDefaultProps = this.layouts.defaultProps;
+        const previousDefaultProps = this.defaultLayoutProps;
 
-        this.layouts.defaultProps = async function (env) {
-          const inherited = await previousDefaultProps?.call(this, env);
+        this.defaultLayoutProps = async () => {
+          const inherited = await previousDefaultProps();
           const links = await buildNavbarLinks(docs);
 
           return {
@@ -236,11 +233,19 @@ export function mintlifyPlugin<C extends ConfigContext = ConfigContext>(
 
       // ---- errors.404 ----
       if (enabled("notFound")) {
-        this.layouts.notFound = createMintlifyNotFound(docs.errors, this.layouts.notFound);
+        this.renderNotFound = createMintlifyNotFound(
+          docs.errors,
+          this.renderNotFound,
+        ) as typeof this.renderNotFound;
       }
 
-      initNavigationRenderer((this.data["core:docs-layout"] ??= {}), this);
-      initNavigationRenderer((this.data["core:notebook-layout"] ??= {}) as never, this);
+      if (enabled("navigation") || enabled("metadata")) {
+        initNavigationTransformer((this.data["core:docs-layout"] ??= {}), this);
+        initNavigationTransformer(
+          (this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>,
+          this,
+        );
+      }
     },
     createMiddlewares() {
       if (!enabled("redirects")) return;

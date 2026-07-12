@@ -11,17 +11,20 @@ It is a good fit for marketing pages, landing pages, or custom content pages tha
 
 ## Config
 
-Configure it as the default content page renderer with `useLayouts()`:
+Define the layout and pass it through `renderPage`.
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { createHomeLayoutPage } from "fumapress/layouts/home";
 
-export default defineConfig({
+const HomePage = createHomeLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
   // ...
-}).layouts({
-  page: createHomeLayoutPage(),
+  renderPage: (props) => <HomePage {...props} />,
 });
+
+export default config;
 ```
 
 Customize the rendered body or layout props with the `render` option:
@@ -30,21 +33,24 @@ Customize the rendered body or layout props with the `render` option:
 import { defineConfig } from "fumapress";
 import { createHomeLayoutPage } from "fumapress/layouts/home";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  page: createHomeLayoutPage({
-    render(page) {
-      return {
-        layoutProps: {
-          nav: {
-            title: page.data.title,
-          },
+const HomePage = createHomeLayoutPage<typeof config.$context>({
+  render(page) {
+    return {
+      layoutProps: {
+        nav: {
+          title: page.data.title,
         },
-      };
-    },
-  }),
+      },
+    };
+  },
 });
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => <HomePage {...props} />,
+});
+
+export default config;
 ```
 
 ## File-based Layout

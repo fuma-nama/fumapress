@@ -1,5 +1,5 @@
 import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
-import type { ConfigContext, ServerPlugin, ServerPluginOption } from "fumapress";
+import type { AppShape, PressPlugin, PressPluginOption } from "fumapress";
 import { feedbackPlugin } from ".";
 import { onPageFeedbackAction, onTextFeedbackAction } from "./email.client";
 
@@ -47,9 +47,9 @@ async function sendResendEmail(opts: {
   return Response.json({ emailSent: true });
 }
 
-export function emailFeedbackPlugin<C extends ConfigContext = ConfigContext>(
+export function emailFeedbackPlugin<C extends AppShape = AppShape>(
   options: EmailFeedbackPluginOptions,
-): ServerPluginOption<C> {
+): PressPluginOption<C> {
   const { apiKey, from, beforeRequest } = options;
   const to = Array.isArray(options.to) ? options.to : [options.to];
   const subjectPrefix = options.subjectPrefix ?? "[Docs feedback]";
@@ -59,7 +59,7 @@ export function emailFeedbackPlugin<C extends ConfigContext = ConfigContext>(
     onTextFeedbackAction,
   });
 
-  const additional: ServerPlugin<C> = {
+  const additional: PressPlugin<C> = {
     name: "feedback:email",
     createPages({ createApi }) {
       if (this.mode === "static")

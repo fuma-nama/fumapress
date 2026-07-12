@@ -1,28 +1,28 @@
-import type { AppContext } from "./lib/shared";
-import type {
-  LoaderConfig,
-  LoaderOutput,
-  Meta,
-  _Internal,
-  Page,
-  SourceUnion,
-} from "fumadocs-core/source";
-import type { Awaitable, Adapter, ServerPluginOption, PressLoaderOptions } from "@/lib/types";
+import { getPressContext, type AppContext } from "./app/context";
+import type { _Internal, SourceUnion } from "fumadocs-core/source";
+import type { Adapter, Awaitable, PressLoaderOptions } from "@/lib/types";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import type { FC, ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { PressPluginOption } from "./app/plugin";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-
-export interface ConfigContext {
-  page: Page;
-  meta: Meta;
-  i18n: I18nConfig | undefined;
-  /** source names in multi-source setup */
-  source: string | undefined;
-}
 
 export type BuildMode = "static" | "dynamic" | "default";
 
-export interface BaseConfig<C extends ConfigContext> {
+type InferAppShape<
+  I extends _Internal.AnyInput = _Internal.AnyInput,
+  Lang extends string | undefined = string | undefined,
+> = {
+  page: _Internal.GeneratePage<I>;
+  meta: _Internal.GenerateMeta<I>;
+  lang: Lang;
+  /** source names in multi-source setup */
+  source: I extends Record<infer K, SourceUnion> ? K : undefined;
+};
+
+export interface FumapressConfig<
+  I extends _Internal.AnyInput = _Internal.AnyInput,
+  Lang extends string | undefined = string | undefined,
+> {
   /**
    * - `static`: always prefer static, including search etc.
    * - `dynamic`: always prefer dynamic.
@@ -31,44 +31,39 @@ export interface BaseConfig<C extends ConfigContext> {
   mode?: BuildMode;
   site?: SiteConfig;
 
-  meta?: {
-    /** render meta tags for any pages */
-    root?: (this: AppContext<C>) => ReactNode;
-
-    /** render meta tags for page */
-    page?: (this: AppContext<C>, page: C["page"]) => ReactNode;
-  };
-}
-
-interface ConfigWithLoader<L extends LoaderConfig = LoaderConfig> extends BaseConfig<{
-  meta: NoInfer<L>["meta"];
-  page: NoInfer<L>["page"];
-  i18n: NoInfer<L>["i18n"];
-  source: undefined;
-}> {
-  /**
-   * The content loader.
-   *
-   * @deprecated Pass content sources directly to `content` instead.
-   */
-  loader?: LoaderOutput<L>;
-
-  translations?:
-    | (L["i18n"] extends I18nConfig<infer Lang> ? TranslationsAPI<Lang, any> : never)
-    | SingularTranslationsAPI<any>;
-}
-
-interface ConfigWithContent<
-  I extends _Internal.AnyInput = _Internal.AnyInput,
-  Lang extends string | undefined = string | undefined,
-> extends BaseConfig<{
-  i18n: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
-  meta: _Internal.GenerateMeta<NoInfer<I>>;
-  page: _Internal.GeneratePage<NoInfer<I>>;
-  source: I extends Record<infer K, SourceUnion> ? K : undefined;
-}> {
   /** The content sources */
   content: I;
+
+  meta?: {
+    /** render meta tags for any pages */
+    root?: (this: AppContext<InferAppShape<I, Lang>>) => ReactNode;
+
+    /** render meta tags for page */
+    page?: (
+      this: AppContext<InferAppShape<I, Lang>>,
+      page: InferAppShape<I, Lang>["page"],
+    ) => ReactNode;
+  };
+
+  /** Base props for Fumadocs UI layouts */
+  defaultLayoutProps?:
+    | Omit<BaseLayoutProps, "children">
+    | ((this: AppContext<InferAppShape<I, Lang>>) => Awaitable<Omit<BaseLayoutProps, "children">>);
+
+  renderRoot?: (
+    this: AppContext<InferAppShape<I, Lang>>,
+    opts: { lang?: string; children: ReactNode },
+  ) => ReactNode;
+
+  renderPage?: (
+    this: AppContext<InferAppShape<I, Lang>>,
+    opts: { lang?: string; slugs: string[]; page: InferAppShape<I, Lang>["page"] },
+  ) => ReactNode;
+
+  renderNotFound?: (this: AppContext<InferAppShape<I, Lang>>, opts: { lang?: string }) => ReactNode;
+
+  adapters?: Adapter<InferAppShape<I, Lang>>[];
+  plugins?: PressPluginOption<InferAppShape<I, Lang>>[];
 
   /** i18n config for core, optional when `translations` is specified */
   i18n?: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
@@ -95,24 +90,6 @@ interface ConfigWithContent<
   };
 }
 
-export interface Layouts<C extends ConfigContext = ConfigContext> {
-  root: FC<{ lang?: string; children: ReactNode }> & { $ctx?: C };
-  page: FC<{
-    lang?: string;
-    slugs: string[];
-    page: C["page"];
-  }> & { $ctx?: C };
-  notFound: FC<{ lang?: string }> & { $ctx?: C };
-
-  /**
-   * Define default props for all Fumadocs layouts, will be deep-merged with current props.
-   */
-  defaultProps?: (
-    this: AppContext<C>,
-    env: { lang: string | undefined },
-  ) => Awaitable<Omit<BaseLayoutProps, "children">>;
-}
-
 export interface SiteConfig {
   /** full URL of app, used for metadata generation*/
   baseUrl?: string;
@@ -128,79 +105,47 @@ export interface SiteConfig {
   };
 }
 
-export interface ConfigBuilder<C extends ConfigContext = ConfigContext> {
+export interface ConfigUtils<
+  I extends _Internal.AnyInput = _Internal.AnyInput,
+  Lang extends string | undefined = string | undefined,
+> {
   /** for type inference only, always `undefined` */
-  $context: C;
-  get: () => (ConfigWithLoader | ConfigWithContent) & {
-    plugins: ServerPluginOption[];
-    layouts: Partial<Layouts>;
-    adapters: Adapter[];
+  $context: InferAppShape<I, Lang>;
+  get: () => FumapressConfig<I, Lang>;
+
+  utils: () => {
+    getPressContext: () => AppContext<InferAppShape<I, Lang>>;
   };
 
-  /** alias for `usePlugins()` */
-  plugins: (...plugins: ServerPluginOption<C>[]) => ConfigBuilder<C>;
-  /** alias for `useAdapters()` */
-  adapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
-  /** alias for `useLayouts()` */
-  layouts: (layouts: Partial<Layouts<C>>) => ConfigBuilder<C>;
-
-  usePlugins: (...plugins: ServerPluginOption<C>[]) => ConfigBuilder<C>;
-  useLayouts: (layouts: Partial<Layouts<C>>) => ConfigBuilder<C>;
-  /** Add adapter for content sources */
-  useAdapters: (...adapters: Adapter<C>[]) => ConfigBuilder<C>;
+  plugins: (...plugins: PressPluginOption<InferAppShape<I, Lang>>[]) => ConfigUtils<I, Lang>;
+  adapters: (...adapters: Adapter<InferAppShape<I, Lang>>[]) => ConfigUtils<I, Lang>;
 }
 
 export function defineConfig<
   I extends _Internal.AnyInput,
   Lang extends string | undefined = undefined,
->(
-  config: ConfigWithContent<I, Lang>,
-): ConfigBuilder<{
-  meta: _Internal.GenerateMeta<I>;
-  page: _Internal.GeneratePage<I>;
-  source: I extends Record<infer K, SourceUnion> ? K : undefined;
-  i18n: [Lang] extends [string] ? I18nConfig<Lang> : undefined;
-}>;
-
-export function defineConfig<L extends LoaderConfig>(
-  config?: ConfigWithLoader<L>,
-): ConfigBuilder<{
-  i18n: L["i18n"];
-  page: L["page"];
-  meta: L["meta"];
-  source: undefined;
-}>;
-
-export function defineConfig(config?: ConfigWithContent | ConfigWithLoader): ConfigBuilder<any> {
-  const plugins: ServerPluginOption[] = [];
-  const layouts: Partial<Layouts> = {};
-  const adapters: Adapter[] = [];
-
+>(config: FumapressConfig<I, Lang>): ConfigUtils<I, Lang> {
   return {
     $context: undefined as never,
     get() {
-      return { ...config, plugins, layouts, adapters };
+      return config;
+    },
+    utils() {
+      return {
+        getPressContext() {
+          return getPressContext<InferAppShape<I, Lang>>();
+        },
+      };
     },
     plugins(...plugins) {
-      return this.usePlugins(...plugins);
+      config.plugins ??= [];
+      config.plugins.push(...plugins);
+      return this;
     },
     adapters(...adapters) {
-      return this.useAdapters(...adapters);
-    },
-    layouts(layouts) {
-      return this.useLayouts(layouts);
-    },
-    useAdapters(...values) {
-      adapters.push(...values);
+      config.adapters ??= [];
+      config.adapters.push(...adapters);
       return this;
     },
-    useLayouts(overrides) {
-      Object.assign(layouts, overrides);
-      return this;
-    },
-    usePlugins(...values) {
-      plugins.push(...values);
-      return this;
-    },
-  } satisfies ConfigBuilder;
+  };
 }

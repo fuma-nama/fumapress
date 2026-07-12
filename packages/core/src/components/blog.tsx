@@ -1,6 +1,5 @@
-import { ConfigContext } from "@/config";
 import { cn } from "@/lib/cn";
-import { getCreationDate, getPressContext } from "@/lib/shared";
+import { getPressContext, type AppShape } from "@/app/context";
 import { getBlogContext } from "@/plugins/blog";
 import { Link } from "@/client";
 import { T } from "@fuma-translate/react";
@@ -8,7 +7,7 @@ import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { joinPathname } from "@/lib/pathname";
 
-export function BlogItem<C extends ConfigContext>({ page, date }: { page: C["page"]; date: Date }) {
+export function BlogItem<C extends AppShape>({ page, date }: { page: C["page"]; date: Date }) {
   return (
     <Link
       href={page.url}
@@ -22,13 +21,13 @@ export function BlogItem<C extends ConfigContext>({ page, date }: { page: C["pag
   );
 }
 
-export async function OrderedBlogGrid<C extends ConfigContext>({ posts }: { posts: C["page"][] }) {
+export async function OrderedBlogGrid<C extends AppShape>({ posts }: { posts: C["page"][] }) {
   const ctx = getPressContext<C>();
   const currentDate = new Date(Date.now());
   const orderedPosts: { page: C["page"]; date: Date }[] = [];
 
   for (const page of posts) {
-    const date = await getCreationDate(ctx, page);
+    const date = await ctx.getPageCreatedAt(page);
     orderedPosts.push({ page, date: date ?? currentDate });
   }
 

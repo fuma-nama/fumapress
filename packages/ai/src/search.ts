@@ -1,8 +1,5 @@
-import { Document, type DocumentData, type MergedDocumentSearchResults } from "flexsearch";
-import { tool, type Tool } from "ai";
-import { z } from "zod";
-import type { AppContext, ConfigContext } from "fumapress";
-import type { LoaderOutput } from "fumadocs-core/source";
+import { Document, type DocumentData } from "flexsearch";
+import type { AppContext, AppShape } from "fumapress";
 
 export interface PageDocument extends DocumentData {
   url: string;
@@ -14,7 +11,7 @@ export interface PageDocument extends DocumentData {
 
 type Awaitable<T> = T | Promise<T>;
 
-export interface SearchOptions<C extends ConfigContext = ConfigContext> {
+export interface SearchOptions<C extends AppShape = AppShape> {
   pageToIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<PageDocument | null>;
 }
 
@@ -27,10 +24,7 @@ async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
   return out;
 }
 
-export function createSearch<C extends ConfigContext>(
-  options: SearchOptions<C>,
-  ctx: AppContext<C>,
-) {
+export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: AppContext<C>) {
   const { getLoader } = ctx;
   const {
     pageToIndex = async function (page): Promise<PageDocument | null> {
@@ -52,7 +46,7 @@ export function createSearch<C extends ConfigContext>(
     },
   } = options;
 
-  type ContextLoaderOutput = LoaderOutput<C>;
+  type ContextLoaderOutput = Awaited<ReturnType<AppContext<C>["getLoader"]>>;
   const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
 
   async function createSearchServer(source: ContextLoaderOutput) {

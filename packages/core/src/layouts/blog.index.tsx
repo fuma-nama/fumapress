@@ -1,5 +1,4 @@
 import { OrderedBlogGrid } from "@/components/blog";
-import type { ConfigContext } from "@/config";
 import { T } from "@fuma-translate/react";
 import { cn } from "@/lib/cn";
 import { joinPathname } from "@/lib/pathname";
@@ -8,14 +7,14 @@ import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@/client";
-import { getPressContext } from "@/lib/shared";
+import { getPressContext, type AppShape } from "@/app/context";
 
 export interface BlogIndexPageOptions {
   heading?: ReactNode;
   description?: ReactNode;
 }
 
-export function createBlogIndexPage<C extends ConfigContext = ConfigContext>({
+export function createBlogIndexPage<C extends AppShape = AppShape>({
   heading,
   description,
 }: BlogIndexPageOptions = {}): BlogIndexPage<C> {

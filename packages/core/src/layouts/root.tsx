@@ -1,7 +1,6 @@
-import type { Layouts, ConfigContext } from "@/config";
-import { getPressContext, renderRootMeta } from "@/lib/shared";
+import { type AppShape, getPressContext } from "@/app/context";
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Awaitable } from "@/lib/types";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
 import stylesInline from "virtual:root.css?inline";
@@ -22,14 +21,12 @@ export type RootLayoutContextData = ((
   props: PressProviderProps,
 ) => Awaitable<PressProviderProps>)[];
 
-export function createRootLayout<C extends ConfigContext = ConfigContext>(
-  options?: RootLayoutOptions,
-): Layouts<C>["root"] {
-  return async function ({ lang, children }) {
+export function createRootLayout<C extends AppShape = AppShape>(_options?: RootLayoutOptions) {
+  return async function ({ lang, children }: { lang?: string; children: ReactNode }) {
     const ctx = getPressContext<C>();
     const hooks = ctx.data["core:provider"];
     let providerProps: PressProviderProps = {
-      ...options?.providerProps,
+      ..._options?.providerProps,
       children,
     };
 
@@ -49,7 +46,7 @@ export function createRootLayout<C extends ConfigContext = ConfigContext>(
       <html lang={lang ?? "en"} suppressHydrationWarning>
         <head>
           {styleTag}
-          {renderRootMeta(ctx)}
+          {ctx.renderRootMeta()}
         </head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
           <PressProvider {...providerProps} />

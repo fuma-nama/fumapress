@@ -139,22 +139,30 @@ import { createBlogLayoutPage } from "fumapress/layouts/blog";
 import { createBlogIndexPage } from "fumapress/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "fumapress/layouts/blog.tags";
 
-export default defineConfig({
+const HomeLayout = createHomeLayout<typeof config.$context>();
+const BlogPage = createBlogLayoutPage<typeof config.$context>();
+const BlogIndex = createBlogIndexPage<typeof config.$context>();
+const BlogTags = createBlogTagsPage<typeof config.$context>();
+const BlogTag = createBlogTagPage<typeof config.$context>();
+
+const config = defineConfig({
   // ...
 }).plugins(
   blogPlugin({
     layouts: {
       // shared layout for blog
-      layout: createHomeLayout(),
+      layout: (props) => <HomeLayout {...props} />,
       // renderer for blog pages
-      page: createBlogLayoutPage(),
+      page: (props) => <BlogPage {...props} />,
       // renderer for blog's index page
-      index: createBlogIndexPage(),
+      index: (props) => <BlogIndex {...props} />,
       // renderer for blog's tags list
-      tags: createBlogTagsPage(),
+      tags: (props) => <BlogTags {...props} />,
       // renderer for blog's tag info page
-      tag: createBlogTagPage(),
+      tag: (props) => <BlogTag {...props} />,
     },
   }),
 );
+
+export default config;
 ```

@@ -1,4 +1,4 @@
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 import type { ActionResponse, BlockFeedback, PageFeedback } from "./components/feedback/schema";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
 
@@ -7,35 +7,38 @@ export interface FeedbackPluginOptions {
   onTextFeedbackAction?: (feedback: BlockFeedback) => Promise<ActionResponse>;
 }
 
-export function feedbackPlugin<C extends ConfigContext = ConfigContext>(
+export function feedbackPlugin<C extends AppShape = AppShape>(
   options: FeedbackPluginOptions,
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const { onPageFeedbackAction, onTextFeedbackAction } = options;
 
-  function initRenderers(ctxData: DocsLayoutContextData) {
-    const renderers = (ctxData.renderers ??= []);
-    renderers.push(async (data) => {
-      if (onTextFeedbackAction) {
-        const { FeedbackText } = await import("./components/feedback/client");
-
+  async function initUI(ctxData: DocsLayoutContextData<C>) {
+    if (onTextFeedbackAction) {
+      const { FeedbackText } = await import("./components/feedback/client");
+      const transformers = (ctxData.transformers ??= []);
+      transformers.push(({ data }) => {
         data.body = <FeedbackText onSendAction={onTextFeedbackAction}>{data.body}</FeedbackText>;
-      }
+        return data;
+      });
+    }
 
-      if (onPageFeedbackAction) {
-        const { Feedback } = await import("./components/feedback/client");
-
-        data.pageProps.children ??= [];
-        data.pageProps.children.push((children) => (
-          <>
-            {children}
-            <Feedback onSendAction={onPageFeedbackAction} />
-          </>
-        ));
-      }
-
-      return data;
-    });
+    if (onPageFeedbackAction) {
+      const { Feedback } = await import("./components/feedback/client");
+      const interceptors = (ctxData.pageInterceptors ??= []);
+      interceptors.push(function ({ props, next }) {
+        return next({
+          ...props,
+          children: (
+            <>
+              {props.children}
+              <Feedback onSendAction={onPageFeedbackAction} />
+            </>
+          ),
+        });
+      });
+    }
   }
+
   return {
     name: "feedback:main",
     async init() {
@@ -45,8 +48,8 @@ export function feedbackPlugin<C extends ConfigContext = ConfigContext>(
         this.translationsConfig.extend(feedbackTranslations());
       }
 
-      initRenderers((this.data["core:docs-layout"] ??= {}));
-      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+      await initUI((this.data["core:docs-layout"] ??= {}));
+      await initUI((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
     },
   };
 }

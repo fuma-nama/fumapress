@@ -1,7 +1,7 @@
 import { createPages as base_createPages } from "waku";
-import { type AppContext, initApp, appContext } from "../lib/shared";
+import { type AppContext, type AppShape, initApp, appContext } from "../app/context";
 import { FC, Fragment, ReactNode } from "react";
-import type { ConfigBuilder, ConfigContext } from "../config";
+import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
 import type { Hono } from "hono/tiny";
@@ -10,7 +10,7 @@ import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 
 type Options = Parameters<typeof base_createPages>[1];
 
-export interface Router<C extends ConfigContext = ConfigContext> {
+export interface Router<C extends AppShape = AppShape> {
   createPages: (
     fn?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     options?: Options,
@@ -21,17 +21,18 @@ export interface Router<C extends ConfigContext = ConfigContext> {
   ) => ReturnType<typeof unstable_createServerEntryAdapter<Options>>;
 }
 
-export async function createRouter<C extends ConfigContext>(
-  userConfig: ConfigBuilder<C>,
-): Promise<Router<C>> {
-  const context = await initApp(userConfig);
+export async function createRouter<U extends ConfigUtils>(
+  userConfig: U,
+): Promise<Router<U["$context"]>> {
+  type C = U["$context"];
+  const context = await initApp<C>(userConfig);
 
   function createPages(
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
     createPagesOptions?: Options,
   ) {
     const result = base_createPages(async (_fns) => {
-      const layouts = context.layouts;
+      const { renderRoot, renderPage, renderNotFound } = context;
       const fns: RouteFns = {
         ..._fns,
         unstable_getCreated() {
@@ -105,7 +106,7 @@ export async function createRouter<C extends ConfigContext>(
         fns.createLayout({
           render: defaultRenderMode,
           path: "/[lang]",
-          component: layouts.root,
+          component: renderRoot as FC,
         });
 
         fns.createPage({
@@ -114,7 +115,7 @@ export async function createRouter<C extends ConfigContext>(
           staticPaths,
           async component({ slugs, lang }) {
             const page = await resolvePage(slugs, lang);
-            let fallback: ReactNode = <layouts.page lang={lang} slugs={slugs} page={page} />;
+            let fallback: ReactNode = renderPage({ lang, slugs, page });
 
             for (const plugin of context.plugins) {
               const res: ReactNode = await plugin.renderPage?.call(context, {
@@ -134,7 +135,7 @@ export async function createRouter<C extends ConfigContext>(
           render: defaultRenderMode,
           path: "/[lang]/404",
           staticPaths: context.i18nConfig.languages,
-          component: layouts.notFound,
+          component: renderNotFound as FC,
         });
 
         if (context.mode !== "static") {
@@ -147,7 +148,7 @@ export async function createRouter<C extends ConfigContext>(
       } else {
         fns.createRoot({
           render: defaultRenderMode,
-          component: layouts.root,
+          component: renderRoot as FC,
         });
 
         fns.createPage({
@@ -156,7 +157,7 @@ export async function createRouter<C extends ConfigContext>(
           staticPaths,
           async component({ slugs }) {
             const page = await resolvePage(slugs);
-            let fallback: ReactNode = <layouts.page slugs={slugs} page={page} />;
+            let fallback: ReactNode = renderPage({ slugs, page });
 
             for (const plugin of context.plugins) {
               const res: ReactNode = await plugin.renderPage?.call(context, {
@@ -175,7 +176,7 @@ export async function createRouter<C extends ConfigContext>(
           render: defaultRenderMode,
           staticPaths: [],
           path: "/404",
-          component: layouts.notFound as FC,
+          component: renderNotFound as FC,
         });
       }
 

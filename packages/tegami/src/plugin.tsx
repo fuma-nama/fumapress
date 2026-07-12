@@ -1,4 +1,4 @@
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
@@ -8,7 +8,7 @@ import { createChangelogIndexPage, createChangelogLayout } from "./components/la
 export { getChangelogContext } from "./context.ts";
 export type { ChangelogContext } from "./context.ts";
 
-export interface ChangelogPluginOptions<C extends ConfigContext = ConfigContext> {
+export interface ChangelogPluginOptions<C extends AppShape = AppShape> {
   /** default to checking from `page.type` */
   isChangelog?: (this: AppContext<C>, page: C["page"]) => boolean;
   paths?: {
@@ -27,20 +27,20 @@ export interface ChangelogPluginOptions<C extends ConfigContext = ConfigContext>
   };
 }
 
-export type ChangelogLayout<C extends ConfigContext = ConfigContext> = FC<{
+export type ChangelogLayout<C extends AppShape = AppShape> = FC<{
   lang?: string;
   children: ReactNode;
 }> & { $ctx?: C };
 
-export type ChangelogIndexPage<C extends ConfigContext = ConfigContext> = FC<{
+export type ChangelogIndexPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
 }> & { $ctx?: C };
 
-export function changelogPlugin<C extends ConfigContext = ConfigContext>({
+export function changelogPlugin<C extends AppShape = AppShape>({
   paths = {},
   isChangelog = (page) => page.type === "changelog",
   layouts = {},
-}: ChangelogPluginOptions<C> = {}): ServerPlugin<C> {
+}: ChangelogPluginOptions<C> = {}): PressPlugin<C> {
   const changelogCtx: ChangelogContext<C> = {
     indexPath: paths.index ?? "/changelog",
     isChangelog,

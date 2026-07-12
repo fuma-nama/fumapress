@@ -1,19 +1,18 @@
 import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
-import type { ConfigContext } from "@/config";
 import { T } from "@fuma-translate/react";
 import { getTags, groupTags } from "@/lib/shared/blog";
 import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@/client";
-import { getPressContext } from "@/lib/shared";
+import { getPressContext, type AppShape } from "@/app/context";
 
 export interface BlogTagsPageOptions {
   heading?: ReactNode;
   description?: ReactNode;
 }
 
-export function createBlogTagsPage<C extends ConfigContext = ConfigContext>({
+export function createBlogTagsPage<C extends AppShape = AppShape>({
   heading,
   description,
 }: BlogTagsPageOptions = {}): BlogTagsPage<C> {
@@ -66,7 +65,7 @@ export function createBlogTagsPage<C extends ConfigContext = ConfigContext>({
   };
 }
 
-export function createBlogTagPage<C extends ConfigContext = ConfigContext>({
+export function createBlogTagPage<C extends AppShape = AppShape>({
   heading,
   description,
 }: BlogTagsPageOptions = {}): BlogTagPage<C> {
