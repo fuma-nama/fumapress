@@ -19,7 +19,7 @@ describe("renderEntryMdx", () => {
     expect(sample).toMatchInlineSnapshot(`
       "---
       title: Fix hover
-      date: '2026-07-10'
+      date: 2026-07-10T15:30:00.000Z
       packages:
         fumapress:
           version: 1.2.3
