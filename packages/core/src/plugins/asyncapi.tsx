@@ -1,6 +1,6 @@
-import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import type { Adapter } from "@/lib/types";
 import type { FC } from "react";
 import type { AsyncAPIPageData, AsyncAPIServer } from "@fumadocs/asyncapi/server";
@@ -20,13 +20,13 @@ export interface OpenAPIOptions {
 /**
  * this will register the OpenAPI adapter & required layout configs.
  */
-export function asyncapiPlugin<C extends ConfigContext>(options: OpenAPIOptions): ServerPlugin<C> {
+export function asyncapiPlugin<C extends AppShape>(options: OpenAPIOptions): PressPlugin<C> {
   const { server, disableLoaderPlugin = false } = options;
 
-  function initRenderers(data: DocsLayoutContextData) {
-    const renderers = (data.renderers ??= []);
-    renderers.push(function (data) {
-      if (isAsyncAPI(this.page.data)) {
+  function initTransformers(data: DocsLayoutContextData<C>) {
+    const transformers = (data.transformers ??= []);
+    transformers.push(({ data, page }) => {
+      if (isAsyncAPI(page.data)) {
         data.pageProps.full ??= true;
       }
       return data;
@@ -37,8 +37,8 @@ export function asyncapiPlugin<C extends ConfigContext>(options: OpenAPIOptions)
     name: "core:openapi",
     init() {
       this.adapters.push(adapter(options));
-      initRenderers((this.data["core:docs-layout"] ??= {}));
-      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+      initTransformers((this.data["core:docs-layout"] ??= {}));
+      initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
 
       if (this.translationsConfig) {
         this.translationsConfig.extend(asyncapiTranslations());
@@ -55,15 +55,15 @@ export function asyncapiPlugin<C extends ConfigContext>(options: OpenAPIOptions)
   };
 }
 
-function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
+function adapter<C extends AppShape>(options: OpenAPIOptions): Adapter<C> {
   return {
-    async "core:render-body"(page) {
+    async "core:get-body"(page) {
       if (isAsyncAPI(page.data)) {
         const ClientAPIPage =
           options.ClientAPIPage ?? (await import("@/components/asyncapi")).default;
         const props = page.data.getAsyncAPIPageProps();
 
-        return <ClientAPIPage {...props} />;
+        return { node: <ClientAPIPage {...props} /> };
       }
     },
     "core:render-toc"(page) {

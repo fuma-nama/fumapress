@@ -1,14 +1,13 @@
-import type { AppContext } from "../shared";
-import type { ConfigContext } from "@/config";
+import type { AppContext, AppShape } from "../../app/context";
 
-export async function getTags<C extends ConfigContext>(ctx: AppContext<C>, page: C["page"]) {
+export async function getTags<C extends AppShape>(ctx: AppContext<C>, page: C["page"]) {
   for (const adapter of ctx.adapters) {
     const tags = await adapter["blog:get-tags"]?.call(ctx, page);
     if (tags !== undefined) return tags;
   }
 }
 
-export async function groupTagsI18n<C extends ConfigContext>(
+export async function groupTagsI18n<C extends AppShape>(
   ctx: AppContext<C>,
   blogPosts: C["page"][],
 ) {
@@ -34,10 +33,7 @@ export async function groupTagsI18n<C extends ConfigContext>(
   return localeToTags;
 }
 
-export async function groupTags<C extends ConfigContext>(
-  ctx: AppContext<C>,
-  blogPosts: C["page"][],
-) {
+export async function groupTags<C extends AppShape>(ctx: AppContext<C>, blogPosts: C["page"][]) {
   const map = new Map<string, number>();
 
   for (const page of blogPosts) {

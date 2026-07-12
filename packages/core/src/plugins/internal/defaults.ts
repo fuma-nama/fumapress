@@ -1,8 +1,8 @@
-import type { ConfigContext } from "@/config";
 import { fumapressTranslations } from "@/i18n";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 
-export function applyDefaultsPlugin<C extends ConfigContext>(): ServerPlugin<C>[] {
+export function applyDefaultsPlugin<C extends AppShape>(): PressPlugin<C>[] {
   return [
     {
       name: "core:i18n",

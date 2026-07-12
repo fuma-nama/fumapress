@@ -1,13 +1,13 @@
 import type { AdvancedIndex } from "fumadocs-core/search/server";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppContext, AppShape } from "@/app/context";
 
-export interface OramaSearchOptions<C extends ConfigContext = ConfigContext> {
+export interface OramaSearchOptions<C extends AppShape = AppShape> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<AdvancedIndex>;
 }
 
-export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
+export function oramaSearchPlugin<C extends AppShape = AppShape>({
   buildIndex = async function buildIndexDefault(page) {
     for (const adapter of this.adapters) {
       const structuredData = await adapter["core:get-structured-data"]?.call(this, page);
@@ -25,7 +25,7 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to oramaSearchPlugin()");
   },
-}: OramaSearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
+}: OramaSearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:orama-search",
     init() {

@@ -1,15 +1,14 @@
-import type { ConfigContext } from "@/config";
 import { createBlogLayout, createBlogLayoutPage } from "@/layouts/blog";
 import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
 import { joinPathname } from "@/lib/pathname";
-import { type AppContext } from "@/lib/shared";
+import { AppShape, type AppContext } from "@/app/context";
 import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
-import type { ServerPlugin } from "@/lib/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FC, ReactNode } from "react";
+import { PressPlugin } from "@/app/plugin";
 
-export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
+export interface BlogPluginOptions<C extends AppShape = AppShape> {
   /** default to checking from `page.type` */
   isBlog?: (this: AppContext<C>, page: C["page"]) => boolean;
   paths?: {
@@ -46,7 +45,7 @@ export interface BlogPluginOptions<C extends ConfigContext = ConfigContext> {
   };
 }
 
-export interface BlogContext<C extends ConfigContext = ConfigContext> {
+export interface BlogContext<C extends AppShape = AppShape> {
   indexPath: string | false;
   tagsPath: string | false;
   isBlog: (this: AppContext<C>, page: C["page"]) => boolean;
@@ -56,7 +55,7 @@ const blogContext = new AsyncLocalStorage({
   name: "fumapress:blog",
 });
 
-export function getBlogContext<C extends ConfigContext = ConfigContext>(): BlogContext<C> {
+export function getBlogContext<C extends AppShape = AppShape>(): BlogContext<C> {
   const store = blogContext.getStore();
 
   if (!store)
@@ -66,35 +65,35 @@ export function getBlogContext<C extends ConfigContext = ConfigContext>(): BlogC
   return store as BlogContext<C>;
 }
 
-export type BlogLayoutPage<C extends ConfigContext = ConfigContext> = FC<{
+export type BlogLayoutPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
   slugs: string[];
   page: C["page"];
 }> & { $ctx?: C };
 
-export type BlogLayout<C extends ConfigContext = ConfigContext> = FC<{
+export type BlogLayout<C extends AppShape = AppShape> = FC<{
   lang?: string;
   children: ReactNode;
 }> & { $ctx?: C };
 
-export type BlogIndexPage<C extends ConfigContext = ConfigContext> = FC<{
+export type BlogIndexPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
 }> & { $ctx?: C };
 
-export type BlogTagsPage<C extends ConfigContext = ConfigContext> = FC<{
+export type BlogTagsPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
 }> & { $ctx?: C };
 
-export type BlogTagPage<C extends ConfigContext = ConfigContext> = FC<{
+export type BlogTagPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
   tag: string;
 }> & { $ctx?: C };
 
-export function blogPlugin<C extends ConfigContext = ConfigContext>({
+export function blogPlugin<C extends AppShape = AppShape>({
   paths = {},
   isBlog = (page) => page.type === "blog",
   layouts = {},
-}: BlogPluginOptions<C> = {}): ServerPlugin<C> {
+}: BlogPluginOptions<C> = {}): PressPlugin<C> {
   const blogCtx: BlogContext<C> = {
     indexPath: paths.index ?? "/blog",
     tagsPath: paths.tags ?? "/blog/tags",

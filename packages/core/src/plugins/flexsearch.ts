@@ -1,13 +1,13 @@
 import type { Index } from "fumadocs-core/search/flexsearch";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
+import type { Awaitable } from "@/lib/types";
+import type { AppContext, AppShape } from "@/app/context";
+import type { PressPlugin } from "@/app/plugin";
 
-export interface FlexsearchOptions<C extends ConfigContext = ConfigContext> {
+export interface FlexsearchOptions<C extends AppShape = AppShape> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<Index>;
 }
 
-export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
+export function flexsearchPlugin<C extends AppShape = AppShape>({
   buildIndex = async function buildIndexDefault(page) {
     for (const adapter of this.adapters) {
       const structuredData = await adapter["core:get-structured-data"]?.call(this, page);
@@ -25,7 +25,7 @@ export function flexsearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to flexsearchPlugin()");
   },
-}: FlexsearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
+}: FlexsearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:flexsearch",
     init() {

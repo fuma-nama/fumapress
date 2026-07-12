@@ -1,14 +1,14 @@
 import { llms } from "fumadocs-core/source/llms";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
-import type { ConfigContext } from "@/config";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
-import type { AppContext } from "@/lib/shared";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { joinPathname } from "@/lib/pathname";
 import { DocsLayoutContextData } from "@/layouts/docs";
 
-export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
+export interface LLMsOptions<C extends AppShape = AppShape> {
   /**
    * When request prefers Markdown response, automatically redirect to the generated Markdown route.
    * Ignored when static mode is enabled.
@@ -20,9 +20,9 @@ export interface LLMsOptions<C extends ConfigContext = ConfigContext> {
   getLLMText?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
 }
 
-export function llmsPlugin<C extends ConfigContext = ConfigContext>(
+export function llmsPlugin<C extends AppShape = AppShape>(
   options: LLMsOptions<NoInfer<C>> = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   let basePath = "/";
   const {
     autoRedirect = true,
@@ -61,11 +61,11 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
     };
   }
 
-  function initRenderers(data: DocsLayoutContextData) {
-    data.renderers ??= [];
-    data.renderers.push(function (res) {
-      res.markdownUrl ??= slugsToMarkdownPath(this.page.slugs, this.page.locale).pathname;
-      return res;
+  function initTransformers(data: DocsLayoutContextData<C>) {
+    data.transformers ??= [];
+    data.transformers.push(({ data, page }) => {
+      data.markdownUrl ??= slugsToMarkdownPath(page.slugs, page.locale).pathname;
+      return data;
     });
   }
 
@@ -76,8 +76,8 @@ export function llmsPlugin<C extends ConfigContext = ConfigContext>(
         basePath = "/_llms.txt";
       }
 
-      initRenderers((this.data["core:docs-layout"] ??= {}));
-      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+      initTransformers((this.data["core:docs-layout"] ??= {}));
+      initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
     },
     createMiddlewares({ app }) {
       if (this.mode === "static") return;

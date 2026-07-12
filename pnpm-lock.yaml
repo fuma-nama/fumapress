@@ -44,6 +44,9 @@ importers:
       '@fumapress/tegami':
         specifier: workspace:*
         version: link:../../packages/tegami
+      '@fumari/sponsors':
+        specifier: 0.1.0
+        version: 0.1.0(react@19.2.7)
       '@paper-design/shaders-react':
         specifier: ^0.0.77
         version: 0.0.77(@types/react@19.2.17)(react@19.2.7)
@@ -209,55 +212,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-
-  examples/minimal:
-    dependencies:
-      fumadocs-core:
-        specifier: ^16.11.1
-        version: 16.11.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.17)(flexsearch@0.8.212)(lucide-react@1.23.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(waku@1.0.0-beta.6(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)))(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(react-dom@19.2.7(react@19.2.7))(react-server-dom-webpack@19.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(webpack@5.106.2(esbuild@0.28.1)))(react@19.2.7)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))(zod@4.4.3)
-      fumadocs-ui:
-        specifier: npm:@fumadocs/base-ui@^16.11.1
-        version: '@fumadocs/base-ui@16.11.1(@date-fns/tz@1.5.0)(@emotion/is-prop-valid@1.4.0)(@types/mdx@2.0.14)(@types/react@19.2.17)(date-fns@4.4.0)(fumadocs-core@16.11.1(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.17)(flexsearch@0.8.212)(lucide-react@1.23.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.4.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2)'
-      fumapress:
-        specifier: workspace:*
-        version: link:../../packages/core
-      react:
-        specifier: ^19.2.7
-        version: 19.2.7
-      react-dom:
-        specifier: ^19.2.7
-        version: 19.2.7(react@19.2.7)
-      react-server-dom-webpack:
-        specifier: ^19.2.7
-        version: 19.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(webpack@5.106.2(esbuild@0.28.1))
-      waku:
-        specifier: 1.0.0-beta.6
-        version: 1.0.0-beta.6(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)))(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(react-dom@19.2.7(react@19.2.7))(react-server-dom-webpack@19.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(webpack@5.106.2(esbuild@0.28.1)))(react@19.2.7)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.3.2
-        version: 4.3.2(vite@8.1.3(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))
-      '@types/mdx':
-        specifier: ^2.0.14
-        version: 2.0.14
-      '@types/node':
-        specifier: ^26.1.1
-        version: 26.1.1
-      '@types/react':
-        specifier: ^19.2.17
-        version: 19.2.17
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.17)
-      tailwindcss:
-        specifier: ^4.3.2
-        version: 4.3.2
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.1.3
-        version: 8.1.3(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
 
   examples/openapi:
     dependencies:
@@ -2079,6 +2033,11 @@ packages:
     peerDependenciesMeta:
       json-schema-typed:
         optional: true
+
+  '@fumari/sponsors@0.1.0':
+    resolution: {integrity: sha512-qc7G3atDZiaDYwWnQldYv/jIS1oKH1oe3LH/BxzGCw3+vJ4vktnUt22xzvQ878jCSbgDEakxFVAfj5zxWTHXxw==}
+    peerDependencies:
+      react: ^19.0.0
 
   '@fumari/stf@1.1.0':
     resolution: {integrity: sha512-ta/qVbB03SSQ29185hNkF4E+DcteLTuX6FOjzRpQehk5738VLkfw2mIZuejqrubmoRAeKfxSrtqLwnS9W9XgKQ==}
@@ -9817,6 +9776,10 @@ snapshots:
       json-schema-typed: 8.0.2
     transitivePeerDependencies:
       - '@typescript-eslint/types'
+
+  '@fumari/sponsors@0.1.0(react@19.2.7)':
+    dependencies:
+      react: 19.2.7
 
   '@fumari/stf@1.1.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:

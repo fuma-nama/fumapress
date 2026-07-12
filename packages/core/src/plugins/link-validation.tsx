@@ -1,5 +1,6 @@
-import type { ConfigContext } from "@/config";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 
 interface LinkSSGContext {
   links: { href: string; fromPathname: string }[];
@@ -19,9 +20,9 @@ export interface LinkValidationOptions {
   externalLink?: (href: string) => Awaitable<ValidateResult>;
 }
 
-export function linkValidationPlugin<C extends ConfigContext>(
+export function linkValidationPlugin<C extends AppShape>(
   options: LinkValidationOptions = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const { ignored, externalLink } = options;
 
   return {

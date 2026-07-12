@@ -1,5 +1,5 @@
-import type { ConfigContext } from "@/config";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import { CloudflareImageProvider } from "./cloudflare.client";
 import { resolveCloudflareImageConfig } from "./cloudflare.utils";
 
@@ -19,9 +19,9 @@ export interface CloudflareImageOptions {
   dangerouslyAllowSVG?: boolean;
 }
 
-export function imagePlugin<C extends ConfigContext = ConfigContext>(
+export function imagePlugin<C extends AppShape = AppShape>(
   options: CloudflareImageOptions = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const config = resolveCloudflareImageConfig(options);
 
   return {

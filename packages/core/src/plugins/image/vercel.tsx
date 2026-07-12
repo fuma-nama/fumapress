@@ -1,5 +1,5 @@
-import type { ConfigContext } from "@/config";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import { VercelImageProvider } from "./vercel.client";
 import { resolveVercelImageConfig } from "./vercel.utils";
 
@@ -38,9 +38,9 @@ export interface VercelImageOptions {
   contentSecurityPolicy?: string;
 }
 
-export function imagePlugin<C extends ConfigContext = ConfigContext>(
+export function imagePlugin<C extends AppShape = AppShape>(
   options: VercelImageOptions = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const config = resolveVercelImageConfig(options);
 
   return {

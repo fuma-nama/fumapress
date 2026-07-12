@@ -5,7 +5,7 @@ import {
   type DocToPage,
 } from "@fumadocs/sanity";
 import type { DynamicSource, MetaData, PageData } from "fumadocs-core/source";
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 import { z } from "zod/mini";
 import {
   type PortableTextBlock,
@@ -83,10 +83,9 @@ const createdAtSchema = z.looseObject({
   _createdAt: z.string(),
 });
 
-export function sanityPlugin<
-  C extends ConfigContext = ConfigContext,
-  Doc extends BaseDoc = BaseDoc,
->(integration: SanityIntegration<Doc>): ServerPlugin<C> {
+export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc = BaseDoc>(
+  integration: SanityIntegration<Doc>,
+): PressPlugin<C> {
   const pageSchema = z.looseObject({
     _id: z.string(),
     _type: z.literal(integration.docType),
@@ -118,11 +117,11 @@ export function sanityPlugin<
             return toPlainText(data.body);
           }
         },
-        async "core:render-body"(page) {
+        async "core:get-body"(page) {
           if (isSanityPage(page.data)) {
             const data = await page.data.load();
 
-            return <Renderer value={data.body} />;
+            return { node: <Renderer value={data.body} /> };
           }
         },
         async "core:render-toc"(page) {

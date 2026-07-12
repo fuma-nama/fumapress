@@ -6,6 +6,10 @@ import { mintlifyPlugin } from "@/index";
 const fixturesRoot = path.join(import.meta.dirname, "fixtures");
 
 function createContext(): AppContext {
+  const rootMetaInterceptors: ((opts: { next: () => unknown }) => unknown)[] = [];
+  let defaultLayoutProps = async () => ({});
+  let renderNotFound = () => null;
+
   return {
     $context: undefined as never,
     mode: "default",
@@ -16,13 +20,30 @@ function createContext(): AppContext {
     invalidateLoader: () => undefined,
     plugins: [],
     adapters: [],
-    layouts: {
-      root: () => null,
-      page: () => null,
-      notFound: () => null,
-    },
     data: {},
     siteConfig: { name: "Test" },
+    get defaultLayoutProps() {
+      return defaultLayoutProps;
+    },
+    set defaultLayoutProps(value) {
+      defaultLayoutProps = value;
+    },
+    get renderNotFound() {
+      return renderNotFound;
+    },
+    set renderNotFound(value) {
+      renderNotFound = value;
+    },
+    interceptRootMeta(interceptor: (opts: { next: () => unknown }) => unknown) {
+      rootMetaInterceptors.push(interceptor);
+    },
+    interceptPageMeta() {},
+    renderRootMeta() {
+      return rootMetaInterceptors[0]?.({ next: () => null }) ?? null;
+    },
+    renderPageMeta() {
+      return null;
+    },
   } as unknown as AppContext;
 }
 
@@ -34,16 +55,16 @@ describe("mintlifyPlugin", () => {
     await plugin.init?.call(ctx);
 
     // head injection
-    expect(ctx.metaConfig?.root).toBeTypeOf("function");
+    expect(ctx.renderRootMeta()).not.toBeNull();
     // appearance + search + banner/footer provider hooks
     expect(ctx.data["core:provider"]?.length).toBeGreaterThanOrEqual(3);
-    // navigation renderers for docs & notebook layouts
-    expect(ctx.data["core:docs-layout"]?.renderers).toHaveLength(1);
-    expect(ctx.data["core:notebook-layout"]?.renderers).toHaveLength(1);
+    // navigation transformers for docs & notebook layouts
+    expect(ctx.data["core:docs-layout"]?.transformers).toHaveLength(1);
+    expect(ctx.data["core:notebook-layout"]?.transformers).toHaveLength(1);
     // custom 404
-    expect(ctx.layouts.notFound.name).toContain("MintlifyNotFound");
+    expect(ctx.renderNotFound.name).toContain("MintlifyNotFound");
     // navbar defaults
-    const props = await ctx.layouts.defaultProps?.call(ctx, { lang: undefined });
+    const props = await ctx.defaultLayoutProps();
     expect(props?.links?.length).toBeGreaterThanOrEqual(3);
     expect(props?.themeSwitch).toEqual({ enabled: false });
 
@@ -52,8 +73,9 @@ describe("mintlifyPlugin", () => {
     expect(middlewares).toHaveLength(1);
   });
 
-  it("allows disabling features", async () => {
+  it("respects feature toggles", async () => {
     const ctx = createContext();
+    const notFound = ctx.renderNotFound;
     const plugin = mintlifyPlugin({
       path: "docs.json",
       root: fixturesRoot,
@@ -62,20 +84,20 @@ describe("mintlifyPlugin", () => {
         navbar: false,
         notFound: false,
         redirects: false,
+        navigation: false,
         appearance: false,
-        search: false,
         banner: false,
         footer: false,
+        search: false,
+        metadata: false,
       },
     });
 
-    const notFound = ctx.layouts.notFound;
     await plugin.init?.call(ctx);
 
-    expect(ctx.metaConfig).toBeUndefined();
-    expect(ctx.layouts.defaultProps).toBeUndefined();
-    expect(ctx.layouts.notFound).toBe(notFound);
-    expect(ctx.data["core:provider"] ?? []).toHaveLength(0);
+    expect(ctx.renderRootMeta()).toBeNull();
+    expect(ctx.data["core:docs-layout"]?.transformers).toBeUndefined();
+    expect(ctx.renderNotFound).toBe(notFound);
     expect(await plugin.createMiddlewares?.call(ctx, { app: null as never })).toBeUndefined();
   });
 });

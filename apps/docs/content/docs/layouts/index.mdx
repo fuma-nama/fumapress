@@ -25,50 +25,42 @@ Fumapress uses the docs layout by default. Pick another layout when a page needs
 
 ## Shared Props
 
-Define `defaultProps` to share props across Fumadocs layouts. These props are merged into layouts that inherit default props, such as docs, notebook, and home layouts:
+Define `defaultLayoutProps` to share props across Fumadocs layouts. These props are merged into layouts that inherit default props, such as docs, notebook, and home layouts:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 
 export default defineConfig({
   // ...
-}).layouts({
-  defaultProps() {
-    return {
-      nav: {
-        title: "My Docs",
+  defaultLayoutProps: {
+    nav: {
+      title: "My Docs",
+    },
+    links: [
+      {
+        text: "GitHub",
+        url: "https://github.com/acme/docs",
       },
-      links: [
-        {
-          text: "GitHub",
-          url: "https://github.com/acme/docs",
-        },
-      ],
-    };
+    ],
   },
 });
 ```
 
 ## Switching Layouts
 
-The `page` layout is just a React component. To switch between layouts for every page, create your own renderer and forward the same props to the layout you want to use:
+`renderPage` is just a function that returns JSX node. To switch between layouts for every page, create typed layout components and forward props to the one you want:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
+const DocsPage = createDocsLayoutPage<typeof config.$context>();
+const NotebookPage = createNotebookLayoutPage<typeof config.$context>();
+
 const config = defineConfig({
   // ...
-});
-
-export type Ctx = typeof config.$context;
-
-const DocsPage = createDocsLayoutPage<Ctx>();
-const NotebookPage = createNotebookLayoutPage<Ctx>();
-
-export default config.layouts({
-  page: (props) => {
+  renderPage: (props) => {
     if (props.page.path.startsWith("reference/")) {
       return <NotebookPage {...props} />;
     }
@@ -76,24 +68,8 @@ export default config.layouts({
     return <DocsPage {...props} />;
   },
 });
-```
 
-For simpler use cases, it can be simplified with `createLayoutSwitch()`:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
-import { createHomeLayoutPage } from "fumapress/layouts/home";
-import { createLayoutSwitch } from "fumapress/layouts/switch";
-
-export default defineConfig({
-  // ...
-}).layouts({
-  page: createLayoutSwitch((page) => (page.path.startsWith("marketing/") ? "marketing" : "docs"), {
-    docs: createDocsLayoutPage(),
-    marketing: createHomeLayoutPage(),
-  }),
-});
+export default config;
 ```
 
 ## File-based Layouts
@@ -110,9 +86,7 @@ const config = defineConfig({
   // ...
 });
 
-export type Ctx = typeof config.$context;
-
-export const HomeLayout = createHomeLayout<Ctx>();
+export const HomeLayout = createHomeLayout<typeof config.$context>();
 
 export default config;
 ```

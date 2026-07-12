@@ -11,17 +11,20 @@ Fumapress uses this layout by default, so you only need to configure it when you
 
 ## Config
 
-Configure the docs layout explicitly with `useLayouts()`:
+Define the layout and pass it through `renderPage`.
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  page: createDocsLayoutPage(),
+const DocsLayout = createDocsLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  // [!code ++]
+  renderPage: (props) => <DocsLayout {...props} />,
 });
+
+export default config;
 ```
 
 Customize what the layout renders with the `render` option:
@@ -30,21 +33,24 @@ Customize what the layout renders with the `render` option:
 import { defineConfig } from "fumapress";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  page: createDocsLayoutPage({
-    async render(page) {
-      return {
-        pageProps: {
-          tableOfContent: {
-            style: "clerk",
-          },
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  async render(page) {
+    return {
+      pageProps: {
+        tableOfContent: {
+          style: "clerk",
         },
-      };
-    },
-  }),
+      },
+    };
+  },
 });
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => <DocsLayout {...props} />,
+});
+
+export default config;
 ```
 
 The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.

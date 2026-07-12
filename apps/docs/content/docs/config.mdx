@@ -38,19 +38,23 @@ export default defineConfig({
 
 ### Layouts
 
-Specify or customize the UI (renderers) for pages.
+Specify or customize page UI with `renderPage`, `renderRoot`, and `renderNotFound`.
 
 ```tsx title="press.config.tsx"
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { defineConfig } from "fumapress";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  // [!code ++] customize layout for pages
-  page: createDocsLayoutPage(),
+const DocsLayout = createDocsLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  // [!code ++]
+  renderPage: (props) => <DocsLayout {...props} />,
 });
+
+export default config;
 ```
+
+See [Layouts](/docs/layouts) for details.
 
 ### Render Mode
 
