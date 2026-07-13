@@ -86,10 +86,10 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
     const source = await ctx.getLoader();
 
     const _raw = await render?.call(ctx, page);
-    const layoutProps = mergeLayoutConfigs(
+    const layoutProps: DocsLayoutProps = mergeLayoutConfigs(
       { tree: source.getPageTree(lang) },
       inheritLayoutProps ? await ctx.defaultLayoutProps() : undefined,
-      _raw?.layoutProps as DocsLayoutProps,
+      _raw?.layoutProps,
     );
 
     const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
@@ -118,15 +118,15 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
       ctx,
       { lang, page },
       (props) => <DocsLayout {...props} />,
-      [...(layoutInterceptors ?? []), ...(renderLayout ? [renderLayout] : [])],
+      [...(layoutInterceptors ?? []), renderLayout],
     );
     const Page = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsPage {...props} />, [
       ...(pageInterceptors ?? []),
-      ...(renderPage ? [renderPage] : []),
+      renderPage,
     ]);
     const Body = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsBody {...props} />, [
       ...(bodyInterceptors ?? []),
-      ...(renderBody ? [renderBody] : []),
+      renderBody,
     ]);
 
     return Layout({

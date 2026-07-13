@@ -13,11 +13,12 @@ export function renderWithInterceptors<S extends AppShape, T, Env extends object
   ctx: AppContext<S>,
   env: Env,
   fn: (props: T) => ReactNode,
-  interceptors?: Interceptor<S, T, Env>[],
+  interceptors?: (Interceptor<S, T, Env> | undefined)[],
 ): (props: T) => ReactNode {
   function run(i: number, props: T): ReactNode {
-    const interceptor = interceptors?.[i];
-    if (interceptor) {
+    if (interceptors && i < interceptors.length) {
+      const interceptor = interceptors[i];
+      if (!interceptor) return run(i + 1, props);
       return interceptor.call(ctx, { ...env, props, next: (v) => run(i + 1, v) });
     }
     return fn(props);
