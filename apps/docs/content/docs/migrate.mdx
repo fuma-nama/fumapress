@@ -1,0 +1,168 @@
+---
+title: Migrate to v1
+description: Breaking changes from the v1 redesign.
+icon: ArrowRightLeft
+---
+
+## Overview
+
+v1 reshapes the config API. Layouts move onto the config object, content is required, and plugin types are renamed.
+
+`.layouts()` still works as a compat layer, but prefer the new options below.
+
+## Content
+
+`loader` is removed. Pass sources via `content`:
+
+```ts
+// before
+defineConfig({ loader: docs.toFumadocsSource() });
+
+// after
+defineConfig({ content: docs.toFumadocsSource() });
+```
+
+## Layouts
+
+Move layout options onto the config object:
+
+| Before                       | After                |
+| ---------------------------- | -------------------- |
+| `.layouts({ root })`         | `renderRoot`         |
+| `.layouts({ page })`         | `renderPage`         |
+| `.layouts({ notFound })`     | `renderNotFound`     |
+| `.layouts({ defaultProps })` | `defaultLayoutProps` |
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+
+// before
+defineConfig({ content }).layouts({
+  defaultProps() {
+    return { links: [...] };
+  },
+  page: createDocsLayoutPage(),
+});
+
+// after
+const DocsLayout = createDocsLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  content,
+  defaultLayoutProps: {
+    links: [...],
+  },
+  renderPage: (props) => <DocsLayout {...props} />,
+});
+
+export default config;
+```
+
+Prefer wrapping the layout in `renderPage` instead of passing `create*LayoutPage()` directly, this avoids TypeScript inference issues.
+
+`defaultLayoutProps` can be a plain object, or a function when you need `lang` / app context.
+
+See [Layouts](/docs/layouts) for switching layouts and shared props.
+
+## Plugins & Adapters
+
+`.usePlugins()` / `.useAdapters()` are removed. Use `.plugins()` / `.adapters()`:
+
+```ts
+defineConfig({ content }).plugins(flexsearchPlugin()).adapters(fumadocsMdx());
+```
+
+When you need `getPressContext`, export it from `config.utils()` so it is typed to your app:
+
+```ts
+const config = defineConfig({ content });
+
+export const { getPressContext } = config.utils();
+export default config;
+```
+
+## Types
+
+| Before                                | After                               |
+| ------------------------------------- | ----------------------------------- |
+| `ConfigContext`                       | `AppShape`                          |
+| `ServerPlugin` / `ServerPluginOption` | `PressPlugin` / `PressPluginOption` |
+| `ConfigBuilder`                       | `ConfigUtils`                       |
+| `Layouts`                             | `render*` / `defaultLayoutProps`    |
+| `i18n` on context shape               | `lang` on `AppShape`                |
+
+`$context` is now an `AppShape`.
+
+```ts
+// before
+import type { ConfigContext, ServerPlugin } from "fumapress";
+
+export function myPlugin<C extends ConfigContext>(): ServerPlugin<C> {
+  // ...
+}
+
+// after
+import type { AppShape, PressPlugin } from "fumapress";
+
+export function myPlugin<C extends AppShape>(): PressPlugin<C> {
+  // ...
+}
+```
+
+## App Context
+
+Helpers that used to take `ctx` as an argument are methods on `AppContext`:
+
+| Before                           | After                                     |
+| -------------------------------- | ----------------------------------------- |
+| `ctx.layouts`                    | `ctx.renderRoot` / `ctx.renderPage` / ... |
+| `renderPageMeta(page, ctx)`      | `ctx.renderPageMeta(page)`                |
+| `renderRootMeta(ctx)`            | `ctx.renderRootMeta()`                    |
+| `getCreationDate(ctx, page)`     | `ctx.getPageCreatedAt(page)`              |
+| `getLastModifiedDate(ctx, page)` | `ctx.getPageLastModified(page)`           |
+| `getGitHubFileUrl(ctx, path)`    | `ctx.getFileGitHubUrl(path)`              |
+| `renderToc(ctx, page)`           | `ctx.getPageToc(page)`                    |
+| `renderBody`                     | `ctx.getPageBody(page)` → `{ node }`      |
+| `data["core:page-meta"]`         | `ctx.interceptPageMeta(...)`              |
+
+Standalone exports like `baseLayoutProps`, `getCreationDate`, `renderBody`, and `TransformChildren` are no longer public.
+
+Layout transformers are renamed from `renderers` to `transformers`:
+
+```ts
+// before
+data["core:docs-layout"].renderers;
+
+// after
+data["core:docs-layout"].transformers;
+```
+
+## Adapters
+
+`core:render-body` is renamed to `core:get-body`, and returns `{ node }` instead of a bare React node:
+
+```ts
+// before
+async "core:render-body"(page) {
+  return <MyPage />;
+}
+
+// after
+async "core:get-body"(page) {
+  return { node: <MyPage /> };
+}
+```
+
+## Plugins
+
+Plugins that appended OG tags (or other meta) via `data["core:page-meta"]` should use `interceptPageMeta`:
+
+```ts
+this.interceptPageMeta(({ page, next }) => (
+  <>
+    {next()}
+    <meta property="og:image" content={...} />
+  </>
+));
+```
