@@ -38,7 +38,9 @@ export interface AppContext<S extends AppShape = AppShape>
    * custom data in app context, can be referenced from plugins/pages etc
    */
   data: AppContextData<S> & Record<string | symbol, unknown>;
-  defaultLayoutProps: () => Awaitable<Omit<BaseLayoutProps, "children">>;
+  defaultLayoutProps: (opts: {
+    lang: string | undefined;
+  }) => Awaitable<Omit<BaseLayoutProps, "children">>;
   renderPage: (opts: { slugs: string[]; lang?: string; page: S["page"] }) => ReactNode;
   renderRoot: (opts: { lang?: string; children: ReactNode }) => ReactNode;
   renderNotFound: (opts: { lang?: string }) => ReactNode;
@@ -166,11 +168,11 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
       translations && "config" in translations
         ? (translations.config as AppContext["i18nConfig"])
         : config.i18n,
-    defaultLayoutProps: async () => {
+    defaultLayoutProps: async (opts) => {
       const { name, git } = ctx.siteConfig;
       const base =
         typeof defaultLayoutProps === "function"
-          ? await defaultLayoutProps.call(ctx)
+          ? await defaultLayoutProps.call(ctx, opts)
           : defaultLayoutProps;
 
       return {
@@ -337,7 +339,7 @@ function getDefaultBaseUrl() {
   }
 }
 
-export const mergeLayoutConfigs = createDeepmerge({
+export const deepmerge = createDeepmerge({
   all: true,
   onlyDefinedProperties: true,
   isMergeableObject(value) {

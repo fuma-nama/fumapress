@@ -1,4 +1,4 @@
-import { type AppContext, type AppShape, getPressContext, mergeLayoutConfigs } from "@/app/context";
+import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import type { Awaitable } from "@/lib/types";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
@@ -89,10 +89,12 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
       layoutData ?? {};
     const source = await getLoader();
 
-    const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps() : undefined;
     const _raw = await render?.call(ctx, page);
-    const layoutProps = mergeLayoutConfigs(inherited, _raw?.layoutProps as DocsLayoutProps);
-    layoutProps.tree ??= source.getPageTree(lang);
+    const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined;
+    const layoutProps: DocsLayoutProps = {
+      tree: source.getPageTree(lang),
+      ...deepmerge(inherited, _raw?.layoutProps),
+    };
 
     const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
     if (body == null) {
