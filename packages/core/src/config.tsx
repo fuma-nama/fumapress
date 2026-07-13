@@ -2,7 +2,7 @@ import { getPressContext, type AppContext } from "./app/context";
 import type { _Internal, SourceUnion } from "fumadocs-core/source";
 import type { Adapter, Awaitable, PressLoaderOptions } from "@/lib/types";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import type { PressPluginOption } from "./app/plugin";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
@@ -48,7 +48,10 @@ export interface FumapressConfig<
   /** Base props for Fumadocs UI layouts */
   defaultLayoutProps?:
     | Omit<BaseLayoutProps, "children">
-    | ((this: AppContext<InferAppShape<I, Lang>>) => Awaitable<Omit<BaseLayoutProps, "children">>);
+    | ((
+        this: AppContext<InferAppShape<I, Lang>>,
+        env: { lang: string | undefined },
+      ) => Awaitable<Omit<BaseLayoutProps, "children">>);
 
   renderRoot?: (
     this: AppContext<InferAppShape<I, Lang>>,
@@ -117,6 +120,24 @@ export interface ConfigUtils<
     getPressContext: () => AppContext<InferAppShape<I, Lang>>;
   };
 
+  /** @deprecated use top-level `renderRoot`, `renderPage`, and `renderNotFound` instead */
+  layouts: (options: {
+    root?: FC<{ lang?: string; children: ReactNode }>;
+    page?: FC<{
+      lang?: string;
+      slugs: string[];
+      page: InferAppShape<I, Lang>["page"];
+    }>;
+    notFound?: FC<{ lang?: string }>;
+
+    /**
+     * Define default props for all Fumadocs layouts, will be deep-merged with current props.
+     */
+    defaultProps?: (
+      this: AppContext<InferAppShape<I, Lang>>,
+      env: { lang: string | undefined },
+    ) => Awaitable<Omit<BaseLayoutProps, "children">>;
+  }) => ConfigUtils<I, Lang>;
   plugins: (...plugins: PressPluginOption<InferAppShape<I, Lang>>[]) => ConfigUtils<I, Lang>;
   adapters: (...adapters: Adapter<InferAppShape<I, Lang>>[]) => ConfigUtils<I, Lang>;
 }
@@ -136,6 +157,13 @@ export function defineConfig<
           return getPressContext<InferAppShape<I, Lang>>();
         },
       };
+    },
+    layouts({ defaultProps, notFound: NotFound, page: Page, root: Root }) {
+      if (defaultProps) config.defaultLayoutProps = defaultProps;
+      if (NotFound) config.renderNotFound = (props) => <NotFound {...props} />;
+      if (Page) config.renderPage = (props) => <Page {...props} />;
+      if (Root) config.renderRoot = (props) => <Root {...props} />;
+      return this;
     },
     plugins(...plugins) {
       config.plugins ??= [];

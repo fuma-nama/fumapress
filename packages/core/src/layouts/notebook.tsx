@@ -122,15 +122,15 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
       ctx,
       { lang, page },
       (props) => <DocsLayout {...props} />,
-      [...(layoutInterceptors ?? []), ...(renderLayout ? [renderLayout] : [])],
+      [...(layoutInterceptors ?? []), renderLayout],
     );
     const Page = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsPage {...props} />, [
       ...(pageInterceptors ?? []),
-      ...(renderPage ? [renderPage] : []),
+      renderPage,
     ]);
     const Body = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsBody {...props} />, [
       ...(bodyInterceptors ?? []),
-      ...(renderBody ? [renderBody] : []),
+      renderBody,
     ]);
 
     return Layout({
