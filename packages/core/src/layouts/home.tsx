@@ -1,4 +1,4 @@
-import { type AppContext, type AppShape, getPressContext, mergeLayoutConfigs } from "@/app/context";
+import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import type { Awaitable } from "@/lib/types";
 import { HomeLayout, type HomeLayoutProps } from "fumadocs-ui/layouts/home";
@@ -75,14 +75,14 @@ export function createHomeLayout<C extends AppShape = AppShape>({
   layoutProps: getLayoutProps,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: HomeLayoutOptions<C> = {}): LayoutComponent<C> {
-  return async function Layout({ layoutProps, children }) {
+  return async function Layout({ layoutProps, lang, children }) {
     const ctx = getPressContext<C>();
     const { layoutInterceptors, transformers } = ctx.data["core:home-layout"] ?? {};
 
     let result: HomeLayoutRenderData = {
       body: children,
-      layoutProps: mergeLayoutConfigs(
-        inheritLayoutProps ? await ctx.defaultLayoutProps() : undefined,
+      layoutProps: deepmerge(
+        inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined,
         typeof getLayoutProps === "function" ? await getLayoutProps.call(ctx) : getLayoutProps,
         layoutProps,
       ),

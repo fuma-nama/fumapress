@@ -1,4 +1,4 @@
-import { type AppContext, type AppShape, getPressContext, mergeLayoutConfigs } from "@/app/context";
+import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import type { Awaitable } from "@/lib/types";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
@@ -86,11 +86,13 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
     const source = await ctx.getLoader();
 
     const _raw = await render?.call(ctx, page);
-    const layoutProps: DocsLayoutProps = mergeLayoutConfigs(
-      { tree: source.getPageTree(lang) },
-      inheritLayoutProps ? await ctx.defaultLayoutProps() : undefined,
-      _raw?.layoutProps,
-    );
+    const layoutProps: DocsLayoutProps = {
+      tree: source.getPageTree(lang),
+      ...deepmerge(
+        inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined,
+        _raw?.layoutProps,
+      ),
+    };
 
     const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
     if (body == null) {
