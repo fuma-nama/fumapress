@@ -28,6 +28,15 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
 }: OramaSearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:orama-search",
+    preinit({ finalized }) {
+      for (const item of finalized) {
+        if (item.name === "core:flexsearch" || item.name === "core:orama-search") {
+          throw new Error(
+            `[Fumapress] "core:orama-search" conflicts with "${item.name}": only one search plugin can be added.`,
+          );
+        }
+      }
+    },
     init() {
       const hooks = (this.data["core:provider"] ??= []);
 

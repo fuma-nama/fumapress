@@ -1,11 +1,8 @@
 import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 import { blog, changelog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { blogPlugin } from "fumapress/plugins/blog";
 import { changelogPlugin } from "@fumapress/tegami";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
@@ -14,7 +11,6 @@ import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
-import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
@@ -170,14 +166,10 @@ const config = defineConfig({
     }),
   )
   .plugins(
-    flexsearchPlugin(),
-    llmsPlugin(),
-    takumiPlugin(),
     imagePlugin({
       formats: ["image/webp", "image/png"],
     }),
     linkValidationPlugin(),
-    sitemapPlugin(),
     mcpPlugin(),
   );
 

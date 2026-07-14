@@ -34,7 +34,7 @@ export function asyncapiPlugin<C extends AppShape>(options: OpenAPIOptions): Pre
   }
 
   return {
-    name: "core:openapi",
+    name: "core:asyncapi",
     init() {
       this.adapters.push(adapter(options));
       initTransformers((this.data["core:docs-layout"] ??= {}));

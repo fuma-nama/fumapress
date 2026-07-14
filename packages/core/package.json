@@ -43,6 +43,8 @@
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
+    "./plugins/robots": "./dist/plugins/robots.js",
+    "./plugins/rss": "./dist/plugins/rss.js",
     "./plugins/sitemap": "./dist/plugins/sitemap.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",
     "./router": "./dist/router/index.js",
