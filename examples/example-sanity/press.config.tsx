@@ -7,8 +7,6 @@ import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
 import { PortableText } from "@portabletext/react";
 import { createClient } from "@sanity/client";
 import { defineConfig } from "fumapress";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
 const sanityClient = createClient({
   projectId: process.env.SANITY_STUDIO_PROJECT_ID,
@@ -46,4 +44,4 @@ export default defineConfig({
   site: {
     name: "Sanity Example",
   },
-}).plugins(sanityPlugin(sanityIntegration), llmsPlugin(), flexsearchPlugin());
+}).plugins(sanityPlugin(sanityIntegration));

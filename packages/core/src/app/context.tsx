@@ -8,9 +8,8 @@ import createDeepmerge from "@fastify/deepmerge";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
-import { applyDefaultsPlugin } from "@/plugins/internal/defaults";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import { PressPlugin, PressPluginOption } from "./plugin";
+import { preinitPlugins, type PressPlugin } from "./plugin";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { HomeLayoutContextData } from "@/layouts/home";
@@ -120,28 +119,6 @@ export function getPressContext<C extends AppShape = AppShape>(): AppContext<C> 
   return store as AppContext<C>;
 }
 
-const PLUGIN_ORDER = {
-  pre: -1,
-  post: 1,
-  _: 0,
-};
-
-function flattenPlugins(plugins: PressPluginOption[]): PressPlugin[] {
-  const out: PressPlugin[] = [];
-  for (const plugin of plugins) {
-    if (!plugin) continue;
-    if (Array.isArray(plugin)) out.push(...flattenPlugins(plugin));
-    else out.push(plugin);
-  }
-  return out;
-}
-
-function resolvePlugins(plugins: PressPluginOption[]): PressPlugin[] {
-  return flattenPlugins(plugins).sort(
-    (a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"],
-  );
-}
-
 export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise<AppContext<C>> {
   const config = builder.get();
   const {
@@ -154,7 +131,6 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderRoot = (await import("@/layouts/root")).createRootLayout(),
   } = config;
 
-  const plugins = resolvePlugins([...(config.plugins ?? []), ...applyDefaultsPlugin()]);
   const ctx: AppContext = {
     $context: undefined as never,
     getLoader() {
@@ -188,7 +164,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderNotFound,
     renderPage,
     renderRoot,
-    plugins,
+    plugins: await preinitPlugins(config.preset, config.plugins ?? []),
     adapters: config.adapters ?? [],
     data: {},
     translationsConfig: translations,
@@ -206,7 +182,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     ...hooks(config),
   };
 
-  for (const plugin of plugins) {
+  for (const plugin of ctx.plugins) {
     await plugin.init?.call(ctx);
   }
 
@@ -216,7 +192,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     ...config.loaderOptions,
   };
 
-  for (const plugin of plugins) {
+  for (const plugin of ctx.plugins) {
     if (!plugin.configureLoader) continue;
     loaderOptions = await plugin.configureLoader.call(ctx, loaderOptions);
   }
@@ -230,7 +206,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     return source.get() as never;
   };
 
-  for (const plugin of plugins) {
+  for (const plugin of ctx.plugins) {
     await plugin.configure?.call(ctx);
   }
 

@@ -31,6 +31,14 @@ export interface FumapressConfig<
   mode?: BuildMode;
   site?: SiteConfig;
 
+  /**
+   * - `recommended`: add recommended plugins automatically: sitemap, robots.txt, llms.txt, Takumi (OG image), RSS, and search (Flexsearch). Plugins specified in `plugins` take priority.
+   * - `false`: do not add any plugins.
+   *
+   * @default "recommended"
+   */
+  preset?: "recommended" | false;
+
   /** The content sources */
   content: I;
 

@@ -1,11 +1,8 @@
 import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
 import { docs } from "./.source/server";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { openapiPlugin } from "fumapress/plugins/openapi";
 
 const openapi = createOpenAPI({
@@ -37,9 +34,4 @@ export default defineConfig({
   },
 })
   .adapters(fumadocsMdx())
-  .plugins(
-    flexsearchPlugin(),
-    llmsPlugin(),
-    takumiPlugin(),
-    openapiPlugin({ server: openapi, createProxy: true }),
-  );
+  .plugins(openapiPlugin({ server: openapi, createProxy: true }));

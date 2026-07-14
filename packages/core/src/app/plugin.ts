@@ -3,12 +3,27 @@ import type { Hono, MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type { AppContext, AppShape } from "./context";
+import { fumapressTranslations } from "@/i18n";
+import type { FumapressConfig } from "@/config";
 
 export interface PressPlugin<C extends AppShape = AppShape> {
   name?: string;
 
   /** force change the order of plugin */
   enforce?: "pre" | "post";
+
+  /**
+   * Runs after plugins are resolved, before `init()`.
+   *
+   * - return `false` to remove this plugin from the list.
+   * - throw an error to report unresolvable conflicts.
+   */
+  preinit?: (opts: {
+    /** a list of finalized plugins prior to this plugin */
+    finalized: PressPlugin<C>[];
+    /** full list of initially resolved plugins */
+    original: PressPlugin<C>[];
+  }) => Awaitable<void | false>;
 
   /** initialize context */
   init?: (this: AppContext<C>) => Awaitable<void>;
@@ -58,3 +73,89 @@ export type PressPluginOption<C extends AppShape = AppShape> =
   | undefined
   | null
   | PressPluginOption<C>[];
+
+const PLUGIN_ORDER = {
+  pre: -1,
+  post: 1,
+  _: 0,
+};
+
+function flattenPlugins<C extends AppShape>(plugins: PressPluginOption<C>[]): PressPlugin<C>[] {
+  const out: PressPlugin<C>[] = [];
+  for (const plugin of plugins) {
+    if (!plugin) continue;
+    if (Array.isArray(plugin)) out.push(...flattenPlugins(plugin));
+    else out.push(plugin);
+  }
+  return out;
+}
+
+function sortPlugins<C extends AppShape>(plugins: PressPlugin<C>[]): PressPlugin<C>[] {
+  return plugins.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
+}
+
+export async function preinitPlugins<C extends AppShape>(
+  preset: FumapressConfig["preset"] = "recommended",
+  plugins: PressPluginOption<C>[],
+  _debug_no_takumi = false,
+): Promise<PressPlugin<C>[]> {
+  const flattened = flattenPlugins(plugins);
+  flattened.push(
+    {
+      name: "core:i18n",
+      init() {
+        if (this.translationsConfig) {
+          this.translationsConfig.extend(fumapressTranslations());
+        }
+      },
+    },
+    {
+      name: "core:disable-search-if-needed",
+      enforce: "post",
+      init() {
+        const hooks = (this.data["core:provider"] ??= []);
+        hooks.push((data) => {
+          // search-feature plugins must set the `search` prop, otherwise will disable search by default.
+          data.search ??= { enabled: false };
+          return data;
+        });
+      },
+    },
+  );
+
+  sortPlugins(flattened);
+  const finalized: PressPlugin<C>[] = [];
+  const finalizedNames = new Set<string>();
+
+  for (const plugin of flattened) {
+    if (plugin.preinit && (await plugin.preinit({ finalized, original: flattened })) === false) {
+      continue;
+    }
+
+    finalized.push(plugin);
+    if (plugin.name) finalizedNames.add(plugin.name);
+  }
+
+  if (preset === "recommended") {
+    if (!finalizedNames.has("core:sitemap")) {
+      finalized.push((await import("@/plugins/sitemap")).sitemapPlugin());
+    }
+    if (!finalizedNames.has("core:robots")) {
+      finalized.push((await import("@/plugins/robots")).robotsPlugin());
+    }
+    if (!finalizedNames.has("core:llms.txt")) {
+      finalized.push((await import("@/plugins/llms.txt")).llmsPlugin());
+    }
+    if (!finalizedNames.has("core:rss")) {
+      finalized.push((await import("@/plugins/rss")).rssPlugin());
+    }
+    if (!finalizedNames.has("core:flexsearch") && !finalizedNames.has("core:orama-search")) {
+      finalized.push((await import("@/plugins/flexsearch")).flexsearchPlugin());
+    }
+    if (!_debug_no_takumi && !finalizedNames.has("core:takumi")) {
+      finalized.push((await import("@/plugins/takumi")).takumiPlugin());
+    }
+  }
+
+  return sortPlugins(finalized);
+}

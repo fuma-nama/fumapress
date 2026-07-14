@@ -192,7 +192,6 @@ export default defineConfig({
     },
   },
 })
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .adapters(fumadocsMdx());
 `,
     "source.config.ts": `import { defineDocs } from "fumadocs-mdx/config";
