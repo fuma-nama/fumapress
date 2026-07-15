@@ -1,0 +1,151 @@
+---
+title: Notion
+description: Pull pages from Notion and render them with Fumapress.
+---
+
+The `@fumapress/notion` package provides both a dynamic content source and the adapter plugin needed to render Notion blocks. It uses the official Notion API and does not ship a client-side renderer.
+
+## Installation
+
+Install the integration and the official Notion client:
+
+```npm
+npm i @fumapress/notion @notionhq/client
+```
+
+Import the renderer's Tailwind source in your global CSS after the Fumadocs UI styles:
+
+```css title="src/app.css"
+@import "@fumapress/notion/css/preset.css";
+```
+
+## Notion Setup
+
+1. [Create a Notion integration](https://developers.notion.com/docs/getting-started) with permission to read content.
+2. Connect the database containing your pages to the integration.
+3. Store the integration token and the database's **data source ID** in server-only environment variables.
+
+```ini title=".env.local"
+NOTION_TOKEN=ntn_...
+NOTION_DATA_SOURCE_ID=...
+```
+
+<Callout type="info">
+  Use a data source ID, not the database ID shown in the database URL. In the current Notion API, a
+  database is a container and each query targets one of its data sources. See Notion's [data source
+  upgrade guide](https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03).
+</Callout>
+
+## Configuration
+
+For a runnable project, see [`examples/notion`](https://github.com/fuma-nama/fumapress/tree/main/examples/notion).
+
+Create the shared integration once, use it as the Fumapress content source, and pass the same object to `notionPlugin()`:
+
+```tsx title="press.config.tsx"
+import { Client } from "@notionhq/client";
+import { fumapressNotion, notionPlugin } from "@fumapress/notion";
+import { defineConfig } from "fumapress";
+
+const notion = fumapressNotion({
+  client: new Client({ auth: process.env.NOTION_TOKEN }),
+  dataSourceId: process.env.NOTION_DATA_SOURCE_ID!,
+});
+
+export default defineConfig({
+  content: notion.dynamicSource({
+    properties: {
+      title: "Name",
+      slug: "Slug",
+      description: "Description",
+    },
+    query: {
+      filter: {
+        property: "Published",
+        checkbox: { equals: true },
+      },
+    },
+  }),
+  loaderOptions: {
+    alwaysRevalidate: true,
+  },
+  mode: "dynamic",
+}).plugins(notionPlugin(notion));
+```
+
+The source paginates through every matching data-source row and recursively pulls nested page blocks. Calls to load the same page body are deduplicated until the content loader is invalidated.
+
+`alwaysRevalidate` is the simplest way to reflect Notion edits immediately. For a higher-traffic site, leave it disabled and call `revalidateLoader()` from a trusted webhook or revalidation route instead.
+
+### Page Properties
+
+When `properties` is omitted, the source:
+
+- Uses the first Notion `title` property as the page title.
+- Uses a property named `Slug` for the URL, falling back to a slug generated from the title.
+- Uses a property named `Description` when present.
+
+A slug can contain `/` to create nested routes. Duplicate or unsafe virtual paths fail with a descriptive error instead of silently replacing a page.
+
+### Query and Paths
+
+Pass Notion filters and sorts through `query`. Use `baseDir` to place the virtual pages under a directory, or `generatePath` for complete control over the virtual file path.
+
+```tsx
+notion.dynamicSource({
+  baseDir: "docs",
+  query: {
+    sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+  },
+  generatePath(page, info) {
+    return info.slugs.length > 0 ? `${info.slugs.join("/")}.mdx` : `${page.id}.mdx`;
+  },
+});
+```
+
+<auto-type-table type="import('@fumapress/notion').FumapressNotionOptions" />
+
+<auto-type-table type="import('@fumapress/notion').NotionSourceOptions" />
+
+## Rendering
+
+`notionPlugin()` contributes renderers for common block types, you can add or override the default renderers.
+
+```tsx title="press.config.tsx"
+notionPlugin(notion, {
+  components: {
+    callout({ block, children, renderRichText }) {
+      return (
+        <aside className="rounded-lg bg-fd-muted p-4">
+          {renderRichText(block.callout.rich_text)}
+          {children}
+        </aside>
+      );
+    },
+  },
+});
+```
+
+### Notion Files
+
+Notion-hosted file URLs expire after one hour. By default, `notionPlugin()` renders internal assets through `/api/notion/file`, which retrieves a fresh signed URL and verifies that the requested block belongs to a page in the configured data source.
+
+The proxy needs a dynamic deployment. For a static export, disable it only when your content uses durable external URLs or when a custom renderer copies assets to durable storage:
+
+```tsx
+notionPlugin(notion, {
+  fileProxy: false,
+});
+```
+
+<auto-type-table type="import('@fumapress/notion').NotionPluginOptions" />
+
+## Source-only Import
+
+Code that only needs to pull Notion pages can avoid the React renderer entry:
+
+```ts
+import { fumapressNotion } from "@fumapress/notion/source";
+```
+
+This entry keeps the Notion SDK external and contains no React imports.
