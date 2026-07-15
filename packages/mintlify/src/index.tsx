@@ -159,8 +159,8 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
         const { title, url } = buildNavTitle(docs);
         const previousDefaultProps = this.defaultLayoutProps;
 
-        this.defaultLayoutProps = async () => {
-          const inherited = await previousDefaultProps();
+        this.defaultLayoutProps = async (opts) => {
+          const inherited = await previousDefaultProps(opts);
           const links = await buildNavbarLinks(docs);
 
           return {
