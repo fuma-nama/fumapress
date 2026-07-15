@@ -64,7 +64,7 @@ describe("mintlifyPlugin", () => {
     // custom 404
     expect(ctx.renderNotFound.name).toContain("MintlifyNotFound");
     // navbar defaults
-    const props = await ctx.defaultLayoutProps();
+    const props = await ctx.defaultLayoutProps({ lang: undefined });
     expect(props?.links?.length).toBeGreaterThanOrEqual(3);
     expect(props?.themeSwitch).toEqual({ enabled: false });
 
