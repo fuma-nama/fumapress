@@ -6,6 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "types": ["vite/client"],
     "allowJs": true,
     "checkJs": true,
     "esModuleInterop": true,
