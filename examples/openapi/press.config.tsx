@@ -1,7 +1,6 @@
 import { defineConfig } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { docs } from "./.source/server";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
@@ -10,6 +9,7 @@ import { openapiPlugin } from "fumapress/plugins/openapi";
 import path from "node:path";
 import { defineI18n } from "fumadocs-core/i18n";
 import { zhTW } from "@fumapress/language/zh-tw";
+import { defineDocs } from "fumadocs-mdx/macro";
 
 const openapi = createOpenAPI({
   input: [path.resolve("./scalar.yaml")],
@@ -22,6 +22,17 @@ const translations = defineI18n({
 })
   .translations()
   .preset("cn", zhTW());
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    async: true,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+});
 
 export default defineConfig({
   content: {

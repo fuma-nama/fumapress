@@ -9,18 +9,26 @@ This plugin is included in `fumapress`.
 
 ### Fumadocs MDX
 
-If you use [Fumadocs MDX](https://fumadocs.dev/docs/mdx), create a new collection for blog:
+If you use [Fumadocs MDX](https://fumadocs.dev/docs/mdx), create a new collection for blog and register it as a content source:
 
-```ts title="source.config.ts"
-import { defineDocs } from "fumadocs-mdx/config";
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
 import { blogMetaSchema, blogPageSchema } from "fumapress/adapters/mdx/schema";
+import { blogPlugin } from "fumapress/plugins/blog";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 // [!code ++:13]
-export const blog = defineDocs({
+const blog = defineDocs({
   dir: "content/blog",
   docs: {
     async: true,
     schema: blogPageSchema,
+    lastModified: true,
     postprocess: {
       includeProcessedMarkdown: true,
     },
@@ -29,14 +37,6 @@ export const blog = defineDocs({
     schema: blogMetaSchema,
   },
 });
-```
-
-Add the new collection as `blog` content source (and give the original one a name like `docs`), then enable the plugin:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { blog, docs } from "./.source/server";
-import { blogPlugin } from "fumapress/plugins/blog";
 
 export default defineConfig({
   // [!code highlight:6]

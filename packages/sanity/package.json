@@ -30,17 +30,17 @@
   },
   "dependencies": {
     "@portabletext/react": "^6.2.0",
-    "@sanity/client": "^7.23.0",
+    "@sanity/client": "^7.23.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@fumadocs/sanity": "^0.1.0",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.11.1",
+    "fumadocs-core": "^16.11.5",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
-    "tsdown": "0.22.4",
+    "tsdown": "0.22.7",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

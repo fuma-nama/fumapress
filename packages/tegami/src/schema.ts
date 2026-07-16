@@ -7,9 +7,11 @@ import { z } from "zod";
  * Use with a Fumadocs MDX docs collection:
  *
  * ```ts
+ * // press.config.tsx
+ * import { defineDocs } from "fumadocs-mdx/macro";
  * import { changelogPageSchema, changelogMetaSchema } from "@fumapress/tegami/schema";
  *
- * export const changelog = defineDocs({
+ * const changelog = defineDocs({
  *   dir: "content/changelog",
  *   docs: { schema: changelogPageSchema },
  *   meta: { schema: changelogMetaSchema },

@@ -1,10 +1,16 @@
 import { defineConfig } from "fumapress";
 import { TypeTable } from "fumadocs-ui/components/type-table";
-import { blog, changelog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
+import {
+  blogMetaSchema,
+  blogPageSchema,
+  metaSchema,
+  pageSchema,
+} from "fumapress/adapters/mdx/schema";
 import { blogPlugin } from "fumapress/plugins/blog";
 import { changelogPlugin } from "@fumapress/tegami";
+import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
@@ -16,6 +22,52 @@ import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 import { SponsorsMarquee } from "@fumari/sponsors";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
+
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: {
+    async: true,
+    schema: blogPageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: blogMetaSchema,
+  },
+});
+
+const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: {
+    async: true,
+    schema: changelogPageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: changelogMetaSchema,
+  },
+});
 
 const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
   async render({ locale }) {

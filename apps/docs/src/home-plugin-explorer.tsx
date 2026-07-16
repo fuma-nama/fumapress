@@ -63,8 +63,17 @@ export default defineConfig({
     keywords: ["blog", "rss", "posts"],
     docsHref: "/docs/plugins/blog",
     usage: `import { defineConfig } from "fumapress";
-import { blog, docs } from "./.source/server";
 import { blogPlugin } from "fumapress/plugins/blog";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: {
@@ -233,8 +242,17 @@ export default defineConfig({
     keywords: ["changelog", "releases", "tegami", "versioning"],
     docsHref: "/docs/plugins/tegami",
     usage: `import { defineConfig } from "fumapress";
-import { changelog, docs } from "./.source/server";
 import { changelogPlugin } from "@fumapress/tegami";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
+const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: {
