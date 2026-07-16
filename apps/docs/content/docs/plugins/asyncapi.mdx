@@ -9,6 +9,17 @@ description: Build event-driven API documentations with Fumapress.
 npm i @fumadocs/asyncapi shiki
 ```
 
+Import the CSS preset in `src/app.css`:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumadocs/asyncapi/css/preset.css";
+```
+
 Configure the plugin:
 
 ```tsx title="press.config.tsx"
