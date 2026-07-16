@@ -3,7 +3,12 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppShape } from "@/app/context";
 import type { Adapter } from "@/lib/types";
-import type { OpenAPIPageData, OpenAPIServer, Proxy } from "fumadocs-openapi/server";
+import type {
+  CreateProxyOptions,
+  OpenAPIPageData,
+  OpenAPIServer,
+  Proxy,
+} from "fumadocs-openapi/server";
 import type { FC } from "react";
 import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
@@ -23,7 +28,7 @@ export interface OpenAPIOptions {
    *
    * By default, it will create one when `proxyUrl` is specified in `createOpenAPI()`.
    */
-  createProxy?: boolean | (() => Awaitable<Proxy>);
+  createProxy?: boolean | CreateProxyOptions | (() => Awaitable<Proxy>);
 }
 
 /**
@@ -65,7 +70,7 @@ export function openapiPlugin<C extends AppShape>(options: OpenAPIOptions): Pres
       const proxyUrl = server.options.proxyUrl;
       const { createProxy = typeof proxyUrl === "string" && isFullPathname(proxyUrl) } = options;
 
-      if (createProxy) {
+      if (createProxy !== false) {
         if (!proxyUrl)
           throw new Error(
             `[Fumapress] The "proxyUrl" option in createOpenAPI() is required to create proxy server`,
@@ -74,7 +79,9 @@ export function openapiPlugin<C extends AppShape>(options: OpenAPIOptions): Pres
           throw new Error(`[Fumapress] static mode is not compatible with proxy server`);
 
         const proxy =
-          typeof createProxy === "function" ? await createProxy() : server.createProxy();
+          typeof createProxy === "function"
+            ? await createProxy()
+            : server.createProxy(createProxy === true ? {} : createProxy);
 
         createApi({
           path: proxyUrl,

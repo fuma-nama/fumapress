@@ -118,7 +118,7 @@ export default defineConfig({
 
 ### Proxy Server
 
-To create the [Proxy Server](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy), define `proxyUrl` in `createOpenAPI()` options:
+To create the [Proxy Server](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy), define `proxyUrl` in `createOpenAPI()` and pass `allowedOrigins` to the plugin:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -135,6 +135,17 @@ export default defineConfig({
 }).plugins(
   openapiPlugin({
     server: openapi,
+    // [!code ++:4]
+    createProxy: {
+      // important: set a list of allowed origins for proxied requests
+      allowedOrigins: ["https://example.com"],
+    },
   }),
 );
 ```
+
+<Callout type="warn" title="Security">
+
+Always set `allowedOrigins` to the API hosts you trust. The proxy forwards headers and body from the playground, including cookies and `Authorization`. An open proxy can be abused to call arbitrary origins.
+
+</Callout>
