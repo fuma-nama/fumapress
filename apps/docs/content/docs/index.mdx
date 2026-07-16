@@ -48,16 +48,22 @@ export default defineConfig({
 });
 ```
 
-```ts tab="source.config.ts"
-import { defineDocs } from "fumadocs-mdx/config";
+```tsx tab="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { takumiPlugin } from "fumapress/plugins/takumi";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
 
-// the config file for Fumadocs MDX, see https://fumadocs.dev/docs/mdx
-export const docs = defineDocs({
+// see https://fumadocs.dev/docs/mdx
+const docs = defineDocs({
   dir: "content",
   docs: {
     async: true,
     schema: pageSchema,
+    lastModified: true,
     postprocess: {
       includeProcessedMarkdown: true,
     },
@@ -66,16 +72,6 @@ export const docs = defineDocs({
     schema: metaSchema,
   },
 });
-```
-
-```ts tab="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-// don't worry if this file is missing, we will run the dev command later to generate this file
-import { docs } from "./.source/server";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
 
 export default defineConfig({
   content: docs.toFumadocsSource(),
@@ -120,7 +116,7 @@ Add scripts:
     "dev": "waku dev",
     "build": "waku build",
     "start": "waku start",
-    "types:check": "fumadocs-mdx && tsc --noEmit"
+    "types:check": "tsc --noEmit"
   }
 }
 ```

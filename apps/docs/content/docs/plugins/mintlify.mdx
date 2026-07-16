@@ -17,9 +17,14 @@ Add the plugin to your config, with `docs.json` located in your project root:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
 // [!code ++]
 import { mintlifyPlugin } from "@fumapress/mintlify";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: {
@@ -83,11 +88,15 @@ export default defineConfig({
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
 import { mintlifyPlugin } from "@fumapress/mintlify";
 import { createMintlifyOpenAPI } from "@fumapress/mintlify/openapi";
 import { openapiPlugin } from "fumapress/plugins/openapi";
 
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 const openapi = createMintlifyOpenAPI();
 
 export default defineConfig({

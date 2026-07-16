@@ -27,7 +27,12 @@ The pathname generation can be customized from source configuration. For example
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: docs.toFumadocsSource({

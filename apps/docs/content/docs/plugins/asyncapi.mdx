@@ -13,11 +13,16 @@ Configure the plugin:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
 // [!code ++:3]
 import path from "node:path";
 import { createAsyncAPI } from "@fumadocs/asyncapi/server";
 import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 // [!code ++:4]
 const asyncapi = createAsyncAPI({
@@ -52,7 +57,12 @@ It accepts a `baseDir` option. For example, the following will generate all API 
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: {

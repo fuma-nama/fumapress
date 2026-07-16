@@ -7,13 +7,13 @@
     "dev": "waku dev",
     "build": "waku build",
     "start": "waku start",
-    "types:check": "fumadocs-mdx && tsc --noEmit"
+    "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.11.1",
-    "fumadocs-mdx": "^15.1.0",
-    "fumadocs-openapi": "^11.1.1",
-    "fumadocs-ui": "^16.11.1",
+    "fumadocs-core": "^16.11.5",
+    "fumadocs-mdx": "^15.2.0",
+    "fumadocs-openapi": "^11.2.1",
+    "fumadocs-ui": "^16.11.5",
     "fumapress": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -29,6 +29,6 @@
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
-    "vite": "^8.1.3"
+    "vite": "^8.1.4"
   }
 }
