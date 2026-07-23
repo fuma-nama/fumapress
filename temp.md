@@ -48,23 +48,13 @@ const config = defineConfig({
 });
 ```
 
-`defaultLayoutProps` no longer receives `{ lang }`. Prefer `renderPage: (props) => <Layout {...props} />` over passing `create*LayoutPage()` directly into the config.
+Prefer `renderPage: (props) => <Layout {...props} />` over passing `create*LayoutPage()` directly into the config.
 
 ### Builder rename
 
 - `ConfigBuilder` → `ConfigUtils`
 - `.usePlugins()` / `.useAdapters()` removed (use `.plugins()` / `.adapters()`)
-- When you need `getPressContext`, prefer `export const { getPressContext } = config.utils()` over importing it from `fumapress` (already typed to your app). Don't export it unless used.
-
-Plugins/adapters can also be passed inline on the config object:
-
-```ts
-defineConfig({
-  content,
-  plugins: [flexsearchPlugin()],
-  adapters: [fumadocsMdx()],
-});
-```
+- When you need `getPressContext`, prefer `export const { getPressContext } = config.utils()` over importing it from `fumapress` (already typed to your app).
 
 ## Types & exports
 
@@ -103,12 +93,7 @@ Moved from internal shared helpers onto `AppContext` methods:
 | `renderToc(ctx, page)`            | `ctx.getPageToc(page)`                                                                  |
 | `renderBody` / `core:render-body` | `ctx.getPageBody(page)` → `{ node }`                                                    |
 | `data["core:page-meta"]`          | `ctx.interceptPageMeta(...)`                                                            |
-
-Standalone helpers `baseLayoutProps`, `getCreationDate`, `getLastModifiedDate`, `getGitHubFileUrl`, `renderRootMeta`, `renderPageMeta`, `renderBody`, `TransformChildren`, and `createTransformChildren` are no longer public exports.
-
-| `data["core:*-layout"].renderers` | `transformers` (`({ page, data }) => data`) |
-
-`mergeLayoutConfigs` remains on the context module.
+| `data["core:*-layout"].renderers` | `transformers` (`({ page, data }) => data`)                                             |
 
 ## Adapters
 
