@@ -178,7 +178,8 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
         };
       }
 
-      const providerHooks = (this.data["core:provider"] ??= []);
+      const providerData = (this.data["core:provider"] ??= {});
+      const providerHooks = (providerData.transformers ??= []);
 
       // ---- appearance ----
       if (enabled("appearance") && docs.appearance) {

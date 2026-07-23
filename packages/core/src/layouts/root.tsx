@@ -5,6 +5,7 @@ import type { Awaitable } from "@/lib/types";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
+import { Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 
 export interface RootLayoutOptions {
   providerProps?: Omit<PressProviderProps, "children">;
@@ -17,14 +18,21 @@ if (import.meta.env.DEV) {
   styleTag = <link rel="stylesheet" href={stylesHref} />;
 }
 
-export type RootLayoutContextData = ((
-  props: PressProviderProps,
-) => Awaitable<PressProviderProps>)[];
+type ProviderInterceptor<S extends AppShape> = Interceptor<
+  S,
+  PressProviderProps,
+  { lang?: string }
+>;
+
+export interface RootLayoutContextData<S extends AppShape = AppShape> {
+  transformers?: ((props: PressProviderProps) => Awaitable<PressProviderProps>)[];
+  providerInterceptors?: ProviderInterceptor<S>[];
+}
 
 export function createRootLayout<C extends AppShape = AppShape>(_options?: RootLayoutOptions) {
   return async function ({ lang, children }: { lang?: string; children: ReactNode }) {
     const ctx = getPressContext<C>();
-    const hooks = ctx.data["core:provider"];
+    const layoutData = ctx.data["core:provider"] ?? {};
     let providerProps: PressProviderProps = {
       ..._options?.providerProps,
       children,
@@ -36,11 +44,16 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
       providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()));
     }
 
-    if (hooks) {
-      for (const hook of hooks) {
-        providerProps = await hook(providerProps);
-      }
+    for (const hook of layoutData.transformers ?? []) {
+      providerProps = await hook(providerProps);
     }
+
+    const renderProvider = renderWithInterceptors(
+      ctx,
+      { lang },
+      (props) => <PressProvider {...props} />,
+      layoutData.providerInterceptors,
+    );
 
     return (
       <html lang={lang ?? "en"} suppressHydrationWarning>
@@ -49,7 +62,7 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
           {ctx.renderRootMeta()}
         </head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
-          <PressProvider {...providerProps} />
+          {renderProvider(providerProps)}
         </body>
       </html>
     );

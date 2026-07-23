@@ -332,5 +332,5 @@ export interface AppContextData<S extends AppShape> {
   "core:docs-layout"?: DocsLayoutContextData<S>;
   "core:notebook-layout"?: NotebookLayoutContextData<S>;
   "core:home-layout"?: HomeLayoutContextData<S>;
-  "core:provider"?: RootLayoutContextData;
+  "core:provider"?: RootLayoutContextData<S>;
 }

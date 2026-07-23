@@ -3,6 +3,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type { AppContext, AppShape } from "./context";
+import type { PressProviderProps } from "@/components/provider";
 import { fumapressTranslations } from "@/i18n";
 import type { FumapressConfig } from "@/config";
 
@@ -20,7 +21,7 @@ export interface PressPlugin<C extends AppShape = AppShape> {
    */
   preinit?: (opts: {
     /** a list of finalized plugins prior to this plugin */
-    finalized: PressPlugin<C>[];
+    finalized: readonly PressPlugin<C>[];
     /** full list of initially resolved plugins */
     original: PressPlugin<C>[];
   }) => Awaitable<void | false>;
@@ -113,11 +114,12 @@ export async function preinitPlugins<C extends AppShape>(
       name: "core:disable-search-if-needed",
       enforce: "post",
       init() {
-        const hooks = (this.data["core:provider"] ??= []);
-        hooks.push((data) => {
+        const data = (this.data["core:provider"] ??= {});
+        const transformers = (data.transformers ??= []);
+        transformers.push((props: PressProviderProps) => {
           // search-feature plugins must set the `search` prop, otherwise will disable search by default.
-          data.search ??= { enabled: false };
-          return data;
+          props.search ??= { enabled: false };
+          return props;
         });
       },
     },

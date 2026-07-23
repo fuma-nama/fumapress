@@ -57,7 +57,7 @@ describe("mintlifyPlugin", () => {
     // head injection
     expect(ctx.renderRootMeta()).not.toBeNull();
     // appearance + search + banner/footer provider hooks
-    expect(ctx.data["core:provider"]?.length).toBeGreaterThanOrEqual(3);
+    expect(ctx.data["core:provider"]?.transformers?.length).toBeGreaterThanOrEqual(3);
     // navigation transformers for docs & notebook layouts
     expect(ctx.data["core:docs-layout"]?.transformers).toHaveLength(1);
     expect(ctx.data["core:notebook-layout"]?.transformers).toHaveLength(1);

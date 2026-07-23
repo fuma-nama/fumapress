@@ -1,5 +1,6 @@
 import type { PressPlugin } from "@/app/plugin";
 import type { AppShape } from "@/app/context";
+import type { PressProviderProps } from "@/components/provider";
 import { SelfHostedImageProvider } from "./self-hosted.client";
 import {
   createImageOptimizer,
@@ -40,8 +41,9 @@ export function imagePlugin<C extends AppShape = AppShape>(
   return {
     name: "image:self-hosted",
     init() {
-      const hooks = (this.data["core:provider"] ??= []);
-      hooks.push((props) => {
+      const data = (this.data["core:provider"] ??= {});
+      const transformers = (data.transformers ??= []);
+      transformers.push((props: PressProviderProps) => {
         props.children = (
           <SelfHostedImageProvider config={config}>{props.children}</SelfHostedImageProvider>
         );

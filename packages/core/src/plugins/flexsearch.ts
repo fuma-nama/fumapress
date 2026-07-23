@@ -2,6 +2,7 @@ import type { Index } from "fumadocs-core/search/flexsearch";
 import type { Awaitable } from "@/lib/types";
 import type { AppContext, AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
+import type { PressProviderProps } from "@/components/provider";
 
 export interface FlexsearchOptions<C extends AppShape = AppShape> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<Index>;
@@ -38,9 +39,10 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
       }
     },
     init() {
-      const hooks = (this.data["core:provider"] ??= []);
+      const data = (this.data["core:provider"] ??= {});
+      const transformers = (data.transformers ??= []);
 
-      hooks.push(async (props) => {
+      transformers.push(async (props: PressProviderProps) => {
         props.search ??= { enabled: true };
 
         if (this.mode === "static") {
