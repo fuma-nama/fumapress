@@ -147,7 +147,7 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
                   <ViewOptionsPopover
                     markdownUrl={result.markdownUrl}
                     githubUrl={
-                      page.absolutePath ? await ctx.getFileGitHubUrl(page.absolutePath) : undefined
+                      page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined
                     }
                   />
                 </div>

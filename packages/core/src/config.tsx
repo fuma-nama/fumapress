@@ -5,6 +5,7 @@ import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumad
 import type { FC, ReactNode } from "react";
 import type { PressPluginOption } from "./app/plugin";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import type { GitProvider } from "@/lib/git";
 
 export type BuildMode = "static" | "dynamic" | "default";
 
@@ -107,6 +108,21 @@ export interface SiteConfig {
 
   name?: string;
   git?: {
+    /**
+     * The git hosting provider of your repository.
+     *
+     * @default "github"
+     */
+    provider?: GitProvider;
+
+    /**
+     * base URL of the git instance, needed for self-hosted instances (e.g. `https://gitlab.example.com`).
+     *
+     * @default the official instance of `provider`
+     */
+    url?: string;
+
+    /** the user/organisation (or group on GitLab) that owns the repo */
     user: string;
     repo: string;
     branch: string;

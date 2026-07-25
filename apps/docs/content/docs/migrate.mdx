@@ -127,7 +127,7 @@ Helpers that used to take `ctx` as an argument are methods on `AppContext`:
 | `renderRootMeta(ctx)`             | `ctx.renderRootMeta()`                    |
 | `getCreationDate(ctx, page)`      | `ctx.getPageCreatedAt(page)`              |
 | `getLastModifiedDate(ctx, page)`  | `ctx.getPageLastModified(page)`           |
-| `getGitHubFileUrl(ctx, path)`     | `ctx.getFileGitHubUrl(path)`              |
+| `getGitHubFileUrl(ctx, path)`     | `ctx.getFileUrl(path)`                    |
 | `renderToc(ctx, page)`            | `ctx.getPageToc(page)`                    |
 | `renderBody` / `core:render-body` | `ctx.getPageBody(page)` → `{ node }`      |
 | `data["core:page-meta"]`          | `ctx.interceptPageMeta(...)`              |

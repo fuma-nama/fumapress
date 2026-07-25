@@ -18,7 +18,7 @@ export default defineConfig({
 
 ### Site
 
-The site information like name and linked GitHub repository:
+The site information like name and linked git repository:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -28,6 +28,28 @@ export default defineConfig({
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
     git: {
+      user: "fuma-nama",
+      branch: "dev",
+      repo: "fumapress",
+    },
+  },
+});
+```
+
+The repository is used for the icon link in navbar, and the link to source file of pages.
+
+#### Git Providers
+
+`git.provider` supports `github` (default), `gitlab`, and `bitbucket`, the navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    git: {
+      provider: "gitlab",
+      url: "https://gitlab.example.com",
       user: "fuma-nama",
       branch: "dev",
       repo: "fumapress",

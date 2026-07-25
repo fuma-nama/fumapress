@@ -1,5 +1,12 @@
 import type { FumapressConfig, BuildMode, ConfigUtils } from "@/config";
 import { getGitRootDir } from "../lib/fs";
+import {
+  defaultGitProviderUrls,
+  getFileUrl,
+  getRepoLinkItem,
+  getRepoUrl,
+  type GitInfo,
+} from "../lib/git";
 import path from "node:path";
 import type { Meta, Page, LoaderOutput } from "fumadocs-core/source";
 import type { Awaitable, Adapter, PressLoaderOptions } from "../lib/types";
@@ -51,10 +58,7 @@ export interface AppContext<S extends AppShape = AppShape>
   siteConfig: {
     name: string;
     baseUrl?: string;
-    git?: {
-      user: string;
-      repo: string;
-      branch: string;
+    git?: GitInfo & {
       rootDir: string;
     };
   };
@@ -82,7 +86,8 @@ export interface FumapressHooks<C extends AppShape> {
   getPageCreatedAt: (page: C["page"]) => Awaitable<Date | undefined>;
   getPageLastModified: (page: C["page"]) => Awaitable<Date | undefined>;
 
-  getFileGitHubUrl: (absolutePath: string) => Awaitable<string | undefined>;
+  /** URL of a file on the configured git provider, requires `site.git` to be configured */
+  getFileUrl: (absolutePath: string) => Awaitable<string | undefined>;
 }
 
 export interface FumapressLoader<C extends AppShape = AppShape> {
@@ -151,10 +156,16 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
           ? await defaultLayoutProps.call(ctx, opts)
           : defaultLayoutProps;
 
+      // Fumadocs renders `githubUrl` as a GitHub icon link, other providers need their own link item
+      const repo = git && !base?.githubUrl ? git : undefined;
+
       return {
         ...base,
-        githubUrl:
-          base?.githubUrl ?? (git ? `https://github.com/${git.user}/${git.repo}` : undefined),
+        githubUrl: base?.githubUrl ?? (repo?.provider === "github" ? getRepoUrl(repo) : undefined),
+        links:
+          repo && repo.provider !== "github"
+            ? [...(base?.links ?? []), getRepoLinkItem(repo)]
+            : base?.links,
         nav: {
           ...base?.nav,
           title: base?.nav?.title ?? name,
@@ -175,6 +186,11 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
       git: site?.git
         ? {
             ...site.git,
+            provider: site.git.provider ?? "github",
+            url: (site.git.url ?? defaultGitProviderUrls[site.git.provider ?? "github"]).replace(
+              /\/$/,
+              "",
+            ),
             rootDir: site.git.rootDir ?? getGitRootDir() ?? process.cwd(),
           }
         : undefined,
@@ -286,14 +302,14 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
         if (toc !== undefined) return toc;
       }
     },
-    getFileGitHubUrl(absolutePath) {
+    getFileUrl(absolutePath) {
       const { git } = getPressContext().siteConfig;
       if (!git) return;
 
       const p = path.relative(git.rootDir, absolutePath).replaceAll(path.sep, "/");
       if (p.startsWith("../")) return;
 
-      return `https://github.com/${git.user}/${git.repo}/blob/${git.branch}/${p}`;
+      return getFileUrl(git, p);
     },
   };
 }
