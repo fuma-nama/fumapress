@@ -18,7 +18,7 @@ export default defineConfig({
 
 ### Site
 
-The site information like name and linked GitHub repository:
+The site information like name and linked git repository:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -36,21 +36,47 @@ export default defineConfig({
 });
 ```
 
+The repository is used for the icon link in navbar, and the link to source file of pages.
+
+#### Git Providers
+
+`git.provider` supports `github` (default), `gitlab`, and `bitbucket`, the navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    git: {
+      provider: "gitlab",
+      url: "https://gitlab.example.com",
+      user: "fuma-nama",
+      branch: "dev",
+      repo: "fumapress",
+    },
+  },
+});
+```
+
 ### Layouts
 
-Specify or customize the UI (renderers) for pages.
+Specify or customize page UI with `renderPage`, `renderRoot`, and `renderNotFound`.
 
 ```tsx title="press.config.tsx"
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 import { defineConfig } from "fumapress";
 
-export default defineConfig({
-  // ...
-}).layouts({
-  // [!code ++] customize layout for pages
-  page: createDocsLayoutPage(),
+const DocsLayout = createDocsLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  // [!code ++]
+  renderPage: (props) => <DocsLayout {...props} />,
 });
+
+export default config;
 ```
+
+See [Layouts](/docs/layouts) for details.
 
 ### Render Mode
 

@@ -1,25 +1,129 @@
 import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
 import { TypeTable } from "fumadocs-ui/components/type-table";
-import { blog, changelog, docs } from "./.source/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+import {
+  blogMetaSchema,
+  blogPageSchema,
+  metaSchema,
+  pageSchema,
+} from "fumapress/adapters/mdx/schema";
 import { blogPlugin } from "fumapress/plugins/blog";
 import { changelogPlugin } from "@fumapress/tegami";
+import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
-import { sitemapPlugin } from "fumapress/plugins/sitemap";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
-import { SponsorsMarquee } from "./src/sponsors-marquee";
+import { SponsorsMarquee } from "@fumari/sponsors";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
+
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: {
+    async: true,
+    schema: blogPageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: blogMetaSchema,
+  },
+});
+
+const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: {
+    async: true,
+    schema: changelogPageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: changelogMetaSchema,
+  },
+});
+
+const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
+  async render({ locale }) {
+    let pageTree = (await this.getLoader()).getPageTree(locale);
+
+    for (const child of pageTree.children) {
+      if (child.type === "folder" && child.$id === "docs") {
+        pageTree = {
+          ...pageTree,
+          children: child.children,
+        };
+      }
+    }
+
+    return {
+      layoutProps: {
+        tree: pageTree,
+      },
+      pageProps: {
+        tableOfContent: {
+          footer: <SponsorsMarquee />,
+        },
+      },
+    };
+  },
+});
+
+export const HomeLayout = createHomeLayout<typeof config.$context>({
+  layoutProps: {
+    links: [
+      {
+        url: "/docs",
+        text: "Documentation",
+        icon: <BookIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "/blog",
+        text: "Blog",
+        icon: <RssIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "/changelog",
+        text: "Changelog",
+        icon: <HistoryIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "https://fuma-nama.dev/sponsors",
+        text: "Sponsors",
+        external: true,
+      },
+    ],
+  },
+});
 
 const config = defineConfig({
   content: {
@@ -60,6 +164,26 @@ const config = defineConfig({
       );
     },
   },
+  defaultLayoutProps: {
+    nav: {
+      title: (
+        <>
+          <Image
+            src="/logo.png"
+            width={64}
+            height={64}
+            className="size-8 rounded-full shadow-md shadow-black mb-1"
+          />
+          <span>
+            <span className="font-mono uppercase border-b-2 border-fd-primary">Fumapress</span>
+            <br />
+            <span className="font-normal text-fd-muted-foreground text-xs">The site generator</span>
+          </span>
+        </>
+      ),
+    },
+  },
+  renderPage: (props) => <NotebookLayout {...props} />,
 })
   .adapters(
     fumadocsMdx({
@@ -94,98 +218,13 @@ const config = defineConfig({
     }),
   )
   .plugins(
-    flexsearchPlugin(),
-    llmsPlugin(),
-    takumiPlugin(),
     imagePlugin({
       formats: ["image/webp", "image/png"],
     }),
     linkValidationPlugin(),
-    sitemapPlugin(),
     mcpPlugin(),
-  )
-  .layouts({
-    defaultProps() {
-      return {
-        nav: {
-          title: (
-            <>
-              <Image
-                src="/logo.png"
-                width={64}
-                height={64}
-                className="size-8 rounded-full shadow-md shadow-black mb-1"
-              />
-              <span>
-                <span className="font-mono uppercase border-b-2 border-fd-primary">Fumapress</span>
-                <br />
-                <span className="font-normal text-fd-muted-foreground text-xs">
-                  The site generator
-                </span>
-              </span>
-            </>
-          ),
-        },
-      };
-    },
-    page: createNotebookLayoutPage({
-      async render({ locale }) {
-        let pageTree = (await this.getLoader()).getPageTree(locale);
+  );
 
-        for (const child of pageTree.children) {
-          if (child.type === "folder" && child.$id === "docs") {
-            pageTree = {
-              ...pageTree,
-              children: child.children,
-            };
-          }
-        }
-
-        return {
-          layoutProps: {
-            tree: pageTree,
-          },
-          pageProps: {
-            tableOfContent: {
-              footer: <SponsorsMarquee />,
-            },
-          },
-        };
-      },
-    }),
-  });
-
-export const HomeLayout = createHomeLayout<Ctx>({
-  layoutProps: {
-    links: [
-      {
-        url: "/docs",
-        text: "Documentation",
-        icon: <BookIcon />,
-        active: "nested-url",
-      },
-      {
-        url: "/blog",
-        text: "Blog",
-        icon: <RssIcon />,
-        active: "nested-url",
-      },
-      {
-        url: "/changelog",
-        text: "Changelog",
-        icon: <HistoryIcon />,
-        active: "nested-url",
-      },
-      {
-        url: "https://fuma-nama.dev/sponsors",
-        text: "Sponsors",
-        external: true,
-      },
-    ],
-  },
-});
-
-export type Ctx = typeof config.$context;
 export default config.plugins(
   blogPlugin({
     layouts: {

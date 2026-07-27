@@ -1,19 +1,6 @@
-import type { ConfigContext, Layouts } from "@/config";
-import {
-  AppContext,
-  baseLayoutProps,
-  createTransformChildren,
-  getGitHubFileUrl,
-  getLastModifiedDate,
-  getPressContext,
-  mergeLayoutConfigs,
-  renderBody,
-  renderPageMeta,
-  renderToc,
-  TransformChildren,
-} from "@/lib/shared";
+import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
+import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import type { Awaitable } from "@/lib/types";
-import type { Page } from "fumadocs-core/source";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
 import {
   MarkdownCopyButton,
@@ -27,7 +14,7 @@ import {
 } from "fumadocs-ui/layouts/notebook/page";
 import type { ComponentProps, ReactNode } from "react";
 
-export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> {
+export interface NotebookLayoutOptions<C extends AppShape = AppShape> {
   inherit?: {
     layoutProps?: boolean;
   };
@@ -39,114 +26,142 @@ export interface NotebookLayoutOptions<C extends ConfigContext = ConfigContext> 
     markdownUrl?: string;
     lastModified?: Date | null;
     body?: ReactNode;
-    layoutProps?: Partial<TransformChildren<DocsLayoutProps>>;
-    pageProps?: TransformChildren<DocsPageProps>;
+    layoutProps?: Partial<DocsLayoutProps>;
+    pageProps?: Partial<DocsPageProps>;
   }>;
 
+  /** props/renderer for `<DocsLayout />` */
+  renderLayout?: NotebookInterceptor<C, DocsLayoutProps>;
+
+  /** props/renderer for `<DocsPage />` */
+  renderPage?: NotebookInterceptor<C, DocsPageProps>;
+
   /** props/renderer for `<DocsBody />` */
-  renderBody?: (
-    this: AppContext<C>,
-    opts: {
-      lang?: string;
-      page: C["page"];
-      props: ComponentProps<"div">;
-      default: (props: ComponentProps<"div">) => ReactNode;
-    },
-  ) => ReactNode;
+  renderBody?: NotebookInterceptor<C, ComponentProps<"div">>;
 }
 
 export interface NotebookLayoutRenderData {
   markdownUrl?: string;
   lastModified?: Date | null;
   body: ReactNode;
-  layoutProps: TransformChildren<DocsLayoutProps>;
-  pageProps: TransformChildren<DocsPageProps>;
+  layoutProps: DocsLayoutProps;
+  pageProps: DocsPageProps;
 }
 
-export interface NotebookLayoutContextData {
-  renderers?: ((
-    this: { page: Page },
-    data: NotebookLayoutRenderData,
-  ) => Awaitable<NotebookLayoutRenderData>)[];
+export type NotebookInterceptor<S extends AppShape, T> = Interceptor<
+  S,
+  T,
+  { lang?: string; page: S["page"] }
+>;
+
+export interface NotebookLayoutContextData<S extends AppShape = AppShape> {
+  transformers?: ((opts: {
+    page: S["page"];
+    data: NotebookLayoutRenderData;
+  }) => Awaitable<NotebookLayoutRenderData>)[];
+
+  pageInterceptors?: NotebookInterceptor<S, DocsPageProps>[];
+  layoutInterceptors?: NotebookInterceptor<S, DocsLayoutProps>[];
+  bodyInterceptors?: NotebookInterceptor<S, ComponentProps<"div">>[];
 }
 
-export function createNotebookLayoutPage<C extends ConfigContext = ConfigContext>({
+export function createNotebookLayoutPage<C extends AppShape = AppShape>({
   render,
-  renderBody: renderDocsBody,
+  renderLayout,
+  renderPage,
+  renderBody,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
-}: NotebookLayoutOptions<NoInfer<C>> = {}): Layouts<C>["page"] {
-  const TDocsLayout = createTransformChildren(DocsLayout);
-  const TDocsPage = createTransformChildren(DocsPage);
-
-  return async function Layout({ lang, page }) {
+}: NotebookLayoutOptions<NoInfer<C>> = {}) {
+  return async function Layout({
+    lang,
+    page,
+  }: {
+    lang?: string;
+    slugs: string[];
+    page: C["page"];
+  }) {
     const ctx = getPressContext<C>();
     const {
       getLoader,
-      layouts,
       data: { "core:notebook-layout": layoutData },
     } = ctx;
+    const { bodyInterceptors, layoutInterceptors, pageInterceptors, transformers } =
+      layoutData ?? {};
     const source = await getLoader();
 
-    const inherited = inheritLayoutProps
-      ? await layouts.defaultProps?.call(ctx, { lang })
-      : undefined;
     const _raw = await render?.call(ctx, page);
-    const layoutProps = mergeLayoutConfigs(
-      baseLayoutProps(ctx),
-      inherited,
-      _raw?.layoutProps as DocsLayoutProps,
-    );
-    layoutProps.tree ??= source.getPageTree(lang);
+    const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined;
+    const layoutProps: DocsLayoutProps = {
+      tree: source.getPageTree(lang),
+      ...deepmerge(inherited, _raw?.layoutProps),
+    };
+
+    const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
+    if (body == null) {
+      throw new Error(
+        "[Fumapress] Please specify the `render` option in createNotebookLayoutPage()",
+      );
+    }
 
     let result: NotebookLayoutRenderData = {
       ..._raw,
-      lastModified: _raw?.lastModified ?? (await getLastModifiedDate(ctx, page)),
+      lastModified: _raw?.lastModified ?? (await ctx.getPageLastModified(page)),
       pageProps: {
         ..._raw?.pageProps,
-        toc: _raw?.pageProps?.toc ?? (await renderToc(ctx, page)),
+        toc: _raw?.pageProps?.toc ?? (await ctx.getPageToc(page)),
       },
-      body:
-        _raw?.body ??
-        (await renderBody(
-          ctx,
-          page,
-          "[Fumapress] Please specify the `render` option in createNotebookLayoutPage()",
-        )),
+      body,
       layoutProps,
     };
 
-    if (layoutData?.renderers) {
-      const renderCtx = { page };
-      for (const r of layoutData.renderers) {
-        result = await r.call(renderCtx, result);
+    if (transformers) {
+      for (const r of transformers) {
+        result = await r({ data: result, page });
       }
     }
 
-    let dynamicDocsBody: (props: ComponentProps<"div">) => ReactNode = (props) => (
-      <DocsBody {...props} />
+    const Layout = renderWithInterceptors(
+      ctx,
+      { lang, page },
+      (props) => <DocsLayout {...props} />,
+      [...(layoutInterceptors ?? []), renderLayout],
     );
-    if (renderDocsBody) {
-      dynamicDocsBody = (props) =>
-        renderDocsBody.call(ctx, { lang, page, props, default: dynamicDocsBody });
-    }
+    const Page = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsPage {...props} />, [
+      ...(pageInterceptors ?? []),
+      renderPage,
+    ]);
+    const Body = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsBody {...props} />, [
+      ...(bodyInterceptors ?? []),
+      renderBody,
+    ]);
 
-    return (
-      <TDocsLayout props={result.layoutProps}>
-        {renderPageMeta(page, ctx)}
-        <TDocsPage props={result.pageProps}>
-          <DocsTitle>{page.data.title}</DocsTitle>
-          <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-          <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-            {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
-            <ViewOptionsPopover
-              markdownUrl={result.markdownUrl}
-              githubUrl={page.absolutePath ? getGitHubFileUrl(ctx, page.absolutePath) : undefined}
-            />
-          </div>
-          {dynamicDocsBody({ children: result.body })}
-          {result.lastModified && <PageLastUpdate date={result.lastModified} />}
-        </TDocsPage>
-      </TDocsLayout>
-    );
+    return Layout({
+      ...result.layoutProps,
+      children: (
+        <>
+          {ctx.renderPageMeta(page)}
+          {Page({
+            ...result.pageProps,
+            children: (
+              <>
+                <DocsTitle>{page.data.title}</DocsTitle>
+                <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+                <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+                  {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
+                  <ViewOptionsPopover
+                    markdownUrl={result.markdownUrl}
+                    githubUrl={
+                      page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined
+                    }
+                  />
+                </div>
+                {Body({ children: result.body })}
+                {result.lastModified && <PageLastUpdate date={result.lastModified} />}
+              </>
+            ),
+          })}
+        </>
+      ),
+    });
   };
 }

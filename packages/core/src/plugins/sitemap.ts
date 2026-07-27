@@ -1,7 +1,6 @@
-import type { Awaitable, ServerPlugin } from "@/lib/types";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
-import { getLastModifiedDate } from "@/lib/shared";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppContext, AppShape } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
 
 /**
@@ -192,7 +191,7 @@ export interface SitemapUrl {
   news?: readonly SitemapNews[];
 }
 
-export interface SitemapOptions<C extends ConfigContext = ConfigContext> {
+export interface SitemapOptions<C extends AppShape = AppShape> {
   /**
    * Path for the sitemap route.
    *
@@ -282,15 +281,15 @@ function buildSitemap(entries: SitemapUrl[]) {
   );
 }
 
-export function sitemapPlugin<C extends ConfigContext = ConfigContext>(
+export function sitemapPlugin<C extends AppShape = AppShape>(
   options: SitemapOptions<NoInfer<C>> = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const {
     path = "/sitemap.xml",
     getEntry: _getEntry = async function getEntryDefault(page) {
       return {
         loc: new URL(page.url, this.siteConfig.baseUrl).href,
-        lastmod: await getLastModifiedDate(this, page),
+        lastmod: await this.getPageLastModified(page),
         priority: 0.8,
       };
     },

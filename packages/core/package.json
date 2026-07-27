@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "0.7.3",
+  "version": "1.0.0-beta.0",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
@@ -43,6 +43,8 @@
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
     "./plugins/openapi": "./dist/plugins/openapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
+    "./plugins/robots": "./dist/plugins/robots.js",
+    "./plugins/rss": "./dist/plugins/rss.js",
     "./plugins/sitemap": "./dist/plugins/sitemap.js",
     "./plugins/takumi": "./dist/plugins/takumi.js",
     "./router": "./dist/router/index.js",
@@ -66,33 +68,33 @@
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.0.8",
     "flexsearch": "^0.8.212",
-    "lucide-react": "^1.23.0",
-    "takumi-js": "^2.0.0",
-    "vite": "^8.1.3",
+    "lucide-react": "^1.27.0",
+    "takumi-js": "^2.5.0",
+    "vite": "^8.1.5",
     "xml-js": "^1.6.11",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@fastify/deepmerge": "^3.2.1",
-    "@fumadocs/asyncapi": "0.1.1",
-    "@tailwindcss/oxide": "^4.3.2",
+    "@fumadocs/asyncapi": "0.2.1",
+    "@tailwindcss/oxide": "^4.3.3",
     "@types/http-cache-semantics": "^4.2.0",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.11.1",
-    "fumadocs-mdx": "^15.1.0",
-    "fumadocs-openapi": "^11.1.1",
-    "fumadocs-ui": "^16.11.1",
-    "hono": "^4.12.28",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-mdx": "^15.2.0",
+    "fumadocs-openapi": "^11.2.2",
+    "fumadocs-ui": "^16.13.0",
+    "hono": "^4.12.32",
     "http-cache-semantics": "^4.2.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "sharp": "^0.35.3",
-    "tsdown": "0.22.4",
+    "tsdown": "0.22.14",
     "typescript": "^6.0.3",
-    "waku": "1.0.0-beta.6"
+    "waku": "1.0.0-beta.8"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "0.x.x",
@@ -106,7 +108,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.34.0",
-    "waku": "1.0.0-beta.6"
+    "waku": "1.0.0-beta.8"
   },
   "peerDependenciesMeta": {
     "@fumadocs/asyncapi": {

@@ -1,0 +1,73 @@
+{
+  "name": "@fumapress/notion",
+  "version": "1.0.0-beta.0",
+  "description": "Notion content source and renderer for Fumapress",
+  "keywords": [
+    "Docs",
+    "Fumadocs",
+    "Fumapress",
+    "Notion"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "files": [
+    "dist",
+    "css"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./css/*.css"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./renderer": "./dist/renderer.mjs",
+    "./source": "./dist/source.mjs",
+    "./package.json": "./package.json",
+    "./css/preset.css": "./css/preset.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
+    "test": "vitest",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@notionhq/client": "^5.23.2",
+    "cnfast": "^0.0.8",
+    "lucide-react": "^1.27.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/oxide": "^4.3.3",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-ui": "^16.13.0",
+    "fumapress": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsdown": "0.22.14",
+    "typescript": "6.0.3",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "fumadocs-core": "*",
+    "fumadocs-ui": "*",
+    "fumapress": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  }
+}

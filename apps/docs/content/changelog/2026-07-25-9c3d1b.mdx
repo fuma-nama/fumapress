@@ -1,0 +1,13 @@
+---
+title: Support GitLab and Bitbucket repositories
+date: 2026-07-27T11:33:26.273Z
+packages:
+  fumapress:
+    version: 1.0.0-beta.0
+---
+
+### Support GitLab and Bitbucket repositories
+
+`site.git` accepts a `provider` option (`github` by default, plus `gitlab` and `bitbucket`). The navbar icon link and page source links now point at the configured provider with its own brand icon. Self-hosted instances can set `git.url` to their instance URL.
+
+`ctx.getFileGitHubUrl()` is renamed to `ctx.getFileUrl()`, the old name still works but is deprecated.

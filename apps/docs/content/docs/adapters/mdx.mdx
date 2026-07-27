@@ -13,11 +13,10 @@ npm i fumadocs-mdx
 
 ## Setup
 
-Fumadocs MDX needs three pieces of configuration:
+Fumadocs MDX needs two pieces of configuration:
 
 - The Vite plugin.
-- A `source.config.ts` file for collections.
-- The Fumapress adapter in `press.config.tsx`.
+- Collections defined with `fumadocs-mdx/macro` in `press.config.tsx`, plus the Fumapress adapter.
 
 ```ts tab="waku.config.ts"
 import { defineConfig } from "waku/config";
@@ -37,16 +36,20 @@ export default defineConfig({
 });
 ```
 
-```ts tab="source.config.ts"
-import { defineDocs } from "fumadocs-mdx/config";
+```tsx tab="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
 // necessary so that page frontmatter matches what Fumapress expects:
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
 
-export const docs = defineDocs({
+// [!code ++:16]
+const docs = defineDocs({
   dir: "content/docs",
   docs: {
     async: true,
     schema: pageSchema,
+    lastModified: true,
     postprocess: {
       // Plugins such as `llms.txt` require this
       includeProcessedMarkdown: true,
@@ -56,22 +59,16 @@ export const docs = defineDocs({
     schema: metaSchema,
   },
 });
-```
-
-```tsx tab="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
 
 export default defineConfig({
-  // [!code ++] import the generated collection
+  // [!code ++]
   content: docs.toFumadocsSource(),
 })
   // [!code ++] register adapter
   .adapters(fumadocsMdx());
 ```
 
-Run `npm run dev` to generate `.source/server` and start writing content under your collection directory.
+Start the dev server and write content under your collection directory.
 
 ## Options
 
@@ -85,10 +82,15 @@ Override `getMdxComponents` to add custom components:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
+import { defineDocs } from "fumadocs-mdx/macro";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { TypeTable } from "fumadocs-ui/components/type-table";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: docs.toFumadocsSource(),

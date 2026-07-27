@@ -3,8 +3,7 @@
  */
 import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
-import type { AppContext } from "@/lib/shared";
-import type { ConfigContext } from "@/config";
+import type { AppContext, AppShape } from "@/app/context";
 import { joinPathname } from "@/lib/pathname";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
@@ -30,7 +29,7 @@ const SPECIAL_BASENAME = new Set(["_layout", "index", "_root"]);
 /** Ignore paths like `_components` and `_hooks` in pages dir */
 const isIgnoredPath = (paths: string[]) => paths.some((p) => IGNORED_PATH_PARTS.has(p));
 
-export function fsRouterFn<C extends ConfigContext>(
+export function fsRouterFn<C extends AppShape>(
   /**
    * A mapping from a file path to a route module, e.g.
    *   {

@@ -1,17 +1,9 @@
-import type { ConfigContext } from "@/config";
-import type { DocsLayoutContextData } from "@/layouts/docs";
-import type { HomeLayoutContextData } from "@/layouts/home";
-import type { NotebookLayoutContextData } from "@/layouts/notebook";
-import type { RootLayoutContextData } from "@/layouts/root";
-import type { AppContext } from "@/lib/shared";
+import type { AppContext, AppShape } from "@/app/context";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
-import type { ContentStorage, LoaderOptions, LoaderPluginOption, Page } from "fumadocs-core/source";
+import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import type { Hono } from "hono/tiny";
-import type { MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
-import { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type {
   createPages,
   CreatePage,
@@ -25,13 +17,21 @@ import type {
 export type Awaitable<T> = T | Promise<T>;
 
 /** allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually */
-export interface Adapter<C extends ConfigContext = ConfigContext> {
+export interface Adapter<C extends AppShape = AppShape> {
   "core:get-text"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
   "core:get-structured-data"?: (
     this: AppContext<C>,
     page: C["page"],
   ) => Awaitable<StructuredData | undefined>;
-  "core:render-body"?: (this: AppContext<C>, page: C["page"]) => Awaitable<ReactNode>;
+  "core:get-body"?: (
+    this: AppContext<C>,
+    page: C["page"],
+  ) => Awaitable<
+    | {
+        node: ReactNode;
+      }
+    | undefined
+  >;
   "core:render-toc"?: (
     this: AppContext<C>,
     page: C["page"],
@@ -51,51 +51,6 @@ export interface PressLoaderOptions<
   plugins?: LoaderPluginOption[];
 }
 
-export interface ServerPlugin<C extends ConfigContext = ConfigContext> {
-  name?: string;
-
-  /** force change the order of plugin */
-  enforce?: "pre" | "post";
-
-  /** receive & modify context */
-  init?: (this: AppContext<C>) => Awaitable<void>;
-
-  createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
-
-  /**
-   * Resolve the given page before passing to the page renderer:
-   *
-   * - `object`: replace the page object.
-   * - `false`: render not found (will also exclude from static pre-rendering).
-   * - `undefined`: fallback to default.
-   */
-  resolvePage?: (this: AppContext<C>, page: C["page"]) => Awaitable<C["page"] | false | undefined>;
-
-  /**
-   * Override the page renderer, use default fallback if `undefined` is returned.
-   */
-  renderPage?: (
-    this: AppContext<C>,
-    env: { page: C["page"]; fallback: ReactNode; lang?: string; slugs: string[] },
-  ) => Awaitable<ReactNode>;
-
-  /** resolve content loader options */
-  configureLoader?: (
-    this: AppContext<C>,
-    options: PressLoaderOptions,
-  ) => Awaitable<PressLoaderOptions>;
-
-  /** create Hono middlewares */
-  createMiddlewares?: (
-    this: AppContext<C>,
-    env: { app: Hono },
-  ) => Awaitable<MiddlewareHandler[] | undefined>;
-
-  unstable_onServerEntry?: (
-    entry: ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>,
-  ) => ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>;
-}
-
 export interface BaseRouteFns {
   createPage: CreatePage;
   createLayout: CreateLayout;
@@ -104,8 +59,6 @@ export interface BaseRouteFns {
   createSlice: CreateSlice;
   createInterceptor: CreateInterceptor;
 }
-
-export type CreatePagesResult = ReturnType<typeof createPages>;
 
 export interface RouteFns extends BaseRouteFns {
   createApiIsomorphic: (config: {
@@ -119,23 +72,7 @@ export interface RouteFns extends BaseRouteFns {
   }) => void;
 
   /** access `createPages()` output */
-  unstable_getCreated: () => CreatePagesResult;
-}
-
-export type ServerPluginOption<C extends ConfigContext = ConfigContext> =
-  | ServerPlugin<C>
-  | false
-  | undefined
-  | null
-  | ServerPluginOption<C>[];
-
-/** can be extended from other libraries */
-export interface AppContextData {
-  "core:page-meta"?: ((page: Page) => ReactNode)[];
-  "core:notebook-layout"?: NotebookLayoutContextData;
-  "core:docs-layout"?: DocsLayoutContextData;
-  "core:home-layout"?: HomeLayoutContextData;
-  "core:provider"?: RootLayoutContextData;
+  unstable_getCreated: () => ReturnType<typeof createPages>;
 }
 
 /**

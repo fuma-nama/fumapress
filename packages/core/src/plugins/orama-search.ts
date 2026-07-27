@@ -1,13 +1,14 @@
 import type { AdvancedIndex } from "fumadocs-core/search/server";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppContext, AppShape } from "@/app/context";
+import type { PressProviderProps } from "@/components/provider";
 
-export interface OramaSearchOptions<C extends ConfigContext = ConfigContext> {
+export interface OramaSearchOptions<C extends AppShape = AppShape> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<AdvancedIndex>;
 }
 
-export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
+export function oramaSearchPlugin<C extends AppShape = AppShape>({
   buildIndex = async function buildIndexDefault(page) {
     for (const adapter of this.adapters) {
       const structuredData = await adapter["core:get-structured-data"]?.call(this, page);
@@ -25,13 +26,22 @@ export function oramaSearchPlugin<C extends ConfigContext = ConfigContext>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to oramaSearchPlugin()");
   },
-}: OramaSearchOptions<NoInfer<C>> = {}): ServerPlugin<C> {
+}: OramaSearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:orama-search",
+    preinit({ finalized }) {
+      for (const item of finalized) {
+        if (item.name === "core:flexsearch" || item.name === "core:orama-search") {
+          throw new Error(
+            `[Fumapress] "core:orama-search" conflicts with "${item.name}": only one search plugin can be added.`,
+          );
+        }
+      }
+    },
     init() {
-      const hooks = (this.data["core:provider"] ??= []);
-
-      hooks.push(async (props) => {
+      const data = (this.data["core:provider"] ??= {});
+      const transformers = (data.transformers ??= []);
+      transformers.push(async (props: PressProviderProps) => {
         props.search ??= { enabled: true };
         if (this.mode === "static") {
           props.search.SearchDialog ??= (await import("@/components/orama-search-static")).default;

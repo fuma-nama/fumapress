@@ -27,7 +27,12 @@ The pathname generation can be customized from source configuration. For example
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 export default defineConfig({
   content: docs.toFumadocsSource({
@@ -37,7 +42,7 @@ export default defineConfig({
 });
 ```
 
-Fumapress renders these pages with the configured page layout. You can customize the layout with `useLayouts()` or let plugins override how certain pages are rendered.
+Fumapress renders these pages with the configured `renderPage` layout. You can customize it in your press config, or let plugins override how certain pages are rendered.
 
 If you use other content sources (e.g. a CMS), consult the [adapters](/docs/adapters) documentation instead.
 
@@ -100,15 +105,24 @@ export default function Page() {
 }
 ```
 
-You can access Fumapress runtime data from `getPressContext()`, such as the content loader:
+You can access Fumapress runtime data from `getPressContext()`. Export it from your config with `config.utils()` so it is already typed to your app:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+const config = defineConfig({
+  // ...
+});
+
+export const { getPressContext } = config.utils();
+export default config;
+```
 
 ```tsx title="src/pages/sitemap-preview.tsx"
-import { getPressContext } from "fumapress";
-// config file
-import type PressConfig from "../../press.config";
+import { getPressContext } from "../../press.config";
 
 export default async function Page() {
-  const { getLoader } = getPressContext<typeof PressConfig.$context>();
+  const { getLoader } = getPressContext();
   const source = await getLoader();
   const pages = source.getPages();
 
@@ -144,9 +158,9 @@ Fumapress still creates the default catch-all route for content pages, so avoid 
 Plugins can create pages, layouts, API routes, and slices with `createPages()`. This is useful when a feature needs routes that are derived from config or content instead of individual files.
 
 ```tsx title="press.config.tsx"
-import { defineConfig, type ConfigContext, type ServerPlugin } from "fumapress";
+import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 
-function changelogPlugin<C extends ConfigContext>(): ServerPlugin<C> {
+function changelogPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "changelog",
     async createPages({ createPage }) {
@@ -169,9 +183,9 @@ export default defineConfig({
 Inside plugin hooks, `this` is the Fumapress app context. You can access the content loader, resolved config, i18n config, and other runtime data:
 
 ```tsx title="press.config.tsx"
-import { defineConfig, type ConfigContext, type ServerPlugin } from "fumapress";
+import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 
-function allDocsPlugin<C extends ConfigContext>(): ServerPlugin<C> {
+function allDocsPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "all-docs",
     async createPages({ createPage }) {

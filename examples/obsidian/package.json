@@ -1,0 +1,32 @@
+{
+  "name": "example-obsidian",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "./src/app.css"
+  ],
+  "scripts": {
+    "dev": "waku dev",
+    "build": "waku build",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fumapress/obsidian": "workspace:*",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
+    "fumapress": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-server-dom-webpack": "^19.2.8",
+    "waku": "1.0.0-beta.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "6.0.3",
+    "vite": "^8.1.5"
+  }
+}

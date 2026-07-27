@@ -3,15 +3,14 @@ import type { Adapter, Awaitable } from "@/lib/types";
 import type { AsyncDocCollectionEntry, DocCollectionEntry } from "fumadocs-mdx/runtime/server";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import type { MDXComponents, MDXContent } from "mdx/types";
-import type { ConfigContext } from "@/config";
-import type { AppContext } from "@/lib/shared";
+import type { AppContext, AppShape } from "@/app/context";
 import { z } from "zod/mini";
 
-export interface MdxAdapterOptions<C extends ConfigContext = ConfigContext> {
+export interface MdxAdapterOptions<C extends AppShape = AppShape> {
   getMdxComponents?: (this: AppContext<C>, page: C["page"]) => Awaitable<MDXComponents>;
 }
 
-export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
+export function fumadocsMdx<C extends AppShape = AppShape>(
   options?: MdxAdapterOptions<C>,
 ): Adapter<C> {
   const getMdxComponents =
@@ -35,7 +34,7 @@ export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
         return (await page.data.load()).structuredData;
       }
     },
-    async "core:render-body"(page) {
+    async "core:get-body"(page) {
       let body: MDXContent;
 
       if (isSyncEntry(page.data)) {
@@ -44,9 +43,11 @@ export function fumadocsMdx<C extends ConfigContext = ConfigContext>(
         body = (await page.data.load()).body;
       } else return;
 
-      return createElement(body, {
-        components: await getMdxComponents.call(this, page),
-      });
+      return {
+        node: createElement(body, {
+          components: await getMdxComponents.call(this, page),
+        }),
+      };
     },
     async "core:render-toc"(page) {
       if (isSyncEntry(page.data)) return page.data.toc;

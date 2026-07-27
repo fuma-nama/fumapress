@@ -7,7 +7,7 @@ import {
   tool,
   type UIMessage,
 } from "ai";
-import type { ConfigContext, ServerPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
 import z from "zod";
@@ -26,7 +26,7 @@ export type ChatUIMessage = UIMessage<
 
 type Awaitable<T> = T | Promise<T>;
 
-export interface AIOptions<C extends ConfigContext = ConfigContext> extends SearchOptions<C> {
+export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
   /** @default true */
   configureUI?: boolean;
 
@@ -38,24 +38,25 @@ export interface AIOptions<C extends ConfigContext = ConfigContext> extends Sear
 }
 
 /** add AI chat */
-export function aiPlugin<C extends ConfigContext = ConfigContext>(
+export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const { configureUI = true } = options;
 
-  function initRenderers(ctxData: DocsLayoutContextData) {
-    const renderers = (ctxData.renderers ??= []);
+  async function initUI(ctxData: DocsLayoutContextData<C>) {
+    const { DefaultComponent } = await import("./components/default");
+    const interceptors = (ctxData.layoutInterceptors ??= []);
 
-    renderers.push(async (data) => {
-      const { DefaultComponent } = await import("./components/default");
-      const transformers = (data.layoutProps.children ??= []);
-      transformers.push((children) => (
-        <>
-          {children}
-          <DefaultComponent />
-        </>
-      ));
-      return data;
+    interceptors.push(function ({ props, next }) {
+      return next({
+        ...props,
+        children: (
+          <>
+            {props.children}
+            <DefaultComponent />
+          </>
+        ),
+      });
     });
   }
 
@@ -68,8 +69,8 @@ export function aiPlugin<C extends ConfigContext = ConfigContext>(
       }
 
       if (configureUI) {
-        initRenderers((this.data["core:docs-layout"] ??= {}));
-        initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+        await initUI((this.data["core:docs-layout"] ??= {}));
+        await initUI((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
       }
     },
     createPages({ createApi }) {

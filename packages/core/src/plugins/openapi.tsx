@@ -1,8 +1,14 @@
-import type { ConfigContext } from "@/config";
 import type { DocsLayoutContextData } from "@/layouts/docs";
-import type { Awaitable, ServerPlugin } from "@/lib/types";
+import type { Awaitable } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
 import type { Adapter } from "@/lib/types";
-import type { OpenAPIPageData, OpenAPIServer, Proxy } from "fumadocs-openapi/server";
+import type {
+  CreateProxyOptions,
+  OpenAPIPageData,
+  OpenAPIServer,
+  Proxy,
+} from "fumadocs-openapi/server";
 import type { FC } from "react";
 import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
@@ -22,19 +28,19 @@ export interface OpenAPIOptions {
    *
    * By default, it will create one when `proxyUrl` is specified in `createOpenAPI()`.
    */
-  createProxy?: boolean | (() => Awaitable<Proxy>);
+  createProxy?: boolean | CreateProxyOptions | (() => Awaitable<Proxy>);
 }
 
 /**
  * this will register the OpenAPI adapter & required layout configs.
  */
-export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions): ServerPlugin<C> {
+export function openapiPlugin<C extends AppShape>(options: OpenAPIOptions): PressPlugin<C> {
   const { server, disableLoaderPlugin = false } = options;
 
-  function initRenderers(data: DocsLayoutContextData) {
-    const renderers = (data.renderers ??= []);
-    renderers.push(function (data) {
-      if (isOpenAPI(this.page.data)) {
+  function initTransformers(data: DocsLayoutContextData<C>) {
+    const transformers = (data.transformers ??= []);
+    transformers.push(({ data, page }) => {
+      if (isOpenAPI(page.data)) {
         data.pageProps.full ??= true;
       }
       return data;
@@ -45,8 +51,8 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
     name: "core:openapi",
     init() {
       this.adapters.push(adapter(options));
-      initRenderers((this.data["core:docs-layout"] ??= {}));
-      initRenderers((this.data["core:notebook-layout"] ??= {}) as never);
+      initTransformers((this.data["core:docs-layout"] ??= {}));
+      initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
 
       if (this.translationsConfig) {
         this.translationsConfig.extend(openapiTranslations());
@@ -64,7 +70,7 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
       const proxyUrl = server.options.proxyUrl;
       const { createProxy = typeof proxyUrl === "string" && isFullPathname(proxyUrl) } = options;
 
-      if (createProxy) {
+      if (createProxy !== false) {
         if (!proxyUrl)
           throw new Error(
             `[Fumapress] The "proxyUrl" option in createOpenAPI() is required to create proxy server`,
@@ -73,7 +79,9 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
           throw new Error(`[Fumapress] static mode is not compatible with proxy server`);
 
         const proxy =
-          typeof createProxy === "function" ? await createProxy() : server.createProxy();
+          typeof createProxy === "function"
+            ? await createProxy()
+            : server.createProxy(createProxy === true ? {} : createProxy);
 
         createApi({
           path: proxyUrl,
@@ -87,26 +95,28 @@ export function openapiPlugin<C extends ConfigContext>(options: OpenAPIOptions):
   };
 }
 
-function adapter<C extends ConfigContext>(options: OpenAPIOptions): Adapter<C> {
+function adapter<C extends AppShape>(options: OpenAPIOptions): Adapter<C> {
   return {
-    async "core:render-body"(page) {
+    async "core:get-body"(page) {
       if (isOpenAPI(page.data)) {
         const ClientAPIPage =
           options.ClientAPIPage ?? (await import("@/components/openapi")).default;
         const { payload, ...props } = page.data.getOpenAPIPageProps();
 
-        return (
-          <ClientAPIPage
-            payload={{
-              ...payload,
-              proxyUrl:
-                payload.proxyUrl && isFullPathname(payload.proxyUrl)
-                  ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
-                  : payload.proxyUrl,
-            }}
-            {...props}
-          />
-        );
+        return {
+          node: (
+            <ClientAPIPage
+              payload={{
+                ...payload,
+                proxyUrl:
+                  payload.proxyUrl && isFullPathname(payload.proxyUrl)
+                    ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
+                    : payload.proxyUrl,
+              }}
+              {...props}
+            />
+          ),
+        };
       }
     },
     "core:render-toc"(page) {

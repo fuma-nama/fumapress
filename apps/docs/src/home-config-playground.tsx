@@ -51,9 +51,21 @@ function createConfigCode(selected: readonly FeatureId[]) {
     'import { defineConfig } from "fumapress";',
     'import { fumadocsMdx } from "fumapress/adapters/mdx";',
     ...activeFeatures.map((feature) => feature.importLine),
-    hasBlog
-      ? 'import { blog, docs } from "./.source/server";'
-      : 'import { docs } from "./.source/server";',
+    'import { defineDocs } from "fumadocs-mdx/macro";',
+    "",
+    "const docs = defineDocs({",
+    '  dir: "content/docs",',
+    "  docs: { async: true },",
+    "});",
+    ...(hasBlog
+      ? [
+          "",
+          "const blog = defineDocs({",
+          '  dir: "content/blog",',
+          "  docs: { async: true },",
+          "});",
+        ]
+      : []),
     "",
     "export default defineConfig({",
     "  content: {",

@@ -43,19 +43,28 @@ export default tegami({
 
 ### Fumadocs MDX
 
-Create a changelog collection with the Tegami schemas:
+Create a changelog collection with the Tegami schemas and enable the plugin:
 
-```ts title="source.config.ts"
-import { defineDocs } from "fumadocs-mdx/config";
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { changelogPlugin } from "@fumapress/tegami";
 // [!code ++]
 import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
 
 // [!code ++:13]
-export const changelog = defineDocs({
+const changelog = defineDocs({
   dir: "content/changelog",
   docs: {
     async: true,
     schema: changelogPageSchema,
+    lastModified: true,
     postprocess: {
       includeProcessedMarkdown: true,
     },
@@ -64,15 +73,6 @@ export const changelog = defineDocs({
     schema: changelogMetaSchema,
   },
 });
-```
-
-Register the collection and enable the plugin:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { changelog, docs } from "./.source/server";
-// [!code ++]
-import { changelogPlugin } from "@fumapress/tegami";
 
 export default defineConfig({
   // [!code highlight:6]
@@ -154,18 +154,23 @@ import {
 } from "@fumapress/tegami";
 import { createHomeLayout } from "fumapress/layouts/home";
 
-export default defineConfig({
+const HomeLayout = createHomeLayout<typeof config.$context>();
+const ChangelogIndex = createChangelogIndexPage<typeof config.$context>({
+  heading: "Releases",
+  description: "What shipped recently.",
+  pageSize: 10,
+});
+
+const config = defineConfig({
   // ...
 }).plugins(
   changelogPlugin({
     layouts: {
-      layout: createHomeLayout(),
-      index: createChangelogIndexPage({
-        heading: "Releases",
-        description: "What shipped recently.",
-        pageSize: 10,
-      }),
+      layout: (props) => <HomeLayout {...props} />,
+      index: (props) => <ChangelogIndex {...props} />,
     },
   }),
 );
+
+export default config;
 ```

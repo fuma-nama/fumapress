@@ -1,3 +1,33 @@
+## fumapress@1.0.0-beta.0 (beta)
+
+### Support robots.txt plugin
+
+Auto-generate `robots.txt`.
+
+### Support RSS plugin
+
+Auto-generate RSS feed from plugin.
+
+### Support "recommended" plugin preset
+
+By default, the "recommended" plugin preset will be enforced, adding plugins for llms.txt, robots.txt, rss, and search.
+
+### Redesign the core API for v1
+
+Layouts move onto the config object (`renderPage`, `renderRoot`, `renderNotFound`, `defaultLayoutProps`), `content` replaces `loader`, and plugin types are renamed (`PressPlugin`, `AppShape`).
+
+See the [migration guide](https://press.fumadocs.dev/docs/migrate).
+
+### Support GitLab and Bitbucket repositories
+
+`site.git` accepts a `provider` option (`github` by default, plus `gitlab` and `bitbucket`). The navbar icon link and page source links now point at the configured provider with its own brand icon. Self-hosted instances can set `git.url` to their instance URL.
+
+`ctx.getFileGitHubUrl()` is renamed to `ctx.getFileUrl()`, the old name still works but is deprecated.
+
+### Use Waku beta 8
+
+Bump dependencies.
+
 ## fumapress@0.7.3
 
 ### Support `renderBody` option

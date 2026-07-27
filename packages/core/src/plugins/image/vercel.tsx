@@ -1,5 +1,6 @@
-import type { ConfigContext } from "@/config";
-import type { ServerPlugin } from "@/lib/types";
+import type { PressPlugin } from "@/app/plugin";
+import type { AppShape } from "@/app/context";
+import type { PressProviderProps } from "@/components/provider";
 import { VercelImageProvider } from "./vercel.client";
 import { resolveVercelImageConfig } from "./vercel.utils";
 
@@ -38,16 +39,17 @@ export interface VercelImageOptions {
   contentSecurityPolicy?: string;
 }
 
-export function imagePlugin<C extends ConfigContext = ConfigContext>(
+export function imagePlugin<C extends AppShape = AppShape>(
   options: VercelImageOptions = {},
-): ServerPlugin<C> {
+): PressPlugin<C> {
   const config = resolveVercelImageConfig(options);
 
   return {
     name: "image:vercel",
     init() {
-      const hooks = (this.data["core:provider"] ??= []);
-      hooks.push((props) => {
+      const data = (this.data["core:provider"] ??= {});
+      const transformers = (data.transformers ??= []);
+      transformers.push((props: PressProviderProps) => {
         props.children = (
           <VercelImageProvider config={config}>{props.children}</VercelImageProvider>
         );

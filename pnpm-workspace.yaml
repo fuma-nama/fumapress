@@ -6,6 +6,7 @@ allowBuilds:
   esbuild: false
   sharp: false
 minimumReleaseAgeExclude:
+  - "@fumari/sponsors@0.1.0"
   - "fumadocs-*"
   - "fuma-translate"
   - "@fumadocs/*"

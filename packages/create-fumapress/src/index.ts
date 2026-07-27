@@ -167,10 +167,26 @@ This is my first document.
     "package.json": `${JSON.stringify(getPackageJson(name), null, 2)}\n`,
     "press.config.tsx": `import { defineConfig } from "fumapress";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
+import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { takumiPlugin } from "fumapress/plugins/takumi";
-import { docs } from "./.source/server";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
 
 export default defineConfig({
   content: docs.toFumadocsSource(),
@@ -192,25 +208,7 @@ export default defineConfig({
     },
   },
 })
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   .adapters(fumadocsMdx());
-`,
-    "source.config.ts": `import { defineDocs } from "fumadocs-mdx/config";
-import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
-
-export const docs = defineDocs({
-  dir: "content",
-  docs: {
-    async: true,
-    schema: pageSchema,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
-  },
-  meta: {
-    schema: metaSchema,
-  },
-});
 `,
     "src/app.css": `@import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
@@ -247,7 +245,7 @@ function getPackageJson(name: string) {
       dev: "waku dev",
       build: "waku build",
       start: "waku start",
-      "types:check": "fumadocs-mdx && tsc --noEmit",
+      "types:check": "tsc --noEmit",
     },
     dependencies: { ...versionsPkg.dependencies, fumapress: corePkg.version },
     devDependencies: versionsPkg.devDependencies,
