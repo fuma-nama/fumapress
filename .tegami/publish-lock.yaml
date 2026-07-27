@@ -77,6 +77,9 @@ core:packages:
       - 2026-07-23-77a8ee.md
     id: npm:@fumapress/tegami
     updated: true
+npm:mark-latest:
+  - id: npm:@fumapress/notion
+  - id: npm:@fumapress/obsidian
 npm:packages:
   - distTag: beta
     id: npm:@fumapress/ai
