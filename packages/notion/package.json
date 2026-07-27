@@ -38,23 +38,23 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "@notionhq/client": "^5.23.1",
+    "@notionhq/client": "^5.23.2",
     "cnfast": "^0.0.8",
-    "lucide-react": "^1.24.0"
+    "lucide-react": "^1.27.0"
   },
   "devDependencies": {
-    "@tailwindcss/oxide": "^4.3.2",
+    "@tailwindcss/oxide": "^4.3.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.11.5",
-    "fumadocs-ui": "^16.11.5",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-ui": "^16.13.0",
     "fumapress": "workspace:*",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "tsdown": "0.22.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsdown": "0.22.14",
     "typescript": "6.0.3",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

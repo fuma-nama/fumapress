@@ -29,17 +29,17 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/language": "^0.2.1"
+    "@fumadocs/language": "^0.2.2"
   },
   "devDependencies": {
     "@fumapress/ai": "workspace:*",
     "@fumapress/feedback": "workspace:*",
     "@types/node": "^26.1.1",
-    "fumadocs-core": "^16.11.5",
-    "fumadocs-openapi": "^11.2.1",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.5",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-openapi": "^11.2.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
     "fumapress": "workspace:*",
-    "tsdown": "0.22.7",
+    "tsdown": "0.22.14",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {

@@ -22,6 +22,7 @@
   ],
   "exports": {
     ".": "./dist/index.mjs",
+    "./vite": "./dist/vite.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"
   },
@@ -35,22 +36,22 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-obsidian": "^1.0.0"
+    "fumadocs-obsidian": "^1.0.1"
   },
   "devDependencies": {
-    "@tailwindcss/oxide": "^4.3.2",
+    "@tailwindcss/oxide": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.11.5",
-    "fumadocs-ui": "^16.11.5",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-ui": "^16.13.0",
     "fumapress": "workspace:*",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "tsdown": "0.22.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsdown": "0.22.14",
     "typescript": "6.0.3",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

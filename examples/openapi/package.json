@@ -11,25 +11,25 @@
   },
   "dependencies": {
     "@fumapress/language": "workspace:*",
-    "fumadocs-core": "^16.11.5",
+    "fumadocs-core": "^16.13.0",
     "fumadocs-mdx": "^15.2.0",
-    "fumadocs-openapi": "^11.2.1",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.5",
+    "fumadocs-openapi": "^11.2.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
     "fumapress": "workspace:*",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-server-dom-webpack": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-server-dom-webpack": "^19.2.8",
     "shiki": "^4.3.1",
-    "waku": "1.0.0-beta.6"
+    "waku": "1.0.0-beta.8"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "tailwindcss": "^4.3.2",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.1.4"
+    "vite": "^8.1.5"
   }
 }

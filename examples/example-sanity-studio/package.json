@@ -13,15 +13,15 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.2.8",
-    "@sanity/icons": "^5.1.0",
-    "@sanity/vision": "^6.5.0",
-    "fumadocs-core": "^16.11.5",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.11.5",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "sanity": "^6.5.0",
-    "styled-components": "^6.4.3"
+    "@sanity/code-input": "^7.3.3",
+    "@sanity/icons": "^5.2.1",
+    "@sanity/vision": "^6.6.0",
+    "fumadocs-core": "^16.13.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sanity": "^6.6.0",
+    "styled-components": "^6.4.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
