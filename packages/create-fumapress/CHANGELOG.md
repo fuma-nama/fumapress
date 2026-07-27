@@ -1,3 +1,9 @@
+## create-fumapress@0.1.4
+
+### Use Fumadocs MDX macro API
+
+Scaffolded apps define collections with `fumadocs-mdx/macro` in `press.config.tsx` instead of `source.config.ts` codegen.
+
 ## create-fumapress@0.1.0
 
 ### Default to Base UI

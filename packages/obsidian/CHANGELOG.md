@@ -1,4 +1,4 @@
-## @fumapress/tegami@1.0.0-beta.0 (beta)
+## @fumapress/obsidian@1.0.0-beta.0 (beta)
 
 ### Redesign the core API for v1
 
@@ -6,8 +6,10 @@ Layouts move onto the config object (`renderPage`, `renderRoot`, `renderNotFound
 
 See the [migration guide](https://press.fumadocs.dev/docs/migrate).
 
-## @fumapress/tegami@0.7.3
+### Add the Obsidian content integration
 
-### Fix tegami files date parsing
+Render Obsidian vaults directly in Fumapress with server-side components, search and LLM text adapters, and development hot reload.
 
-Tegami plugin now use a separate adapter hook for date.
+### Use Waku beta 8
+
+Bump dependencies.

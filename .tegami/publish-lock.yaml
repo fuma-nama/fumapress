@@ -1,46 +1,106 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Support `renderBody` option\n\nOverride renderer/props for `<DocsBody />` component.\n"
-    filename: 2026-07-11-mrghia77.md
+  - content: "---\npackages:\n  group:fumapress:\n    type: major\n---\n\n# Redesign the core API for v1\n\nLayouts move onto the config object (`renderPage`, `renderRoot`, `renderNotFound`, `defaultLayoutProps`), `content` replaces `loader`, and plugin types are renamed (`PressPlugin`, `AppShape`).\n\nSee the [migration guide](https://press.fumadocs.dev/docs/migrate).\n"
+    filename: 2026-07-23-77a8ee.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n## Fix tegami files date parsing\n\nTegami plugin now use a separate adapter hook for date.\n"
-    filename: 2026-07-11-mrgih2yl.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Support robots.txt plugin\n\nAuto-generate `robots.txt`.\n"
+    filename: 2026-07-15-mrkxqsxq.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Support RSS plugin\n\nAuto-generate RSS feed from plugin.\n"
+    filename: 2026-07-15-mrkxrk1x.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: major\n---\n\n## Support \"recommended\" plugin preset\n\nBy default, the \"recommended\" plugin preset will be enforced, adding plugins for llms.txt, robots.txt, rss, and search.\n"
+    filename: 2026-07-15-mrkxxck1.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Support GitLab and Bitbucket repositories\n\n`site.git` accepts a `provider` option (`github` by default, plus `gitlab` and `bitbucket`). The navbar icon link and page source links now point at the configured provider with its own brand icon. Self-hosted instances can set `git.url` to their instance URL.\n\n`ctx.getFileGitHubUrl()` is renamed to `ctx.getFileUrl()`, the old name still works but is deprecated.\n"
+    filename: 2026-07-25-9c3d1b.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/obsidian:\n    type: patch\n---\n\n## Use Waku beta 8\n\nBump dependencies.\n"
+    filename: 2026-07-27-ms35d6wz.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Use Fumadocs MDX macro API\n\nScaffolded apps define collections with `fumadocs-mdx/macro` in `press.config.tsx` instead of `source.config.ts` codegen.\n"
+    filename: 2026-07-16-684fc77a.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/notion:\n    type: patch\n  npm:docs:\n    type: patch\n---\n\n## Add the Notion content integration\n\nPull pages from a Notion data source and render their blocks in Fumapress.\n"
+    filename: 2026-07-14-a41c9e.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/obsidian:\n    type: patch\n---\n\n## Add the Obsidian content integration\n\nRender Obsidian vaults directly in Fumapress with server-side components, search and LLM text adapters, and development hot reload.\n"
+    filename: 2026-07-23-7f4c2a.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-07-11-mrghia77.md
-      - 2026-07-11-mrgih2yl.md
+      - 2026-07-15-mrkxqsxq.md
+      - 2026-07-15-mrkxrk1x.md
+      - 2026-07-15-mrkxxck1.md
+      - 2026-07-23-77a8ee.md
+      - 2026-07-25-9c3d1b.md
+      - 2026-07-27-ms35d6wz.md
     id: npm:fumapress
     updated: true
-  - id: npm:create-fumapress
+  - changelogIds:
+      - 2026-07-16-684fc77a.md
+    id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
-  - id: npm:@fumapress/feedback
-    updated: true
-  - id: npm:@fumapress/mintlify
-    updated: true
-  - id: npm:@fumapress/language
-    updated: true
-  - id: npm:@fumapress/sanity
+  - changelogIds:
+      - 2026-07-14-a41c9e.md
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/notion
     updated: true
   - changelogIds:
-      - 2026-07-11-mrgih2yl.md
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/mintlify
+    updated: true
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/language
+    updated: true
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/feedback
+    updated: true
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
+      - 2026-07-23-7f4c2a.md
+      - 2026-07-27-ms35d6wz.md
+    id: npm:@fumapress/obsidian
+    updated: true
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
+    id: npm:@fumapress/sanity
+    updated: true
+  - changelogIds:
+      - 2026-07-23-77a8ee.md
     id: npm:@fumapress/tegami
     updated: true
 npm:packages:
-  - id: npm:@fumapress/ai
-  - id: npm:fumapress
+  - distTag: beta
+    id: npm:@fumapress/ai
+  - distTag: beta
+    id: npm:fumapress
   - id: npm:create-fumapress
   - id: npm:create-fumapress-versions
-  - id: npm:@fumapress/feedback
-  - id: npm:@fumapress/mintlify
-  - id: npm:@fumapress/language
-  - id: npm:@fumapress/sanity
-  - id: npm:@fumapress/tegami
+  - distTag: beta
+    id: npm:@fumapress/notion
+  - distTag: beta
+    id: npm:@fumapress/mintlify
+  - distTag: beta
+    id: npm:@fumapress/language
+  - distTag: beta
+    id: npm:@fumapress/feedback
+  - distTag: beta
+    id: npm:@fumapress/obsidian
+  - distTag: beta
+    id: npm:@fumapress/sanity
+  - distTag: beta
+    id: npm:@fumapress/tegami
   - id: npm:docs
   - id: npm:example-sanity
+  - id: npm:example-obsidian
   - id: npm:example-openapi
-  - id: npm:example-minimal
+  - id: npm:example-notion
   - id: npm:example-radix-ui
