@@ -28,8 +28,8 @@ export default defineConfig({
   {
     id: "orama-search",
     name: "Orama Search",
-    description: "Full-text search powered by Orama with the same search dialog UX.",
-    keywords: ["search", "orama"],
+    description: "Full-text search powered by ZBSearch with the same search dialog UX.",
+    keywords: ["search", "orama", "zbsearch"],
     docsHref: "/docs/plugins/orama-search",
     usage: `import { defineConfig } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";

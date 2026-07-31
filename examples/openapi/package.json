@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@fumapress/language": "workspace:*",
-    "fumadocs-core": "^16.13.0",
-    "fumadocs-mdx": "^15.2.0",
+    "fumadocs-core": "^16.14.0",
+    "fumadocs-mdx": "^15.2.1",
     "fumadocs-openapi": "^11.2.2",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -25,7 +25,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.3",

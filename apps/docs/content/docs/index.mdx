@@ -38,12 +38,12 @@ Create the config files:
 import { defineConfig } from "waku/config";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
-import mdx from "fumadocs-mdx/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
 
 // the config file for Waku & Vite
 export default defineConfig({
   vite: {
-    plugins: [press(), mdx(), tailwindcss()],
+    plugins: [press(), fumadocsMdx(), tailwindcss()],
   },
 });
 ```

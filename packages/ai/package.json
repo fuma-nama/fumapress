@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/ai",
-  "version": "1.0.0-beta.0",
+  "version": "1.0.0-beta.1",
   "description": "AI integration for Fumapress",
   "keywords": [
     "Docs",
@@ -32,14 +32,14 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.40",
+    "@ai-sdk/react": "^4.0.45",
     "@fuma-translate/react": "^1.0.2",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "ai": "^7.0.37",
-    "cnfast": "^0.0.8",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ai": "^7.0.42",
+    "cnfast": "^0.1.0",
     "flexsearch": "^0.8.212",
     "fumapress": "workspace:*",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "unist-util-visit": "^5.1.0",
     "zod": "^4.4.3"
   },
@@ -47,11 +47,11 @@
     "@tailwindcss/oxide": "^4.3.3",
     "@types/hast": "^3.0.5",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "fumadocs-core": "^16.13.0",
-    "fumadocs-ui": "^16.13.0",
+    "fumadocs-core": "^16.14.0",
+    "fumadocs-ui": "^16.14.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsdown": "0.22.14",

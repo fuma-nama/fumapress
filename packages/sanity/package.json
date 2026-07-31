@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/sanity",
-  "version": "1.0.0-beta.0",
+  "version": "1.0.0-beta.1",
   "description": "Sanity CMS integration for Fumapress",
   "keywords": [
     "Docs",
@@ -30,14 +30,14 @@
   },
   "dependencies": {
     "@portabletext/react": "^7.0.1",
-    "@sanity/client": "^7.25.0",
+    "@sanity/client": "^7.26.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@fumadocs/sanity": "^0.1.0",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
-    "fumadocs-core": "^16.13.0",
+    "fumadocs-core": "^16.14.0",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "tsdown": "0.22.14",

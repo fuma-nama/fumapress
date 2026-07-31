@@ -1,3 +1,13 @@
+## fumapress@1.0.0-beta.1 (beta)
+
+### Migrate built-in search to ZBSearch
+
+Static Orama search now uses Fumadocs Core's `staticClient` backed by ZBSearch. The `@orama/orama` dependency was removed.
+
+### Use `fumadocsMdx()` Vite plugin
+
+Scaffolded apps and docs examples now register the Fumadocs MDX Vite plugin via `fumadocsMdx()` instead of the default import.
+
 ## fumapress@1.0.0-beta.0 (beta)
 
 ### Support robots.txt plugin
