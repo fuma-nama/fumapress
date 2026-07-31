@@ -21,7 +21,7 @@ Optionally, update your Vite config:
 import { defineConfig } from "waku/config";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
-import mdx from "fumadocs-mdx/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
 
 export default defineConfig({
   vite: {
@@ -29,7 +29,7 @@ export default defineConfig({
       // optional, but often solves some weird problems in monorepo
       dedupe: ["fumadocs-ui"],
     },
-    plugins: [press(), mdx(), tailwindcss()],
+    plugins: [press(), fumadocsMdx(), tailwindcss()],
   },
 });
 ```

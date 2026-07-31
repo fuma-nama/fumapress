@@ -34,10 +34,10 @@
   "devDependencies": {
     "@fumapress/ai": "workspace:*",
     "@fumapress/feedback": "workspace:*",
-    "@types/node": "^26.1.1",
-    "fumadocs-core": "^16.13.0",
+    "@types/node": "^26.1.2",
+    "fumadocs-core": "^16.14.0",
     "fumadocs-openapi": "^11.2.2",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
     "fumapress": "workspace:*",
     "tsdown": "0.22.14",
     "typescript": "^6.0.3"

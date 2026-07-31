@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@fumapress/obsidian": "workspace:*",
-    "fumadocs-core": "^16.13.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.13.0",
+    "fumadocs-core": "^16.14.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.3",
