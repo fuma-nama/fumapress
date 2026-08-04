@@ -1,0 +1,64 @@
+{
+  "name": "@fumapress/graphql",
+  "version": "1.0.0-beta.1",
+  "description": "Generate docs for your GraphQL schema with Fumapress",
+  "keywords": [
+    "Docs",
+    "Fumadocs",
+    "Fumapress",
+    "GraphQL"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "files": [
+    "dist",
+    "css"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./css/*.css"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./ui": "./dist/ui.mjs",
+    "./package.json": "./package.json",
+    "./css/preset.css": "./css/preset.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fumadocs/graphql": "^0.1.1",
+    "graphql": "^17.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "fumadocs-core": "^16.14.0",
+    "fumadocs-ui": "^16.14.0",
+    "fumapress": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsdown": "0.22.14",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "fumapress": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  }
+}
