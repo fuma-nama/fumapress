@@ -36,23 +36,23 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "cnfast": "^0.1.0",
-    "js-yaml": "^5.2.2",
+    "js-yaml": "^5.2.3",
     "lucide-react": "^1.28.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",
     "@types/node": "^26.1.2",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "fumadocs-core": "^16.14.0",
     "fumadocs-ui": "^16.14.0",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tegami": "^1.2.7",
+    "tegami": "^1.3.1",
     "tsdown": "0.22.14",
     "typescript": "^6.0.3",
-    "vite": "^8.1.5",
+    "vite": "^8.2.0",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
