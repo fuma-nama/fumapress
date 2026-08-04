@@ -380,20 +380,24 @@ export function AISearchPanel() {
             open ? "animate-fd-fade-in" : "animate-fd-fade-out",
           )}
           onClick={() => setOpen(false)}
-          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
+          onAnimationEnd={() => {
+            if (!open) flushSync(() => setActualOpen(false));
+          }}
         />
       )}
       {actualOpen && (
         <div
           className={cn(
-            "overflow-hidden z-30 bg-fd-card text-fd-card-foreground [--ai-chat-width:400px] 2xl:[--ai-chat-width:460px]",
+            "overflow-hidden z-50 bg-fd-card text-fd-card-foreground [--ai-chat-width:400px] 2xl:[--ai-chat-width:460px]",
             "max-lg:fixed max-lg:inset-x-2 max-lg:inset-y-4 max-lg:border max-lg:rounded-2xl max-lg:shadow-xl",
-            "lg:sticky lg:top-0 lg:h-dvh lg:border-s lg:ms-auto lg:in-[#nd-docs-layout]:[grid-area:toc] lg:in-[#nd-notebook-layout]:row-span-full lg:in-[#nd-notebook-layout]:col-start-5",
+            "lg:sticky lg:top-0 lg:h-dvh lg:border-s lg:ms-auto lg:in-[#nd-docs-layout]:[grid-area:toc] lg:in-[#nd-notebook-layout]:row-span-full lg:in-[#fd-glass-layout]:[grid-area:right] lg:in-[#nd-notebook-layout]:col-start-5",
             open
-              ? "animate-fd-dialog-in lg:animate-fd-ask-ai-open"
+              ? "animate-fd-dialog-in lg:animate-fd-ask-ai-open lg:layout:[--fd-right-width:400px]! 2xl:layout:[--fd-right-width:460px]!"
               : "animate-fd-dialog-out lg:animate-fd-ask-ai-close",
           )}
-          onAnimationEnd={() => !open && flushSync(() => setActualOpen(false))}
+          onAnimationEnd={() => {
+            if (!open) flushSync(() => setActualOpen(false));
+          }}
         >
           <div className="flex flex-col size-full p-2 lg:p-3 lg:w-(--ai-chat-width)">
             <AISearchPanelHeader />

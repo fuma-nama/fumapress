@@ -28,6 +28,7 @@
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",
     "./layouts/docs": "./dist/layouts/docs.js",
+    "./layouts/glass": "./dist/layouts/glass.js",
     "./layouts/home": "./dist/layouts/home.js",
     "./layouts/notebook": "./dist/layouts/notebook.js",
     "./layouts/root": "./dist/layouts/root.js",

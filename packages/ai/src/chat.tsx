@@ -10,6 +10,7 @@ import {
 import type { AppShape, PressPlugin } from "fumapress";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
+import type { GlassLayoutContextData } from "fumapress/layouts/glass";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
@@ -43,6 +44,16 @@ export function aiPlugin<C extends AppShape = AppShape>(
 ): PressPlugin<C> {
   const { configureUI = true } = options;
 
+  /** bind AI chat to the layout's native `aiChat` prop */
+  async function initGlassUI(ctxData: GlassLayoutContextData<C>) {
+    const { GlassAILayout } = await import("./components/glass");
+
+    ctxData.layoutInterceptors ??= [];
+    ctxData.layoutInterceptors.push(({ props }) => {
+      return <GlassAILayout {...props} />;
+    });
+  }
+
   async function initUI(ctxData: DocsLayoutContextData<C>) {
     const { DefaultComponent } = await import("./components/default");
     const interceptors = (ctxData.layoutInterceptors ??= []);
@@ -71,6 +82,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
       if (configureUI) {
         await initUI((this.data["core:docs-layout"] ??= {}));
         await initUI((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
+        await initGlassUI((this.data["core:glass-layout"] ??= {}));
       }
     },
     createPages({ createApi }) {

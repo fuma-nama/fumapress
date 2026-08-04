@@ -19,6 +19,7 @@ import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumad
 import { preinitPlugins, type PressPlugin } from "./plugin";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
+import type { GlassLayoutContextData } from "@/layouts/glass";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { RootLayoutContextData } from "@/layouts/root";
@@ -347,6 +348,7 @@ export const deepmerge = createDeepmerge({
 export interface AppContextData<S extends AppShape> {
   "core:docs-layout"?: DocsLayoutContextData<S>;
   "core:notebook-layout"?: NotebookLayoutContextData<S>;
+  "core:glass-layout"?: GlassLayoutContextData<S>;
   "core:home-layout"?: HomeLayoutContextData<S>;
   "core:provider"?: RootLayoutContextData<S>;
 }

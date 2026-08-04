@@ -78,6 +78,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
 
       initTransformers((this.data["core:docs-layout"] ??= {}));
       initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
+      initTransformers((this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>);
     },
     createMiddlewares({ app }) {
       if (this.mode === "static") return;
