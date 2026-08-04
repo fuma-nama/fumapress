@@ -1,11 +1,6 @@
----
-packages:
-  npm:@fumapress/graphql:
-    replay:
-      - exit-prerelease(npm:@fumapress/graphql)
----
+## @fumapress/graphql@1.0.0-beta.2 (beta)
 
-## Add the GraphQL integration
+### Add the GraphQL integration
 
 Generate API docs from your GraphQL schema with `@fumadocs/graphql`:
 
