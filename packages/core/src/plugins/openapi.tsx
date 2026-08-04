@@ -53,6 +53,7 @@ export function openapiPlugin<C extends AppShape>(options: OpenAPIOptions): Pres
       this.adapters.push(adapter(options));
       initTransformers((this.data["core:docs-layout"] ??= {}));
       initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
+      initTransformers((this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>);
 
       if (this.translationsConfig) {
         this.translationsConfig.extend(openapiTranslations());

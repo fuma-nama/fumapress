@@ -1,0 +1,129 @@
+---
+title: GraphQL
+description: Generate docs for your GraphQL schema with Fumapress.
+---
+
+## Installation
+
+```npm
+npm i @fumapress/graphql
+```
+
+Import the CSS preset in `src/app.css`:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/graphql/css/preset.css";
+```
+
+Configure the plugin:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+// [!code ++:2]
+import path from "node:path";
+import { createGraphQL, graphqlPlugin } from "@fumapress/graphql";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
+
+// [!code ++:5]
+const graphql = createGraphQL({
+  // your GraphQL schema, it accepts SDL files/URLs (including `extend type`),
+  // SDL text, introspection results, and `GraphQLSchema` instances.
+  input: [path.resolve("./schema.graphql")],
+});
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    // [!code ++]
+    graphql: await graphql.staticSource({ baseUrl: "/" }),
+  },
+})
+  // fumapress plugin [!code ++]
+  .plugins(graphqlPlugin({ server: graphql }));
+```
+
+It generates a page per operation (query/mutation/subscription) & named type by default, grouped into folders by their kind (e.g. `queries/`, `objects/`).
+
+Pass the `baseUrl` of your loader (`/` unless changed in `loaderOptions`), so type & operation references are cross-linked automatically.
+
+## Options
+
+You can see [Fumadocs GraphQL](https://www.fumadocs.dev/docs/integrations/graphql) for details of advanced options.
+
+### `graphql.staticSource()`
+
+<Callout title="How to customize its output file structure?">
+
+It accepts a `baseDir` option. For example, the following will generate all API pages under the `(graphql)` folder:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true },
+});
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    graphql: await graphql.staticSource({
+      baseUrl: "/",
+      // [!code highlight]
+      baseDir: "(graphql)",
+    }),
+  },
+});
+```
+
+</Callout>
+
+### Client UI
+
+Create the renderer for API pages explicitly, this allows you to enable the interactive playground on operation pages:
+
+```tsx title="src/components/graphql.tsx"
+"use client";
+import { createGraphQLPage } from "@fumapress/graphql/ui";
+
+export const GraphQLPage = createGraphQLPage({
+  playground: {
+    // the URL of your GraphQL endpoint (optional)
+    url: "https://api.example.com/graphql",
+  },
+});
+```
+
+And import it from the GraphQL plugin:
+
+```tsx title="press.config.tsx"
+// [!code ++]
+import { GraphQLPage } from "./src/components/graphql";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  graphqlPlugin({
+    server: graphql,
+    // [!code ++]
+    ClientAPIPage: GraphQLPage,
+  }),
+);
+```
+
+<Callout title="Using i18n?">
+
+Links pre-generated from `baseUrl` are not localized. Use the `typeLinks` and `operationLinks` options of `createGraphQLPage()` to resolve links yourself.
+
+</Callout>

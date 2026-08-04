@@ -1,10 +1,12 @@
 {
-  "name": "@fumapress/ai",
+  "name": "@fumapress/graphql",
   "version": "1.0.0-beta.2",
-  "description": "AI integration for Fumapress",
+  "description": "Generate docs for your GraphQL schema with Fumapress",
   "keywords": [
     "Docs",
-    "Fumadocs"
+    "Fumadocs",
+    "Fumapress",
+    "GraphQL"
   ],
   "homepage": "https://press.fumadocs.dev",
   "license": "MIT",
@@ -15,11 +17,12 @@
     "css"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./css/*.css"
+  ],
   "exports": {
     ".": "./dist/index.mjs",
-    "./components/search": "./dist/components/search.mjs",
-    "./i18n": "./dist/i18n.mjs",
+    "./ui": "./dist/ui.mjs",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css"
   },
@@ -27,41 +30,29 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "tsdown --watch",
     "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.51",
-    "@fuma-translate/react": "^1.0.2",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "ai": "^7.0.48",
-    "cnfast": "^0.1.0",
-    "flexsearch": "^0.8.212",
-    "fumapress": "workspace:*",
-    "lucide-react": "^1.28.0",
-    "unist-util-visit": "^5.1.0",
-    "zod": "^4.4.3"
+    "@fumadocs/graphql": "^0.1.1",
+    "graphql": "^17.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/oxide": "^4.3.3",
-    "@types/hast": "^3.0.5",
-    "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "fumadocs-core": "^16.14.0",
     "fumadocs-ui": "^16.14.0",
+    "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsdown": "0.22.14",
-    "typescript": "^6.0.3",
-    "vite": "^8.2.0"
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
     "@types/react": "*",
-    "fumadocs-core": "*",
-    "fumadocs-ui": "*",
+    "fumapress": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

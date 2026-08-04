@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/mintlify",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Mintlify auto-migration for Fumapress",
   "keywords": [
     "Docs",
@@ -34,14 +34,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@fumadocs/asyncapi": "^0.2.1",
+    "@fumadocs/asyncapi": "^0.2.2",
     "@types/node": "^26.1.2",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "fumadocs-core": "^16.14.0",
-    "fumadocs-openapi": "^11.2.2",
+    "fumadocs-openapi": "^11.2.3",
     "fumadocs-ui": "^16.14.0",
     "fumapress": "workspace:*",
-    "hono": "^4.12.32",
+    "hono": "^4.12.34",
     "react": "^19.2.8",
     "tsdown": "0.22.14",
     "typescript": "^6.0.3",

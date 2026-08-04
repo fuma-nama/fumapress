@@ -1,58 +1,70 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:create-fumapress:\n    type: patch\n---\n\n### Migrate built-in search to ZBSearch\n\nStatic Orama search now uses Fumadocs Core's `staticClient` backed by ZBSearch. The `@orama/orama` dependency was removed.\n\n### Use `fumadocsMdx()` Vite plugin\n\nScaffolded apps and docs examples now register the Fumadocs MDX Vite plugin via `fumadocsMdx()` instead of the default import.\n"
-    filename: 2026-07-31-96820a0b.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n    replay:\n      - exit-prerelease(npm:fumapress)\n---\n\n### Support the Glass layout\n\nAdded `fumapress/layouts/glass`, a layout wrapper for the new Glass layout from Fumadocs UI. It accepts the same options as the docs & notebook layouts, and works with built-in plugins (OpenAPI, AsyncAPI, GraphQL, llms.txt).\n\n```tsx title=\"press.config.tsx\"\nimport { createGlassLayoutPage } from \"fumapress/layouts/glass\";\n\nconst GlassLayout = createGlassLayoutPage<typeof config.$context>();\n```\n\nIt requires Fumadocs UI v16.12.0 or above, remember to import `fumadocs-ui/css/generated/glass.css` in your CSS file.\n"
+    filename: 2026-08-04-6886d034.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/ai:\n    type: patch\n    replay:\n      - exit-prerelease(npm:@fumapress/ai)\n---\n\n### Fix `aiPlugin` export\n\n`aiPlugin` was re-exported as a type-only export, so `import { aiPlugin } from \"@fumapress/ai\"` failed at runtime. It is now exported as a value.\n\n### Support the Glass layout\n\n`aiPlugin` now binds AI chat to the Glass layout's native `aiChat` option, the Ask AI trigger is shown in the layout header & sidebar instead of a floating button.\n"
+    filename: 2026-08-04-a317a1af.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/graphql:\n    type: minor\n    replay:\n      - exit-prerelease(npm:@fumapress/graphql)\n---\n\n## Add the GraphQL integration\n\nGenerate API docs from your GraphQL schema with `@fumadocs/graphql`:\n\n```tsx title=\"press.config.tsx\"\nimport { createGraphQL, graphqlPlugin } from \"@fumapress/graphql\";\n\nconst graphql = createGraphQL({\n  input: [path.resolve(\"./schema.graphql\")],\n});\n\nexport default defineConfig({\n  content: {\n    docs: docs.toFumadocsSource(),\n    graphql: await graphql.staticSource({ baseUrl: \"/\" }),\n  },\n}).plugins(graphqlPlugin({ server: graphql }));\n```\n"
+    filename: 2026-08-04-d1f305af.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
-    updated: true
   - changelogIds:
-      - 2026-07-31-96820a0b.md
+      - 2026-08-04-6886d034.md
     id: npm:fumapress
     updated: true
+  - id: npm:create-fumapress
+    updated: true
   - changelogIds:
-      - 2026-07-31-96820a0b.md
-    id: npm:create-fumapress
+      - 2026-08-04-a317a1af.md
+    id: npm:@fumapress/ai
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
     updated: true
+  - changelogIds:
+      - 2026-08-04-d1f305af.md
+    id: npm:@fumapress/graphql
+    updated: true
   - id: npm:@fumapress/language
     updated: true
   - id: npm:@fumapress/mintlify
-    updated: true
-  - id: npm:@fumapress/notion
     updated: true
   - id: npm:@fumapress/obsidian
     updated: true
   - id: npm:@fumapress/sanity
     updated: true
+  - id: npm:@fumapress/notion
+    updated: true
   - id: npm:@fumapress/tegami
     updated: true
 npm:packages:
   - distTag: beta
-    id: npm:@fumapress/ai
-  - id: npm:docs
-  - distTag: beta
     id: npm:fumapress
-  - id: npm:example-sanity
-  - id: npm:example-notion
-  - id: npm:example-obsidian
-  - id: npm:example-openapi
-  - id: npm:example-radix-ui
-  - id: npm:create-fumapress-versions
   - id: npm:create-fumapress
   - distTag: beta
+    id: npm:@fumapress/ai
+  - id: npm:create-fumapress-versions
+  - distTag: beta
     id: npm:@fumapress/feedback
+  - distTag: beta
+    id: npm:@fumapress/graphql
   - distTag: beta
     id: npm:@fumapress/language
   - distTag: beta
     id: npm:@fumapress/mintlify
   - distTag: beta
-    id: npm:@fumapress/notion
-  - distTag: beta
     id: npm:@fumapress/obsidian
   - distTag: beta
     id: npm:@fumapress/sanity
   - distTag: beta
+    id: npm:@fumapress/notion
+  - distTag: beta
     id: npm:@fumapress/tegami
+  - id: npm:docs
+  - id: npm:example-notion
+  - id: npm:example-sanity
+  - id: npm:example-obsidian
+  - id: npm:example-openapi
+  - id: npm:example-radix-ui

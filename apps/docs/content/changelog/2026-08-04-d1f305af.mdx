@@ -1,0 +1,26 @@
+---
+title: Add the GraphQL integration
+date: 2026-08-04T11:20:41.833Z
+packages:
+  '@fumapress/graphql':
+    version: 1.0.0-beta.2
+---
+
+## Add the GraphQL integration
+
+Generate API docs from your GraphQL schema with `@fumadocs/graphql`:
+
+```tsx title="press.config.tsx"
+import { createGraphQL, graphqlPlugin } from "@fumapress/graphql";
+
+const graphql = createGraphQL({
+  input: [path.resolve("./schema.graphql")],
+});
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource(),
+    graphql: await graphql.staticSource({ baseUrl: "/" }),
+  },
+}).plugins(graphqlPlugin({ server: graphql }));
+```

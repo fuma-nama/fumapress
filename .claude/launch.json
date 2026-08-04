@@ -12,6 +12,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/docs", "dev"],
       "port": 3000
+    },
+    {
+      "name": "example-openapi",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/openapi", "dev"],
+      "port": 3000
     }
   ]
 }

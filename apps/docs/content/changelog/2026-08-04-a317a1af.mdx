@@ -1,0 +1,15 @@
+---
+title: Fix `aiPlugin` export
+date: 2026-08-04T11:20:41.833Z
+packages:
+  '@fumapress/ai':
+    version: 1.0.0-beta.2
+---
+
+### Fix `aiPlugin` export
+
+`aiPlugin` was re-exported as a type-only export, so `import { aiPlugin } from "@fumapress/ai"` failed at runtime. It is now exported as a value.
+
+### Support the Glass layout
+
+`aiPlugin` now binds AI chat to the Glass layout's native `aiChat` option, the Ask AI trigger is shown in the layout header & sidebar instead of a floating button.
