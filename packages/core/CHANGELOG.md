@@ -1,3 +1,17 @@
+## fumapress@1.0.0-beta.2 (beta)
+
+### Support the Glass layout
+
+Added `fumapress/layouts/glass`, a layout wrapper for the new Glass layout from Fumadocs UI. It accepts the same options as the docs & notebook layouts, and works with built-in plugins (OpenAPI, AsyncAPI, GraphQL, llms.txt).
+
+```tsx title="press.config.tsx"
+import { createGlassLayoutPage } from "fumapress/layouts/glass";
+
+const GlassLayout = createGlassLayoutPage<typeof config.$context>();
+```
+
+It requires Fumadocs UI v16.12.0 or above, remember to import `fumadocs-ui/css/generated/glass.css` in your CSS file.
+
 ## fumapress@1.0.0-beta.1 (beta)
 
 ### Migrate built-in search to ZBSearch
