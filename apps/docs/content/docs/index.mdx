@@ -6,11 +6,11 @@ icon: Rocket
 
 ## What is Fumapress?
 
-Fumapress is a site generator powered by [Fumadocs](https://fumadocs.dev) & [Waku](https://waku.gg), as compared to Fumadocs, it manages more features such as routing, while being more opinionated.
+Fumapress is a **[React](https://react.dev) site generator** powered by [Fumadocs](https://fumadocs.dev), as compared to Fumadocs, it manages more features such as routing, while being more opinionated.
 
 It is perfect if you want a beautiful, flexible docs, without revealing too much complexity.
 
-Since the app is still a Waku.js app, you can easily transition to a full Fumadocs app without heavy migration.
+Under the hood, the app is still a [Waku](https://waku.gg) app, you can easily transition to a full Fumadocs app without heavy migration.
 
 ## Getting Started
 
@@ -50,9 +50,6 @@ export default defineConfig({
 
 ```tsx tab="press.config.tsx"
 import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
 import { defineDocs } from "fumadocs-mdx/macro";
@@ -79,8 +76,6 @@ export default defineConfig({
     name: "Fumapress",
   },
 })
-  // extend via plugins
-  .plugins(flexsearchPlugin(), llmsPlugin(), takumiPlugin())
   // use different content sources
   .adapters(fumadocsMdx());
 ```
@@ -142,13 +137,4 @@ This is my first document.
 
 ## Learn More
 
-Since Fumapress is based on Fumadocs, you can see the following for shared knowledge in authoring content with Fumadocs.
-
-<Cards>
-  <Card href="https://fumadocs.dev/docs/markdown" title="Markdown Syntax">
-    An introduction to the supported Markdown syntax of Fumapress.
-  </Card>
-  <Card href="https://fumadocs.dev/docs/page-conventions" title="Page Slugs & Page Tree">
-    An introduction to the auto-generated sidebar items of Fumapress.
-  </Card>
-</Cards>
+Continue with [Basics](/docs/basics) for writing content, customization, routing, and more.
