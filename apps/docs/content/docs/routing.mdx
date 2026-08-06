@@ -1,13 +1,27 @@
 ---
 title: Routing
 description: Different ways to create a new page.
+icon: Server
 ---
 
 ## Overview
 
-Fumapress supports creating routes from content sources, plugins, and local page files using the file-based routing model from [Waku](https://waku.gg).
+Fumapress supports a special routing model on top of the file-based routing model from [Waku](https://waku.gg).
 
-In most apps, you will use content files for documentation pages, file-based routes for custom pages like landing page, and plugins for advanced use cases like generated blog routes.
+**Content files** are usually `.md` or `.mdx` files, they are useful for:
+
+- Documentation pages.
+- Blog pages.
+
+**File-based routes** are `.tsx` files with a renderer & route config (see [Page](https://waku.gg/#pages)), they are useful for:
+
+- Landing page.
+- Other custom pages with its own renderer & metadata.
+
+**Plugins** can also generate routes, which is useful for advanced use cases like:
+
+- Generating blog routes from content sources.
+- Making custom pages to be reusable (as a plugin).
 
 ### With Content Files
 
@@ -15,11 +29,11 @@ Content pages are generated from the `content` option configured in `press.confi
 
 For the [Fumadocs MDX adapter](/docs/adapters/mdx), each Markdown/MDX file under the collection directory becomes a page:
 
-| File                              | URL                    |
-| --------------------------------- | ---------------------- |
-| `content/docs/index.mdx`          | `/docs`                |
-| `content/docs/guides/routing.mdx` | `/docs/guides/routing` |
-| `content/blog/introducing.mdx`    | `/blog/introducing`    |
+| File                           | URL                 |
+| ------------------------------ | ------------------- |
+| `content/docs/index.mdx`       | `/docs`             |
+| `content/docs/routing.mdx`     | `/docs/routing`     |
+| `content/blog/introducing.mdx` | `/blog/introducing` |
 
 The file path will decide its actual pathname & appearance on sidebar, see [Page Tree & Page Slugs](https://fumadocs.dev/docs/page-conventions) for available syntax.
 
@@ -105,42 +119,6 @@ export default function Page() {
 }
 ```
 
-You can access Fumapress runtime data from `getPressContext()`. Export it from your config with `config.utils()` so it is already typed to your app:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-const config = defineConfig({
-  // ...
-});
-
-export const { getPressContext } = config.utils();
-export default config;
-```
-
-```tsx title="src/pages/sitemap-preview.tsx"
-import { getPressContext } from "../../press.config";
-
-export default async function Page() {
-  const { getLoader } = getPressContext();
-  const source = await getLoader();
-  const pages = source.getPages();
-
-  return (
-    <main>
-      <h1>Sitemap Preview</h1>
-      <ul>
-        {pages.map((page) => (
-          <li key={page.url}>
-            <a href={page.url}>{page.url}</a>
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
-}
-```
-
 For file-based API routes, place files under `src/pages/_api`. Export HTTP method handlers:
 
 ```ts title="src/pages/_api/version.ts"
@@ -216,22 +194,82 @@ export default defineConfig({
 }).plugins(allDocsPlugin());
 ```
 
-### Navigation (Client)
+## Client
 
-To handle navigation on client:
+Import navigation helpers from `fumapress/client`.
+
+### `<Link>`
+
+Use `<Link>` for in-app links instead of `<a>`. It enables client-side navigation and works with [link validation](/docs/plugins/link-validation) during build.
 
 ```tsx
-import { Link, useRouter } from "fumapress/client";
+import { Link } from "fumapress/client";
 
-// use <Link> instead of <a> for in-app links
-return <Link href="/my-page">Click Me</Link>;
+<Link href="/about">About</Link>;
 
-function MyComp() {
+// /* skip scrolling to the top */
+return (
+  <Link href="/docs" scroll={false}>
+    Docs
+  </Link>
+);
+```
+
+Use a normal `<a>` for external URLs.
+
+### `useRouter()`
+
+`useRouter()` reads the current location and navigates programmatically:
+
+```tsx
+"use client";
+
+import { useRouter } from "fumapress/client";
+
+function Nav() {
   const router = useRouter();
-  // access router info
-  console.log(router.path);
 
-  // or to open another page
-  router.push("/hello-world");
+  return (
+    <div>
+      <p>
+        {router.path}
+        {router.query ? `?${router.query}` : ""}
+      </p>
+      <button type="button" onClick={() => router.push("/about")}>
+        About
+      </button>
+    </div>
+  );
+}
+```
+
+`push` and `replace` accept the same `scroll` option as `<Link>`:
+
+```tsx
+router.push("/docs", { scroll: false });
+router.replace("/docs", { scroll: true });
+```
+
+### Server Redirects
+
+On the server, use `redirect` to redirect to another route:
+
+```tsx title="src/pages/old-docs.tsx"
+import { redirect } from "fumapress/router";
+
+export default function Page() {
+  redirect("/docs");
+}
+```
+
+Or `notFound` to show a not found screen.
+
+```tsx title="src/pages/secret.tsx"
+import { notFound } from "fumapress/router";
+
+export default function Page() {
+  if (!hasAccess()) notFound();
+
+  return <main>Secret</main>;
 }
 ```

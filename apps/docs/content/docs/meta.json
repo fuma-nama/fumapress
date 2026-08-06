@@ -1,5 +1,14 @@
 {
   "title": "Documentation",
   "icon": "Book",
-  "root": true
+  "root": true,
+  "pages": [
+    "index",
+    "basics",
+    "internationalization",
+    "migrate",
+    "---Reference---",
+    "routing",
+    "..."
+  ]
 }
