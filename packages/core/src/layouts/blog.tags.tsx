@@ -1,6 +1,7 @@
 import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
 import { T } from "@fuma-translate/react";
 import { getTags, groupTags } from "@/lib/shared/blog";
+import { joinPathname } from "@/lib/pathname";
 import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -18,7 +19,8 @@ export function createBlogTagsPage<C extends AppShape = AppShape>({
 }: BlogTagsPageOptions = {}): BlogTagsPage<C> {
   return async function BlogTagsPage({ lang }) {
     const ctx = getPressContext<C>();
-    const { isBlog } = getBlogContext<C>();
+    const { isBlog, tagsPath } = getBlogContext<C>();
+    if (tagsPath === false) return;
     const source = await ctx.getLoader();
 
     const blogPosts = source.getPages(lang).filter((page) => isBlog.call(ctx, page));
@@ -51,7 +53,7 @@ export function createBlogTagsPage<C extends AppShape = AppShape>({
             .map(([tag, count]) => (
               <Link
                 key={tag}
-                href={`/blog/tags/${tag}`}
+                href={joinPathname(lang ?? "", tagsPath, tag)}
                 className="flex flex-row items-center gap-2 bg-fd-card text-fd-card-foreground border font-mono rounded-lg px-2 py-1 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
               >
                 <TagIcon className="size-3.5 text-fd-muted-foreground" />
