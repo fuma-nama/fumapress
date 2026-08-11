@@ -72,6 +72,54 @@ export default defineConfig({
 );
 ```
 
+### `report`
+
+By default a broken link fails the build. To report problems as data instead — so a CI check can
+annotate a pull request rather than parse an error message — switch `report`:
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  linkValidationPlugin({
+    // [!code ++]
+    report: "json",
+  }),
+);
+```
+
+| `report` | Writes `fumapress-diagnostics.json` | Fails the build |
+| -------- | ----------------------------------- | --------------- |
+| `throw`  | no                                  | yes             |
+| `json`   | yes                                 | no              |
+| `both`   | yes                                 | yes             |
+
+The file is written to the build output directory, next to `public` and `server`:
+
+```json title="dist/fumapress-diagnostics.json"
+{
+  "diagnostics": [
+    {
+      "severity": "error",
+      "rule": "link-validation/not-found",
+      "message": "link \"/missing\" not-found",
+      "fromPathname": "/docs",
+      "href": "/missing"
+    }
+  ]
+}
+```
+
+It is written on every build, including when nothing is wrong, so an empty `diagnostics` array
+means validation ran and found no problems rather than that it never ran.
+
+### `diagnosticsPath`
+
+Change the file name, relative to the build output directory. Defaults to
+`fumapress-diagnostics.json`.
+
 <Callout>
   Only links rendered through `Link` from `fumapress/client` during pre-rendering are tracked, it
   doesn't work for normal `<a />` tags.
