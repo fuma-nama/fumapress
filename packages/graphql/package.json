@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/graphql",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Generate docs for your GraphQL schema with Fumapress",
   "keywords": [
     "Docs",

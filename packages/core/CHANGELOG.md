@@ -1,3 +1,25 @@
+## fumapress@1.0.0-beta.3 (beta)
+
+### Report broken links as data
+
+`linkValidationPlugin` gained a `report` option. It still fails the build by default, but can now
+write `dist/fumapress-diagnostics.json` instead, so a CI check can annotate a pull request rather
+than parse an error message.
+
+```tsx
+linkValidationPlugin({ report: "json" });
+```
+
+Use `"both"` to write the file and still fail the build. The file is written on every build, so an
+empty `diagnostics` array means validation ran and found nothing, rather than that it never ran.
+
+### Fix tag links on the blog tags page
+
+The tags page hardcoded `/blog/tags/{tag}` for every tag, so a `blogPlugin` configured with a custom
+`paths.tags` linked to a route that was never generated, and localized sites dropped the locale
+prefix. Both cases returned 404. Links now resolve against the configured tags path and the current
+locale, matching the tag links already rendered on blog posts.
+
 ## fumapress@1.0.0-beta.2 (beta)
 
 ### Support the Glass layout
