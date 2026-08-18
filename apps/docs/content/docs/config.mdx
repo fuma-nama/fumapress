@@ -169,28 +169,15 @@ npm i fumadocs-ui
 npm uninstall @base-ui/react
 ```
 
-Optionally, update your Vite config:
-
-```ts title="waku.config.ts"
-import { defineConfig } from "waku/config";
-import tailwindcss from "@tailwindcss/vite";
-import press from "fumapress/vite";
-import { fumadocsMdx } from "fumadocs-mdx/vite";
-
-export default defineConfig({
-  vite: {
-    resolve: {
-      // optional, but often solves some weird problems in monorepo
-      dedupe: ["fumadocs-ui"],
-    },
-    plugins: [press(), fumadocsMdx(), tailwindcss()],
-  },
-});
-```
-
 ## Server Entry
 
 The server entry file is optional, you can create one if needed. Useful for implementing custom router.
+
+Custom server entries use [Waku.js](https://waku.gg) APIs directly. Since Fumapress manages Waku as its own dependency, install it explicitly for direct API access, matching the version pinned by Fumapress:
+
+```npm
+npm i waku@1.0.0-beta.8
+```
 
 ```tsx title="src/waku.server.tsx"
 import _adapter from "waku/adapters/default";

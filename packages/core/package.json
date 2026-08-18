@@ -10,6 +10,9 @@
   "license": "MIT",
   "author": "Fuma Nama",
   "repository": "github:fuma-nama/fumapress",
+  "bin": {
+    "fumapress": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "css",
@@ -21,6 +24,7 @@
     ".": "./dist/index.js",
     "./adapters/mdx": "./dist/adapters/mdx.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
+    "./cli": "./dist/cli.js",
     "./client": "./dist/client.js",
     "./i18n": "./dist/i18n.js",
     "./image": "./dist/image.js",
@@ -71,6 +75,7 @@
     "lucide-react": "^1.28.0",
     "takumi-js": "^2.5.4",
     "vite": "^8.2.0",
+    "waku": "1.0.0-beta.8",
     "xml-js": "^1.6.11",
     "zod": "^4.4.3"
   },
@@ -91,10 +96,10 @@
     "http-cache-semantics": "^4.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "resolve.exports": "^2.0.3",
     "sharp": "^0.35.3",
     "tsdown": "0.22.14",
-    "typescript": "^6.0.3",
-    "waku": "1.0.0-beta.8"
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "0.x.x",
@@ -107,8 +112,7 @@
     "hono": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sharp": "^0.34.0",
-    "waku": "1.0.0-beta.8"
+    "sharp": "^0.34.0"
   },
   "peerDependenciesMeta": {
     "@fumadocs/asyncapi": {
@@ -135,6 +139,7 @@
   },
   "inlinedDependencies": {
     "@fastify/deepmerge": "3.2.1",
-    "http-cache-semantics": "4.2.0"
+    "http-cache-semantics": "4.2.0",
+    "resolve.exports": "2.0.3"
   }
 }

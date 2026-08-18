@@ -48,16 +48,14 @@ export default defineConfig({
 
 The Fumapress plugin registers the vault with Vite in development. Add its Vite companion to receive file changes and reload the page:
 
-```ts title="waku.config.ts"
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
 import { obsidianVitePlugin } from "@fumapress/obsidian/vite";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
-import { defineConfig } from "waku/config";
 
 export default defineConfig({
-  vite: {
-    plugins: [press(), obsidianVitePlugin(), tailwindcss()],
-  },
+  plugins: [press(), obsidianVitePlugin(), tailwindcss()],
 });
 ```
 

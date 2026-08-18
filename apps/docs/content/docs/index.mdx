@@ -27,24 +27,22 @@ npm create fumapress
 Install the dependencies:
 
 ```npm
-npm i waku fumapress fumadocs-ui@npm:@fumadocs/base-ui fumadocs-core fumadocs-mdx @base-ui/react react react-dom react-server-dom-webpack
+npm i fumapress fumadocs-ui@npm:@fumadocs/base-ui fumadocs-core fumadocs-mdx @base-ui/react react react-dom
 
-npm i tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript -D
+npm i vite tailwindcss @tailwindcss/vite @types/react @types/react-dom typescript -D
 ```
 
 Create the config files:
 
-```ts tab="waku.config.ts"
-import { defineConfig } from "waku/config";
+```ts tab="vite.config.ts"
+import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 
-// the config file for Waku & Vite
+// the config file for Vite
 export default defineConfig({
-  vite: {
-    plugins: [press(), fumadocsMdx(), tailwindcss()],
-  },
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
 });
 ```
 
@@ -108,9 +106,9 @@ Add scripts:
 {
   "scripts": {
     // [!code ++:4]
-    "dev": "waku dev",
-    "build": "waku build",
-    "start": "waku start",
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start",
     "types:check": "tsc --noEmit"
   }
 }

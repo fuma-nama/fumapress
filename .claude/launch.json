@@ -18,6 +18,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "examples/openapi", "dev"],
       "port": 3000
+    },
+    {
+      "name": "example-obsidian",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/obsidian", "dev"],
+      "port": 3000
     }
   ]
 }

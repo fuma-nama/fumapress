@@ -4,9 +4,9 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "dev": "waku dev",
-    "build": "waku build",
-    "start": "waku start",
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
@@ -27,10 +27,8 @@
     "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-server-dom-webpack": "^19.2.8",
     "sharp": "^0.35.3",
-    "shiki": "^4.4.1",
-    "waku": "1.0.0-beta.8"
+    "shiki": "^4.4.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

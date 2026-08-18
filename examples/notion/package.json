@@ -6,7 +6,7 @@
     "./src/app.css"
   ],
   "scripts": {
-    "dev": "waku dev",
+    "dev": "fumapress dev",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,9 +16,7 @@
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-server-dom-webpack": "^19.2.8",
-    "waku": "1.0.0-beta.8"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
