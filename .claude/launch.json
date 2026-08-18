@@ -11,7 +11,8 @@
       "name": "docs",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/docs", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
     },
     {
       "name": "example-openapi",
