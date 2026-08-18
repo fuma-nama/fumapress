@@ -46,8 +46,6 @@ workaround is no longer necessary.
 
 ### Skip error when base URL is not specified
 
-
-
 ### Support robots.txt plugin
 
 Auto-generate `robots.txt`.
