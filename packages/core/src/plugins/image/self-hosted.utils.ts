@@ -1,6 +1,5 @@
 import CachePolicy from "http-cache-semantics";
-import type { RemotePattern, SelfHostedImageOptions } from "./self-hosted";
-import { isFullPathname } from "@/lib/pathname";
+import { type ResolvedImageConfig, validateImageSrc } from "./self-hosted.shared";
 
 const SAFE_IMAGE_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -166,6 +165,7 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
         return { body: new Uint8Array(await pipeline.toBuffer()), contentType: "image/webp" };
     }
   }
+
   async function fetchSource(
     params: ParsedImageParams,
     request: Request,
@@ -183,21 +183,33 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
     const cached = cache?.readCache(params.src, cachePolicyRequest);
     if (cached) return cached;
 
-    // TODO: use hono.fetch() for relative `src` when Waku.js exposes it
-    // for now, it can fetch anything as the server itself, this assumes "request.url" always has a public hostname like "api.acme.com", which cannot resolve to other private services under the same host/server
-    const res = await fetch(new URL(params.src, request.url), {
-      headers,
-      signal: AbortSignal.timeout(config.fetchTimeout),
-    });
+    const initialUrl = new URL(params.src, request.url).toString();
+    let currentUrl = initialUrl;
+    let redirectCount = 0;
+    let res: Response | null = null;
 
-    if (!res.ok || !res.body) {
-      return new Response("Image not found", { status: 404 });
+    while (redirectCount <= 5) {
+      res = await fetch(currentUrl, {
+        headers,
+        signal: AbortSignal.timeout(config.fetchTimeout),
+        redirect: "manual",
+      });
+      // Not a redirect, proceed
+      if (res.status < 300 || res.status >= 400) break;
+
+      const location = res.headers.get("Location");
+      if (!location) {
+        return new Response("Invalid redirect: missing Location header", { status: 400 });
+      }
+      const nextUrl = new URL(location, currentUrl).toString();
+      const validation = validateImageSrc(config, nextUrl);
+      if (!validation.allowed) return new Response(validation.reason, { status: 403 });
+      currentUrl = nextUrl;
+      redirectCount += 1;
     }
 
-    // when a remote URL redirected, check if it's redirecting to localhost to access private services
-    if (res.redirected && !params.src.startsWith("/")) {
-      const validation = validateImageSrc(config, res.url);
-      if (!validation.allowed) return new Response(validation.reason, { status: 403 });
+    if (!res || !res.ok || !res.body) {
+      return new Response("Image not found", { status: 404 });
     }
 
     const contentType = res.headers.get("Content-Type");
@@ -291,65 +303,4 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
       return new Response("Failed to optimize image", { status: 500 });
     }
   };
-}
-
-export type ResolvedImageConfig = Required<SelfHostedImageOptions>;
-
-export function resolveImageConfig(options: SelfHostedImageOptions = {}): ResolvedImageConfig {
-  return {
-    path: options.path ?? "/_img",
-    allowedHosts: options.allowedHosts ?? [],
-    imageSizes: options.imageSizes
-      ? options.imageSizes.sort((a, b) => a - b)
-      : [16, 32, 48, 64, 96, 128, 256, 384],
-    deviceSizes: options.deviceSizes
-      ? options.deviceSizes.sort((a, b) => a - b)
-      : [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    quality: options.quality ?? 75,
-    fetchTimeout: options.fetchTimeout ?? 4000,
-    maxSourceSize: options.maxSourceSize ?? 64_000_000,
-  };
-}
-
-/**
- * Validate the `src` property of image to be optimized.
- *
- * @param src - the src, must be either a pathname `/...` or absolute URL.
- */
-export function validateImageSrc(
-  config: ResolvedImageConfig,
-  src: string,
-): { allowed: true } | { allowed: false; reason: string } {
-  if (src.startsWith("https://") || src.startsWith("http://")) {
-    const resolved = new URL(src);
-
-    const hasAllowedHost = config.allowedHosts.some((entry) => {
-      if (typeof entry === "string") return resolved.hostname === entry;
-      return matchRemotePattern(entry, resolved);
-    });
-
-    if (!hasAllowedHost) {
-      return {
-        allowed: false,
-        reason: `Image URL "${src}" is not in allowedHosts`,
-      };
-    }
-
-    return { allowed: true };
-  }
-
-  if (isFullPathname(src)) return { allowed: true };
-
-  return { allowed: false, reason: `Image URL "${src}" is not normalized` };
-}
-
-function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
-  if (pattern.protocol !== undefined && pattern.protocol !== url.protocol.replace(/:$/, ""))
-    return false;
-
-  if (pattern.port !== undefined && pattern.port !== url.port) return false;
-  if (!pattern.hostname.test(url.hostname)) return false;
-  if (pattern.pathname && !pattern.pathname.test(url.pathname)) return false;
-
-  return true;
 }

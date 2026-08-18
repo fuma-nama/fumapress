@@ -2,11 +2,8 @@ import type { PressPlugin } from "@/app/plugin";
 import type { AppShape } from "@/app/context";
 import type { PressProviderProps } from "@/components/provider";
 import { SelfHostedImageProvider } from "./self-hosted.client";
-import {
-  createImageOptimizer,
-  ImageOptimizationCache,
-  resolveImageConfig,
-} from "./self-hosted.utils";
+import { createImageOptimizer, ImageOptimizationCache } from "./self-hosted.utils";
+import { resolveImageConfig } from "./self-hosted.shared";
 
 export interface RemotePattern {
   protocol?: "http" | "https";
@@ -34,7 +31,7 @@ export interface SelfHostedImageOptions {
 }
 
 export function imagePlugin<C extends AppShape = AppShape>(
-  _options: SelfHostedImageOptions,
+  _options: SelfHostedImageOptions = {},
 ): PressPlugin<C> {
   const config = resolveImageConfig(_options);
 

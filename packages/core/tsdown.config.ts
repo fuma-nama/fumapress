@@ -10,7 +10,7 @@ export default defineConfig({
   ignoreWatch: ["src/.translations/**"],
   plugins: [packageTranslationsPlugin()],
   entry: [
-    "src/{index,vite,i18n}.ts",
+    "src/{index,vite,i18n,cli}.ts",
     "src/{client,image}.tsx",
     "src/router/index.tsx",
     "src/router/fs.tsx",
@@ -23,13 +23,14 @@ export default defineConfig({
   platform: "neutral",
   dts: true,
   exports: {
+    bin: false,
     customExports: {
       "./css/preset.css": "./css/preset.css",
       "./css/default.css": "./css/default.css",
     },
   },
   deps: {
-    onlyBundle: ["@fastify/deepmerge", "http-cache-semantics"],
+    onlyBundle: ["@fastify/deepmerge", "http-cache-semantics", "resolve.exports"],
     neverBundle: [/^virtual:/, /^node:/],
   },
   async onSuccess() {

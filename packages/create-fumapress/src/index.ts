@@ -147,7 +147,7 @@ src/pages.gen.ts
 `,
     "README.md": `# ${name}
 
-This is a Fumapress app powered by Waku and Fumadocs.
+This is a Fumapress app powered by Fumadocs.
 
 ## Development
 
@@ -192,6 +192,8 @@ export default defineConfig({
   content: docs.toFumadocsSource(),
   site: {
     name: "Fumapress",
+    // the URL where your site is deployed, needed for SEO features like sitemap:
+    // baseUrl: "https://example.com",
   },
   meta: {
     root() {
@@ -221,15 +223,13 @@ export default defineConfig({
 }
 `,
     "tsconfig.json": `${JSON.stringify(getTsConfig(), null, 2)}\n`,
-    "waku.config.ts": `import { defineConfig } from "waku/config";
+    "vite.config.ts": `import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 
 export default defineConfig({
-  vite: {
-    plugins: [press(), fumadocsMdx(), tailwindcss()],
-  },
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
 });
 `,
   };
@@ -242,9 +242,9 @@ function getPackageJson(name: string) {
     type: "module",
     sideEffects: false,
     scripts: {
-      dev: "waku dev",
-      build: "waku build",
-      start: "waku start",
+      dev: "fumapress dev",
+      build: "fumapress build",
+      start: "fumapress start",
       "types:check": "tsc --noEmit",
     },
     dependencies: { ...versionsPkg.dependencies, fumapress: corePkg.version },

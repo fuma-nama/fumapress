@@ -11,12 +11,19 @@
       "name": "docs",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/docs", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
     },
     {
       "name": "example-openapi",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "examples/openapi", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "example-obsidian",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/obsidian", "dev"],
       "port": 3000
     }
   ]

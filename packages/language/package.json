@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/language",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "description": "Common language packs for Fumapress",
   "keywords": [
     "Docs",
@@ -34,19 +34,19 @@
   "devDependencies": {
     "@fumapress/ai": "workspace:*",
     "@fumapress/feedback": "workspace:*",
-    "@types/node": "^26.1.2",
-    "fumadocs-core": "^16.14.0",
-    "fumadocs-openapi": "^11.2.3",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
+    "@types/node": "^26.2.0",
+    "fumadocs-core": "^16.14.4",
+    "fumadocs-openapi": "^11.2.4",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.4",
     "fumapress": "workspace:*",
     "tsdown": "0.22.14",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@fumapress/ai": "1.0.0-beta.3",
-    "@fumapress/feedback": "1.0.0-beta.3",
+    "@fumapress/ai": "1.0.0",
+    "@fumapress/feedback": "1.0.0",
     "fumadocs-core": "*",
-    "fumapress": "1.0.0-beta.3"
+    "fumapress": "1.0.0"
   },
   "peerDependenciesMeta": {
     "@fumapress/ai": {

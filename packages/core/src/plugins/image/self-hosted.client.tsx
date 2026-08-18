@@ -1,7 +1,7 @@
 "use client";
 import { type ClientImageProvider, ImageProvider } from "@/components/image";
 import { resolveBaseUrl } from "@/lib/pathname";
-import { type ResolvedImageConfig, validateImageSrc } from "./self-hosted.utils";
+import { type ResolvedImageConfig, validateImageSrc } from "./self-hosted.shared";
 import { type ReactNode, useMemo } from "react";
 
 export function createProvider(config: ResolvedImageConfig): ClientImageProvider {

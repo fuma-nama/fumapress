@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/obsidian",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "description": "Obsidian content source and renderer for Fumapress",
   "keywords": [
     "Docs",
@@ -41,17 +41,17 @@
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "fumadocs-core": "^16.14.0",
-    "fumadocs-ui": "^16.14.0",
+    "fumadocs-core": "^16.14.4",
+    "fumadocs-ui": "^16.14.4",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsdown": "0.22.14",
     "typescript": "6.0.3",
-    "vite": "^8.2.0",
+    "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

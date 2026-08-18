@@ -98,15 +98,15 @@ export default defineConfig({
   {
     id: "image",
     name: "Image Optimization",
-    description: "Responsive & optimized images via CDNs or a self-hosted endpoint.",
+    description:
+      "Responsive & optimized images, configured automatically for your deployment target.",
     keywords: ["image", "sharp", "vercel"],
     docsHref: "/docs/plugins/image",
-    usage: `import { defineConfig } from "fumapress";
-import { imagePlugin } from "fumapress/plugins/image/vercel";
+    usage: `import { Image } from "fumapress/image";
 
-export default defineConfig({
-  // ...
-}).plugins(imagePlugin());`,
+export default function Hero() {
+  return <Image src="/hero.png" width={1200} height={630} />;
+}`,
   },
   {
     id: "sitemap",

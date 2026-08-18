@@ -1,10 +1,6 @@
 "use client";
 /** tiny wrapper of `waku` */
-import {
-  type Unstable_ChangeRouteCallback,
-  type Unstable_ChangeRouteEvent,
-  useRouter as useRouterBase,
-} from "waku/router/client";
+import { useRouter as useRouterBase } from "waku/router/client";
 
 export { Link, type LinkProps } from "@/components/link";
 
@@ -37,15 +33,11 @@ export interface Router {
   back: () => void;
   forward: () => void;
   prefetch: (to: string) => void;
-  unstable_events: Record<
-    "on" | "off",
-    (event: Unstable_ChangeRouteEvent, handler: Unstable_ChangeRouteCallback) => void
-  >;
   path: string;
   query: string;
   hash: string;
 }
 
 export function useRouter(): Router {
-  return useRouterBase() as Router;
+  return useRouterBase();
 }

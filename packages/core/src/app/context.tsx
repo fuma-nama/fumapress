@@ -176,7 +176,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderNotFound,
     renderPage,
     renderRoot,
-    plugins: await preinitPlugins(config.preset, config.plugins ?? []),
+    plugins: await preinitPlugins(config.preset, config.plugins ?? [], { mode }),
     adapters: config.adapters ?? [],
     data: {},
     translationsConfig: translations,
@@ -317,7 +317,7 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 
 function getDefaultBaseUrl() {
   console.warn(
-    '[Fumapress] It is recommended to specify "site.baseUrl" in your config for better SEO.',
+    '[Fumapress] It is recommended to specify "site.baseUrl" in your config for better SEO; sitemap and RSS will fall back to relative URLs.',
   );
   if (import.meta.env.DEV) {
     return "http://localhost:3000";

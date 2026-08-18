@@ -169,28 +169,69 @@ npm i fumadocs-ui
 npm uninstall @base-ui/react
 ```
 
-Optionally, update your Vite config:
+## Vite Plugin
 
-```ts title="waku.config.ts"
-import { defineConfig } from "waku/config";
-import tailwindcss from "@tailwindcss/vite";
+The `press()` plugin connects Fumapress to Vite:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
 import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  vite: {
-    resolve: {
-      // optional, but often solves some weird problems in monorepo
-      dedupe: ["fumadocs-ui"],
-    },
-    plugins: [press(), fumadocsMdx(), tailwindcss()],
-  },
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
 });
+```
+
+It takes the options of the app itself, like the directory layout and deployment target:
+
+<auto-type-table type="import('fumapress/vite').PluginOptions" />
+
+### Deployment Adapter
+
+Vercel, Netlify, and Cloudflare are detected from the environment, other targets fall back to `waku/adapters/node`. Set `adapter` when the detected one isn't what you deploy to:
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  plugins: [
+    press({
+      // [!code ++]
+      adapter: "waku/adapters/vercel",
+    }),
+  ],
+});
+```
+
+## CLI
+
+The `fumapress` CLI runs Vite with the environments your app needs, use it instead of calling `vite` directly.
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start"
+  }
+}
+```
+
+`dev` and `start` accept `--host` (`-h`) and `--port` (`-p`), the port can also be set with the `PORT` environment variable. `dev` listens on port 3000, `start` picks a free port from 8080.
+
+```npm
+npm run dev -- --port 4000
 ```
 
 ## Server Entry
 
 The server entry file is optional, you can create one if needed. Useful for implementing custom router.
+
+Custom server entries use [Waku.js](https://waku.gg) APIs directly. Since Fumapress manages Waku as its own dependency, install it explicitly for direct API access, matching the version pinned by Fumapress:
+
+```npm
+npm i waku@1.0.0-beta.9
+```
 
 ```tsx title="src/waku.server.tsx"
 import _adapter from "waku/adapters/default";

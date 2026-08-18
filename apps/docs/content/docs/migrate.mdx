@@ -6,15 +6,75 @@ icon: ArrowRightLeft
 
 ## Overview
 
-v1 reshapes the config API. Layouts move onto the config object, content is required, and plugin types are renamed.
+v1 changes two things:
 
-Install the beta:
+- Fumapress ships its own CLI and manages Waku.js as an internal dependency, your app no longer installs Waku itself.
+- The config API is reshaped: layouts move onto the config object, `content` is required, and plugin types are renamed.
+
+Update to v1:
 
 ```npm
-npm i fumapress@beta
+npm i fumapress@latest
 ```
 
 `.layouts()` still works as a compat layer, but prefer the new options below.
+
+## CLI & Dependencies
+
+Waku.js is a dependency of Fumapress now, your app no longer installs it:
+
+```npm
+npm uninstall waku react-server-dom-webpack
+
+npm i vite -D
+```
+
+Replace the Waku scripts with the Fumapress CLI:
+
+```json title="package.json"
+{
+  "scripts": {
+    // [!code --:3]
+    "dev": "waku dev",
+    "build": "waku build",
+    "start": "waku start",
+    // [!code ++:3]
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start"
+  }
+}
+```
+
+Rename `waku.config.ts` to `vite.config.ts`. It is a plain Vite config now, use `defineConfig` from `vite` and move the contents of the `vite` field to the top level:
+
+```ts title="vite.config.ts"
+// [!code --]
+import { defineConfig } from "waku/config";
+// [!code ++]
+import { defineConfig } from "vite";
+import press from "fumapress/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  // [!code --:3]
+  vite: {
+    plugins: [press(), fumadocsMdx(), tailwindcss()],
+  },
+  // [!code ++]
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
+});
+```
+
+Waku options (`basePath`, `srcDir`, `distDir`, `privateDir`, `rscBase`, and the deployment adapter) moved into the `press()` plugin options, see [Vite Plugin](/docs/config#vite-plugin).
+
+Two clean-ups left:
+
+- Delete `src/pages.gen.ts` if present, it is stale output of Waku's route typegen (disabled by Fumapress) and its `waku/router` type imports no longer resolve.
+- Remove the `resolve.dedupe: ["fumadocs-ui"]` workaround, `press()` now adds detected framework packages to `resolve.dedupe` itself.
+
+Custom server entries (`src/waku.server.tsx`) keep using Waku APIs directly, install `waku` yourself in that case, see [Server Entry](/docs/config#server-entry).
 
 ## Content
 

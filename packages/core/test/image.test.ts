@@ -1,12 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  resolveImageConfig,
-  validateImageSrc,
   ImageOptimizationCache,
   getOptimizeCacheKey,
   parseImageParams,
   readResponseBodyWithLimit,
 } from "@/plugins/image/self-hosted.utils";
+import { resolveImageConfig, validateImageSrc } from "@/plugins/image/self-hosted.shared";
 import { generateImageAttributes } from "@/components/image";
 import CachePolicy from "http-cache-semantics";
 import { createProvider as createCloudflareProvider } from "@/plugins/image/cloudflare.client";

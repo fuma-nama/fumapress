@@ -33,7 +33,6 @@ const paper = tegami({
   ignore: ["docs", "shared", "@repo/typescript-config", "root", /^example-/],
   groups: {
     fumapress: {
-      prerelease: "beta",
       syncBump: true,
       syncGitTag: true,
     },

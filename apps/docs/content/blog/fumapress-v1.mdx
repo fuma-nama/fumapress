@@ -1,0 +1,77 @@
+---
+title: Fumapress v1
+description: A stable API, and Waku.js out of your dependencies.
+tags: [release]
+---
+
+Fumapress v1 is out. The config API is settled, and the framework underneath is no longer something you install, configure, or think about.
+
+## One dependency
+
+Until now, a Fumapress app was a Waku.js app that happened to use Fumapress. You installed `waku` and `react-server-dom-webpack` yourself, ran `waku dev`, and configured the app in `waku.config.ts`.
+
+v1 takes that layer over. Fumapress ships its own CLI:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start"
+  }
+}
+```
+
+Waku.js is a dependency of Fumapress now, so a fresh install needs Fumapress, Fumadocs, React, and Vite. Your config file is a plain Vite config, and app options like the deployment adapter moved onto the `press()` plugin:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "fumapress/vite";
+
+export default defineConfig({
+  plugins: [press({ adapter: "waku/adapters/vercel" })],
+});
+```
+
+The escape hatch stays open. [Server entries](/docs/config#server-entry) still use Waku APIs directly, you just install `waku` yourself when you need them.
+
+## One config object
+
+Layouts used to live in a `.layouts()` call chained onto the config. They are options now, next to everything else:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+
+const DocsLayout = createDocsLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  content: docs.toFumadocsSource(),
+  defaultLayoutProps: {
+    links: [...],
+  },
+  renderPage: (props) => <DocsLayout {...props} />,
+});
+
+export default config;
+```
+
+`content` is required, which is what makes `config.$context` know the shape of your pages, so layouts and plugins are typed against your own content rather than a generic page.
+
+## Defaults that follow your deployment
+
+The recommended preset already gave you sitemap, robots.txt, llms.txt, RSS, OG images, and search without configuration. v1 adds image optimization to that list, picking a provider from the deployment target it detects:
+
+- **Vercel**: Vercel Image Optimization.
+- **Cloudflare**: Image Transformations.
+- **Node.js**: a self-hosted [Sharp](https://sharp.pixelplumbing.com) endpoint, when Sharp is installed.
+
+Nothing to configure, and nothing to break elsewhere: on other targets the `Image` component keeps rendering a plain `<img>`. Configure the plugin yourself when you need options like `allowedHosts`.
+
+## Upgrading
+
+```npm
+npm i fumapress@latest
+```
+
+The [migration guide](/docs/migrate) covers both halves of the release, the dependency changes and the config API. `.layouts()` still works as a compat layer, so you can move the CLI first and reshape the config after.

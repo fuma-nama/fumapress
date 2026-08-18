@@ -4,31 +4,29 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "dev": "waku dev",
-    "build": "waku build",
-    "start": "waku start",
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.14.0",
-    "fumadocs-mdx": "^15.2.2",
-    "fumadocs-openapi": "^11.2.3",
-    "fumadocs-ui": "^16.14.0",
+    "fumadocs-core": "^16.14.4",
+    "fumadocs-mdx": "^15.2.3",
+    "fumadocs-openapi": "^11.2.4",
+    "fumadocs-ui": "^16.14.4",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-server-dom-webpack": "^19.2.8",
-    "shiki": "^4.4.1",
-    "waku": "1.0.0-beta.8"
+    "shiki": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.2.0"
+    "vite": "^8.2.1"
   }
 }
