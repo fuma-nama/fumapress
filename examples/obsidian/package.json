@@ -12,19 +12,19 @@
   },
   "dependencies": {
     "@fumapress/obsidian": "workspace:*",
-    "fumadocs-core": "^16.14.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.0",
+    "fumadocs-core": "^16.14.4",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.4",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "tailwindcss": "^4.3.3",
     "typescript": "6.0.3",
-    "vite": "^8.2.0"
+    "vite": "^8.2.1"
   }
 }
