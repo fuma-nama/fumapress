@@ -192,6 +192,8 @@ export default defineConfig({
   content: docs.toFumadocsSource(),
   site: {
     name: "Fumapress",
+    // the URL where your site is deployed, needed for SEO features like sitemap:
+    // baseUrl: "https://example.com",
   },
   meta: {
     root() {

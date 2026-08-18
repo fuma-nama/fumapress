@@ -288,7 +288,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
     path = "/sitemap.xml",
     getEntry: _getEntry = async function getEntryDefault(page) {
       return {
-        loc: new URL(page.url, this.siteConfig.baseUrl).href,
+        loc: this.siteConfig.baseUrl ? new URL(page.url, this.siteConfig.baseUrl).href : page.url,
         lastmod: await this.getPageLastModified(page),
         priority: 0.8,
       };
@@ -322,7 +322,10 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
               const segments = route.path.map((v) => v.name!);
               // exclude not-found pages
               if (segments.at(-1) === "404") continue;
-              const loc = new URL("/" + segments.join("/"), this.siteConfig.baseUrl).href;
+              const pathname = "/" + segments.join("/");
+              const loc = this.siteConfig.baseUrl
+                ? new URL(pathname, this.siteConfig.baseUrl).href
+                : pathname;
               if (pageLocs.has(loc)) continue;
 
               entries.push({ loc, priority: 1 });

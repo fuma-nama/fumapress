@@ -171,7 +171,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
       return {
         title: page.data.title ?? page.path,
         description: page.data.description,
-        link: new URL(page.url, this.siteConfig.baseUrl).href,
+        link: this.siteConfig.baseUrl ? new URL(page.url, this.siteConfig.baseUrl).href : page.url,
         pubDate: date,
       };
     },
