@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/obsidian",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "description": "Obsidian content source and renderer for Fumapress",
   "keywords": [
     "Docs",
