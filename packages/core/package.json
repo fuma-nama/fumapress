@@ -11,11 +11,12 @@
   "author": "Fuma Nama",
   "repository": "github:fuma-nama/fumapress",
   "bin": {
-    "fumapress": "./dist/cli.js"
+    "fumapress": "./cli.js"
   },
   "files": [
     "dist",
     "css",
+    "cli.js",
     "LICENSE.vitefu"
   ],
   "type": "module",

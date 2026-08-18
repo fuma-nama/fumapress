@@ -23,6 +23,7 @@ export default defineConfig({
   platform: "neutral",
   dts: true,
   exports: {
+    bin: false,
     customExports: {
       "./css/preset.css": "./css/preset.css",
       "./css/default.css": "./css/default.css",
