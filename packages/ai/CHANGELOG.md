@@ -1,3 +1,19 @@
+## @fumapress/ai@1.0.0
+
+### Redesign the core API for v1
+
+Layouts move onto the config object (`renderPage`, `renderRoot`, `renderNotFound`, `defaultLayoutProps`), `content` replaces `loader`, and plugin types are renamed (`PressPlugin`, `AppShape`).
+
+See the [migration guide](https://press.fumadocs.dev/docs/migrate).
+
+### Fix `aiPlugin` export
+
+`aiPlugin` was re-exported as a type-only export, so `import { aiPlugin } from "@fumapress/ai"` failed at runtime. It is now exported as a value.
+
+### Support the Glass layout
+
+`aiPlugin` now binds AI chat to the Glass layout's native `aiChat` option, the Ask AI trigger is shown in the layout header & sidebar instead of a floating button.
+
 ## @fumapress/ai@1.0.0-beta.2 (beta)
 
 ### Fix `aiPlugin` export

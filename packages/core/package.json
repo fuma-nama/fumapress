@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
