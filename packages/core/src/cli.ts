@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import * as vite from "vite";
 import { unstable_combinedPlugins as combinedPlugins } from "waku/vite-plugins";
 import type { Config } from "waku/config";
-import type { PluginOptions } from "./vite";
+import { getDefaultAdapter, type PluginOptions } from "./vite";
 
 const require = createRequire(import.meta.url);
 
@@ -127,16 +127,6 @@ async function flattenPlugins(plugins: vite.PluginOption[]): Promise<vite.Plugin
   }
 
   return out;
-}
-
-function getDefaultAdapter(): string {
-  return process.env.VERCEL
-    ? "waku/adapters/vercel"
-    : process.env.NETLIFY
-      ? "waku/adapters/netlify"
-      : process.env.CLOUDFLARE || process.env.WORKERS_CI
-        ? "waku/adapters/cloudflare"
-        : "waku/adapters/node";
 }
 
 function resolveConfig(

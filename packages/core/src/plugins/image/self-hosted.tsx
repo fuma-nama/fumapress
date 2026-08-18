@@ -34,7 +34,7 @@ export interface SelfHostedImageOptions {
 }
 
 export function imagePlugin<C extends AppShape = AppShape>(
-  _options: SelfHostedImageOptions,
+  _options: SelfHostedImageOptions = {},
 ): PressPlugin<C> {
   const config = resolveImageConfig(_options);
 

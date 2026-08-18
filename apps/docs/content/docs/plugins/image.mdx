@@ -5,21 +5,19 @@ description: Optimize images under different viewports.
 
 ## Installation
 
-This plugin is included in `fumapress`.
+This plugin is included in `fumapress`, and enabled automatically under the recommended preset (the default) with a provider matching your deployment target, detected from the environment like the deployment adapter:
 
-Choose a provider based on where you deploy:
-
-- **Vercel** — uses [Vercel Image Optimization](https://vercel.com/docs/image-optimization), works with static mode.
-- **Cloudflare** — uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) via `/cdn-cgi/image/`, works with static mode when your zone has transformations enabled.
-- **Self-hosted** — runs a dynamic optimization endpoint powered by [Sharp](https://sharp.pixelplumbing.com/), cannot be served statically.
-
-Install Sharp when using the self-hosted provider:
+- **Vercel**: uses [Vercel Image Optimization](https://vercel.com/docs/image-optimization), works with static mode.
+- **Cloudflare**: uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) via `/cdn-cgi/image/`, works with static mode when your zone has transformations enabled.
+- **Self-hosted** (Node.js): runs a dynamic optimization endpoint powered by [Sharp](https://sharp.pixelplumbing.com/). It requires Sharp to be installed, and cannot be served statically:
 
 ```npm
 npm i sharp
 ```
 
-Enable the plugin in your Fumapress config:
+On other targets, or when the requirements above aren't met, image optimization is skipped and the `Image` component renders a plain `<img>`.
+
+To customize options, add the plugin explicitly in your Fumapress config (it takes priority over the detected provider):
 
 ```tsx tab="Vercel" title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -85,7 +83,7 @@ export default function Hero() {
 When image optimization is enabled, it generates responsive `srcSet` values and serves optimized formats automatically. This allows the browser to pick a suitable size of image, and compress the size of images.
 
 Remote images must be explicitly allowed (self-hosted), match your Vercel image configuration, or be permitted in your Cloudflare zone's transformation settings.
-Local paths such as `/logo.png` are always allowed.
+Local paths such as `/logo.png` are always allowed. You can also pass the `unoptimized` prop to serve an image as-is.
 
 SVG images are not optimized by default.
 

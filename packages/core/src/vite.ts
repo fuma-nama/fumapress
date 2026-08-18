@@ -56,6 +56,16 @@ export interface PluginOptions {
   adapter?: string;
 }
 
+export function getDefaultAdapter(): string {
+  return process.env.VERCEL
+    ? "waku/adapters/vercel"
+    : process.env.NETLIFY
+      ? "waku/adapters/netlify"
+      : process.env.CLOUDFLARE || process.env.WORKERS_CI
+        ? "waku/adapters/cloudflare"
+        : "waku/adapters/node";
+}
+
 export default function press(options?: PluginOptions): Plugin[] {
   return [
     core(options),
@@ -199,7 +209,15 @@ function core(options: PluginOptions = {}): Plugin {
           })
         : null;
 
+      const adapter = options.adapter ?? getDefaultAdapter();
+
       return {
+        define: {
+          // baked into the bundle: runtime env vars are unreliable across platforms (e.g. Cloudflare Workers)
+          "import.meta.env.FUMAPRESS_PLATFORM": JSON.stringify(
+            adapter.startsWith("waku/adapters/") ? adapter.slice("waku/adapters/".length) : "",
+          ),
+        },
         resolve: {
           // packages with React contexts must resolve to a single copy, e.g. pnpm can otherwise
           // instantiate `fumadocs-core` twice from its optional `waku` peer dependency

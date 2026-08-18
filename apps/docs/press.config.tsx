@@ -15,7 +15,6 @@ import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
-import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
@@ -217,13 +216,7 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(
-    imagePlugin({
-      formats: ["image/webp", "image/png"],
-    }),
-    linkValidationPlugin(),
-    mcpPlugin(),
-  );
+  .plugins(linkValidationPlugin(), mcpPlugin());
 
 export default config.plugins(
   blogPlugin({

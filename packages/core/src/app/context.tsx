@@ -176,7 +176,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderNotFound,
     renderPage,
     renderRoot,
-    plugins: await preinitPlugins(config.preset, config.plugins ?? []),
+    plugins: await preinitPlugins(config.preset, config.plugins ?? [], { mode }),
     adapters: config.adapters ?? [],
     data: {},
     translationsConfig: translations,

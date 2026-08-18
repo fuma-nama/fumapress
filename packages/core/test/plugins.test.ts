@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { preinitPlugins, type PressPlugin } from "@/app/plugin";
 import { sitemapPlugin } from "@/plugins/sitemap";
 import { robotsPlugin } from "@/plugins/robots";
@@ -98,7 +98,7 @@ describe("conflict checks", () => {
 
 describe("recommended preset", () => {
   it("adds recommended plugins when enabled", async () => {
-    const plugins = await preinitPlugins("recommended", [], true);
+    const plugins = await preinitPlugins("recommended", [], { _debug_no_takumi: true });
 
     expect(names(plugins)).toEqual([
       "core:i18n",
@@ -121,7 +121,7 @@ describe("recommended preset", () => {
         { name: "core:llms.txt" },
         rssPlugin(),
       ],
-      true,
+      { _debug_no_takumi: true },
     );
 
     expect(names(plugins)).toEqual([
@@ -140,6 +140,52 @@ describe("recommended preset", () => {
     const plugins = await preinitPlugins(false, [rssPlugin()]);
 
     expect(names(plugins)).toEqual(["core:rss", ...ALWAYS]);
+  });
+});
+
+describe("image auto-configuration", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("adds the image plugin of the detected platform", async () => {
+    vi.stubEnv("FUMAPRESS_PLATFORM", "vercel");
+    const plugins = await preinitPlugins("recommended", [], { _debug_no_takumi: true });
+
+    expect(names(plugins)).toContain("image:vercel");
+  });
+
+  it("adds the self-hosted image plugin when sharp is installed", async () => {
+    vi.stubEnv("FUMAPRESS_PLATFORM", "node");
+    const plugins = await preinitPlugins("recommended", [], { _debug_no_takumi: true });
+
+    expect(names(plugins)).toContain("image:self-hosted");
+  });
+
+  it("skips the self-hosted image plugin in static mode", async () => {
+    vi.stubEnv("FUMAPRESS_PLATFORM", "node");
+    const plugins = await preinitPlugins("recommended", [], {
+      mode: "static",
+      _debug_no_takumi: true,
+    });
+
+    expect(names(plugins)).not.toContain("image:self-hosted");
+  });
+
+  it("respects a user-configured image plugin", async () => {
+    vi.stubEnv("FUMAPRESS_PLATFORM", "vercel");
+    const plugins = await preinitPlugins("recommended", [{ name: "image:custom" }], {
+      _debug_no_takumi: true,
+    });
+
+    expect(names(plugins)).toContain("image:custom");
+    expect(names(plugins)).not.toContain("image:vercel");
+  });
+
+  it("skips unknown platforms", async () => {
+    const plugins = await preinitPlugins("recommended", [], { _debug_no_takumi: true });
+
+    expect(names(plugins).some((name) => name?.startsWith("image:"))).toBe(false);
   });
 });
 

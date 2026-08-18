@@ -1,0 +1,20 @@
+---
+packages:
+  "npm:fumapress": minor
+---
+
+### Automatic image optimization
+
+The recommended preset now enables image optimization automatically, with a provider matching your
+deployment adapter (auto-detected from the environment, or set via the `adapter` option):
+
+- **Vercel**: Vercel Image Optimization.
+- **Cloudflare**: Cloudflare Image Transformations.
+- **Node.js**: the self-hosted Sharp endpoint, only when `sharp` is installed in your app and the
+  render mode is not static.
+
+On other targets, or when the requirements above aren't met, image optimization is skipped and the
+`Image` component keeps rendering a plain `<img>`, so `sharp` stays an optional dependency.
+
+An explicitly configured image plugin takes priority over the detected provider. Configure one to
+customize options such as `allowedHosts` for remote images.

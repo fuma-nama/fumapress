@@ -5,7 +5,7 @@ import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type { AppContext, AppShape } from "./context";
 import type { PressProviderProps } from "@/components/provider";
 import { fumapressTranslations } from "@/i18n";
-import type { FumapressConfig } from "@/config";
+import type { BuildMode, FumapressConfig } from "@/config";
 
 export interface PressPlugin<C extends AppShape = AppShape> {
   name?: string;
@@ -98,7 +98,7 @@ function sortPlugins<C extends AppShape>(plugins: PressPlugin<C>[]): PressPlugin
 export async function preinitPlugins<C extends AppShape>(
   preset: FumapressConfig["preset"] = "recommended",
   plugins: PressPluginOption<C>[],
-  _debug_no_takumi = false,
+  env: { mode?: BuildMode; _debug_no_takumi?: boolean } = {},
 ): Promise<PressPlugin<C>[]> {
   const flattened = flattenPlugins(plugins);
   flattened.push(
@@ -154,10 +154,31 @@ export async function preinitPlugins<C extends AppShape>(
     if (!finalizedNames.has("core:flexsearch") && !finalizedNames.has("core:orama-search")) {
       finalized.push((await import("@/plugins/flexsearch")).flexsearchPlugin());
     }
-    if (!_debug_no_takumi && !finalizedNames.has("core:takumi")) {
+    if (!env._debug_no_takumi && !finalizedNames.has("core:takumi")) {
       finalized.push((await import("@/plugins/takumi")).takumiPlugin());
+    }
+    if (!finalized.some((plugin) => plugin.name?.startsWith("image:"))) {
+      // hosting platform detected at build time, from the resolved deployment adapter
+      const platform: string | undefined = import.meta.env.FUMAPRESS_PLATFORM;
+
+      if (platform === "vercel") {
+        finalized.push((await import("@/plugins/image/vercel")).imagePlugin());
+      } else if (platform === "cloudflare") {
+        finalized.push((await import("@/plugins/image/cloudflare")).imagePlugin());
+      } else if (platform === "node" && env.mode !== "static" && hasSharp()) {
+        finalized.push((await import("@/plugins/image/self-hosted")).imagePlugin());
+      }
     }
   }
 
   return sortPlugins(finalized);
+}
+
+function hasSharp(): boolean {
+  try {
+    import.meta.resolve("sharp");
+    return true;
+  } catch {
+    return false;
+  }
 }
