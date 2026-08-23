@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     name: "core",
     environment: "node",
-    include: ["test/**/*.test.ts"],
+    include: ["test/**/*.test.{ts,tsx}"],
   },
   resolve: {
     tsconfigPaths: true,
