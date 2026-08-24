@@ -7,8 +7,12 @@ import { HomeConfigPlayground } from "../home-config-playground";
 import { HomePluginExplorer } from "../home-plugin-explorer";
 import { AutoSetupCommand } from "../home.client";
 import { Image } from "fumapress/image";
+import { asMarkdown, md } from "fumapress/markdown";
+import { commands, plugins } from "../home.data";
 
 export default function Page() {
+  if (asMarkdown()) return pageMarkdown();
+
   return (
     <>
       <title>Fumapress</title>
@@ -69,4 +73,35 @@ export default function Page() {
       <HomePluginExplorer />
     </>
   );
+}
+
+/** the Markdown form of the landing page, see `routes: "all"` of the llms.txt plugin */
+function pageMarkdown() {
+  return md`# Fumapress
+
+> The composable site generator powered by Fumadocs
+
+Build feature-rich content sites, blog, API documentation in seconds with Fumapress, a highly customizable & composable site generator.
+
+- [Getting Started](/docs)
+
+\`\`\`bash
+${commands.npm}
+\`\`\`
+
+## Plugins
+
+${plugins.map(
+  (plugin) => md`### ${plugin.name}
+
+${plugin.description}
+
+[Documentation](${plugin.docsHref})
+
+\`\`\`ts title="press.config.tsx"
+${plugin.usage}
+\`\`\`
+
+`,
+)}`;
 }

@@ -69,6 +69,8 @@ export interface RouteFns extends BaseRouteFns {
       req: Request,
       ctx: { params: Record<string, string | string[]> },
     ) => Promise<Response>;
+    /** source file of the route, files only used by static routes are pruned from the server bundle */
+    unstable_sourceFile?: string;
   }) => void;
 
   /** access `createPages()` output */
@@ -80,6 +82,9 @@ export interface RouteFns extends BaseRouteFns {
  */
 export interface RouteConfig {
   render?: "static" | "dynamic";
+
+  /** static paths of a static page with slugs, the language segment of `autoI18n` is added for you */
+  staticPaths?: string[] | string[][];
 
   /**
    * automatically insert `/[lang]` route segment if i18n is configured, only applicable for pages & layouts.

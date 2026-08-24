@@ -10,7 +10,7 @@ export default defineConfig({
   ignoreWatch: ["src/.translations/**"],
   plugins: [packageTranslationsPlugin()],
   entry: [
-    "src/{index,vite,i18n,cli}.ts",
+    "src/{index,vite,i18n,cli,markdown}.ts",
     "src/{client,image}.tsx",
     "src/router/index.tsx",
     "src/router/fs.tsx",

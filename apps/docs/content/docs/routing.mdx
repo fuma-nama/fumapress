@@ -102,7 +102,23 @@ export default function Page() {
 }
 ```
 
-When i18n is enabled, file-based pages are automatically placed under the language segment (e.g. `/my-page` -> `/en/my-page`). Disable that behavior with `autoI18n: false`:
+A static page with slugs declares its `staticPaths` there as well:
+
+```tsx title="src/pages/tags/[tag].tsx"
+import type { RouteConfig } from "fumapress";
+
+export async function getConfig() {
+  return {
+    staticPaths: ["react", "vue"],
+  } satisfies RouteConfig;
+}
+
+export default function Page({ tag }: { tag: string }) {
+  return <main>{tag}</main>;
+}
+```
+
+When i18n is enabled, file-based pages are automatically placed under the language segment (e.g. `/my-page` -> `/en/my-page`), and the language is added to their static paths for you. Disable that behavior with `autoI18n: false`:
 
 ```tsx title="src/pages/rss.xml.tsx"
 import type { RouteConfig } from "fumapress";
@@ -193,6 +209,9 @@ export default defineConfig({
   // ...
 }).plugins(allDocsPlugin());
 ```
+
+A plugin can also observe the pages of your app and other plugins: `prepareCreatePages()` runs
+before any page is created, wrap `fns.createPage` there to see every page passing through.
 
 ## Client
 

@@ -1,6 +1,6 @@
 {
   "name": "fumapress",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "An opinionated docs framework powered by Fumadocs",
   "keywords": [
     "Docs",
@@ -38,6 +38,7 @@
     "./layouts/notebook": "./dist/layouts/notebook.js",
     "./layouts/root": "./dist/layouts/root.js",
     "./layouts/switch": "./dist/layouts/switch.js",
+    "./markdown": "./dist/markdown.js",
     "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/blog": "./dist/plugins/blog.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
@@ -137,6 +138,9 @@
     "@types/react": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=24"
   },
   "inlinedDependencies": {
     "@fastify/deepmerge": "3.2.1",

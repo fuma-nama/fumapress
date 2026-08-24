@@ -33,7 +33,7 @@ export async function createRouter<U extends ConfigUtils>(
   ) {
     const result = base_createPages(async (_fns) => {
       const { renderRoot, renderPage, renderNotFound } = context;
-      const fns: RouteFns = {
+      let fns: RouteFns = {
         ..._fns,
         unstable_getCreated() {
           return result;
@@ -46,6 +46,7 @@ export async function createRouter<U extends ConfigUtils>(
               staticPaths: config.staticPaths,
               path: config.path,
               handler: config.handler,
+              unstable_sourceFile: config.unstable_sourceFile,
             });
           } else {
             _fns.createApi({
@@ -54,6 +55,7 @@ export async function createRouter<U extends ConfigUtils>(
               handlers: {
                 GET: config.handler,
               },
+              unstable_sourceFile: config.unstable_sourceFile,
             });
           }
         },
@@ -61,20 +63,15 @@ export async function createRouter<U extends ConfigUtils>(
 
       async function resolvePage(slugs: string[], lang?: string) {
         const source = await context.getLoader();
-        let page = source.getPage(slugs, lang);
+        const page = source.getPage(slugs, lang);
         if (!page) unstable_notFound();
 
-        for (const plugin of context.plugins) {
-          const resolved: C["page"] | false | undefined = await plugin.resolvePage?.call(
-            context,
-            page,
-          );
-
-          if (typeof resolved === "object") page = resolved;
-          else if (resolved === false) unstable_notFound();
-        }
-
         return page;
+      }
+
+      for (const plugin of context.plugins) {
+        const out = await plugin.prepareCreatePages?.call(context, fns);
+        if (out) fns = out;
       }
 
       fns.createInterceptor((next) => appContext.run(context, next));
@@ -88,12 +85,7 @@ export async function createRouter<U extends ConfigUtils>(
       const staticPaths: string[][] = [];
       const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
 
-      outer: for (const page of (await context.getLoader()).getPages()) {
-        for (const plugin of context.plugins) {
-          const resolved = await plugin.resolvePage?.call(context, page);
-          if (resolved === false) continue outer;
-        }
-
+      for (const page of (await context.getLoader()).getPages()) {
         staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
       }
 
