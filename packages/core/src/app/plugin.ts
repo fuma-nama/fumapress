@@ -36,15 +36,6 @@ export interface PressPlugin<C extends AppShape = AppShape> {
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
   /**
-   * Resolve the given page before passing to the page renderer:
-   *
-   * - `object`: replace the page object.
-   * - `false`: render not found (will also exclude from static pre-rendering).
-   * - `undefined`: fallback to default.
-   */
-  resolvePage?: (this: AppContext<C>, page: C["page"]) => Awaitable<C["page"] | false | undefined>;
-
-  /**
    * Override the page renderer, use default fallback if `undefined` is returned.
    */
   renderPage?: (

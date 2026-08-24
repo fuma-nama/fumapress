@@ -63,18 +63,8 @@ export async function createRouter<U extends ConfigUtils>(
 
       async function resolvePage(slugs: string[], lang?: string) {
         const source = await context.getLoader();
-        let page = source.getPage(slugs, lang);
+        const page = source.getPage(slugs, lang);
         if (!page) unstable_notFound();
-
-        for (const plugin of context.plugins) {
-          const resolved: C["page"] | false | undefined = await plugin.resolvePage?.call(
-            context,
-            page,
-          );
-
-          if (typeof resolved === "object") page = resolved;
-          else if (resolved === false) unstable_notFound();
-        }
 
         return page;
       }
@@ -95,12 +85,7 @@ export async function createRouter<U extends ConfigUtils>(
       const staticPaths: string[][] = [];
       const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
 
-      outer: for (const page of (await context.getLoader()).getPages()) {
-        for (const plugin of context.plugins) {
-          const resolved = await plugin.resolvePage?.call(context, page);
-          if (resolved === false) continue outer;
-        }
-
+      for (const page of (await context.getLoader()).getPages()) {
         staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
       }
 
