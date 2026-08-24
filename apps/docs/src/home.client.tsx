@@ -7,13 +7,7 @@ import { createHighlighterCoreSync } from "shiki/core";
 import typescript from "shiki/dist/langs/typescript.mjs";
 import vesper from "shiki/dist/themes/vesper.mjs";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-
-const commands = {
-  npm: "npm create fumapress",
-  pnpm: "pnpm create fumapress",
-  yarn: "yarn create fumapress",
-  bun: "bunx create-fumapress",
-};
+import { commands } from "./home.data";
 
 export const highlighter = createHighlighterCoreSync({
   engine: createJavaScriptRegexEngine(),

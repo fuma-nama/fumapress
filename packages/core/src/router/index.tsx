@@ -33,7 +33,7 @@ export async function createRouter<U extends ConfigUtils>(
   ) {
     const result = base_createPages(async (_fns) => {
       const { renderRoot, renderPage, renderNotFound } = context;
-      const fns: RouteFns = {
+      let fns: RouteFns = {
         ..._fns,
         unstable_getCreated() {
           return result;
@@ -46,6 +46,7 @@ export async function createRouter<U extends ConfigUtils>(
               staticPaths: config.staticPaths,
               path: config.path,
               handler: config.handler,
+              unstable_sourceFile: config.unstable_sourceFile,
             });
           } else {
             _fns.createApi({
@@ -54,6 +55,7 @@ export async function createRouter<U extends ConfigUtils>(
               handlers: {
                 GET: config.handler,
               },
+              unstable_sourceFile: config.unstable_sourceFile,
             });
           }
         },
@@ -75,6 +77,11 @@ export async function createRouter<U extends ConfigUtils>(
         }
 
         return page;
+      }
+
+      for (const plugin of context.plugins) {
+        const out = await plugin.prepareCreatePages?.call(context, fns);
+        if (out) fns = out;
       }
 
       fns.createInterceptor((next) => appContext.run(context, next));

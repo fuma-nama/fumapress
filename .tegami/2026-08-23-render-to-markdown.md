@@ -23,6 +23,6 @@ kept as JSX syntax (`<Card title="...">...</Card>`), and so are client component
 server component to give them a Markdown form. `renderToMarkdown(node)` renders a tree yourself.
 
 With `llmsPlugin({ routes: "all" })`, every page created with `createPage()` (`src/pages/index.tsx`,
-blog pages, custom routes) whose component calls `asMarkdown()` gets a `.md` version and is included
-in `/llms-full.txt`, per language with i18n. Plugins can create pages after every other plugin with
-the new `postCreatePages()` hook, and read them via `fns.unstable_getPages()`.
+blog pages, custom routes) whose component calls `asMarkdown()` gets a `.md` version: static pages
+are pre-rendered, dynamic pages are rendered on request. Plugins can observe the pages of other
+plugins with the new `prepareCreatePages()` hook, which runs before any page is created.

@@ -22,6 +22,7 @@ import { Image } from "fumapress/image";
 import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 import { SponsorsMarquee } from "@fumari/sponsors";
 import { defineDocs } from "fumadocs-mdx/macro";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
 const docs = defineDocs({
   dir: "content/docs",
@@ -216,7 +217,7 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(linkValidationPlugin(), mcpPlugin());
+  .plugins(linkValidationPlugin(), mcpPlugin(), llmsPlugin({ routes: "all" }));
 
 export default config.plugins(
   blogPlugin({

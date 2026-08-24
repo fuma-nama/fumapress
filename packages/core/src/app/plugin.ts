@@ -32,6 +32,7 @@ export interface PressPlugin<C extends AppShape = AppShape> {
   /** receive & modify context */
   configure?: (this: AppContext<C>) => Awaitable<void>;
 
+  prepareCreatePages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<RouteFns | undefined>;
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
   /**

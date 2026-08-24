@@ -54,3 +54,37 @@ ${page.data.description ?? ""}`;
 ```
 
 Return `undefined` from `getLLMText` to exclude a page from `/llms-full.txt`.
+
+### `routes`
+
+By default, only pages of your content source get a Markdown version. With `routes: "all"`, every
+page created with `createPage()` gets one too, like `src/pages/index.tsx` or blog pages:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+
+export default defineConfig({
+  // ...
+}).plugins(llmsPlugin({ routes: "all" }));
+```
+
+A page defines its Markdown form by calling `asMarkdown()` from `fumapress/markdown`, pages that
+don't respond 404. Static pages are pre-rendered into `.md` files, so they work in static mode too.
+Dynamic pages are rendered on request, so their Markdown can change over time like the page itself.
+
+```tsx title="src/pages/index.tsx"
+import { asMarkdown, md } from "fumapress/markdown";
+
+export default function Page() {
+  if (asMarkdown()) {
+    return md`
+# My Site
+
+Welcome! Read the [docs](/docs).
+    `;
+  }
+
+  return <main>...</main>;
+}
+```
