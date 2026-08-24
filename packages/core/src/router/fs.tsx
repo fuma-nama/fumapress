@@ -153,11 +153,8 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
-      const autoI18n = config?.autoI18n ?? true;
-      const routePath =
-        this.i18nConfig && autoI18n
-          ? joinPathname("[lang]/(fs)", path)
-          : joinPathname("(fs)", path);
+      const i18n = (config?.autoI18n ?? true) ? this.i18nConfig : undefined;
+      const routePath = i18n ? joinPathname("[lang]/(fs)", path) : joinPathname("(fs)", path);
 
       if (pathItems.at(-1) === "_layout") {
         createLayout({
@@ -169,10 +166,21 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
+      let staticPaths = config?.staticPaths;
+      if (i18n && renderMode === "static") {
+        const withLang: string[][] = [];
+        for (const lang of i18n.languages) {
+          if (!staticPaths) withLang.push([lang]);
+          else for (const item of staticPaths) withLang.push([lang].concat(item));
+        }
+        staticPaths = withLang;
+      }
+
       createPage({
         path: routePath,
         component,
         render: renderMode,
+        staticPaths,
         unstable_sourceFile: srcPath,
       } as never);
     }
