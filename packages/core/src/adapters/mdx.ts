@@ -53,11 +53,7 @@ export function fumadocsMdx<C extends AppShape = AppShape>(
       if (isSyncEntry(page.data)) return page.data.toc;
       if (isAsyncEntry(page.data)) return (await page.data.load()).toc;
     },
-    "core:get-creation-date"(page) {
-      if (isSyncEntry(page.data) || isAsyncEntry(page.data)) {
-        return "date" in page.data && page.data.date instanceof Date ? page.data.date : undefined;
-      }
-    },
+    "core:get-creation-date": getDate,
     async "core:get-modified-date"(page) {
       let data: object;
 
@@ -77,13 +73,15 @@ export function fumadocsMdx<C extends AppShape = AppShape>(
         return parsed.success ? parsed.data.tags : undefined;
       }
     },
-    "tegami:get-date"(page: C["page"]) {
-      if ((isSyncEntry(page.data) || isAsyncEntry(page.data)) && "date" in page.data) {
-        if (page.data.date instanceof Date) return page.data.date;
-        if (typeof page.data.date === "string") return new Date(page.data.date);
-      }
-    },
+    "tegami:get-date": getDate,
   } as Adapter<C>;
+}
+
+function getDate(page: AppShape["page"]) {
+  if ((isSyncEntry(page.data) || isAsyncEntry(page.data)) && "date" in page.data) {
+    if (page.data.date instanceof Date) return page.data.date;
+    if (typeof page.data.date === "string") return new Date(page.data.date);
+  }
 }
 
 const tagsSchema = z.looseObject({
