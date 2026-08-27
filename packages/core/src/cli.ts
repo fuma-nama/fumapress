@@ -10,6 +10,7 @@ import * as vite from "vite";
 import { unstable_combinedPlugins as combinedPlugins } from "waku/vite-plugins";
 import type { Config } from "waku/config";
 import { getDefaultAdapter, type PluginOptions } from "./vite";
+import { assertEsmApp } from "./lib/fs";
 
 const require = createRequire(import.meta.url);
 
@@ -89,6 +90,7 @@ const configCandidates = ["vite.config.ts", "vite.config.js", "vite.config.mts",
 type ResolvedConfig = Required<Omit<Config, "vite">> & Pick<Config, "vite">;
 
 async function loadConfig(configEnv: vite.ConfigEnv): Promise<ResolvedConfig> {
+  assertEsmApp();
   let userConfig: vite.UserConfig | undefined;
 
   if (configCandidates.some((file) => existsSync(file))) {

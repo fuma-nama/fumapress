@@ -100,10 +100,12 @@ export default defineConfig({
 }
 ```
 
-Add scripts:
+Set the package type and scripts, the app must be an ES module:
 
 ```json title="package.json"
 {
+  // [!code ++]
+  "type": "module",
   "scripts": {
     // [!code ++:4]
     "dev": "fumapress dev",
