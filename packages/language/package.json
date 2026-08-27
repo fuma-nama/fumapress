@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/language",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Common language packs for Fumapress",
   "keywords": [
     "Docs",
@@ -43,10 +43,10 @@
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@fumapress/ai": "1.1.0",
-    "@fumapress/feedback": "1.1.0",
+    "@fumapress/ai": "1.1.1",
+    "@fumapress/feedback": "1.1.1",
     "fumadocs-core": "*",
-    "fumapress": "1.1.0"
+    "fumapress": "1.1.1"
   },
   "peerDependenciesMeta": {
     "@fumapress/ai": {
