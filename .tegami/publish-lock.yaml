@@ -1,25 +1,27 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Markdown for every route (`fumapress/markdown`)\n\nServer components can now define their own Markdown form:\n\n```tsx\nimport { asMarkdown, md } from \"fumapress/markdown\";\n\nfunction Callout({ title, children }) {\n  if (asMarkdown()) return md.linePrefix(\"> \")`**${title}**\\n${children}`;\n\n  return <div className=\"callout\">...</div>;\n}\n```\n\nCalling `asMarkdown()` is the opt-in: `md` renders interpolated React nodes, with\n`md.linePrefix(prefix)` and `md.indent(size)` for nested blocks. Components that never call it are\nkept as JSX syntax (`<Card title=\"...\">...</Card>`), and so are client components, wrap those in a\nserver component to give them a Markdown form. `renderToMarkdown(node)` renders a tree yourself.\n\nWith `llmsPlugin({ routes: \"all\" })`, every page created with `createPage()` (`src/pages/index.tsx`,\nblog pages, custom routes) whose component calls `asMarkdown()` gets a `.md` version: static pages\nare pre-rendered, dynamic pages are rendered on request. Plugins can observe the pages of other\nplugins with the new `prepareCreatePages()` hook, which runs before any page is created.\n"
-    filename: 2026-08-23-render-to-markdown.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Bump deps\n\nUse Waku RC 1.\n"
+    filename: 2026-08-27-mtbddfh8.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n## Remove the `resolvePage()` plugin hook\n\nNothing implements it since the blog plugin moved to `renderPage()`, pages now always come from the\ncontent source as-is.\n"
-    filename: 2026-08-24-remove-resolve-page.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:create-fumapress:\n    type: patch\n---\n\n## Require `\"type\": \"module\"` in package.json\n\nWithout it, Vite emits `.mjs` server bundles and static generation fails with a cryptic\n`Cannot find module 'dist/server/build.js'`. The CLI now stops early and tells you to add it.\n"
+    filename: 2026-08-27-require-esm-app.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-08-23-render-to-markdown.md
-      - 2026-08-24-remove-resolve-page.md
+      - 2026-08-27-mtbddfh8.md
+      - 2026-08-27-require-esm-app.md
     id: npm:fumapress
-    updated: true
-  - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
     updated: true
-  - id: npm:@fumapress/graphql
+  - id: npm:create-fumapress-versions
     updated: true
-  - id: npm:create-fumapress
+  - changelogIds:
+      - 2026-08-27-require-esm-app.md
+    id: npm:create-fumapress
+    updated: true
+  - id: npm:@fumapress/graphql
     updated: true
   - id: npm:@fumapress/language
     updated: true
@@ -36,10 +38,10 @@ core:packages:
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
-  - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
-  - id: npm:@fumapress/graphql
+  - id: npm:create-fumapress-versions
   - id: npm:create-fumapress
+  - id: npm:@fumapress/graphql
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/notion

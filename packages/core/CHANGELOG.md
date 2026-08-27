@@ -1,3 +1,14 @@
+## fumapress@1.1.1
+
+### Bump deps
+
+Use Waku RC 1.
+
+### Require `"type": "module"` in package.json
+
+Without it, Vite emits `.mjs` server bundles and static generation fails with a cryptic
+`Cannot find module 'dist/server/build.js'`. The CLI now stops early and tells you to add it.
+
 ## fumapress@1.1.0
 
 ### Markdown for every route (`fumapress/markdown`)
