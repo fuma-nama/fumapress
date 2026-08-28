@@ -1,3 +1,9 @@
+## @fumapress/obsidian@1.1.2
+
+### Loosen `fumapress` dependency ranges
+
+Peer dependencies on `fumapress` (and `@fumapress/*`) now publish as `^x.y.z` instead of an exact version pin, so these packages stay compatible with newer core releases without needing a re-release.
+
 ## @fumapress/obsidian@1.0.0
 
 ### Redesign the core API for v1
