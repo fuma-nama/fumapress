@@ -1,46 +1,61 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Bump deps\n\nUse Waku RC 1.\n"
-    filename: 2026-08-27-mtbddfh8.md
+  - content: "---\npackages:\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n  npm:@fumapress/graphql:\n    type: patch\n  npm:@fumapress/language:\n    type: patch\n  npm:@fumapress/mintlify:\n    type: patch\n  npm:@fumapress/notion:\n    type: patch\n  npm:@fumapress/obsidian:\n    type: patch\n  npm:@fumapress/sanity:\n    type: patch\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n## Loosen `fumapress` dependency ranges\n\nPeer dependencies on `fumapress` (and `@fumapress/*`) now publish as `^x.y.z` instead of an exact version pin, so these packages stay compatible with newer core releases without needing a re-release.\n"
+    filename: 2026-08-28-workspace-peer-ranges.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:create-fumapress:\n    type: patch\n---\n\n## Require `\"type\": \"module\"` in package.json\n\nWithout it, Vite emits `.mjs` server bundles and static generation fails with a cryptic\n`Cannot find module 'dist/server/build.js'`. The CLI now stops early and tells you to add it.\n"
-    filename: 2026-08-27-require-esm-app.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Accept string dates in `core:get-creation-date`\n\nFumadocs MDX serializes frontmatter as JSON, so a `date` field reaches the adapter as a string.\nThe hook only accepted `Date` objects and returned `undefined` otherwise, which made blog posts fall\nback to the build time. It now parses strings, like `tegami:get-date` already did.\n"
+    filename: 2026-08-27-mdx-creation-date.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-08-27-mtbddfh8.md
-      - 2026-08-27-require-esm-app.md
+      - 2026-08-27-mdx-creation-date.md
     id: npm:fumapress
     updated: true
-  - id: npm:@fumapress/feedback
+  - id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
   - changelogIds:
-      - 2026-08-27-require-esm-app.md
-    id: npm:create-fumapress
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/feedback
     updated: true
-  - id: npm:@fumapress/graphql
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/graphql
     updated: true
-  - id: npm:@fumapress/language
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/language
     updated: true
-  - id: npm:@fumapress/mintlify
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/mintlify
     updated: true
-  - id: npm:@fumapress/notion
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/notion
     updated: true
-  - id: npm:@fumapress/obsidian
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/obsidian
     updated: true
-  - id: npm:@fumapress/sanity
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/sanity
     updated: true
-  - id: npm:@fumapress/tegami
+  - changelogIds:
+      - 2026-08-28-workspace-peer-ranges.md
+    id: npm:@fumapress/tegami
     updated: true
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
-  - id: npm:@fumapress/feedback
-  - id: npm:create-fumapress-versions
   - id: npm:create-fumapress
+  - id: npm:create-fumapress-versions
+  - id: npm:@fumapress/feedback
   - id: npm:@fumapress/graphql
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
@@ -50,7 +65,7 @@ npm:packages:
   - id: npm:@fumapress/tegami
   - id: npm:docs
   - id: npm:example-sanity
-  - id: npm:example-obsidian
   - id: npm:example-notion
   - id: npm:example-openapi
+  - id: npm:example-obsidian
   - id: npm:example-radix-ui
