@@ -34,12 +34,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@fumadocs/asyncapi": "^0.3.2",
+    "@fumadocs/asyncapi": "^0.3.3",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
-    "fumadocs-core": "^16.15.3",
-    "fumadocs-openapi": "^11.3.4",
-    "fumadocs-ui": "^16.15.3",
+    "fumadocs-core": "^16.15.4",
+    "fumadocs-openapi": "^11.3.5",
+    "fumadocs-ui": "^16.15.4",
     "fumapress": "workspace:*",
     "hono": "^4.13.5",
     "react": "^19.2.8",
@@ -52,7 +52,7 @@
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
-    "fumapress": "workspace:*",
+    "fumapress": "workspace:^",
     "hono": "*",
     "react": "*"
   },

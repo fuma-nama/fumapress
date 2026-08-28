@@ -35,18 +35,18 @@
     "@fumapress/ai": "workspace:*",
     "@fumapress/feedback": "workspace:*",
     "@types/node": "^26.4.0",
-    "fumadocs-core": "^16.15.3",
-    "fumadocs-openapi": "^11.3.4",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.3",
+    "fumadocs-core": "^16.15.4",
+    "fumadocs-openapi": "^11.3.5",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.4",
     "fumapress": "workspace:*",
     "tsdown": "0.22.14",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@fumapress/ai": "1.1.1",
-    "@fumapress/feedback": "1.1.1",
+    "@fumapress/ai": "workspace:^",
+    "@fumapress/feedback": "workspace:^",
     "fumadocs-core": "*",
-    "fumapress": "1.1.1"
+    "fumapress": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@fumapress/ai": {

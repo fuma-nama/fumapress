@@ -35,15 +35,15 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/graphql": "^0.2.2",
+    "@fumadocs/graphql": "^0.2.3",
     "graphql": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "fumadocs-core": "^16.15.3",
-    "fumadocs-ui": "^16.15.3",
+    "fumadocs-core": "^16.15.4",
+    "fumadocs-ui": "^16.15.4",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -52,7 +52,7 @@
   },
   "peerDependencies": {
     "@types/react": "*",
-    "fumapress": "workspace:*",
+    "fumapress": "workspace:^",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

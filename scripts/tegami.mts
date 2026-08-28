@@ -32,10 +32,6 @@ const paper = tegami({
   ],
   ignore: ["docs", "shared", "@repo/typescript-config", "root", /^example-/],
   groups: {
-    fumapress: {
-      syncBump: true,
-      syncGitTag: true,
-    },
     cli: {
       syncBump: true,
       syncGitTag: true,
@@ -48,7 +44,6 @@ const paper = tegami({
       case "create-fumapress-versions":
         return { group: "cli" };
     }
-    if (name === "fumapress" || name.startsWith("@fumapress/")) return { group: "fumapress" };
   },
 });
 
