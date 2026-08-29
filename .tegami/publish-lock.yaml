@@ -1,55 +1,51 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n  npm:@fumapress/graphql:\n    type: patch\n  npm:@fumapress/language:\n    type: patch\n  npm:@fumapress/mintlify:\n    type: patch\n  npm:@fumapress/notion:\n    type: patch\n  npm:@fumapress/obsidian:\n    type: patch\n  npm:@fumapress/sanity:\n    type: patch\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n## Loosen `fumapress` dependency ranges\n\nPeer dependencies on `fumapress` (and `@fumapress/*`) now publish as `^x.y.z` instead of an exact version pin, so these packages stay compatible with newer core releases without needing a re-release.\n"
-    filename: 2026-08-28-workspace-peer-ranges.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Deprecate `createLayoutSwitchAuto`\n\nWrite a `renderPage` function switching on `page.type` instead, plain code with the same result:\n\n```tsx\nrenderPage: (props) => {\n  if (props.page.type === \"blog\") return <BlogPage {...props} />;\n\n  return <DocsPage {...props} />;\n},\n```\n"
+    filename: 2026-08-29-deprecate-layout-switch-auto.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Accept string dates in `core:get-creation-date`\n\nFumadocs MDX serializes frontmatter as JSON, so a `date` field reaches the adapter as a string.\nThe hook only accepted `Date` objects and returned `undefined` otherwise, which made blog posts fall\nback to the build time. It now parses strings, like `tegami:get-date` already did.\n"
-    filename: 2026-08-27-mdx-creation-date.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Use the Markdown renderer from Fumadocs\n\nThe renderer behind `fumapress/markdown` moved into Fumadocs, so `asMarkdown`, `md`, and\n`renderToMarkdown` are now re-exports of `fumadocs-core/server`. The output is unchanged.\n\nThe `fumadocs-core` peer dependency now requires `16.15.3` or above.\n"
+    filename: 2026-08-29-fumadocs-markdown-renderer.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Treat `data:` images as unoptimized\n\nVite inlines a small image as a `data:` URL at build time. `Image` sent this URL to the image\noptimizer. An optimizer cannot fetch a `data:` URL, so Vercel returned `400 INVALID_IMAGE_OPTIMIZE_REQUEST`\nand the image did not show. `Image` now treats a `data:` src as unoptimized and renders a plain `<img>`.\n"
+    filename: 2026-08-29-image-data-src.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Video & news entries in sitemaps\n\n`SitemapUrl` declared `videos` and `news` fields that were never serialized, setting them\ntype-checked but the values were silently dropped. They are now written to the sitemap, with the\n`video` and `news` namespaces declared on the `urlset`.\n\n`buildSitemap(entries)` is now exported, like `buildRSS`, for serving custom sitemaps from your own\nroutes.\n"
+    filename: 2026-08-29-sitemap-video-news.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Clean up the starter template\n\n- The generated `press.config.tsx` uses your project name as `site.name`, and drops imports of\n  plugins it never registered (they are enabled by the recommended preset anyway).\n- The generated `.gitignore` covers `.env` and `.env.local`, so new projects don't commit secrets.\n"
+    filename: 2026-08-29-create-fumapress-template.md
     v: 0.0.0
 core:packages:
+  - id: npm:@fumapress/ai
+    updated: false
   - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/ai
-    updated: true
-  - changelogIds:
-      - 2026-08-27-mdx-creation-date.md
+      - 2026-08-29-deprecate-layout-switch-auto.md
+      - 2026-08-29-fumadocs-markdown-renderer.md
+      - 2026-08-29-image-data-src.md
+      - 2026-08-29-sitemap-video-news.md
     id: npm:fumapress
     updated: true
-  - id: npm:create-fumapress
+  - changelogIds:
+      - 2026-08-29-create-fumapress-template.md
+    id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/feedback
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/graphql
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/language
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/mintlify
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/notion
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/obsidian
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/sanity
-    updated: true
-  - changelogIds:
-      - 2026-08-28-workspace-peer-ranges.md
-    id: npm:@fumapress/tegami
-    updated: true
+  - id: npm:@fumapress/feedback
+    updated: false
+  - id: npm:@fumapress/graphql
+    updated: false
+  - id: npm:@fumapress/language
+    updated: false
+  - id: npm:@fumapress/mintlify
+    updated: false
+  - id: npm:@fumapress/notion
+    updated: false
+  - id: npm:@fumapress/obsidian
+    updated: false
+  - id: npm:@fumapress/sanity
+    updated: false
+  - id: npm:@fumapress/tegami
+    updated: false
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
@@ -66,6 +62,6 @@ npm:packages:
   - id: npm:docs
   - id: npm:example-sanity
   - id: npm:example-notion
-  - id: npm:example-openapi
   - id: npm:example-obsidian
+  - id: npm:example-openapi
   - id: npm:example-radix-ui
