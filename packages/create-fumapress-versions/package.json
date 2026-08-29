@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress-versions",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "dependencies": {
     "@base-ui/react": "^1.7.0",
