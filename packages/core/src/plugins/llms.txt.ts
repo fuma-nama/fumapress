@@ -7,7 +7,7 @@ import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { joinPathname } from "@/lib/pathname";
 import { DocsLayoutContextData } from "@/layouts/docs";
-import { renderRoute } from "@/lib/markdown";
+import { renderRoute } from "fumadocs-core/server";
 import { createElement, type FC } from "react";
 
 export interface LLMsOptions<C extends AppShape = AppShape> {

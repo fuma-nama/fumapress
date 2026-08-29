@@ -40,7 +40,7 @@
     "@base-ui/react": "^1.7.0",
     "@notionhq/client": "^5.26.0",
     "cnfast": "^0.1.0",
-    "lucide-react": "^1.34.0"
+    "lucide-react": "^1.35.0"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",

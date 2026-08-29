@@ -1,1 +1,1 @@
-export { asMarkdown, md, renderToMarkdown, type MarkdownTag } from "./lib/markdown";
+export { asMarkdown, md, renderToMarkdown, type MarkdownTag } from "fumadocs-core/server";

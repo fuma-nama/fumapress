@@ -30,11 +30,11 @@
   },
   "dependencies": {
     "@portabletext/react": "^8.0.1",
-    "@sanity/client": "^8.3.0",
+    "@sanity/client": "^8.4.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@fumadocs/sanity": "^0.2.1",
+    "@fumadocs/sanity": "^0.2.2",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "fumadocs-core": "^16.15.4",

@@ -38,7 +38,7 @@
     "ai": "^7.0.83",
     "cnfast": "^0.1.0",
     "flexsearch": "^0.8.212",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.35.0",
     "unist-util-visit": "^5.1.0",
     "zod": "^4.4.3"
   },

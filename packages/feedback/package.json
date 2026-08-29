@@ -38,7 +38,7 @@
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.35.0",
     "octokit": "^5.0.5",
     "zod": "^4.4.3"
   },
