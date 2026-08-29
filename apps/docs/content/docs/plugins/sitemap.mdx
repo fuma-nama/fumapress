@@ -73,6 +73,48 @@ export default defineConfig({
 
 `getEntry` receives the app context as `this`, so you can access `siteConfig`, and other plugin APIs.
 
+Each entry supports the standard sitemap fields (`loc`, `lastmod`, `changefreq`, `priority`), plus the Google extensions:
+
+- `alternates`: alternate language versions of the page, written as `xhtml:link` hreflang elements.
+- `images`: images on the page ([image extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps)).
+- `videos`: videos on the page ([video extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps)).
+- `news`: news article metadata ([Google News extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap)), at most one per URL.
+
+An entry with a video looks like:
+
+```tsx
+{
+  loc: "https://example.com/videos/intro",
+  videos: [
+    {
+      thumbnail_loc: "https://example.com/thumbs/intro.jpg",
+      title: "Introducing Fumapress",
+      description: "A quick tour of the framework.",
+      content_loc: "https://example.com/videos/intro.mp4",
+    },
+  ],
+}
+```
+
+For example, linking language versions on an internationalized site:
+
+```tsx title="press.config.tsx"
+sitemapPlugin({
+  async getEntry(page) {
+    const { baseUrl } = this.siteConfig;
+
+    return {
+      loc: new URL(page.url, baseUrl).href,
+      alternates: this.i18nConfig!.languages.map((lang) => ({
+        rel: "alternate",
+        hreflang: lang,
+        href: new URL(`/${lang}/${page.slugs.join("/")}`, baseUrl).href,
+      })),
+    };
+  },
+});
+```
+
 ### `additionalEntries`
 
 Append extra URLs that are not backed by content pages. Each entry's `loc` must be a fully-qualified
@@ -110,3 +152,7 @@ sitemapPlugin({
   },
 });
 ```
+
+## Custom Sitemaps
+
+For additional sitemaps, the `buildSitemap` function serializes entries to XML, serve it from your own [API route](/docs/routing) the same way as a [custom RSS feed](/docs/plugins/rss#custom-feeds).

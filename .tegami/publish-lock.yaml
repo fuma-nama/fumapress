@@ -1,45 +1,58 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Markdown for every route (`fumapress/markdown`)\n\nServer components can now define their own Markdown form:\n\n```tsx\nimport { asMarkdown, md } from \"fumapress/markdown\";\n\nfunction Callout({ title, children }) {\n  if (asMarkdown()) return md.linePrefix(\"> \")`**${title}**\\n${children}`;\n\n  return <div className=\"callout\">...</div>;\n}\n```\n\nCalling `asMarkdown()` is the opt-in: `md` renders interpolated React nodes, with\n`md.linePrefix(prefix)` and `md.indent(size)` for nested blocks. Components that never call it are\nkept as JSX syntax (`<Card title=\"...\">...</Card>`), and so are client components, wrap those in a\nserver component to give them a Markdown form. `renderToMarkdown(node)` renders a tree yourself.\n\nWith `llmsPlugin({ routes: \"all\" })`, every page created with `createPage()` (`src/pages/index.tsx`,\nblog pages, custom routes) whose component calls `asMarkdown()` gets a `.md` version: static pages\nare pre-rendered, dynamic pages are rendered on request. Plugins can observe the pages of other\nplugins with the new `prepareCreatePages()` hook, which runs before any page is created.\n"
-    filename: 2026-08-23-render-to-markdown.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Deprecate `createLayoutSwitchAuto`\n\nWrite a `renderPage` function switching on `page.type` instead, plain code with the same result:\n\n```tsx\nrenderPage: (props) => {\n  if (props.page.type === \"blog\") return <BlogPage {...props} />;\n\n  return <DocsPage {...props} />;\n},\n```\n"
+    filename: 2026-08-29-deprecate-layout-switch-auto.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n## Remove the `resolvePage()` plugin hook\n\nNothing implements it since the blog plugin moved to `renderPage()`, pages now always come from the\ncontent source as-is.\n"
-    filename: 2026-08-24-remove-resolve-page.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Use the Markdown renderer from Fumadocs\n\nThe renderer behind `fumapress/markdown` moved into Fumadocs, so `asMarkdown`, `md`, and\n`renderToMarkdown` are now re-exports of `fumadocs-core/server`. The output is unchanged.\n\nThe `fumadocs-core` peer dependency now requires `16.15.3` or above.\n"
+    filename: 2026-08-29-fumadocs-markdown-renderer.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Treat `data:` images as unoptimized\n\nVite inlines a small image as a `data:` URL at build time. `Image` sent this URL to the image\noptimizer. An optimizer cannot fetch a `data:` URL, so Vercel returned `400 INVALID_IMAGE_OPTIMIZE_REQUEST`\nand the image did not show. `Image` now treats a `data:` src as unoptimized and renders a plain `<img>`.\n"
+    filename: 2026-08-29-image-data-src.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Video & news entries in sitemaps\n\n`SitemapUrl` declared `videos` and `news` fields that were never serialized, setting them\ntype-checked but the values were silently dropped. They are now written to the sitemap, with the\n`video` and `news` namespaces declared on the `urlset`.\n\n`buildSitemap(entries)` is now exported, like `buildRSS`, for serving custom sitemaps from your own\nroutes.\n"
+    filename: 2026-08-29-sitemap-video-news.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Clean up the starter template\n\n- The generated `press.config.tsx` uses your project name as `site.name`, and drops imports of\n  plugins it never registered (they are enabled by the recommended preset anyway).\n- The generated `.gitignore` covers `.env` and `.env.local`, so new projects don't commit secrets.\n"
+    filename: 2026-08-29-create-fumapress-template.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
+    updated: false
+  - changelogIds:
+      - 2026-08-29-deprecate-layout-switch-auto.md
+      - 2026-08-29-fumadocs-markdown-renderer.md
+      - 2026-08-29-image-data-src.md
+      - 2026-08-29-sitemap-video-news.md
+    id: npm:fumapress
     updated: true
   - changelogIds:
-      - 2026-08-23-render-to-markdown.md
-      - 2026-08-24-remove-resolve-page.md
-    id: npm:fumapress
+      - 2026-08-29-create-fumapress-template.md
+    id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
-    updated: true
+    updated: false
   - id: npm:@fumapress/graphql
-    updated: true
-  - id: npm:create-fumapress
-    updated: true
+    updated: false
   - id: npm:@fumapress/language
-    updated: true
+    updated: false
   - id: npm:@fumapress/mintlify
-    updated: true
+    updated: false
   - id: npm:@fumapress/notion
-    updated: true
+    updated: false
   - id: npm:@fumapress/obsidian
-    updated: true
+    updated: false
   - id: npm:@fumapress/sanity
-    updated: true
+    updated: false
   - id: npm:@fumapress/tegami
-    updated: true
+    updated: false
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
+  - id: npm:create-fumapress
   - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
   - id: npm:@fumapress/graphql
-  - id: npm:create-fumapress
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/notion
@@ -48,7 +61,7 @@ npm:packages:
   - id: npm:@fumapress/tegami
   - id: npm:docs
   - id: npm:example-sanity
-  - id: npm:example-obsidian
   - id: npm:example-notion
+  - id: npm:example-obsidian
   - id: npm:example-openapi
   - id: npm:example-radix-ui

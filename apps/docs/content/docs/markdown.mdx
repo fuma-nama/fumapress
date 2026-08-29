@@ -1,0 +1,68 @@
+---
+title: Markdown Output
+description: Define the Markdown form of your React pages.
+icon: FileText
+---
+
+## Overview
+
+Fumapress serves pages as Markdown for LLMs and AI agents through the [llms.txt plugin](/docs/plugins/llms.txt). Content pages get their Markdown from the content source, while custom routes built with React can define their own Markdown form with `fumapress/markdown`.
+
+## API
+
+### `asMarkdown`
+
+Inside a server component, `asMarkdown()` returns whether the current render targets Markdown, and calling it opts the component in:
+
+```tsx
+import { asMarkdown, md } from "fumapress/markdown";
+
+function Callout({ title, children }) {
+  if (asMarkdown()) return md.linePrefix("> ")`**${title}**\n${children}`;
+
+  return <div className="callout">...</div>;
+}
+```
+
+Components that never call it are kept as JSX syntax in the output (`<Card title="...">...</Card>`), and so are client components since they don't run during the server render. Wrap a client component in a server component to give it a Markdown form.
+
+### `md`
+
+A tagged template returning a `Promise<string>`. Interpolated values can be strings, React nodes, or arrays and promises of them, rendered to Markdown in place:
+
+```tsx
+export default function Page() {
+  if (asMarkdown()) {
+    return md`
+# My Site
+
+Welcome! Read the [docs](/docs).
+    `;
+  }
+
+  return <main>...</main>;
+}
+```
+
+Indentation from the source code is stripped, so templates stay correct when your formatter indents them.
+
+Use `md.linePrefix(prefix)` to prefix every line of a block, such as `"> "` for blockquotes, and `md.indent(size)` to indent it, such as content nested under a list item:
+
+```tsx
+md`
+- **${item.title}**
+${md.indent()`${item.body}`}
+`;
+```
+
+### `renderToMarkdown`
+
+Renders a React tree to a Markdown string yourself:
+
+```tsx
+import { renderToMarkdown } from "fumapress/markdown";
+
+const text = await renderToMarkdown(<Page />);
+```
+
+Standard HTML elements are converted to their Markdown equivalents, non-content tags like `<script>` and `<style>` are dropped. Code block languages are detected from the `data-lang`/`lang` attributes, or a `language-*` class name.

@@ -1,0 +1,27 @@
+---
+title: Loosen `fumapress` dependency ranges
+date: 2026-08-28T11:07:52.974Z
+packages:
+  "@fumapress/ai":
+    version: 1.1.2
+  "@fumapress/feedback":
+    version: 1.1.2
+  "@fumapress/graphql":
+    version: 1.1.2
+  "@fumapress/language":
+    version: 1.1.2
+  "@fumapress/mintlify":
+    version: 1.1.2
+  "@fumapress/notion":
+    version: 1.1.2
+  "@fumapress/obsidian":
+    version: 1.1.2
+  "@fumapress/sanity":
+    version: 1.1.2
+  "@fumapress/tegami":
+    version: 1.1.2
+---
+
+## Loosen `fumapress` dependency ranges
+
+Peer dependencies on `fumapress` (and `@fumapress/*`) now publish as `^x.y.z` instead of an exact version pin, so these packages stay compatible with newer core releases without needing a re-release.

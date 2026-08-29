@@ -1,3 +1,18 @@
+## create-fumapress@0.1.12
+
+### Clean up the starter template
+
+- The generated `press.config.tsx` uses your project name as `site.name`, and drops imports of
+  plugins it never registered (they are enabled by the recommended preset anyway).
+- The generated `.gitignore` covers `.env` and `.env.local`, so new projects don't commit secrets.
+
+## create-fumapress@0.1.10
+
+### Require `"type": "module"` in package.json
+
+Without it, Vite emits `.mjs` server bundles and static generation fails with a cryptic
+`Cannot find module 'dist/server/build.js'`. The CLI now stops early and tells you to add it.
+
 ## create-fumapress@0.1.5
 
 ### Migrate built-in search to ZBSearch

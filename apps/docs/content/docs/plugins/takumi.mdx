@@ -21,7 +21,7 @@ export default defineConfig({
   .plugins(takumiPlugin());
 ```
 
-The plugin creates a `.webp` Open Graph image for every docs page and adds the matching metadata:
+The plugin creates a `.webp` Open Graph image for every docs page with [Takumi](https://takumi.kane.tw), and adds the matching metadata:
 
 ```html
 <meta property="og:image" content="/docs/page.webp" />
@@ -30,7 +30,7 @@ The plugin creates a `.webp` Open Graph image for every docs page and adds the m
 <meta property="twitter:card" content="summary_large_image" />
 ```
 
-The default image uses `fumadocs-ui/og/takumi` with the page title, description, and site name.
+The default image shows the page title, description, and site name.
 
 <Callout type='warn'>
 
@@ -92,4 +92,10 @@ export default defineConfig({
 );
 ```
 
-The image size is fixed at `1200x630`, and the response format is always `webp`.
+### `width` / `height`
+
+The image dimensions, defaulting to `1200x630`. They are applied to the rendered image and the `og:image` meta tags, the response format is always `webp`.
+
+```tsx title="press.config.tsx"
+takumiPlugin({ width: 1600, height: 840 });
+```

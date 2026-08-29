@@ -1,0 +1,13 @@
+---
+title: Accept string dates in `core:get-creation-date`
+date: 2026-08-28T11:07:52.974Z
+packages:
+  fumapress:
+    version: 1.1.2
+---
+
+### Accept string dates in `core:get-creation-date`
+
+Fumadocs MDX serializes frontmatter as JSON, so a `date` field reaches the adapter as a string.
+The hook only accepted `Date` objects and returned `undefined` otherwise, which made blog posts fall
+back to the build time. It now parses strings, like `tegami:get-date` already did.

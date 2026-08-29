@@ -69,7 +69,7 @@ export default defineConfig({
 }).plugins(llmsPlugin({ routes: "all" }));
 ```
 
-A page defines its Markdown form by calling `asMarkdown()` from `fumapress/markdown`, pages that
+A page defines its Markdown form by calling `asMarkdown()` from [`fumapress/markdown`](/docs/markdown), pages that
 don't respond 404. Static pages are pre-rendered into `.md` files, so they work in static mode too.
 Dynamic pages are rendered on request, so their Markdown can change over time like the page itself.
 
@@ -87,4 +87,12 @@ Welcome! Read the [docs](/docs).
 
   return <main>...</main>;
 }
+```
+
+### `autoRedirect`
+
+When a request prefers Markdown in its `Accept` header (e.g. from an AI agent), the plugin serves the page's Markdown version at the original URL. Enabled by default, ignored in static mode since it requires a server:
+
+```tsx title="press.config.tsx"
+llmsPlugin({ autoRedirect: false });
 ```

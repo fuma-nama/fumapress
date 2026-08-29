@@ -44,3 +44,31 @@ export function myPlugin<C extends AppShape = AppShape>(): PressPlugin<C> {
   };
 }
 ```
+
+## Middlewares
+
+Plugins can add [Hono](https://hono.dev) middlewares with `createMiddlewares()`, which run before routes on the server. For example, redirecting legacy URLs:
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, PressPlugin } from "fumapress";
+
+export function redirectsPlugin<C extends AppShape = AppShape>(
+  redirects: Record<string, string>,
+): PressPlugin<C> {
+  return {
+    name: "redirects",
+    createMiddlewares() {
+      return [
+        async (c, next) => {
+          const to = redirects[c.req.path];
+          if (to) return c.redirect(to, 308);
+
+          return next();
+        },
+      ];
+    },
+  };
+}
+```
+
+Middlewares require a server, they don't apply to a static deployment.

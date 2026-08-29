@@ -50,8 +50,13 @@ export async function compilePackageTranslations(
 export function packageTranslationsPlugin(options: CompilePackageTranslationsOptions = {}) {
   return {
     name: "generate-translations",
-    async buildStart() {
-      await compilePackageTranslations(options);
+    // "pre": must complete before `rolldown-plugin-dts` runs tsgo in its own `buildStart`,
+    // which snapshots the filesystem and misses a `src/.translations` generated after it
+    buildStart: {
+      order: "pre" as const,
+      async handler() {
+        await compilePackageTranslations(options);
+      },
     },
   };
 }

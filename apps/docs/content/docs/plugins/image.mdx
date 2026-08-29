@@ -83,9 +83,14 @@ export default function Hero() {
 When image optimization is enabled, it generates responsive `srcSet` values and serves optimized formats automatically. This allows the browser to pick a suitable size of image, and compress the size of images.
 
 Remote images must be explicitly allowed (self-hosted), match your Vercel image configuration, or be permitted in your Cloudflare zone's transformation settings.
-Local paths such as `/logo.png` are always allowed. You can also pass the `unoptimized` prop to serve an image as-is.
+Local paths such as `/logo.png` are always allowed.
 
-SVG images are not optimized by default.
+Props specific to the component:
+
+- `quality`: compression quality from 1 to 100, defaults to the provider's default.
+- `sizes`: the standard [`sizes`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/sizes) attribute, also used to decide the generated `srcSet` widths.
+- `preload`: emit a preload hint for the image, defaults to `true`. Disable it for below-the-fold images.
+- `unoptimized`: serve the image as-is. SVG images are not optimized by default.
 
 ## Options
 

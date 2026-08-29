@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/graphql",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Generate docs for your GraphQL schema with Fumapress",
   "keywords": [
     "Docs",
@@ -35,24 +35,24 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/graphql": "^0.1.2",
+    "@fumadocs/graphql": "^0.2.4",
     "graphql": "^17.0.2"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "fumadocs-core": "^16.14.4",
-    "fumadocs-ui": "^16.14.4",
+    "@types/react-dom": "^19.2.5",
+    "fumadocs-core": "^16.15.4",
+    "fumadocs-ui": "^16.15.4",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsdown": "0.22.14",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "peerDependencies": {
     "@types/react": "*",
-    "fumapress": "workspace:*",
+    "fumapress": "workspace:^",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

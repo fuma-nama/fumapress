@@ -54,3 +54,31 @@ export default config;
 ```
 
 The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.
+
+### Interceptors
+
+`render` returns props. For full control over the rendered components, intercept them instead:
+
+- `renderLayout`: wraps `<DocsLayout />`.
+- `renderPage`: wraps `<DocsPage />`.
+- `renderBody`: wraps the body element.
+
+Each receives the resolved props and a `next` function rendering the original component:
+
+```tsx title="press.config.tsx"
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  renderPage({ props, next }) {
+    return next({
+      ...props,
+      children: (
+        <>
+          {props.children}
+          <Comments />
+        </>
+      ),
+    });
+  },
+});
+```
+
+By default, layouts merge `defaultLayoutProps` into their props, set `inherit: { layoutProps: false }` to opt out.

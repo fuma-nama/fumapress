@@ -1,4 +1,4 @@
-import { dump } from "js-yaml";
+import { stringify } from "yaml";
 import type { ChangelogEntry, WorkspacePackage } from "tegami";
 import type z from "zod";
 import type { changelogPageSchema } from "./schema";
@@ -38,5 +38,5 @@ function formatSections(entry: ChangelogEntry): string {
 }
 
 function toFrontmatter(data: z.input<typeof changelogPageSchema>): string {
-  return `---\n${dump(data, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
+  return `---\n${stringify(data, { lineWidth: 0 }).trimEnd()}\n---\n\n`;
 }

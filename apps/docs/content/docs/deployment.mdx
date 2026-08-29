@@ -1,0 +1,144 @@
+---
+title: Deployment
+description: Build and deploy your Fumapress app.
+icon: CloudUpload
+---
+
+## Overview
+
+`fumapress build` writes the app to `dist/`:
+
+- `dist/public`: static assets and prerendered pages.
+- `dist/server`: the server bundle.
+
+Two settings control the result: the **render mode** decides how much of the app is prerendered, and the **deployment adapter** packages the output for your hosting platform.
+
+## Render Mode
+
+Set `mode` in your press config:
+
+```ts title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  // ...
+  // [!code ++]
+  mode: "static",
+});
+```
+
+- `default`: pages are prerendered, API routes such as the search endpoint still run on a server.
+- `static`: only static files are emitted, deploy `dist/public` to any static host or CDN.
+- `dynamic`: pages render on request, for content sources that change after the build.
+
+See [Render Mode](/docs/config#render-mode) for choosing one. A route's own `render` config takes priority over the global mode, see [Routing](/docs/routing).
+
+### Static Mode
+
+With `mode: "static"`, every route is prerendered into `dist/public`:
+
+- An HTML file per page, and a `404.html`.
+- The output of enabled plugins, like `sitemap.xml` and Open Graph images.
+- The search index at `/api/search`, downloaded by the search dialog to run queries in the browser.
+
+Plugins that require a server fail the build with an error:
+
+- [OpenAPI](/docs/plugins/openapi) proxy
+- [AI](/docs/plugins/ai) and [MCP](/docs/plugins/mcp)
+- [Feedback](/docs/plugins/feedback) integrations
+- [Notion](/docs/adapters/notion) file proxy
+
+Self-hosted image optimization is skipped automatically.
+
+## Platforms
+
+Each platform is served by a deployment adapter, detected from environment variables at build time: Vercel, Netlify, and Cloudflare set them on their build machines, other environments fall back to `waku/adapters/node`. To build for a platform from elsewhere (e.g. your own CI), set the `adapter` option:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "fumapress/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      // [!code ++]
+      adapter: "waku/adapters/cloudflare",
+    }),
+  ],
+});
+```
+
+The adapter also selects the [image optimization](/docs/plugins/image) provider on Vercel, Cloudflare, and Node.js.
+
+### Node.js
+
+The default target. Build, then start the server:
+
+```npm
+npm run build
+npm run start
+```
+
+`fumapress start` runs the server entry emitted by the Node.js adapter, which serves both `dist/public` and dynamic routes. It reads the `PORT` and `HOST` environment variables, or pass `--port`/`--host`. You can also run the entry directly without the CLI:
+
+```bash
+PORT=8080 node dist/serve-node.js
+```
+
+For image optimization on Node.js, install `sharp` as a dependency, the recommended preset picks it up automatically.
+
+### Vercel
+
+No configuration needed: import the repository, and the build produces a [Build Output API](https://vercel.com/docs/build-output-api) structure with static files and a serverless function for dynamic routes. Image optimization uses [Vercel Image Optimization](https://vercel.com/docs/image-optimization).
+
+### Netlify
+
+The build emits a `netlify.toml` when your project has none, with `dist/public` as the publish directory and a Netlify Function for dynamic routes. Commit the generated file, or configure those values yourself.
+
+### Cloudflare
+
+The app deploys as a Cloudflare Worker with static assets. [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected automatically; to build elsewhere, set the adapter as shown above.
+
+The build generates a Wrangler config unless your project already has one, in which case its `name` and compatibility settings are reused. It also points Wrangler at the built worker, so you can deploy right after building:
+
+```bash
+npx wrangler deploy
+```
+
+Image optimization uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/), enable it on your zone.
+
+### Static Hosting
+
+For GitHub Pages, CDNs, or any other static file host: set `mode: "static"`, build, and upload `dist/public`. The emitted `404.html` is picked up by hosts that support it.
+
+When the site is served from a sub-path (e.g. `https://user.github.io/repo/`), set `basePath`:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "fumapress/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      // [!code ++]
+      basePath: "/repo/",
+    }),
+  ],
+});
+```
+
+## Environment Variables
+
+The CLI loads `.env` and `.env.local` (plus mode-specific variants like `.env.production`) before running, variables already set in the environment take priority. Read them with `process.env` in `press.config.tsx` and server code, no prefix required:
+
+```tsx title="press.config.tsx"
+const client = createClient({
+  token: process.env.CMS_TOKEN,
+});
+```
+
+Client-side code follows the usual Vite convention: only variables prefixed with `VITE_` are exposed through `import.meta.env`.
+
+Files that must stay readable only on the server, such as key files, belong in the `private` directory (configurable with the `privateDir` plugin option).
+
+Also set `site.baseUrl` to your production URL, metadata, feeds, and sitemap entries resolve against it.

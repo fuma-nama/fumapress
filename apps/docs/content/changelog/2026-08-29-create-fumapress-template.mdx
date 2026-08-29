@@ -1,0 +1,13 @@
+---
+title: Clean up the starter template
+date: 2026-08-29T15:36:11.837Z
+packages:
+  create-fumapress:
+    version: 0.1.12
+---
+
+### Clean up the starter template
+
+- The generated `press.config.tsx` uses your project name as `site.name`, and drops imports of
+  plugins it never registered (they are enabled by the recommended preset anyway).
+- The generated `.gitignore` covers `.env` and `.env.local`, so new projects don't commit secrets.

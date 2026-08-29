@@ -1,0 +1,104 @@
+---
+title: Sanity
+description: Pull documents from Sanity CMS and render them with Fumapress.
+---
+
+The `@fumapress/sanity` package provides a dynamic content source backed by a Sanity dataset, and the adapter plugin needed to render Portable Text content.
+
+## Installation
+
+Install the integration and the Sanity client:
+
+```npm
+npm i @fumapress/sanity @sanity/client
+```
+
+## Document Schema
+
+Point the integration at a document type in your Sanity Studio, with the fields:
+
+| Field         | Type                          |
+| ------------- | ----------------------------- |
+| `title`       | string (required)             |
+| `slug`        | slug (required)               |
+| `description` | string                        |
+| `body`        | block content (Portable Text) |
+
+For a complete Studio, see [`examples/example-sanity-studio`](https://github.com/fuma-nama/fumapress/tree/main/examples/example-sanity-studio), which also defines custom block types like callouts, cards, tabs, and steps.
+
+## Configuration
+
+For a runnable project, see [`examples/example-sanity`](https://github.com/fuma-nama/fumapress/tree/main/examples/example-sanity).
+
+Create the shared integration once, use it as the Fumapress content source, and pass the same object to `sanityPlugin()`:
+
+```tsx title="press.config.tsx"
+import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
+import { createClient } from "@sanity/client";
+import { defineConfig } from "fumapress";
+
+const sanity = fumapressSanity({
+  client: createClient({
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
+    dataset: process.env.SANITY_STUDIO_DATASET,
+    apiVersion: "2024-12-04",
+  }),
+  docType: "docs",
+});
+
+export default defineConfig({
+  content: sanity.dynamicSource(),
+  loaderOptions: {
+    alwaysRevalidate: true,
+  },
+  mode: "dynamic",
+}).plugins(sanityPlugin(sanity));
+```
+
+`alwaysRevalidate` is the simplest way to reflect Sanity edits immediately. For a higher-traffic site, leave it disabled and call `revalidateLoader()` from a trusted webhook or revalidation route instead.
+
+### Paths
+
+Page URLs are generated from the `slug` field, which may contain `/` for nested routes. Use `baseDir` to place the pages under a directory, or `generatePath` for complete control over the virtual file path:
+
+```tsx
+sanity.dynamicSource({
+  baseDir: "docs",
+  generatePath(doc) {
+    return `${doc.slug?.current ?? doc._id}.mdx`;
+  },
+});
+```
+
+## Rendering
+
+`sanityPlugin()` implements the content adapter:
+
+- Renders the Portable Text body and its table of contents.
+- Extracts plain text for search and LLM exports.
+- Resolves creation & modified dates from the document's `_createdAt` and `_updatedAt`.
+
+The default renderer covers standard blocks only. To support your own block types, pass a `PortableText` renderer with the component mapping:
+
+```tsx title="press.config.tsx"
+import { fumapressSanity } from "@fumapress/sanity";
+import { PortableText } from "@portabletext/react";
+
+const sanity = fumapressSanity({
+  // ...
+  PortableText({ value }) {
+    return (
+      <PortableText
+        value={value}
+        components={{
+          types: {
+            callout: ({ value }) => <Callout title={value.title}>{/* ... */}</Callout>,
+          },
+        }}
+      />
+    );
+  },
+});
+```
+
+The example project includes ready-made mappings for callouts, cards, files, tabs, steps, and accordions, matching the block types of the example Studio.

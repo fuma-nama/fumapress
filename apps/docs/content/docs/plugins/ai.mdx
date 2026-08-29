@@ -45,3 +45,42 @@ Finally, initialize the `src/app.css` file and add the following:
 /* [!code ++] */
 @import "@fumapress/ai/css/preset.css";
 ```
+
+The plugin adds an "Ask AI" trigger to the docs, notebook, and glass layouts, backed by a `/api/ai` endpoint that searches your documentation to answer. The endpoint needs a server, so the plugin is not compatible with `mode: "static"`.
+
+## Options
+
+### `systemPrompt`
+
+Overrides the default system prompt, which instructs the model to search your docs and cite sources as links:
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: openai("gpt-5"),
+  systemPrompt:
+    "You are the assistant for the Acme docs. Search the docs before answering, and keep answers short with source links.",
+});
+```
+
+### `beforeRequest`
+
+Runs before each request to `/api/ai`, return a `Response` to reject it. Since the endpoint calls your model provider, add rate limiting or other validation before exposing it publicly:
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: openai("gpt-5"),
+  async beforeRequest(req) {
+    if (await isRateLimited(req)) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
+  },
+});
+```
+
+### `pageToIndex`
+
+Controls how pages are indexed for the model's search tool, return `null` to exclude a page. Same as the [MCP plugin](/docs/plugins/mcp) option.
+
+### `configureUI`
+
+Whether to add the built-in chat UI to layouts, defaults to `true`. Set it to `false` to integrate the endpoint with your own UI.

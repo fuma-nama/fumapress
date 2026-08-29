@@ -221,7 +221,7 @@ export function Image({
     };
   }, [_src, _width, _height, pathname]);
 
-  if (src && ctx?.provider.canOptimize && !ctx.provider.canOptimize(src)) {
+  if (src && (src.startsWith("data:") || ctx?.provider.canOptimize?.(src) === false)) {
     unoptimized = true;
   }
 

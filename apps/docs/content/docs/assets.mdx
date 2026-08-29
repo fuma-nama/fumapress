@@ -1,0 +1,78 @@
+---
+title: Static Assets
+description: Serve images, favicons, and other files.
+icon: Image
+---
+
+## Public Directory
+
+Files in the `public` directory are served from the root URL path: `public/screenshot.png` is available at `/screenshot.png`. They are copied to the build output as-is.
+
+## Images
+
+Reference them from Markdown with an absolute path:
+
+```mdx
+![A preview of the editor](/screenshot.png)
+```
+
+Markdown images are rendered through the `Image` component, so they benefit from [image optimization](/docs/plugins/image) when a provider is enabled.
+
+In your own components, use the component directly and give it intrinsic dimensions to avoid layout shift:
+
+```tsx
+import { Image } from "fumapress/image";
+
+<Image src="/screenshot.png" width={1200} height={630} alt="A preview of the editor" />;
+```
+
+### Navbar Logo
+
+A common use is the site logo, passed as part of the navbar title:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { Image } from "fumapress/image";
+
+export default defineConfig({
+  // ...
+  defaultLayoutProps: {
+    nav: {
+      title: (
+        <>
+          <Image src="/logo.png" width={64} height={64} className="size-8" alt="" />
+          My Docs
+        </>
+      ),
+    },
+  },
+});
+```
+
+## Favicon
+
+Place the icon in `public` and link it from `meta.root`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  // ...
+  meta: {
+    root() {
+      return (
+        <>
+          {/* [!code ++] */}
+          <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        </>
+      );
+    },
+  },
+});
+```
+
+The same place works for any other head tag, such as web fonts or verification tags, see [Meta](/docs/config#meta).
+
+## Open Graph Images
+
+Social preview images are generated per page by the [Takumi plugin](/docs/plugins/takumi), enabled by default. See its `generate` option to customize the design.

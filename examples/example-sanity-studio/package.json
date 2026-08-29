@@ -13,18 +13,18 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.3.5",
+    "@sanity/code-input": "^7.3.7",
     "@sanity/icons": "^5.2.1",
-    "@sanity/vision": "^6.9.2",
-    "fumadocs-core": "^16.14.4",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.14.4",
+    "@sanity/vision": "^6.11.0",
+    "fumadocs-core": "^16.15.4",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sanity": "^6.9.2",
+    "sanity": "^6.11.0",
     "styled-components": "^6.5.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }

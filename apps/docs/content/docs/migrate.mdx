@@ -148,7 +148,11 @@ export const { getPressContext } = config.utils();
 export default config;
 ```
 
-## Types
+## Plugin & Adapter Authors
+
+The remaining changes only affect custom plugins and adapters.
+
+### Types
 
 | Before                                | After                               |
 | ------------------------------------- | ----------------------------------- |
@@ -176,7 +180,7 @@ export function myPlugin<C extends AppShape>(): PressPlugin<C> {
 }
 ```
 
-## App Context
+### App Context
 
 Helpers that used to take `ctx` as an argument are methods on `AppContext`:
 
@@ -204,7 +208,7 @@ data["core:docs-layout"].renderers;
 data["core:docs-layout"].transformers;
 ```
 
-## Adapters
+### Adapters
 
 `core:render-body` is renamed to `core:get-body`, and returns `{ node }` instead of a bare React node:
 
@@ -220,7 +224,7 @@ async "core:get-body"(page) {
 }
 ```
 
-## Plugins
+### Plugins
 
 Plugins that appended OG tags (or other meta) via `data["core:page-meta"]` should use `interceptPageMeta`:
 

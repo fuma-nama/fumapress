@@ -9,6 +9,7 @@ type PageLayout<C extends AppShape> = (opts: {
   page: C["page"];
 }) => ReactNode;
 
+/** @deprecated write a `renderPage` function switching on `page.type` instead */
 export function createLayoutSwitchAuto<C extends AppShape = AppShape>(
   layouts: Record<C["page"] extends Page<infer Type extends string> ? Type : never, PageLayout<C>>,
 ): PageLayout<C> {
