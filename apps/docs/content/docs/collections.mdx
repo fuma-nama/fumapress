@@ -1,0 +1,108 @@
+---
+title: Content Collections
+description: Combine docs, blog, and other content on one site.
+icon: Library
+---
+
+## Overview
+
+`content` accepts a single source, or a record of named sources to host several collections on one site:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+import {
+  blogMetaSchema,
+  blogPageSchema,
+  metaSchema,
+  pageSchema,
+} from "fumapress/adapters/mdx/schema";
+
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true, schema: pageSchema },
+  meta: { schema: metaSchema },
+});
+
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: { async: true, schema: blogPageSchema },
+  meta: { schema: blogMetaSchema },
+});
+
+export default defineConfig({
+  content: {
+    docs: docs.toFumadocsSource({ baseDir: "docs" }),
+    blog: blog.toFumadocsSource({ baseDir: "blog" }),
+  },
+});
+```
+
+`baseDir` places each collection under its own URL prefix:
+
+| File                     | URL           |
+| ------------------------ | ------------- |
+| `content/docs/index.mdx` | `/docs`       |
+| `content/blog/hello.mdx` | `/blog/hello` |
+
+The record keys become the `type` of each page, so code can tell which collection a page belongs to. Plugins use it too: the [blog plugin](/docs/plugins/blog) treats pages with `type === "blog"` as blog posts by default.
+
+## Layout per Collection
+
+To render each collection with a different layout, switch on `page.type` in `renderPage`. For example, with a `docs` and a `guides` collection:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createDocsLayoutPage } from "fumapress/layouts/docs";
+import { createHomeLayoutPage } from "fumapress/layouts/home";
+
+const DocsPage = createDocsLayoutPage<typeof config.$context>();
+const GuidePage = createHomeLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => {
+    if (props.page.type === "guides") return <GuidePage {...props} />;
+
+    return <DocsPage {...props} />;
+  },
+});
+
+export default config;
+```
+
+Collections consumed by a plugin, such as the [blog plugin](/docs/plugins/blog) or [Tegami](/docs/plugins/tegami), are rendered by the plugin itself, you only configure the layout of the remaining collections.
+
+## Sidebar
+
+All sources merge into a single page tree, with each `baseDir` as a top-level folder. Mark a collection's folder as a root folder so the sidebar only shows its own pages while browsing it:
+
+```json title="content/docs/meta.json"
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": ["..."]
+}
+```
+
+See [Page Tree](https://fumadocs.dev/docs/page-conventions) for root folders and other conventions.
+
+To present one collection as the entire sidebar instead of a folder, replace the tree in your layout's `render` option:
+
+```tsx title="press.config.tsx"
+const DocsPage = createDocsLayoutPage<typeof config.$context>({
+  async render({ locale }) {
+    let pageTree = (await this.getLoader()).getPageTree(locale);
+
+    for (const child of pageTree.children) {
+      if (child.type === "folder" && child.$id === "docs") {
+        pageTree = { ...pageTree, children: child.children };
+      }
+    }
+
+    return {
+      layoutProps: { tree: pageTree },
+    };
+  },
+});
+```

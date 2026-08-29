@@ -135,7 +135,7 @@ export default function Page() {
 }
 ```
 
-For file-based API routes, place files under `src/pages/_api`. Export HTTP method handlers:
+For file-based API routes, place files under `src/pages/_api`. Export handlers named after HTTP methods (`GET`, `POST`, etc.):
 
 ```ts title="src/pages/_api/version.ts"
 export async function GET() {
@@ -145,7 +145,23 @@ export async function GET() {
 }
 ```
 
+Or a default export to handle all methods:
+
+```ts title="src/pages/_api/version.ts"
+export default async function handler(req: Request) {
+  return Response.json({
+    version: "1.0.0",
+  });
+}
+```
+
+API routes are dynamic by default. Under `mode: "static"` they are prerendered instead, which supports only a single `GET` handler.
+
+<Callout type='warn'>
+
 Fumapress still creates the default catch-all route for content pages, so avoid defining a file-based route and a content page with the same URL.
+
+</Callout>
 
 ### With Plugins
 
@@ -268,6 +284,13 @@ function Nav() {
 router.push("/docs", { scroll: false });
 router.replace("/docs", { scroll: true });
 ```
+
+The router also exposes:
+
+- `back()` / `forward()`: history navigation.
+- `reload()`: re-render the current route.
+- `prefetch(to)`: preload a route before navigating.
+- `hash`: the current location hash.
 
 ### Server Redirects
 

@@ -1,0 +1,119 @@
+---
+title: RSS
+description: Generate an RSS feed for your app.
+---
+
+## Usage
+
+This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). It serves a `/rss.xml` feed of your pages, newest first, and links it from the document head so feed readers can discover it.
+
+To customize it, add the plugin with options, it takes priority over the preset:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { rssPlugin } from "fumapress/plugins/rss";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .plugins(
+    rssPlugin({
+      title: "My Docs",
+      description: "Updates from my documentation",
+      language: "en-us",
+    }),
+  );
+```
+
+`title` defaults to `site.name`. Set `site.baseUrl` so item links and the feed's self link resolve to absolute URLs.
+
+## Options
+
+### `getItem`
+
+Controls how a page becomes a feed item. Pages are dated with the creation date from your content source (e.g. the `date` frontmatter with Fumadocs MDX), falling back to the last modified date, **undated pages are excluded**.
+
+Override it to change titles, add categories, or filter pages, return `undefined` to exclude one:
+
+```tsx title="press.config.tsx"
+rssPlugin({
+  async getItem(page) {
+    if (!page.url.startsWith("/blog/")) return;
+
+    return {
+      title: page.data.title,
+      link: new URL(page.url, this.siteConfig.baseUrl).href,
+      description: page.data.description,
+      pubDate: await this.getPageCreatedAt(page),
+    };
+  },
+});
+```
+
+| Field         | Description                                |
+| ------------- | ------------------------------------------ |
+| `title`       | Item title (required)                      |
+| `link`        | Fully qualified URL of the item (required) |
+| `description` | Item summary                               |
+| `pubDate`     | Publication date, as `Date` or string      |
+| `guid`        | Unique identifier, defaults to `link`      |
+| `author`      | Author email address                       |
+| `categories`  | Category names                             |
+
+### `additionalItems`
+
+Extra items to include, as an array or a function returning one. Useful for entries that are not pages of your content source:
+
+```tsx title="press.config.tsx"
+rssPlugin({
+  additionalItems: [
+    {
+      title: "Introducing Fumapress",
+      link: "https://example.com/blog/introducing-fumapress",
+      pubDate: new Date("2026-06-01"),
+    },
+  ],
+});
+```
+
+### `limit`
+
+Maximum number of items, defaults to `20`.
+
+### `alternateLink`
+
+Whether to add the `<link rel="alternate">` discovery tag to all pages, defaults to `true`.
+
+### `path`
+
+The route path, defaults to `/rss.xml`.
+
+## Custom Feeds
+
+For additional feeds, the `buildRSS` function serializes a channel to XML, serve it from your own [API route](/docs/routing):
+
+```ts title="src/pages/_api/blog/rss.xml.ts"
+import { buildRSS } from "fumapress/plugins/rss";
+
+export async function GET() {
+  return new Response(
+    buildRSS({
+      title: "My Blog",
+      link: "https://example.com/blog",
+      description: "Posts from my blog",
+      items: [
+        {
+          title: "Hello World",
+          link: "https://example.com/blog/hello-world",
+          pubDate: new Date("2026-08-29"),
+        },
+      ],
+    }),
+    {
+      headers: { "Content-Type": "application/rss+xml" },
+    },
+  );
+}
+```

@@ -70,3 +70,46 @@ export default function Layout({ children }: { children: ReactNode }) {
 ```
 
 The `<HomeLayout />` is a normal component that you can use anywhere.
+
+## Layout Props
+
+`createHomeLayout` accepts `layoutProps` to configure the navbar, deep-merged with `defaultLayoutProps`:
+
+```tsx title="press.config.tsx"
+import { createHomeLayout } from "fumapress/layouts/home";
+import { BookIcon } from "lucide-react";
+
+export const HomeLayout = createHomeLayout<typeof config.$context>({
+  layoutProps: {
+    links: [
+      {
+        url: "/docs",
+        text: "Documentation",
+        icon: <BookIcon />,
+        active: "nested-url",
+      },
+      {
+        url: "https://github.com/acme/docs",
+        text: "GitHub",
+        external: true,
+      },
+    ],
+  },
+});
+```
+
+Set `inherit: { layoutProps: false }` to opt out of `defaultLayoutProps`.
+
+A layout defined this way can be shared across your app, as a file-based layout and with plugins that render their own pages:
+
+```tsx tab="src/pages/_layout.tsx"
+export { HomeLayout as default } from "../../press.config";
+```
+
+```tsx tab="press.config.tsx"
+config.plugins(
+  blogPlugin({
+    layouts: { layout: HomeLayout },
+  }),
+);
+```

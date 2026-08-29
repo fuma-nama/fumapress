@@ -1,0 +1,68 @@
+---
+title: robots.txt
+description: Generate a robots.txt file for your app.
+---
+
+## Usage
+
+This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). It serves a `/robots.txt` that allows all crawlers, with a `Sitemap` entry when the [sitemap plugin](/docs/plugins/sitemap) is enabled.
+
+To customize it, add the plugin with options, it takes priority over the preset:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+// [!code ++]
+import { robotsPlugin } from "fumapress/plugins/robots";
+
+export default defineConfig({
+  // ...
+})
+  // [!code ++]
+  .plugins(robotsPlugin());
+```
+
+## Options
+
+### `rules`
+
+Rules are written as one section per entry, defaults to allowing everything:
+
+```tsx title="press.config.tsx"
+robotsPlugin({
+  rules: [
+    {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/private", "/drafts"],
+    },
+    {
+      userAgent: "GPTBot",
+      disallow: "/",
+    },
+  ],
+});
+```
+
+Each rule accepts:
+
+- `userAgent`: one or more user agents, defaults to `*`.
+- `allow` / `disallow`: one or more path rules.
+- `crawlDelay`: seconds to wait between requests.
+
+### `sitemap`
+
+The `Sitemap` entry. Pass a path resolved against `site.baseUrl`, a full URL, or `false` to omit it:
+
+```tsx title="press.config.tsx"
+robotsPlugin({
+  sitemap: false,
+});
+```
+
+### `additionalContent`
+
+Raw text appended to the output, for directives without a dedicated option.
+
+### `path`
+
+The route path, defaults to `/robots.txt`.

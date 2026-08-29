@@ -102,6 +102,12 @@ export default defineConfig({
 );
 ```
 
+<Callout>
+  Post tags are resolved through the `blog:get-tags` adapter hook. The Fumadocs MDX adapter reads
+  the `tags` frontmatter, for other sources, implement the hook in your [adapter](/docs/adapters),
+  otherwise posts have no tags.
+</Callout>
+
 ## Options
 
 ### `paths`

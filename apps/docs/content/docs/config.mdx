@@ -38,6 +38,8 @@ export default defineConfig({
 
 The repository is used for the icon link in navbar, and the link to source file of pages.
 
+Source file links are resolved against the detected git root, set `git.rootDir` to override it, such as when building in an environment without the `.git` directory.
+
 #### Git Providers
 
 `git.provider` supports `github` (default), `gitlab`, and `bitbucket`, the navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
@@ -76,11 +78,32 @@ const config = defineConfig({
 export default config;
 ```
 
+`renderNotFound` customizes the not found screen, shown for unknown URLs and `notFound()` calls:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { Link } from "fumapress/client";
+
+export default defineConfig({
+  // [!code ++:6]
+  renderNotFound: () => (
+    <main>
+      <h1>Page not found</h1>
+      <Link href="/">Back to home</Link>
+    </main>
+  ),
+});
+```
+
 See [Layouts](/docs/layouts) for details.
 
 ### Render Mode
 
-By default, Fumapress build both static & dynamic routes. If you plan to deploy it to a CDN as a static site, you need to specify a render mode.
+`mode` controls how routes are rendered:
+
+- `default`: when your content source will not change after production build. It still emits API routes, such as the search API endpoint, which require a running server to host.
+- `static`: same as `default`, but will not emit API routes. Production builds emit only static files, which can be served via CDNs.
+- `dynamic`: when your content source will change after production build. Requires a running server to host.
 
 ```ts title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -92,7 +115,67 @@ export default defineConfig({
 });
 ```
 
-This will force Fumapress to build all routes as static.
+See [Deployment](/docs/deployment) for hosting each mode.
+
+### Preset
+
+By default, Fumapress adds recommended plugins automatically:
+
+- [Sitemap](/docs/plugins/sitemap)
+- [robots.txt](/docs/plugins/robots)
+- [llms.txt](/docs/plugins/llms.txt)
+- [RSS](/docs/plugins/rss)
+- Search with [Flexsearch](/docs/plugins/flexsearch)
+- OG images with [Takumi](/docs/plugins/takumi)
+- [Image optimization](/docs/plugins/image) matching your deployment target
+
+Plugins you add yourself take priority, e.g. adding `oramaSearchPlugin()` replaces the default search.
+
+To start from an empty plugin list instead:
+
+```ts title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  // ...
+  // [!code ++]
+  preset: false,
+});
+```
+
+### Loader Options
+
+`loaderOptions` configures the [Loader API](https://fumadocs.dev/docs/headless/source-api) that Fumapress creates from your content sources. A common use is loader plugins, such as resolving the `icon` frontmatter field to Lucide icons:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+
+export default defineConfig({
+  // ...
+  // [!code ++:3]
+  loaderOptions: {
+    plugins: [lucideIconsPlugin()],
+  },
+});
+```
+
+For dynamic content sources (e.g. a CMS), `alwaysRevalidate: true` refetches them on every request:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+
+export default defineConfig({
+  // ...
+  // [!code ++:3]
+  loaderOptions: {
+    alwaysRevalidate: true,
+  },
+});
+```
+
+Leave it disabled to control this yourself with `getPressContext().revalidateLoader()`.
 
 ### Meta
 
@@ -190,7 +273,7 @@ It takes the options of the app itself, like the directory layout and deployment
 
 ### Deployment Adapter
 
-Vercel, Netlify, and Cloudflare are detected from the environment, other targets fall back to `waku/adapters/node`. Set `adapter` when the detected one isn't what you deploy to:
+Vercel, Netlify, and Cloudflare are detected from the environment, other targets fall back to `waku/adapters/node`. Set `adapter` when the detected one isn't what you deploy to, see [Deployment](/docs/deployment):
 
 ```ts title="vite.config.ts"
 export default defineConfig({
@@ -230,7 +313,7 @@ The server entry file is optional, you can create one if needed. Useful for impl
 Custom server entries use [Waku.js](https://waku.gg) APIs directly. Since Fumapress manages Waku as its own dependency, install it explicitly for direct API access, matching the version pinned by Fumapress:
 
 ```npm
-npm i waku@1.0.0-beta.9
+npm i waku@1.0.0-rc.0
 ```
 
 ```tsx title="src/waku.server.tsx"

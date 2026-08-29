@@ -40,6 +40,8 @@ This is my first document.
 
 The block at the top is frontmatter. `title` and `description` show in the page layout. Use `##` in the body: Fumapress already renders `title` as the main heading.
 
+Frontmatter also accepts an `icon`, a [Lucide](https://lucide.dev) icon name shown in the sidebar. Icon names are resolved by the `lucideIconsPlugin` loader plugin, see [Loader Options](/docs/config#loader-options).
+
 Add another file:
 
 ```mdx title="content/getting-started.mdx"
@@ -256,5 +258,8 @@ In Fumapress, pass sources through `content` in `press.config.tsx`. You do not m
   </Card>
   <Card href="/docs/config" title="Configurations">
     All options in press.config.tsx.
+  </Card>
+  <Card href="/docs/deployment" title="Deployment">
+    Build the app and deploy it to your hosting platform.
   </Card>
 </Cards>

@@ -68,13 +68,47 @@ export default defineConfig({
 
 Start the dev server and write content under your collection directory.
 
+## Frontmatter
+
+With `pageSchema`, pages support the following frontmatter fields:
+
+| Field         | Description                                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `title`       | The page title (required)                                                                                        |
+| `description` | Shown below the title and in page metadata                                                                       |
+| `icon`        | A [Lucide](https://lucide.dev) icon name shown in the sidebar, see [Loader Options](/docs/config#loader-options) |
+
+The adapter also reads fields your schema adds:
+
+- `date`: the creation date, used by [RSS](/docs/plugins/rss) and [changelog entries](/docs/plugins/tegami).
+- `tags`: post tags, included in `blogPageSchema`, see [Blog](/docs/plugins/blog).
+
+For example, to support `date`:
+
+```tsx title="press.config.tsx"
+import { pageSchema } from "fumapress/adapters/mdx/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { z } from "zod";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    schema: pageSchema.extend({
+      date: z.coerce.date().optional(),
+    }),
+  },
+});
+```
+
+The last modified date comes from git history when the collection sets `lastModified: true`.
+
 ## Options
 
 The adapter only handle body rendering, see the [Fumadocs MDX documentation](https://fumadocs.dev/docs/mdx) for other available configurations.
 
 ### MDX Components
 
-By default, `fumadocsMdx()` renders pages with Fumadocs UI's built-in MDX components.
+By default, `fumadocsMdx()` renders pages with Fumadocs UI's built-in MDX components: the Markdown elements, plus `Card`, `Cards`, and `Callout`. Other components such as `Tabs`, `Steps`, and `Files` are not registered, import them inside the MDX file, or register them globally.
 
 Override `getMdxComponents` to add custom components:
 

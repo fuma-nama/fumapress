@@ -91,9 +91,14 @@ import { zhCN } from "@fumapress/language/zh-cn";
 
 const translations = i18n
   .translations()
-  // add Traditional Chinese translations to `cn` locale [!code ++]
+  // add Simplified Chinese translations to `cn` locale [!code ++]
   .preset("cn", zhCN());
 ```
+
+Available presets:
+
+- `zhCN`
+- `zhTW`
 
 When using a language pack, you do not need to include integrations with `extend()` unless you want to override the default translations.
 
@@ -104,7 +109,7 @@ When using a language pack, you do not need to include integrations with `extend
 
 ### Writing Content
 
-Add Markdown/JSON files for different languages by attending `.{locale}` to your file name, like:
+Add Markdown/JSON files for different languages by appending `.{locale}` to your file name, like:
 
 <Files>
   <Folder name="content" defaultOpen>

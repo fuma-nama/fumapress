@@ -35,7 +35,24 @@ export default defineConfig({
 ```
 
 The `onPageFeedbackAction` & `onTextFeedbackAction` options are [Server Functions](https://react.dev/reference/rsc/server-functions#usage) to be called by client.
-They receive the user feedback, you can define the flow afterwards (e.g. storing that in your analytics platform).
+They receive the user feedback, you can define the flow afterwards (e.g. storing that in your analytics platform):
+
+```tsx title="press.config.tsx"
+feedbackPlugin({
+  async onPageFeedbackAction({ opinion, url, message }) {
+    "use server";
+    await analytics.track("page-feedback", { opinion, url, message });
+    return {};
+  },
+  async onTextFeedbackAction({ url, blockId, blockBody, message }) {
+    "use server";
+    const discussion = await createDiscussion({ url, blockId, blockBody, message });
+    return { githubUrl: discussion.url };
+  },
+});
+```
+
+The returned `githubUrl`/`emailSent` tells the UI where the feedback went, the payload and response types are exported from `@fumapress/feedback/schema`.
 
 Finally, initialize the `src/app.css` file and add the following:
 
@@ -81,8 +98,8 @@ Finally, initialize the `src/app.css` file and add the following:
      // [!code highlight:12]
      .plugins(
        githubFeedbackPlugin({
-         appId: import.meta.env.GITHUB_APP_ID,
-         privateKey: import.meta.env.GITHUB_PRIVATE_KEY,
+         appId: process.env.GITHUB_APP_ID!,
+         privateKey: process.env.GITHUB_PRIVATE_KEY!,
          // your repository info, e.g.
          storage: {
            owner: "fuma-nama",
@@ -125,7 +142,7 @@ Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays
      // [!code highlight:9]
      .plugins(
        emailFeedbackPlugin({
-         apiKey: import.meta.env.RESEND_API_KEY,
+         apiKey: process.env.RESEND_API_KEY!,
          from: "Docs <feedback@yourdomain.com>",
          to: "team@yourdomain.com",
          // optional: subject lines become `${subjectPrefix} /path`
@@ -135,6 +152,8 @@ Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays
    ```
 
    `to` may be a single address or an array.
+
+Both integrations accept a `beforeRequest` hook that runs before each feedback request, return a `Response` to reject it (e.g. for rate limiting). They register API routes, so they are not compatible with `mode: "static"`.
 
 <Callout type="warn" title="Do not enable the GitHub and email integrations at the same time">
   Both plugins register `/api/feedback/page` and `/api/feedback/text`, this will cause conflicts.

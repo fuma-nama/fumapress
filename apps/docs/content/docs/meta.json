@@ -5,6 +5,9 @@
   "pages": [
     "index",
     "basics",
+    "assets",
+    "collections",
+    "deployment",
     "internationalization",
     "migrate",
     "---Reference---",
