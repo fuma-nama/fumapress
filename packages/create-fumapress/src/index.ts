@@ -141,6 +141,8 @@ function getFiles(name: string) {
     ".gitignore": `.DS_Store
 /node_modules/
 
+.env
+.env.local
 dist
 .source
 src/pages.gen.ts
@@ -168,9 +170,6 @@ This is my first document.
     "press.config.tsx": `import { defineConfig } from "fumapress";
 import { fumadocsMdx } from "fumapress/adapters/mdx";
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
 import { defineDocs } from "fumadocs-mdx/macro";
 
 const docs = defineDocs({
@@ -191,7 +190,7 @@ const docs = defineDocs({
 export default defineConfig({
   content: docs.toFumadocsSource(),
   site: {
-    name: "Fumapress",
+    name: ${JSON.stringify(name)},
     // the URL where your site is deployed, needed for SEO features like sitemap:
     // baseUrl: "https://example.com",
   },

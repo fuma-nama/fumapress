@@ -68,83 +68,56 @@ export interface SitemapImage {
 }
 
 /**
- * Publication metadata for a `news:news` entry (Google News sitemap extension).
- *
- * @see https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap
- */
-export interface SitemapNewsPublication {
-  /** Publication name; must match Google News exactly if submitted there. */
-  name: string;
-  /** Primary language of the publication in ISO 639 format (two or three letter code). */
-  language: string;
-}
-
-/**
- * A `news:news` entry (Google News sitemap extension).
- *
- * @see https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap
- */
-export interface SitemapNews {
-  publication: SitemapNewsPublication;
-  /** Publication date in W3C Datetime format. */
-  publication_date: SitemapLastMod;
-  /** Title of the news article. */
-  title: string;
-  /** Comma-separated stock tickers (optional). */
-  stock_tickers?: string;
-}
-
-/**
  * A `video:video` entry (Google video sitemap extension).
- *
- * Only common fields are listed; see Google's schema for the full set.
  *
  * @see https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps
  */
 export interface SitemapVideo {
-  /** URL of the player page or direct link to the video. */
-  content_loc?: string;
-  /** URL of the player page for this video. */
-  player_loc?: string;
-  /** Whether the video may be embedded. */
-  "player_loc@allow_embed"?: boolean;
-  /** Whether to show a paywall to users from the given countries. */
-  "player_loc@restrict"?: string;
-  /** A URL pointing to the video thumbnail image. */
+  /** URL of the video thumbnail image. */
   thumbnail_loc: string;
   title: string;
   description: string;
-  /** Duration in seconds (max 28800). */
+  /** URL of the video file, at least one of `content_loc` and `player_loc` is required. */
+  content_loc?: string;
+  /** URL of the player page for this video. */
+  player_loc?: string | { loc: string; allow_embed?: boolean };
+  /** Duration in seconds (1–28800). */
   duration?: number;
-  /** Expiration date in W3C Datetime format; omit if the video does not expire. */
+  /** Date after which the video is no longer available. */
   expiration_date?: SitemapLastMod;
-  /** Rating value. 0.0–5.0 or unrated if omitted. */
+  /** Rating from 0.0 to 5.0. */
   rating?: number;
-  /** Number of times the video has been viewed. */
   view_count?: number;
-  /** Publication date in W3C Datetime format. */
   publication_date?: SitemapLastMod;
-  /** Whether the video is family friendly. */
-  family_friendly?: "yes" | "no";
-  /** Comma-separated list of tags. */
+  family_friendly?: boolean;
+  /** Up to 32 tags, one `video:tag` element each. */
   tag?: string | string[];
-  /** Comma-separated domains the video may not be played on. */
-  restriction?: string;
-  /** Whether search engines may download the video file. */
-  "restriction@relationship"?: "allow" | "deny";
-  gallery_loc?: string;
-  /** Price currency in ISO 4217 format. */
-  price?: string;
-  "price@currency"?: string;
-  "price@type"?: "rent" | "purchase" | "own" | "subscription";
-  /** Platform restriction (e.g. `web`, `mobile`, `tv`). */
-  platform?: string;
-  "platform@relationship"?: "allow" | "deny";
-  /** Whether a subscription is required. */
-  requires_subscription?: "yes" | "no";
-  uploader?: string;
-  "uploader@info"?: string;
-  live?: "yes" | "no";
+  /** Show or hide the video in search results from the given countries (ISO 3166). */
+  restriction?: { relationship: "allow" | "deny"; countries: string[] };
+  /** Show or hide the video on the given platforms. */
+  platform?: { relationship: "allow" | "deny"; platforms: ("web" | "mobile" | "tv")[] };
+  price?: { value: number; currency: string; type?: "rent" | "own" };
+  requires_subscription?: boolean;
+  uploader?: string | { name: string; info?: string };
+  /** Whether the video is a live stream. */
+  live?: boolean;
+}
+
+/**
+ * A `news:news` entry (Google News sitemap extension), at most one per URL.
+ *
+ * @see https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap
+ */
+export interface SitemapNews {
+  publication: {
+    /** Publication name, matching its name on news.google.com. */
+    name: string;
+    /** Language code (ISO 639). */
+    language: string;
+  };
+  publication_date: SitemapLastMod;
+  /** Title of the news article. */
+  title: string;
 }
 
 /**
@@ -185,10 +158,10 @@ export interface SitemapUrl {
   alternates?: readonly SitemapAlternateLink[];
   /** Image URLs associated with this page (Google image extension). */
   images?: readonly SitemapImage[];
-  /** Video metadata associated with this page (Google video extension). */
+  /** Videos on this page (Google video extension). */
   videos?: readonly SitemapVideo[];
   /** News article metadata (Google News extension). */
-  news?: readonly SitemapNews[];
+  news?: SitemapNews;
 }
 
 export interface SitemapOptions<C extends AppShape = AppShape> {
@@ -229,6 +202,89 @@ function imageToElement(image: SitemapImage): ElementCompact {
   return element;
 }
 
+function yesNo(value: boolean) {
+  return { _text: value ? "yes" : "no" };
+}
+
+function videoToElement(video: SitemapVideo): ElementCompact {
+  const element: ElementCompact = {
+    "video:thumbnail_loc": { _text: video.thumbnail_loc },
+    "video:title": { _text: video.title },
+    "video:description": { _text: video.description },
+  };
+
+  if (video.content_loc) element["video:content_loc"] = { _text: video.content_loc };
+  if (typeof video.player_loc === "string") {
+    element["video:player_loc"] = { _text: video.player_loc };
+  } else if (video.player_loc) {
+    element["video:player_loc"] = {
+      ...(video.player_loc.allow_embed !== undefined && {
+        _attributes: { allow_embed: video.player_loc.allow_embed ? "yes" : "no" },
+      }),
+      _text: video.player_loc.loc,
+    };
+  }
+  if (video.duration !== undefined) element["video:duration"] = { _text: String(video.duration) };
+  if (video.expiration_date)
+    element["video:expiration_date"] = { _text: formatLastmod(video.expiration_date) };
+  if (video.rating !== undefined) element["video:rating"] = { _text: String(video.rating) };
+  if (video.view_count !== undefined)
+    element["video:view_count"] = { _text: String(video.view_count) };
+  if (video.publication_date)
+    element["video:publication_date"] = { _text: formatLastmod(video.publication_date) };
+  if (video.family_friendly !== undefined)
+    element["video:family_friendly"] = yesNo(video.family_friendly);
+  if (video.restriction) {
+    element["video:restriction"] = {
+      _attributes: { relationship: video.restriction.relationship },
+      _text: video.restriction.countries.join(" "),
+    };
+  }
+  if (video.platform) {
+    element["video:platform"] = {
+      _attributes: { relationship: video.platform.relationship },
+      _text: video.platform.platforms.join(" "),
+    };
+  }
+  if (video.price) {
+    element["video:price"] = {
+      _attributes: {
+        currency: video.price.currency,
+        ...(video.price.type && { type: video.price.type }),
+      },
+      _text: String(video.price.value),
+    };
+  }
+  if (video.requires_subscription !== undefined)
+    element["video:requires_subscription"] = yesNo(video.requires_subscription);
+  if (typeof video.uploader === "string") {
+    element["video:uploader"] = { _text: video.uploader };
+  } else if (video.uploader) {
+    element["video:uploader"] = {
+      ...(video.uploader.info && { _attributes: { info: video.uploader.info } }),
+      _text: video.uploader.name,
+    };
+  }
+  if (video.live !== undefined) element["video:live"] = yesNo(video.live);
+  if (video.tag) {
+    const tags = typeof video.tag === "string" ? [video.tag] : video.tag;
+    element["video:tag"] = tags.map((tag) => ({ _text: tag }));
+  }
+
+  return element;
+}
+
+function newsToElement(news: SitemapNews): ElementCompact {
+  return {
+    "news:publication": {
+      "news:name": { _text: news.publication.name },
+      "news:language": { _text: news.publication.language },
+    },
+    "news:publication_date": { _text: formatLastmod(news.publication_date) },
+    "news:title": { _text: news.title },
+  };
+}
+
 function entryToUrlElement(entry: SitemapUrl): ElementCompact {
   const url: ElementCompact = {
     loc: { _text: entry.loc },
@@ -255,11 +311,17 @@ function entryToUrlElement(entry: SitemapUrl): ElementCompact {
   if (entry.images?.length) {
     url["image:image"] = entry.images.map(imageToElement);
   }
+  if (entry.videos?.length) {
+    url["video:video"] = entry.videos.map(videoToElement);
+  }
+  if (entry.news) {
+    url["news:news"] = newsToElement(entry.news);
+  }
 
   return url;
 }
 
-function buildSitemap(entries: SitemapUrl[]) {
+export function buildSitemap(entries: SitemapUrl[]): string {
   return js2xml(
     {
       _declaration: {
@@ -273,6 +335,8 @@ function buildSitemap(entries: SitemapUrl[]) {
           xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
           "xmlns:xhtml": "http://www.w3.org/1999/xhtml",
           "xmlns:image": "http://www.google.com/schemas/sitemap-image/1.1",
+          "xmlns:video": "http://www.google.com/schemas/sitemap-video/1.1",
+          "xmlns:news": "http://www.google.com/schemas/sitemap-news/0.9",
         },
         url: entries.map(entryToUrlElement),
       },

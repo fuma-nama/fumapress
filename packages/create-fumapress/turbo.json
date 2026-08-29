@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/core/package.json",
+        "$TURBO_ROOT$/packages/create-fumapress-versions/package.json"
+      ],
+      "outputs": ["dist"]
+    }
+  }
+}
