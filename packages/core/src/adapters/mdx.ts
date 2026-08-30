@@ -25,7 +25,9 @@ export function fumadocsMdx<C extends AppShape = AppShape>(
   return {
     async "core:get-text"(page) {
       if (isAsyncEntry(page.data) || isSyncEntry(page.data)) {
-        return page.data.getText("processed");
+        return page.data.getText("processed", {
+          components: await getMdxComponents.call(this, page),
+        });
       }
     },
     async "core:get-structured-data"(page) {
