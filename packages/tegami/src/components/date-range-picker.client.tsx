@@ -1,7 +1,7 @@
 "use client";
 
 import { Popover } from "@base-ui/react/popover";
-import { cn } from "cnfast";
+import { cn } from "cn";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 

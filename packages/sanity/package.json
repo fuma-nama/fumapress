@@ -30,17 +30,17 @@
   },
   "dependencies": {
     "@portabletext/react": "^8.0.1",
-    "@sanity/client": "^8.4.0",
-    "zod": "^4.4.3"
+    "@sanity/client": "^8.5.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@fumadocs/sanity": "^0.2.2",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
-    "fumadocs-core": "^16.15.4",
+    "fumadocs-core": "^16.15.7",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
-    "tsdown": "0.22.14",
+    "tsdown": "0.23.0",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {

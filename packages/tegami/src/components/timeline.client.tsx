@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "cnfast";
+import { cn } from "cn";
 import { PackageIcon, SearchIcon, XIcon } from "lucide-react";
 import {
   createContext,

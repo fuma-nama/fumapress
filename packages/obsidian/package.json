@@ -36,23 +36,23 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-obsidian": "^1.0.3"
+    "fumadocs-obsidian": "^1.0.4"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
-    "fumadocs-core": "^16.15.4",
-    "fumadocs-ui": "^16.15.4",
+    "@types/react-dom": "^19.2.7",
+    "fumadocs-core": "^16.15.7",
+    "fumadocs-ui": "^16.15.7",
     "fumapress": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tsdown": "0.22.14",
+    "tsdown": "0.23.0",
     "typescript": "7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "@types/mdx": "*",
