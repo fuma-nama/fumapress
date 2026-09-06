@@ -66,7 +66,7 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
                   return (
                     <Link
                       key={t}
-                      href={joinPathname(lang ?? "", tagsPath, t)}
+                      href={ctx.localizePath(lang, joinPathname(tagsPath, t))}
                       className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
                     >
                       {t}

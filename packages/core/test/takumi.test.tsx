@@ -4,6 +4,7 @@ import type { RouteFns } from "@/lib/types";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 import type { RouteParams } from "@/lib/routes";
 import type { FC, ReactElement } from "react";
+import { localizePath } from "@/lib/i18n";
 
 vi.mock("waku/router/server", () => ({
   unstable_notFound() {
@@ -25,6 +26,8 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     data: {},
     siteConfig: { name: "Site" },
     interceptPageMeta() {},
+    localizePath: (lang: string | undefined, pathname: string) =>
+      localizePath(overrides.i18nConfig, lang, pathname),
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -73,7 +76,11 @@ describe("og:image", () => {
   });
 
   it("follows locale and the dynamic base path", async () => {
-    const { content } = await metaOf({}, { mode: "dynamic" }, { slugs: ["docs"], locale: "cn" });
+    const { content } = await metaOf(
+      {},
+      { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
+      { slugs: ["docs"], locale: "cn" },
+    );
     expect(content).toBe("/cn/_takumi/docs.webp");
   });
 });

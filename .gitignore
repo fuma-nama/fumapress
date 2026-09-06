@@ -38,3 +38,5 @@ yarn-error.log*
 *.pem
 
 .pnpm-store
+# git worktrees of Claude Code agents
+.claude/worktrees/

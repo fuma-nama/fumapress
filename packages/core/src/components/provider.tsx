@@ -34,12 +34,30 @@ const framework: Framework = {
   Link: ({ prefetch = true, ...props }) => <Link unstable_prefetchOnEnter={prefetch} {...props} />,
 };
 
-export type PressProviderProps = RootProviderProps;
+export interface PressProviderProps extends RootProviderProps {
+  /** the language served without URL prefix, the locale switch keeps its URLs unprefixed */
+  hiddenLocale?: string;
+}
 
-export function PressProvider(props: PressProviderProps) {
+export function PressProvider({ hiddenLocale, i18n, ...props }: PressProviderProps) {
+  const router = useRouter();
+
+  if (i18n && hiddenLocale) {
+    const { locale } = i18n;
+    i18n = {
+      ...i18n,
+      onLocaleChange(target) {
+        const segments = router.path.split("/").filter(Boolean);
+        if (segments[0] === locale) segments.shift();
+        if (target !== hiddenLocale) segments.unshift(target);
+        void router.push("/" + segments.join("/"));
+      },
+    };
+  }
+
   return (
     <FrameworkProvider {...framework}>
-      <RootProvider {...props} />
+      <RootProvider {...props} i18n={i18n} />
     </FrameworkProvider>
   );
 }
