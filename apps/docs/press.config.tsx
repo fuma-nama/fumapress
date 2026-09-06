@@ -23,6 +23,7 @@ import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 import { SponsorsMarquee } from "@fumari/sponsors";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { takumiPlugin } from "fumapress/plugins/takumi";
 
 const docs = defineDocs({
   dir: "content/docs",
@@ -217,7 +218,35 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(linkValidationPlugin(), mcpPlugin(), llmsPlugin({ routes: "all" }));
+  .plugins(
+    linkValidationPlugin(),
+    mcpPlugin(),
+    llmsPlugin({ routes: "all" }),
+    takumiPlugin({
+      site: {
+        node: (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              width: "100%",
+              height: "100%",
+              padding: "4rem",
+              color: "white",
+              backgroundColor: "#0c0c0c",
+              borderBottom: "18px solid rgba(255,150,255,0.3)",
+            }}
+          >
+            <p style={{ fontSize: "82px", fontWeight: 800, margin: 0 }}>Fumapress</p>
+            <p style={{ fontSize: "52px", color: "rgba(240,240,240,0.8)", margin: 0 }}>
+              The composable site generator powered by Fumadocs
+            </p>
+          </div>
+        ),
+      },
+    }),
+  );
 
 export default config.plugins(
   blogPlugin({

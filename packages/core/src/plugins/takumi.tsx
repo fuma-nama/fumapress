@@ -6,6 +6,15 @@ import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 
+export { fontFromUrl, googleFonts } from "takumi-js/helpers";
+
+/** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
+export type TakumiImageOptions = ImageResponseOptions extends infer T
+  ? T extends { format?: "webp" }
+    ? Omit<T, "format">
+    : never
+  : never;
+
 export interface TakumiOptions<C extends AppShape = AppShape> {
   /**
    * The base route for generated images.
@@ -18,13 +27,36 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   /** @default 630 */
   height?: number;
 
+  /**
+   * Options shared by every image, `generate()` overrides them per page.
+   *
+   * Values resolved once belong here, like the fonts from `googleFonts()`.
+   */
+  options?: TakumiImageOptions;
+
+  /** A site-wide image for pages without content, like the home page. Link it with `getImageUrl()`. */
+  site?: {
+    /** @default "/opengraph-image.webp" */
+    path?: string;
+    node: ReactNode | ((this: AppContext<C>) => Awaitable<ReactNode>);
+  };
+
   generate?: (
     this: AppContext<C>,
     page: C["page"],
   ) => Awaitable<{
     node: ReactNode;
-    options?: Omit<Partial<ImageResponseOptions>, "format">;
+    options?: TakumiImageOptions;
   }>;
+}
+
+export interface TakumiContextData<C extends AppShape = AppShape> {
+  /**
+   * URL of the generated image of a page, or the site image without a page.
+   *
+   * Absolute when `site.baseUrl` is configured.
+   */
+  getImageUrl: (page?: C["page"]) => string;
 }
 
 export function takumiPlugin<C extends AppShape = AppShape>(
@@ -33,6 +65,8 @@ export function takumiPlugin<C extends AppShape = AppShape>(
   const {
     width = 1200,
     height = 630,
+    site,
+    options: shared,
     generate = function fn(page) {
       return {
         node: generateDefault({
@@ -43,7 +77,19 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       };
     },
   } = options;
+  const sitePath = site?.path ?? "/opengraph-image.webp";
   let basePath: string;
+  let renderMode: "static" | "dynamic";
+
+  function render(node: ReactNode, options?: TakumiImageOptions) {
+    return new ImageResponse(node, {
+      width,
+      height,
+      ...shared,
+      ...options,
+      format: "webp",
+    });
+  }
 
   function slugsToImagePath(slugs: string[], lang: string | undefined) {
     const segments = [...slugs];
@@ -72,31 +118,29 @@ export function takumiPlugin<C extends AppShape = AppShape>(
   return {
     name: "core:takumi",
     init() {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+      renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
 
-      this.interceptPageMeta(({ page, next }) => {
-        const pathname = slugsToImagePath(page.slugs, page.locale).pathname;
+      const getImageUrl: TakumiContextData<C>["getImageUrl"] = (page) => {
+        if (!page && !site)
+          throw new Error("[Fumapress] No site image, configure `site` in takumiPlugin().");
+        const pathname = page ? slugsToImagePath(page.slugs, page.locale).pathname : sitePath;
 
-        return (
-          <>
-            {next()}
-            <meta
-              property="og:image"
-              content={
-                this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname
-              }
-            />
-            <meta property="og:image:width" content={`${width}`} />
-            <meta property="og:image:height" content={`${height}`} />
-            <meta property="twitter:card" content="summary_large_image" />
-          </>
-        );
-      });
+        return this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
+      };
+      this.data["core:takumi"] = { getImageUrl };
+
+      this.interceptPageMeta(({ page, next }) => (
+        <>
+          {next()}
+          <meta property="og:image" content={getImageUrl(page)} />
+          <meta property="og:image:width" content={`${width}`} />
+          <meta property="og:image:height" content={`${height}`} />
+          <meta property="twitter:card" content="summary_large_image" />
+        </>
+      ));
     },
     async createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
-
       createApiIsomorphic({
         render: renderMode,
         path: joinPathname(this.i18nConfig ? "[lang]" : "", basePath, "[...slugs]"),
@@ -112,14 +156,18 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           if (!page) unstable_notFound();
 
           const { node, options } = await generate.call(this, page);
-          return new ImageResponse(node, {
-            width,
-            height,
-            ...options,
-            format: "webp",
-          });
+          return render(node, options);
         },
       });
+
+      if (site) {
+        const { node } = site;
+        createApiIsomorphic({
+          render: renderMode,
+          path: sitePath,
+          handler: async () => render(typeof node === "function" ? await node.call(this) : node),
+        });
+      }
     },
   };
 }

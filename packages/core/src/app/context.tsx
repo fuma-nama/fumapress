@@ -23,6 +23,7 @@ import type { GlassLayoutContextData } from "@/layouts/glass";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { RootLayoutContextData } from "@/layouts/root";
+import type { TakumiContextData } from "@/plugins/takumi";
 
 export interface AppShape {
   page: Page;
@@ -351,4 +352,5 @@ export interface AppContextData<S extends AppShape> {
   "core:glass-layout"?: GlassLayoutContextData<S>;
   "core:home-layout"?: HomeLayoutContextData<S>;
   "core:provider"?: RootLayoutContextData<S>;
+  "core:takumi"?: TakumiContextData<S>;
 }
