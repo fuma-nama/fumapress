@@ -1,6 +1,6 @@
 import { BlogGrid, LinkToHome } from "@/components/blog";
 import { T } from "@fuma-translate/react";
-import { getTags, groupTags } from "@/lib/shared/blog";
+import { getTags, groupTags, tagSlug } from "@/lib/shared/blog";
 import { joinPathname } from "@/lib/pathname";
 import {
   BlogTagPage,
@@ -79,9 +79,9 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
 }: BlogTagsPageOptions = {}): BlogTagPage<C> {
   return async function BlogTagPage({ lang, tag }) {
     const ctx = getPressContext<C>();
-    const query = decodeSlug(tag).toLowerCase();
+    const slug = decodeSlug(tag);
     // the tag as written in posts, fall back to the slug when nothing matches
-    let name = query;
+    let name = slug;
     const posts: BlogPost<C>[] = [];
 
     for (const post of await getBlogPosts(ctx, lang)) {
@@ -89,7 +89,7 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
       if (!tags) continue;
 
       for (const t of tags) {
-        if (t.toLowerCase() !== query) continue;
+        if (tagSlug(t) !== slug) continue;
         if (posts.length === 0) name = t;
         posts.push(post);
         break;
@@ -128,6 +128,7 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
   };
 }
 
+/** the router passes the URL segment as-is, it is percent-encoded on dynamic requests */
 function decodeSlug(slug: string) {
   try {
     return decodeURIComponent(slug);

@@ -30,9 +30,9 @@ export function adjacentPosts<C extends AppShape>(posts: BlogPost<C>[], page: C[
   return { newer: posts[index - 1], older: posts[index + 1] };
 }
 
-/** URL segment of a tag, tags are matched case-insensitively */
-export function tagSlug(tag: string): string {
-  return encodeURIComponent(tag.toLowerCase());
+/** URL segment of a tag: lowercase, whitespace replaced by `-` */
+export function tagSlug(tag: string) {
+  return tag.toLowerCase().replace(/\s+/g, "-");
 }
 
 export interface TagInfo {
