@@ -83,11 +83,12 @@ export interface RouteFns extends BaseRouteFns {
 export interface RouteConfig {
   render?: "static" | "dynamic";
 
-  /** static paths of a static page with slugs, the language segment of `autoI18n` is added for you */
+  /** static paths of a static page with slugs, shared by every language of `autoI18n` */
   staticPaths?: string[] | string[][];
 
   /**
-   * automatically insert `/[lang]` route segment if i18n is configured, only applicable for pages & layouts.
+   * register the page (or layout) once per language if i18n is configured, under the language prefix and with a `lang` prop.
+   * Otherwise, it is registered once without prefix, and rendered as the default language.
    *
    * @default true
    */

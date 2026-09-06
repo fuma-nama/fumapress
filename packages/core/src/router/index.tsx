@@ -1,6 +1,8 @@
 import { createPages as base_createPages } from "waku";
 import { type AppContext, type AppShape, initApp, appContext } from "../app/context";
 import { FC, Fragment, ReactNode } from "react";
+import { DEFAULT_GROUP, hiddenLocale, localeRoutes } from "@/lib/i18n";
+import { resolveBaseUrl } from "@/lib/pathname";
 import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
@@ -32,7 +34,10 @@ export async function createRouter<U extends ConfigUtils>(
     createPagesOptions?: Options,
   ) {
     const result = base_createPages(async (_fns) => {
-      const { renderRoot, renderPage, renderNotFound } = context;
+      const { renderPage } = context;
+      // components rather than calls: `renderNotFound` defaults to a client component
+      const Root = context.renderRoot as FC<{ lang?: string; children: ReactNode }>;
+      const NotFound = context.renderNotFound as FC<{ lang?: string }>;
       let fns: RouteFns = {
         ..._fns,
         unstable_getCreated() {
@@ -61,12 +66,23 @@ export async function createRouter<U extends ConfigUtils>(
         },
       };
 
-      async function resolvePage(slugs: string[], lang?: string) {
+      async function renderContent(slugs: string[], lang?: string) {
         const source = await context.getLoader();
         const page = source.getPage(slugs, lang);
         if (!page) unstable_notFound();
 
-        return page;
+        let fallback: ReactNode = renderPage({ lang, slugs, page });
+        for (const plugin of context.plugins) {
+          const res: ReactNode = await plugin.renderPage?.call(context, {
+            fallback,
+            page,
+            slugs,
+            lang,
+          });
+          if (res !== undefined) fallback = res;
+        }
+
+        return fallback;
       }
 
       for (const plugin of context.plugins) {
@@ -82,93 +98,90 @@ export async function createRouter<U extends ConfigUtils>(
         await plugin.createPages?.call(context, fns);
       }
 
-      const staticPaths: string[][] = [];
       const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
+      const pages = (await context.getLoader()).getPages();
+      const i18n = context.i18nConfig;
 
-      for (const page of (await context.getLoader()).getPages()) {
-        staticPaths.push(page.locale ? [page.locale, ...page.slugs] : page.slugs);
-      }
+      if (i18n) {
+        const hidden = hiddenLocale(i18n);
+        const slugsByLang = new Map<string, string[][]>();
+        for (const page of pages) {
+          const slugs = slugsByLang.get(page.locale!);
+          if (slugs) slugs.push(page.slugs);
+          else slugsByLang.set(page.locale!, [page.slugs]);
+        }
 
-      if (context.i18nConfig) {
+        const createLocaleRoot = (base: string, lang: string) => {
+          fns.createLayout({
+            render: defaultRenderMode,
+            path: base,
+            component: ({ children }) => <Root lang={lang}>{children}</Root>,
+          });
+
+          fns.createPage({
+            render: defaultRenderMode,
+            path: `${base}/404` as "/404",
+            staticPaths: [],
+            component: () => <NotFound lang={lang} />,
+          });
+        };
+
         fns.createRoot({
           render: defaultRenderMode,
           component: Fragment,
         });
 
-        fns.createLayout({
-          render: defaultRenderMode,
-          path: "/[lang]",
-          component: renderRoot as FC,
-        });
+        // pages outside of any language (e.g. `autoI18n: false`) still need a root layout
+        if (!hidden) createLocaleRoot(DEFAULT_GROUP, i18n.defaultLanguage);
 
-        fns.createPage({
-          render: defaultRenderMode,
-          path: "/[lang]/[...slugs]",
-          staticPaths,
-          async component({ slugs, lang }) {
-            const page = await resolvePage(slugs, lang);
-            let fallback: ReactNode = renderPage({ lang, slugs, page });
-
-            for (const plugin of context.plugins) {
-              const res: ReactNode = await plugin.renderPage?.call(context, {
-                fallback,
-                page,
-                slugs,
-                lang,
-              });
-              if (res !== undefined) fallback = res;
-            }
-
-            return fallback;
-          },
-        });
-
-        fns.createPage({
-          render: defaultRenderMode,
-          path: "/[lang]/404",
-          staticPaths: context.i18nConfig.languages,
-          component: renderNotFound as FC,
-        });
-
-        if (context.mode !== "static") {
+        for (const { base, lang } of localeRoutes(i18n)) {
+          createLocaleRoot(base, lang);
           fns.createPage({
-            render: "dynamic",
-            path: "/404",
-            component: () => unstable_redirect(`/${context.i18nConfig!.defaultLanguage}`),
+            render: defaultRenderMode,
+            path: `${base}/[...slugs]` as "/[...slugs]",
+            staticPaths: slugsByLang.get(lang) ?? [],
+            component: ({ slugs }) => renderContent(slugs, lang),
           });
         }
+
+        if (!hidden) {
+          const to = `/${i18n.defaultLanguage}`;
+
+          if (context.mode === "static") {
+            fns.createPage({
+              render: "static",
+              path: "/",
+              component: () => <RedirectDocument to={to} />,
+            });
+          } else {
+            fns.createPage({
+              render: "dynamic",
+              path: "/",
+              component: () => unstable_redirect(to),
+            });
+          }
+        }
       } else {
+        const staticPaths: string[][] = [];
+        for (const page of pages) staticPaths.push(page.slugs);
+
         fns.createRoot({
           render: defaultRenderMode,
-          component: renderRoot as FC,
+          component: Root,
         });
 
         fns.createPage({
           render: defaultRenderMode,
           path: "/[...slugs]",
           staticPaths,
-          async component({ slugs }) {
-            const page = await resolvePage(slugs);
-            let fallback: ReactNode = renderPage({ slugs, page });
-
-            for (const plugin of context.plugins) {
-              const res: ReactNode = await plugin.renderPage?.call(context, {
-                fallback,
-                page,
-                slugs,
-              });
-              if (res !== undefined) fallback = res;
-            }
-
-            return fallback;
-          },
+          component: ({ slugs }) => renderContent(slugs),
         });
 
         fns.createPage({
           render: defaultRenderMode,
           staticPaths: [],
           path: "/404",
-          component: renderNotFound as FC,
+          component: () => <NotFound />,
         });
       }
 
@@ -249,6 +262,24 @@ export async function createRouter<U extends ConfigUtils>(
       return [pluginsMiddleware];
     },
   };
+}
+
+/** the site has no root layout at `/`, so the page is a document of its own */
+function RedirectDocument({ to }: { to: string }) {
+  const href = resolveBaseUrl(import.meta.env.BASE_URL, to);
+
+  return (
+    <html>
+      <head>
+        <meta charSet="utf-8" />
+        <meta httpEquiv="refresh" content={`0; url=${href}`} />
+        <link rel="canonical" href={href} />
+      </head>
+      <body>
+        <a href={href}>{href}</a>
+      </body>
+    </html>
+  );
 }
 
 /** forward Waku.js router primitives */

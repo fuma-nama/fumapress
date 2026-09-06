@@ -5,6 +5,7 @@ import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext, AppShape } from "@/app/context";
 import { joinPathname } from "@/lib/pathname";
+import { DEFAULT_GROUP, localeRoutes, withLang } from "@/lib/i18n";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);
@@ -153,36 +154,38 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
-      const i18n = (config?.autoI18n ?? true) ? this.i18nConfig : undefined;
-      const routePath = i18n ? joinPathname("[lang]/(fs)", path) : joinPathname("(fs)", path);
-
-      if (pathItems.at(-1) === "_layout") {
-        createLayout({
-          path: routePath,
-          component,
-          render: renderMode,
-          unstable_sourceFile: srcPath,
-        } as never);
-        continue;
-      }
-
-      let staticPaths = config?.staticPaths;
-      if (i18n && renderMode === "static") {
-        const withLang: string[][] = [];
-        for (const lang of i18n.languages) {
-          if (!staticPaths) withLang.push([lang]);
-          else for (const item of staticPaths) withLang.push([lang].concat(item));
+      const routes: { base: string; lang?: string }[] = [];
+      if (!this.i18nConfig) {
+        routes.push({ base: "/(fs)" });
+      } else if (config?.autoI18n ?? true) {
+        for (const route of localeRoutes(this.i18nConfig)) {
+          routes.push({ base: joinPathname(route.base, "(fs)"), lang: route.lang });
         }
-        staticPaths = withLang;
+      } else {
+        routes.push({ base: joinPathname(DEFAULT_GROUP, "(fs)") });
       }
 
-      createPage({
-        path: routePath,
-        component,
-        render: renderMode,
-        staticPaths,
-        unstable_sourceFile: srcPath,
-      } as never);
+      for (const { base, lang } of routes) {
+        const routePath = joinPathname(base, path);
+        const routeComponent = lang ? withLang(component, lang) : component;
+
+        if (pathItems.at(-1) === "_layout") {
+          createLayout({
+            path: routePath,
+            component: routeComponent,
+            render: renderMode,
+            unstable_sourceFile: srcPath,
+          } as never);
+        } else {
+          createPage({
+            path: routePath,
+            component: routeComponent,
+            render: renderMode,
+            staticPaths: config?.staticPaths,
+            unstable_sourceFile: srcPath,
+          } as never);
+        }
+      }
     }
   };
 }

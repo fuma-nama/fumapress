@@ -118,22 +118,23 @@ export default function Page({ tag }: { tag: string }) {
 }
 ```
 
-When i18n is enabled, file-based pages are automatically placed under the language segment (e.g. `/my-page` -> `/en/my-page`), and the language is added to their static paths for you. Disable that behavior with `autoI18n: false`:
+When i18n is enabled, a file-based page is registered once per language, under the language prefix and with a `lang` prop (e.g. `/about` becomes `/en/about` and `/cn/about`). Disable that with `autoI18n: false` to keep a single copy at its own path, rendered as the default language:
 
-```tsx title="src/pages/rss.xml.tsx"
+```tsx title="src/pages/privacy.tsx"
 import type { RouteConfig } from "fumapress";
 
 export async function getConfig() {
   return {
     autoI18n: false,
-    render: "static",
   } satisfies RouteConfig;
 }
 
 export default function Page() {
-  return null;
+  return <main>Privacy Policy</main>;
 }
 ```
+
+See [Internationalization](/docs/internationalization#routing) for the URL structure.
 
 For file-based API routes, place files under `src/pages/_api`. Export handlers named after HTTP methods (`GET`, `POST`, etc.):
 

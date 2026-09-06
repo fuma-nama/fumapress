@@ -146,6 +146,13 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       fns.createPage = mocked_createPage!;
       const renderMode = this.mode === "default" ? "static" : this.mode;
       const getLLMText = _getLLMText.bind(this);
+      const getPageByUrl = async (url: string) => {
+        const source = await this.getLoader();
+        for (const language of this.i18nConfig?.languages ?? [undefined]) {
+          const page = source.getPageByHref(url, { language })?.page;
+          if (page) return page;
+        }
+      };
       const renderPage = (page: CreatedPage, pathname: string, params: RouteParams) =>
         renderRoute(
           createElement(
@@ -214,17 +221,13 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       if (this.mode === "dynamic" || this.mode === "default") {
         const handler = async (_req: Request, { params }: { params: RouteParams }) => {
           const slugs = (params.slugs as string[] | undefined) ?? [];
+          const pathname = "/" + slugs.join("/");
 
           if (this.mode === "dynamic") {
-            const source = await this.getLoader();
-            const page = this.i18nConfig
-              ? source.getPage(slugs.slice(1), slugs[0])
-              : source.getPage(slugs);
-
+            const page = await getPageByUrl(pathname);
             if (page) return markdownResponse((await getLLMText(page)) ?? "");
           }
 
-          const pathname = "/" + slugs.join("/");
           for (const page of dynamicPages) {
             const routeParams = matchRoutePath(page, pathname);
             if (!routeParams) continue;
@@ -246,12 +249,9 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       if (this.mode === "static" || this.mode === "default") {
         const staticPaths: string[][] = [];
         for (const page of (await this.getLoader()).getPages()) {
-          const p = [page.locale, ...page.slugs].filter(Boolean) as string[];
-          if (p.length === 0) p.push("index.md");
-          else p[p.length - 1] += ".md";
-
-          staticPaths.push(p);
-          mdPaths.add("/" + p.join("/"));
+          const path = withMd(page.url);
+          staticPaths.push(path.slice(1).split("/"));
+          mdPaths.add(path);
         }
 
         fns.createApiIsomorphic({
@@ -259,16 +259,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           path: "/[...slugs]",
           staticPaths,
           handler: async (_req, { params }) => {
-            const source = await this.getLoader();
-            const slugs = params.slugs as string[];
-            if (slugs.length === 0) unstable_notFound();
-            if (slugs.length === 1 && slugs[0] === "index.md") slugs.pop();
-            else slugs[slugs.length - 1] = slugs[slugs.length - 1]!.replace(/\.md$/, "");
-
-            const lang = this.i18nConfig ? slugs.shift() : undefined;
-            if (this.i18nConfig && !lang) unstable_notFound();
-
-            const page = source.getPage(slugs, lang);
+            const path = "/" + (params.slugs as string[]).join("/");
+            const page = await getPageByUrl(path === "/index.md" ? "/" : path.replace(/\.md$/, ""));
             if (!page) unstable_notFound();
 
             return markdownResponse((await getLLMText(page)) ?? "");

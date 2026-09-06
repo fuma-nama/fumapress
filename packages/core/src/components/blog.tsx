@@ -5,7 +5,6 @@ import { Link } from "@/client";
 import { T } from "@fuma-translate/react";
 import { CornerLeftUpIcon } from "lucide-react";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import { joinPathname } from "@/lib/pathname";
 
 export function BlogItem<C extends AppShape>({ page, date }: { page: C["page"]; date: Date }) {
   return (
@@ -48,7 +47,7 @@ export function LinkToHome({ lang }: { lang?: string }) {
 
   return (
     <Link
-      href={lang ? joinPathname(lang, indexPath) : indexPath}
+      href={getPressContext().localizePath(lang, indexPath)}
       className={cn(
         buttonVariants({
           variant: "ghost",

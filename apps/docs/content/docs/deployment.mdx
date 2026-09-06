@@ -37,7 +37,7 @@ See [Render Mode](/docs/config#render-mode) for choosing one. A route's own `ren
 
 With `mode: "static"`, every route is prerendered into `dist/public`:
 
-- An HTML file per page, and a `404.html`.
+- An HTML file per page, plus `index.html` and `404.html` at the root (for i18n sites too, see [Internationalization](/docs/internationalization#routing)).
 - The output of enabled plugins, like `sitemap.xml` and Open Graph images.
 - The search index at `/api/search`, downloaded by the search dialog to run queries in the browser.
 

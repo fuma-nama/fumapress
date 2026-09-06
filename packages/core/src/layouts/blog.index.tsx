@@ -1,7 +1,6 @@
 import { OrderedBlogGrid } from "@/components/blog";
 import { T } from "@fuma-translate/react";
 import { cn } from "@/lib/cn";
-import { joinPathname } from "@/lib/pathname";
 import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
@@ -32,7 +31,7 @@ export function createBlogIndexPage<C extends AppShape = AppShape>({
           </p>
           {tagsPath !== false && (
             <Link
-              href={lang ? joinPathname(lang, tagsPath) : tagsPath}
+              href={ctx.localizePath(lang, tagsPath)}
               className={cn(
                 buttonVariants({
                   variant: "primary",

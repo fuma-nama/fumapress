@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/app/context";
 import type { RouteFns } from "@/lib/types";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
+import { localizePath } from "@/lib/i18n";
 
 vi.mock("waku/router/server", () => ({
   unstable_notFound() {
@@ -23,6 +24,8 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     data: {},
     siteConfig: { name: "Site" },
     interceptPageMeta() {},
+    localizePath: (lang: string | undefined, pathname: string) =>
+      localizePath(overrides.i18nConfig, lang, pathname),
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -63,7 +66,7 @@ describe("getImageUrl", () => {
   it("follows locale, dynamic base path and custom site path", async () => {
     const { takumi } = await init(
       { site: { path: "/og.webp", node: <div /> } },
-      { mode: "dynamic" },
+      { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
     );
 
     expect(takumi.getImageUrl({ slugs: ["docs"], locale: "cn" } as never)).toBe(

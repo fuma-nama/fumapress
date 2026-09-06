@@ -91,7 +91,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     });
   }
 
-  function slugsToImagePath(slugs: string[], lang: string | undefined) {
+  function slugsToImagePath(slugs: string[]) {
     const segments = [...slugs];
     if (segments.length === 0) {
       segments.push("index.webp");
@@ -99,10 +99,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       segments[segments.length - 1] += ".webp";
     }
 
-    return {
-      staticPath: lang ? [lang, ...segments] : segments,
-      pathname: joinPathname(lang ?? "", basePath, ...segments),
-    };
+    return segments;
   }
 
   function imagePathToSlugs(segs: string[]) {
@@ -124,7 +121,9 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       const getImageUrl: TakumiContextData<C>["getImageUrl"] = (page) => {
         if (!page && !site)
           throw new Error("[Fumapress] No site image, configure `site` in takumiPlugin().");
-        const pathname = page ? slugsToImagePath(page.slugs, page.locale).pathname : sitePath;
+        const pathname = page
+          ? this.localizePath(page.locale, joinPathname(basePath, ...slugsToImagePath(page.slugs)))
+          : sitePath;
 
         return this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
       };
@@ -141,24 +140,28 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       ));
     },
     async createPages({ createApiIsomorphic }) {
-      createApiIsomorphic({
-        render: renderMode,
-        path: joinPathname(this.i18nConfig ? "[lang]" : "", basePath, "[...slugs]"),
-        staticPaths: (await this.getLoader())
-          .getPages()
-          .map((page) => slugsToImagePath(page.slugs, page.locale).staticPath),
-        handler: async (_, { params }) => {
-          const source = await this.getLoader();
-          const page = source.getPage(
-            imagePathToSlugs(params.slugs as string[]),
-            params.lang as string,
-          );
-          if (!page) unstable_notFound();
+      const staticPathsByLang = new Map<string | undefined, string[][]>();
+      for (const page of (await this.getLoader()).getPages()) {
+        const paths = staticPathsByLang.get(page.locale);
+        if (paths) paths.push(slugsToImagePath(page.slugs));
+        else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);
+      }
 
-          const { node, options } = await generate.call(this, page);
-          return render(node, options);
-        },
-      });
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        createApiIsomorphic({
+          render: renderMode,
+          path: this.localizePath(lang, joinPathname(basePath, "[...slugs]")),
+          staticPaths: staticPathsByLang.get(lang) ?? [],
+          handler: async (_, { params }) => {
+            const source = await this.getLoader();
+            const page = source.getPage(imagePathToSlugs(params.slugs as string[]), lang);
+            if (!page) unstable_notFound();
+
+            const { node, options } = await generate.call(this, page);
+            return render(node, options);
+          },
+        });
+      }
 
       if (site) {
         const { node } = site;

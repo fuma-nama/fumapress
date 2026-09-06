@@ -17,6 +17,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { preinitPlugins, type PressPlugin } from "./plugin";
+import { localizePath } from "@/lib/i18n";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
@@ -52,6 +53,8 @@ export interface AppContext<S extends AppShape = AppShape>
   renderPage: (opts: { slugs: string[]; lang?: string; page: S["page"] }) => ReactNode;
   renderRoot: (opts: { lang?: string; children: ReactNode }) => ReactNode;
   renderNotFound: (opts: { lang?: string }) => ReactNode;
+  /** prefix `pathname` with the language segment, unless `i18n.hideLocale` hides it */
+  localizePath: (lang: string | undefined, pathname: string) => string;
 
   translationsConfig?:
     | ([S["lang"]] extends [string] ? TranslationsAPI<S["lang"]> : never)
@@ -177,6 +180,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderNotFound,
     renderPage,
     renderRoot,
+    localizePath: (lang, pathname) => localizePath(ctx.i18nConfig, lang, pathname),
     plugins: await preinitPlugins(config.preset, config.plugins ?? [], { mode }),
     adapters: config.adapters ?? [],
     data: {},
@@ -199,6 +203,12 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     },
     ...hooks(config),
   };
+
+  if ((ctx.i18nConfig as I18nConfig | undefined)?.hideLocale === "always") {
+    throw new Error(
+      '[Fumapress] `hideLocale: "always"` is not supported, languages are told apart by their URL prefix. Use `hideLocale: "default-locale"` to drop the prefix of the default language only.',
+    );
+  }
 
   for (const plugin of ctx.plugins) {
     await plugin.init?.call(ctx);

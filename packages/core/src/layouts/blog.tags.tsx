@@ -53,7 +53,7 @@ export function createBlogTagsPage<C extends AppShape = AppShape>({
             .map(([tag, count]) => (
               <Link
                 key={tag}
-                href={joinPathname(lang ?? "", tagsPath, tag)}
+                href={ctx.localizePath(lang, joinPathname(tagsPath, tag))}
                 className="flex flex-row items-center gap-2 bg-fd-card text-fd-card-foreground border font-mono rounded-lg px-2 py-1 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
               >
                 <TagIcon className="size-3.5 text-fd-muted-foreground" />

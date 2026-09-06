@@ -119,3 +119,65 @@ Add Markdown/JSON files for different languages by appending `.{locale}` to your
     <File name="get-started.cn.mdx" />
   </Folder>
 </Files>
+
+## Routing
+
+Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale` in your i18n config:
+
+```tsx title="press.config.tsx"
+const i18n = defineI18n({
+  languages: ["cn", "en"],
+  defaultLanguage: "en",
+  // [!code ++]
+  hideLocale: "default-locale",
+});
+```
+
+| Source                     | `hideLocale: "never"` (default) | `hideLocale: "default-locale"` |
+| -------------------------- | ------------------------------- | ------------------------------ |
+| `content/docs/index.mdx`   | `/en`, `/cn`                    | `/`, `/cn`                     |
+| `content/docs/setup.mdx`   | `/en/setup`, `/cn/setup`        | `/setup`, `/cn/setup`          |
+| `src/pages/about.tsx`      | `/en/about`, `/cn/about`        | `/about`, `/cn/about`          |
+| Blog index (plugin routes) | `/en/blog`, `/cn/blog`          | `/blog`, `/cn/blog`            |
+| Not found page             | `/404`, `/en/404`, `/cn/404`    | `/404`, `/cn/404`              |
+| `/`                        | redirects to `/en`              | the index page of `en`         |
+
+Plugin outputs like Open Graph images, `.md` versions of pages, the sitemap and the search index follow the same URLs.
+
+<Callout type="warn">
+  `hideLocale: "always"` is not supported, the prefix is what tells languages apart. A build with it
+  fails with an error.
+</Callout>
+
+### File-based Pages
+
+Pages and layouts in `src/pages` are registered once per language, under its prefix and with a `lang` prop:
+
+```tsx title="src/pages/about.tsx"
+export default function Page({ lang }: { lang: string }) {
+  return <h1>{lang === "cn" ? "关于" : "About"}</h1>;
+}
+```
+
+With `autoI18n: false`, a page is registered once at its own path (e.g. `/privacy`) and rendered as the default language, root layout included. See [Routing](/docs/routing#file-based-routing) for route config.
+
+### Root Pages
+
+`/404` renders `renderNotFound` in the default language, static builds emit it as `404.html` for hosts that support it.
+
+`/` depends on `hideLocale`: with the prefix shown, it redirects to the default language (on the server, or through a prerendered `index.html` with `<meta http-equiv="refresh">` in static mode). With the prefix hidden, it is the index page of the default language.
+
+### Locale Switch
+
+The language switch of Fumadocs UI navigates to the current page in the chosen language, keeping the default language unprefixed when hidden.
+
+### In Plugins and Layouts
+
+Build language-aware links with `localizePath()` from the app context, it adds the prefix unless `hideLocale` hides it:
+
+```tsx
+const ctx = getPressContext();
+
+ctx.localizePath("cn", "/blog"); // "/cn/blog"
+ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
+```
