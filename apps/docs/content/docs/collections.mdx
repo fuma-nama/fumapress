@@ -87,22 +87,10 @@ All sources merge into a single page tree, with each `baseDir` as a top-level fo
 
 See [Page Tree](https://fumadocs.dev/docs/page-conventions) for root folders and other conventions.
 
-To present one collection as the entire sidebar instead of a folder, replace the tree in your layout's `render` option:
+To present one collection as the entire sidebar instead of a folder, point the layout's [`treeRoot`](/docs/layouts/docs#treeroot) option at its `baseDir`:
 
 ```tsx title="press.config.tsx"
 const DocsPage = createDocsLayoutPage<typeof config.$context>({
-  async render({ locale }) {
-    let pageTree = (await this.getLoader()).getPageTree(locale);
-
-    for (const child of pageTree.children) {
-      if (child.type === "folder" && child.$id === "docs") {
-        pageTree = { ...pageTree, children: child.children };
-      }
-    }
-
-    return {
-      layoutProps: { tree: pageTree },
-    };
-  },
+  treeRoot: "docs",
 });
 ```

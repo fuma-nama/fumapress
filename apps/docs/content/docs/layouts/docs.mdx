@@ -55,6 +55,37 @@ export default config;
 
 The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.
 
+## Options
+
+### treeRoot
+
+The sidebar shows the whole page tree, which spans every collection in a multi-source setup. Pass the folder path to use as the root instead, such as the `baseDir` of a [content collection](/docs/collections):
+
+```tsx title="press.config.tsx"
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  // [!code ++]
+  treeRoot: "docs",
+});
+
+const config = defineConfig({
+  content: {
+    docs: docs.toFumadocsSource({ baseDir: "docs" }),
+    blog: blog.toFumadocsSource({ baseDir: "blog" }),
+  },
+  renderPage: (props) => <DocsLayout {...props} />,
+});
+```
+
+Nested paths like `docs/guides` work too. Pass a function to select the root per page, for example the page's own collection when its `baseDir` matches the collection name:
+
+```tsx title="press.config.tsx"
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  treeRoot: (page) => page.type,
+});
+```
+
+An unknown path throws with the list of available folders.
+
 ### Interceptors
 
 `render` returns props. For full control over the rendered components, intercept them instead:
@@ -80,5 +111,7 @@ const DocsLayout = createDocsLayoutPage<typeof config.$context>({
   },
 });
 ```
+
+### inherit
 
 By default, layouts merge `defaultLayoutProps` into their props, set `inherit: { layoutProps: false }` to opt out.

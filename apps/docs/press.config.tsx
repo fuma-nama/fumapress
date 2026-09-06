@@ -70,22 +70,9 @@ const changelog = defineDocs({
 });
 
 const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
-  async render({ locale }) {
-    let pageTree = (await this.getLoader()).getPageTree(locale);
-
-    for (const child of pageTree.children) {
-      if (child.type === "folder" && child.$id === "docs") {
-        pageTree = {
-          ...pageTree,
-          children: child.children,
-        };
-      }
-    }
-
+  treeRoot: "docs",
+  render() {
     return {
-      layoutProps: {
-        tree: pageTree,
-      },
       pageProps: {
         tableOfContent: {
           footer: <SponsorsMarquee />,
