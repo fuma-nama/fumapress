@@ -118,10 +118,6 @@ Image optimization uses [Cloudflare Image Transformations](https://developers.cl
 
 The generated Wrangler config sets `html_handling: "drop-trailing-slash"`: `/docs/` redirects to `/docs`. URLs Fumapress generates for the sitemap and feeds have no trailing slash either, keep both in sync if you change one.
 
-#### Reloads During Deploys
-
-Waku bakes a build id into the client bundle and every RSC payload, and reloads the page when a navigation receives a payload from another build. While a deploy rolls out, the edge can briefly serve HTML and payloads from mixed builds, so open tabs may reload more than once until it converges. Cloudflare revalidates HTML and payloads on every request by default, and the generated `_headers` keeps hashed assets immutable, so nothing stale outlives the rollout. Do not pin `WAKU_BUILD_ID` with `define` to silence it: that disables the check entirely, and stale tabs never pick up a new build.
-
 ### Static Hosting
 
 For GitHub Pages, CDNs, or any other static file host: set `mode: "static"`, build, and upload `dist/public`. The emitted `404.html` is picked up by hosts that support it.
