@@ -1,10 +1,13 @@
-import type { AdvancedIndex } from "fumadocs-core/search/server";
+import type { AdvancedIndex, AdvancedOptions } from "fumadocs-core/search/server";
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import { withoutFallbackPages, type AppContext, type AppShape } from "@/app/context";
 import type { PressProviderProps } from "@/components/provider";
 
-export interface OramaSearchOptions<C extends AppShape = AppShape> {
+export interface OramaSearchOptions<C extends AppShape = AppShape> extends Omit<
+  AdvancedOptions,
+  "indexes"
+> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<AdvancedIndex>;
 }
 
@@ -26,6 +29,7 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to oramaSearchPlugin()");
   },
+  ...options
 }: OramaSearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:orama-search",
@@ -54,7 +58,7 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
       const renderMode = this.mode === "default" ? "dynamic" : this.mode;
       const server = createFromSource(
         async () => withoutFallbackPages(await this.getLoader(), this.i18nConfig),
-        { buildIndex: buildIndex.bind(this) },
+        { ...options, buildIndex: buildIndex.bind(this) },
       );
 
       createApiIsomorphic({

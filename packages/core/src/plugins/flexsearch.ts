@@ -1,10 +1,14 @@
-import type { Index } from "fumadocs-core/search/flexsearch";
+import type { FromSourceOptions, Index } from "fumadocs-core/search/flexsearch";
+import type { LoaderConfig } from "fumadocs-core/source";
 import type { Awaitable } from "@/lib/types";
 import { withoutFallbackPages, type AppContext, type AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
 import type { PressProviderProps } from "@/components/provider";
 
-export interface FlexsearchOptions<C extends AppShape = AppShape> {
+export interface FlexsearchOptions<C extends AppShape = AppShape> extends Omit<
+  FromSourceOptions<LoaderConfig>,
+  "buildIndex"
+> {
   buildIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<Index>;
 }
 
@@ -26,6 +30,7 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
 
     throw new Error("[Fumapress] Please specify the `buildIndex` option to flexsearchPlugin()");
   },
+  ...options
 }: FlexsearchOptions<NoInfer<C>> = {}): PressPlugin<C> {
   return {
     name: "core:flexsearch",
@@ -57,7 +62,7 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
       const render = this.mode === "default" ? "dynamic" : this.mode;
       const server = flexsearchFromSource(
         async () => withoutFallbackPages(await this.getLoader(), this.i18nConfig),
-        { buildIndex: buildIndex.bind(this) },
+        { ...options, buildIndex: buildIndex.bind(this) },
       );
 
       createApiIsomorphic({
