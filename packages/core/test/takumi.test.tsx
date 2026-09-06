@@ -26,6 +26,11 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     interceptPageMeta() {},
     localizePath: (lang: string | undefined, pathname: string) =>
       localizePath(overrides.i18nConfig, lang, pathname),
+    isFallbackPage: () => false,
+    absoluteUrl: (pathname: string) =>
+      overrides.siteConfig?.baseUrl
+        ? new URL(pathname, overrides.siteConfig.baseUrl).href
+        : pathname,
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -69,9 +74,9 @@ describe("getImageUrl", () => {
       { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
     );
 
-    expect(takumi.getImageUrl({ slugs: ["docs"], locale: "cn" } as never)).toBe(
-      "/cn/_takumi/docs.webp",
-    );
+    expect(
+      takumi.getImageUrl({ slugs: ["docs"], locale: "cn", path: "docs.cn.mdx" } as never),
+    ).toBe("/cn/_takumi/docs.webp");
     expect(takumi.getImageUrl()).toBe("/og.webp");
   });
 

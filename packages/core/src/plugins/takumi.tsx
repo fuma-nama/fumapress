@@ -1,6 +1,6 @@
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
-import type { AppContext, AppShape } from "@/app/context";
+import { getFileLocale, type AppContext, type AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
 import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
@@ -121,11 +121,15 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       const getImageUrl: TakumiContextData<C>["getImageUrl"] = (page) => {
         if (!page && !site)
           throw new Error("[Fumapress] No site image, configure `site` in takumiPlugin().");
+        // fallback pages have no image of their own, point at the source page's
         const pathname = page
-          ? this.localizePath(page.locale, joinPathname(basePath, ...slugsToImagePath(page.slugs)))
+          ? this.localizePath(
+              getFileLocale(page, this.i18nConfig) ?? page.locale,
+              joinPathname(basePath, ...slugsToImagePath(page.slugs)),
+            )
           : sitePath;
 
-        return this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
+        return this.absoluteUrl(pathname, { file: true });
       };
       this.data["core:takumi"] = { getImageUrl };
 
@@ -142,6 +146,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     async createPages({ createApiIsomorphic }) {
       const staticPathsByLang = new Map<string | undefined, string[][]>();
       for (const page of (await this.getLoader()).getPages()) {
+        if (this.isFallbackPage(page)) continue;
         const paths = staticPathsByLang.get(page.locale);
         if (paths) paths.push(slugsToImagePath(page.slugs));
         else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);

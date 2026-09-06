@@ -164,6 +164,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
     limit = 20,
     alternateLink = true,
     getItem: _getItem = async function getItemDefault(page) {
+      if (this.isFallbackPage(page)) return;
       const date = (await this.getPageCreatedAt(page)) ?? (await this.getPageLastModified(page));
       // only include dated pages, so edits don't flood the feed with undated noise
       if (!date) return;
@@ -171,7 +172,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
       return {
         title: page.data.title ?? page.path,
         description: page.data.description,
-        link: this.siteConfig.baseUrl ? new URL(page.url, this.siteConfig.baseUrl).href : page.url,
+        link: this.absoluteUrl(page.url),
         pubDate: date,
       };
     },
@@ -222,12 +223,10 @@ export function rssPlugin<C extends AppShape = AppShape>(
           return new Response(
             buildRSS({
               title: channelTitle,
-              link: this.siteConfig.baseUrl ?? "/",
+              link: this.absoluteUrl("/"),
               description: description ?? channelTitle,
               language,
-              selfUrl: this.siteConfig.baseUrl
-                ? new URL(path, this.siteConfig.baseUrl).href
-                : undefined,
+              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path, { file: true }) : undefined,
               items: items.slice(0, limit),
             }),
             {

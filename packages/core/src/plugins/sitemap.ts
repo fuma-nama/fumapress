@@ -34,19 +34,11 @@ export type SitemapLastMod = Date | string;
 export type SitemapPriority = number;
 
 /**
- * `rel` attribute for sitemap link elements. The protocol only defines `alternate` for hreflang.
- *
- * @see https://www.sitemaps.org/protocol.html#xmlDefinition
- */
-export type SitemapLinkRel = "alternate";
-
-/**
- * An `xhtml:link` alternate language reference on a URL entry.
+ * An `xhtml:link rel="alternate"` language reference on a URL entry.
  *
  * @see https://www.sitemaps.org/protocol.html#xmlDefinition
  */
 export interface SitemapAlternateLink {
-  rel: SitemapLinkRel;
   /** BCP 47 language tag (e.g. `en`, `de`, `x-default`). */
   hreflang: string;
   /** Fully-qualified URL of the alternate page. */
@@ -302,7 +294,7 @@ function entryToUrlElement(entry: SitemapUrl): ElementCompact {
   if (entry.alternates?.length) {
     url["xhtml:link"] = entry.alternates.map((alternate) => ({
       _attributes: {
-        rel: alternate.rel,
+        rel: "alternate",
         hreflang: alternate.hreflang,
         href: alternate.href,
       },
@@ -351,10 +343,13 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
   const {
     path = "/sitemap.xml",
     getEntry: _getEntry = async function getEntryDefault(page) {
+      if (this.isFallbackPage(page)) return;
+
       return {
-        loc: this.siteConfig.baseUrl ? new URL(page.url, this.siteConfig.baseUrl).href : page.url,
+        loc: this.absoluteUrl(page.url),
         lastmod: await this.getPageLastModified(page),
         priority: 0.8,
+        alternates: await this.getPageAlternates(page),
       };
     },
     additionalEntries,
@@ -370,12 +365,15 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
         render: renderMode,
         path,
         handler: async () => {
-          const source = await this.getLoader();
+          const pages = (await this.getLoader()).getPages();
+          const results = await Promise.all(pages.map(getEntry));
           const entries: SitemapUrl[] = [];
-          // avoid duplicated entries from `source.getPages()` & `getRouterConfigs()`
+          // content pages are listed by `getEntry` only, `getRouterConfigs()` must not re-add excluded ones
           const pageLocs = new Set<string>();
 
-          for (const entry of await Promise.all(source.getPages().map(getEntry))) {
+          for (let i = 0; i < pages.length; i++) {
+            const entry = results[i];
+            pageLocs.add(this.absoluteUrl(pages[i]!.url));
             if (!entry) continue;
             pageLocs.add(entry.loc);
             entries.push(entry);
@@ -386,10 +384,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
               const segments = route.path.map((v) => v.name!);
               // exclude not-found pages
               if (segments.at(-1) === "404") continue;
-              const pathname = "/" + segments.join("/");
-              const loc = this.siteConfig.baseUrl
-                ? new URL(pathname, this.siteConfig.baseUrl).href
-                : pathname;
+              const loc = this.absoluteUrl("/" + segments.join("/"));
               if (pageLocs.has(loc)) continue;
 
               entries.push({ loc, priority: 1 });

@@ -1,7 +1,7 @@
 import type { AdvancedIndex } from "fumadocs-core/search/server";
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
-import type { AppContext, AppShape } from "@/app/context";
+import { withoutFallbackPages, type AppContext, type AppShape } from "@/app/context";
 import type { PressProviderProps } from "@/components/provider";
 
 export interface OramaSearchOptions<C extends AppShape = AppShape> {
@@ -52,9 +52,10 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
     async createPages({ createApiIsomorphic }) {
       const { createFromSource } = await import("fumadocs-core/search/server");
       const renderMode = this.mode === "default" ? "dynamic" : this.mode;
-      const server = createFromSource(this.getLoader, {
-        buildIndex: buildIndex.bind(this),
-      });
+      const server = createFromSource(
+        async () => withoutFallbackPages(await this.getLoader(), this.i18nConfig),
+        { buildIndex: buildIndex.bind(this) },
+      );
 
       createApiIsomorphic({
         render: renderMode,

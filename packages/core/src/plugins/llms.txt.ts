@@ -1,7 +1,7 @@
 import { llms } from "fumadocs-core/source/llms";
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
-import { appContext, type AppContext, type AppShape } from "@/app/context";
+import { appContext, withoutFallbackPages, type AppContext, type AppShape } from "@/app/context";
 import { CreatePage, unstable_notFound } from "waku/router/server";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
@@ -177,7 +177,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         render: renderMode,
         path: "/llms-full.txt",
         handler: async () => {
-          const source = await this.getLoader();
+          const source = withoutFallbackPages(await this.getLoader(), this.i18nConfig);
           const scanned = await Promise.all(source.getPages().map(getLLMText));
 
           return new Response(scanned.filter((item) => item !== undefined).join("\n\n"));

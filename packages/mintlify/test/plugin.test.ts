@@ -41,9 +41,6 @@ function createContext(): AppContext {
     renderRootMeta() {
       return rootMetaInterceptors[0]?.({ next: () => null }) ?? null;
     },
-    renderPageMeta() {
-      return null;
-    },
   } as unknown as AppContext;
 }
 

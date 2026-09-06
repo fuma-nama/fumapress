@@ -1,6 +1,6 @@
 import type { Index } from "fumadocs-core/search/flexsearch";
 import type { Awaitable } from "@/lib/types";
-import type { AppContext, AppShape } from "@/app/context";
+import { withoutFallbackPages, type AppContext, type AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
 import type { PressProviderProps } from "@/components/provider";
 
@@ -55,9 +55,10 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
     async createPages({ createApiIsomorphic }) {
       const { flexsearchFromSource } = await import("fumadocs-core/search/flexsearch");
       const render = this.mode === "default" ? "dynamic" : this.mode;
-      const server = flexsearchFromSource(this.getLoader, {
-        buildIndex: buildIndex.bind(this),
-      });
+      const server = flexsearchFromSource(
+        async () => withoutFallbackPages(await this.getLoader(), this.i18nConfig),
+        { buildIndex: buildIndex.bind(this) },
+      );
 
       createApiIsomorphic({
         render,

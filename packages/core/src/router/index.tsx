@@ -82,7 +82,12 @@ export async function createRouter<U extends ConfigUtils>(
           if (res !== undefined) fallback = res;
         }
 
-        return fallback;
+        return (
+          <>
+            {context.renderPageMeta(page)}
+            {fallback}
+          </>
+        );
       }
 
       for (const plugin of context.plugins) {

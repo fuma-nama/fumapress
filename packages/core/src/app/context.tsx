@@ -63,10 +63,19 @@ export interface AppContext<S extends AppShape = AppShape>
   siteConfig: {
     name: string;
     baseUrl?: string;
+    trailingSlash?: boolean;
+    hreflang?: Record<string, string>;
     git?: GitInfo & {
       rootDir: string;
     };
   };
+}
+
+export interface PageAlternate {
+  locale: string;
+  /** from `site.hreflang`, defaults to the locale code */
+  hreflang: string;
+  href: string;
 }
 
 type RootMetaInterceptor = (opts: { next: () => ReactNode }) => ReactNode;
@@ -93,6 +102,21 @@ export interface FumapressHooks<C extends AppShape> {
 
   /** URL of a file on the configured git provider, requires `site.git` to be configured */
   getFileUrl: (absolutePath: string) => Awaitable<string | undefined>;
+
+  /**
+   * Whether the page is inherited from the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language) instead of being translated.
+   */
+  isFallbackPage: (page: C["page"]) => boolean;
+
+  /** translations of the page (fallback pages excluded) for `hreflang` links, empty when it has none */
+  getPageAlternates: (page: C["page"]) => Promise<PageAlternate[]>;
+
+  /**
+   * Absolute URL of a pathname with `site.baseUrl`, the pathname itself when unset.
+   *
+   * The `site.trailingSlash` policy applies to page URLs, pass `file: true` for files like images and feeds.
+   */
+  absoluteUrl: (pathname: string, options?: { file?: boolean }) => string;
 }
 
 export interface FumapressLoader<C extends AppShape = AppShape> {
@@ -140,6 +164,10 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderPage = (await import("@/layouts/docs")).createDocsLayoutPage(),
     renderRoot = (await import("@/layouts/root")).createRootLayout(),
   } = config;
+  const i18nConfig =
+    translations && "config" in translations
+      ? (translations.config as AppContext["i18nConfig"])
+      : config.i18n;
 
   const ctx: AppContext = {
     $context: undefined as never,
@@ -150,10 +178,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     },
     revalidateLoader: () => Promise.resolve(undefined),
     invalidateLoader: () => undefined,
-    i18nConfig:
-      translations && "config" in translations
-        ? (translations.config as AppContext["i18nConfig"])
-        : config.i18n,
+    i18nConfig,
     defaultLayoutProps: async (opts) => {
       const { name, git } = ctx.siteConfig;
       const base =
@@ -189,6 +214,8 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     siteConfig: {
       name: site?.name ?? "Fumapress",
       baseUrl: site?.baseUrl ?? getDefaultBaseUrl(),
+      trailingSlash: site?.trailingSlash,
+      hreflang: site?.hreflang,
       git: site?.git
         ? {
             ...site.git,
@@ -201,7 +228,7 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
           }
         : undefined,
     },
-    ...hooks(config),
+    ...hooks(config, i18nConfig),
   };
 
   if ((ctx.i18nConfig as I18nConfig | undefined)?.hideLocale === "always") {
@@ -241,7 +268,10 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
   return ctx as unknown as AppContext<C>;
 }
 
-function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
+function hooks<S extends AppShape>(
+  config: FumapressConfig,
+  i18n: I18nConfig | undefined,
+): FumapressHooks<S> {
   const rootMetaInterceptors: RootMetaInterceptor[] = [];
   const pageMetaInterceptors: PageMetaInterceptor<S>[] = [];
 
@@ -267,21 +297,57 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 
       function next(i: number): ReactNode {
         const interceptor = pageMetaInterceptors[i];
-        if (!interceptor)
+        if (!interceptor) {
+          const { title, description } = page.data;
+
           return (
             <>
-              <title>{page.data.title}</title>
-              <meta property="og:title" content={page.data.title} />
-              {page.data.description && (
-                <meta property="og:description" content={page.data.description} />
-              )}
+              <title>{title}</title>
+              {description && <meta name="description" content={description} />}
+              <meta property="og:title" content={title} />
+              {description && <meta property="og:description" content={description} />}
+              <meta property="og:site_name" content={context.siteConfig.name} />
+              <PageLinks page={page} />
               {config.meta?.page?.call(context, page)}
             </>
           );
+        }
         return interceptor({ page, next: () => next(i + 1) });
       }
 
       return next(0);
+    },
+    isFallbackPage(page) {
+      return isFallbackPage(page, i18n);
+    },
+    async getPageAlternates(page) {
+      if (!i18n) return [];
+      const ctx = getPressContext();
+      const source = await ctx.getLoader();
+      const out: PageAlternate[] = [];
+
+      for (const locale of i18n.languages) {
+        const target = source.getPage(page.slugs, locale);
+        if (!target || isFallbackPage(target, i18n)) continue;
+
+        out.push({
+          locale,
+          hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
+          href: ctx.absoluteUrl(target.url),
+        });
+      }
+
+      return out.length > 1 ? out : [];
+    },
+    absoluteUrl(pathname, { file = false } = {}) {
+      const { baseUrl, trailingSlash } = getPressContext().siteConfig;
+
+      if (!file && trailingSlash !== undefined && pathname !== "/") {
+        if (trailingSlash && !pathname.endsWith("/")) pathname += "/";
+        else if (!trailingSlash && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+      }
+
+      return baseUrl ? new URL(pathname, baseUrl).href : pathname;
     },
     async getPageCreatedAt(page) {
       const ctx = getPressContext();
@@ -324,6 +390,83 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
       return getFileUrl(git, p);
     },
   };
+}
+
+/** canonical, `hreflang` and robots tags, they need the content loader */
+async function PageLinks({ page }: { page: Page }) {
+  const ctx = getPressContext();
+  const i18n = ctx.i18nConfig as I18nConfig | undefined;
+  const fallback = ctx.isFallbackPage(page);
+  let canonical = page.url;
+
+  if (fallback) {
+    const source = await ctx.getLoader();
+    canonical = source.getPage(page.slugs, getFileLocale(page, i18n))?.url ?? page.url;
+  }
+
+  const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl(canonical) : undefined;
+  const alternates = await ctx.getPageAlternates(page);
+  const xDefault =
+    alternates.find((item) => item.locale === i18n?.defaultLanguage) ?? alternates[0];
+
+  return (
+    <>
+      {url && <link rel="canonical" href={url} />}
+      {url && <meta property="og:url" content={url} />}
+      {alternates.map((item) => (
+        <link key={item.locale} rel="alternate" hrefLang={item.hreflang} href={item.href} />
+      ))}
+      {xDefault && <link rel="alternate" hrefLang="x-default" href={xDefault.href} />}
+      {fallback && <meta name="robots" content="noindex" />}
+    </>
+  );
+}
+
+/**
+ * Locale owning the file of page according to `i18n.parser`, `undefined` for files shared by every language (`$`).
+ */
+export function getFileLocale(page: Page, i18n: I18nConfig | undefined): string | undefined {
+  if (!i18n) return;
+  let locale: string | undefined;
+
+  if (i18n.parser === "dir") {
+    const idx = page.path.indexOf("/");
+    if (idx !== -1) locale = page.path.slice(0, idx);
+  } else {
+    const parts = page.path.slice(page.path.lastIndexOf("/") + 1).split(".");
+    if (parts.length >= 3) locale = parts[parts.length - 2];
+  }
+
+  if (locale === "$") return;
+  return locale !== undefined && i18n.languages.includes(locale) ? locale : i18n.defaultLanguage;
+}
+
+export function isFallbackPage(page: Page, i18n: I18nConfig | undefined): boolean {
+  const locale = getFileLocale(page, i18n);
+  return locale !== undefined && locale !== page.locale;
+}
+
+const loaderViews = new WeakMap<object, unknown>();
+
+/** a view of the loader without fallback pages, for APIs that scan `getPages()` themselves */
+export function withoutFallbackPages<T extends Pick<LoaderOutput, "getPages">>(
+  source: T,
+  i18n: I18nConfig | undefined,
+): T {
+  if (!i18n) return source;
+  let view = loaderViews.get(source) as T | undefined;
+
+  if (!view) {
+    view = Object.create(source, {
+      getPages: {
+        value: (lang?: string) =>
+          source.getPages(lang).filter((page) => !isFallbackPage(page, i18n)),
+      },
+    }) as T;
+    loaderViews.set(source, view);
+  }
+
+  return view;
 }
 
 function getDefaultBaseUrl() {
