@@ -3,15 +3,31 @@ import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
 import { joinPathname } from "@/lib/pathname";
 import { AppShape, type AppContext } from "@/app/context";
-import { groupTagsI18n } from "@/lib/shared/blog";
+import { getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
 import { localeRoutes, withLang } from "@/lib/i18n";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FC, ReactNode } from "react";
 import { PressPlugin } from "@/app/plugin";
 
+export { tagSlug } from "@/lib/shared/blog";
+
+export interface BlogAuthor {
+  name: string;
+  /** role or job title */
+  title?: string;
+  /** link to profile or website */
+  url?: string;
+  /** avatar URL */
+  image?: string;
+}
+
 export interface BlogPluginOptions<C extends AppShape = AppShape> {
   /** default to checking from `page.type` */
   isBlog?: (this: AppContext<C>, page: C["page"]) => boolean;
+
+  /** author registry, keyed by the ids used in posts */
+  authors?: Record<string, BlogAuthor>;
+
   paths?: {
     /**
      * pathname for index page
@@ -50,6 +66,7 @@ export interface BlogContext<C extends AppShape = AppShape> {
   indexPath: string | false;
   tagsPath: string | false;
   isBlog: (this: AppContext<C>, page: C["page"]) => boolean;
+  authors: Record<string, BlogAuthor>;
 }
 
 const blogContext = new AsyncLocalStorage({
@@ -64,6 +81,62 @@ export function getBlogContext<C extends AppShape = AppShape>(): BlogContext<C> 
       "[Fumapress] Missing blog context for Fumapress, make sure the blog plugin is configured",
     );
   return store as BlogContext<C>;
+}
+
+export interface BlogPost<C extends AppShape = AppShape> {
+  page: C["page"];
+  /** creation date, from `core:get-creation-date` */
+  date?: Date;
+}
+
+async function toPost<C extends AppShape>(
+  ctx: AppContext<C>,
+  page: C["page"],
+): Promise<BlogPost<C>> {
+  return { page, date: await ctx.getPageCreatedAt(page) };
+}
+
+/** blog posts of a locale, newest first (posts without a date come first) */
+export async function getBlogPosts<C extends AppShape>(
+  ctx: AppContext<C>,
+  lang?: string,
+): Promise<BlogPost<C>[]> {
+  const { isBlog } = getBlogContext<C>();
+  const source = await ctx.getLoader();
+  const pending: Promise<BlogPost<C>>[] = [];
+
+  for (const page of source.getPages(lang)) {
+    if (isBlog.call(ctx, page)) pending.push(toPost(ctx, page));
+  }
+
+  const posts = await Promise.all(pending);
+  const now = Date.now();
+  return posts.sort((a, b) => (b.date?.getTime() ?? now) - (a.date?.getTime() ?? now));
+}
+
+/** the posts published right after (`newer`) and before (`older`) a post */
+export async function getAdjacentPosts<C extends AppShape>(
+  ctx: AppContext<C>,
+  page: C["page"],
+): Promise<{ newer?: BlogPost<C>; older?: BlogPost<C> }> {
+  const posts = await getBlogPosts(ctx, page.locale);
+  const index = posts.findIndex((post) => post.page.url === page.url);
+  if (index === -1) return {};
+
+  return { newer: posts[index - 1], older: posts[index + 1] };
+}
+
+/** authors of a post, ids missing from the `authors` option are shown by name only */
+export async function getBlogAuthors<C extends AppShape>(
+  ctx: AppContext<C>,
+  page: C["page"],
+): Promise<BlogAuthor[]> {
+  const { authors } = getBlogContext<C>();
+  const ids = await getAuthorIds(ctx, page);
+  const result: BlogAuthor[] = [];
+
+  if (ids) for (const id of ids) result.push(authors[id] ?? { name: id });
+  return result;
 }
 
 export type BlogLayoutPage<C extends AppShape = AppShape> = FC<{
@@ -87,18 +160,21 @@ export type BlogTagsPage<C extends AppShape = AppShape> = FC<{
 
 export type BlogTagPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
+  /** tag slug from the URL */
   tag: string;
 }> & { $ctx?: C };
 
 export function blogPlugin<C extends AppShape = AppShape>({
   paths = {},
   isBlog = (page) => page.type === "blog",
+  authors = {},
   layouts = {},
 }: BlogPluginOptions<C> = {}): PressPlugin<C> {
   const blogCtx: BlogContext<C> = {
     indexPath: paths.index ?? "/blog",
     tagsPath: paths.tags ?? "/blog/tags",
     isBlog,
+    authors,
   };
 
   const Layout = layouts.layout ?? createBlogLayout<C>();

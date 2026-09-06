@@ -3,13 +3,23 @@ import type { Awaitable } from "@/lib/types";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { ReactNode } from "react";
 import { Link } from "@/client";
-import { TagIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, TagIcon } from "lucide-react";
 import { BlogPanel, BlogProvider } from "@/components/blog-panel";
-import { getTags } from "@/lib/shared/blog";
-import { getBlogContext, type BlogLayout, type BlogLayoutPage } from "@/plugins/blog";
+import { getTags, tagSlug } from "@/lib/shared/blog";
+import {
+  getAdjacentPosts,
+  getBlogAuthors,
+  getBlogContext,
+  type BlogAuthor,
+  type BlogLayout,
+  type BlogLayoutPage,
+  type BlogPost,
+} from "@/plugins/blog";
 import { joinPathname } from "@/lib/pathname";
-import { LinkToHome } from "@/components/blog";
+import { BlogDate, LinkToHome } from "@/components/blog";
 import { createHomeLayout, type HomeLayoutOptions } from "./home";
+import { cn } from "@/lib/cn";
+import { T } from "@fuma-translate/react";
 
 /** You can use `createHomeLayout()` directly, this is only a wrapper */
 export function createBlogLayout<C extends AppShape>(
@@ -36,7 +46,11 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
   return async function BlogLayoutPage({ page, lang }) {
     const ctx = getPressContext<C>();
     const { tagsPath } = getBlogContext<C>();
-    const tags = await getTags(ctx, page);
+    const [tags, authors, adjacent] = await Promise.all([
+      getTags(ctx, page),
+      getBlogAuthors(ctx, page),
+      getAdjacentPosts(ctx, page),
+    ]);
     const _raw = await render?.call(ctx, page);
     const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
     if (body == null) {
@@ -56,6 +70,16 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
           </div>
           <h1 className="font-semibold text-2xl w-full max-w-[900px]">{page.data.title}</h1>
           <p className="text-fd-muted-foreground w-full max-w-[900px]">{page.data.description}</p>
+          {(authors.length > 0 || result.creationDate) && (
+            <div className="flex flex-row flex-wrap items-center gap-x-6 gap-y-2 w-full max-w-[900px]">
+              {authors.map((author) => (
+                <BlogAuthorItem key={author.name} author={author} />
+              ))}
+              {result.creationDate && (
+                <BlogDate date={result.creationDate} className="text-sm text-fd-muted-foreground" />
+              )}
+            </div>
+          )}
           {tags && tags.length > 0 && (
             <div className="flex flex-row items-center gap-2 flex-wrap w-full max-w-[900px] text-sm text-fd-primary-foreground font-mono">
               <TagIcon className="size-4 text-fd-muted-foreground" />
@@ -65,7 +89,7 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
                   return (
                     <Link
                       key={t}
-                      href={ctx.localizePath(lang, joinPathname(tagsPath, t))}
+                      href={ctx.localizePath(lang, joinPathname(tagsPath, tagSlug(t)))}
                       className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
                     >
                       {t}
@@ -82,10 +106,80 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
           )}
         </div>
         <article className="prose mt-6 mx-auto w-full max-w-[900px]">{result.body}</article>
+        {(adjacent.newer || adjacent.older) && (
+          <nav className="grid gap-2 mt-8 mx-auto w-full max-w-[900px] sm:grid-cols-2">
+            {adjacent.newer && (
+              <AdjacentPostLink post={adjacent.newer}>
+                <ChevronLeftIcon className="size-3.5" />
+                <T text="Newer post" note="blog post navigation" />
+              </AdjacentPostLink>
+            )}
+            {adjacent.older && (
+              <AdjacentPostLink post={adjacent.older} className="sm:col-start-2 sm:items-end">
+                <T text="Older post" note="blog post navigation" />
+                <ChevronRightIcon className="size-3.5" />
+              </AdjacentPostLink>
+            )}
+          </nav>
+        )}
 
         <div className="h-12" />
         <BlogPanel />
       </BlogProvider>
     );
   };
+}
+
+function BlogAuthorItem({ author }: { author: BlogAuthor }) {
+  const className = "inline-flex items-center gap-2 text-sm";
+  const content = (
+    <>
+      {author.image && (
+        <img
+          src={author.image}
+          alt=""
+          width={28}
+          height={28}
+          loading="lazy"
+          className="size-7 rounded-full"
+        />
+      )}
+      <span className="flex flex-col leading-tight">
+        <span className="font-medium">{author.name}</span>
+        {author.title && <span className="text-xs text-fd-muted-foreground">{author.title}</span>}
+      </span>
+    </>
+  );
+
+  if (!author.url) return <span className={className}>{content}</span>;
+  return (
+    <a href={author.url} className={cn(className, "transition-colors hover:text-fd-primary")}>
+      {content}
+    </a>
+  );
+}
+
+function AdjacentPostLink<C extends AppShape>({
+  post,
+  className,
+  children,
+}: {
+  post: BlogPost<C>;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={post.page.url}
+      className={cn(
+        "flex flex-col gap-1 bg-fd-card text-fd-card-foreground rounded-xl border p-4 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground",
+        className,
+      )}
+    >
+      <span className="inline-flex items-center gap-1 text-xs text-fd-muted-foreground">
+        {children}
+      </span>
+      <span className="font-medium">{post.page.data.title}</span>
+    </Link>
+  );
 }

@@ -70,10 +70,13 @@ export function fumadocsMdx<C extends AppShape = AppShape>(
         : undefined;
     },
     "blog:get-tags"(page) {
-      if (isSyncEntry(page.data) || isAsyncEntry(page.data)) {
-        const parsed = tagsSchema.safeParse(page.data);
-        return parsed.success ? parsed.data.tags : undefined;
-      }
+      return readFrontmatter(page, tagsSchema)?.tags;
+    },
+    "blog:get-authors"(page) {
+      return readFrontmatter(page, authorsSchema)?.authors;
+    },
+    "blog:get-image"(page) {
+      return readFrontmatter(page, imageSchema)?.image;
     },
     "tegami:get-date": getDate,
   } as Adapter<C>;
@@ -89,6 +92,20 @@ function getDate(page: AppShape["page"]) {
 const tagsSchema = z.looseObject({
   tags: z.optional(z.array(z.string())),
 });
+
+const authorsSchema = z.looseObject({
+  authors: z.optional(z.array(z.string())),
+});
+
+const imageSchema = z.looseObject({
+  image: z.optional(z.string()),
+});
+
+function readFrontmatter<T>(page: AppShape["page"], schema: z.ZodMiniType<T>): T | undefined {
+  if (!isSyncEntry(page.data) && !isAsyncEntry(page.data)) return;
+  const parsed = schema.safeParse(page.data);
+  return parsed.success ? parsed.data : undefined;
+}
 
 function isSyncEntry(v: object): v is DocCollectionEntry {
   return (

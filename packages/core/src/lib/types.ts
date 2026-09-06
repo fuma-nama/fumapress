@@ -41,6 +41,10 @@ export interface Adapter<C extends AppShape = AppShape> {
   "core:get-modified-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
 
   "blog:get-tags"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
+  /** author ids of a blog post */
+  "blog:get-authors"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
+  /** cover image URL of a blog post */
+  "blog:get-image"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
 }
 
 /** make plugins an array for easier modification */

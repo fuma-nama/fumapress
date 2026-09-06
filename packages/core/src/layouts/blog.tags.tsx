@@ -1,8 +1,14 @@
-import { LinkToHome, OrderedBlogGrid } from "@/components/blog";
+import { BlogGrid, LinkToHome } from "@/components/blog";
 import { T } from "@fuma-translate/react";
 import { getTags, groupTags } from "@/lib/shared/blog";
 import { joinPathname } from "@/lib/pathname";
-import { BlogTagPage, BlogTagsPage, getBlogContext } from "@/plugins/blog";
+import {
+  BlogTagPage,
+  BlogTagsPage,
+  getBlogContext,
+  getBlogPosts,
+  type BlogPost,
+} from "@/plugins/blog";
 import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@/client";
@@ -49,11 +55,11 @@ export function createBlogTagsPage<C extends AppShape = AppShape>({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 md:grid-cols-4 xl:grid-cols-6">
           {Array.from(grouped.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(([tag, count]) => (
+            .sort((a, b) => b[1].count - a[1].count)
+            .map(([slug, { tag, count }]) => (
               <Link
-                key={tag}
-                href={ctx.localizePath(lang, joinPathname(tagsPath, tag))}
+                key={slug}
+                href={ctx.localizePath(lang, joinPathname(tagsPath, slug))}
                 className="flex flex-row items-center gap-2 bg-fd-card text-fd-card-foreground border font-mono rounded-lg px-2 py-1 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
               >
                 <TagIcon className="size-3.5 text-fd-muted-foreground" />
@@ -73,16 +79,21 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
 }: BlogTagsPageOptions = {}): BlogTagPage<C> {
   return async function BlogTagPage({ lang, tag }) {
     const ctx = getPressContext<C>();
-    const { isBlog } = getBlogContext<C>();
-    const source = await ctx.getLoader();
+    const query = decodeSlug(tag).toLowerCase();
+    // the tag as written in posts, fall back to the slug when nothing matches
+    let name = query;
+    const posts: BlogPost<C>[] = [];
 
-    const posts: C["page"][] = [];
-    for (const page of source.getPages(lang)) {
-      if (!isBlog.call(ctx, page)) continue;
-      const tags = await getTags(ctx, page);
-      if (!tags || !tags.includes(tag)) continue;
+    for (const post of await getBlogPosts(ctx, lang)) {
+      const tags = await getTags(ctx, post.page);
+      if (!tags) continue;
 
-      posts.push(page);
+      for (const t of tags) {
+        if (t.toLowerCase() !== query) continue;
+        if (posts.length === 0) name = t;
+        posts.push(post);
+        break;
+      }
     }
 
     return (
@@ -93,7 +104,7 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
             {heading ?? (
               <span className="inline-flex gap-2 items-center">
                 <TagIcon className="text-fd-primary size-6" />
-                <T text='Tag "{tag}"' note="blog tag page" variables={{ tag }} />
+                <T text='Tag "{tag}"' note="blog tag page" variables={{ tag: name }} />
               </span>
             )}
           </h1>
@@ -111,8 +122,16 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
           </p>
         </div>
 
-        <OrderedBlogGrid<C> posts={posts} />
+        <BlogGrid<C> posts={posts} />
       </>
     );
   };
+}
+
+function decodeSlug(slug: string) {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
 }
