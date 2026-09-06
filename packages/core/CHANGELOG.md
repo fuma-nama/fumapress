@@ -1,3 +1,27 @@
+## fumapress@1.3.0
+
+### Swap `cnfast` for `cn`
+
+Class name merging now runs on [`cn`](https://github.com/shadcn-ui/cn) instead of `cnfast`. Both are drop-in replacements for `clsx` + `tailwind-merge`, so merge behavior and the classes you get out are unchanged.
+
+### Static deployment output
+
+The deployment adapter now receives the render mode: with `mode: "static"`, Cloudflare deploys static assets without a Worker, Vercel and Netlify emit no function. No custom server entry needed.
+
+Cloudflare and Netlify builds write `dist/public/_headers` to cache hashed assets for a year, unless your project has its own `public/_headers`. Static builds on Cloudflare also set `not_found_handling: "404-page"` in the generated `wrangler.jsonc`, so unknown URLs get the `404.html` page.
+
+### Base URL fallback
+
+The `site.baseUrl` fallback no longer reads the Cloudflare Pages variables, which Workers Builds never sets. The warning now says when Workers Builds is detected, since it exposes no site URL.
+
+### Takumi: shared options, site image and image URLs
+
+- `options` on `takumiPlugin()` applies to every image, put values resolved once there, like the fonts from `googleFonts()`. The options of `generate()` override them per page.
+- `site` renders a site-wide image at `/opengraph-image.webp` for pages without content, like the home page.
+- `getImageUrl()` from `this.data["core:takumi"]` returns the image URL of a page, or the site image without a page, so custom pages and layouts no longer rebuild the `.webp` path.
+- `googleFonts` and `fontFromUrl` are re-exported from `fumapress/plugins/takumi`, and `fumapress/plugins/takumi.wasm` exports Takumi's WebAssembly build for `options.module`: `takumi-js` no longer needs to be installed next to `fumapress`, which used to end up with two copies.
+- The options accepted by `generate()` no longer drop `quality`, `lossless` and `module`.
+
 ## fumapress@1.2.0
 
 ### Deprecate `createLayoutSwitchAuto`

@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/notion",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Notion content source and renderer for Fumapress",
   "keywords": [
     "Docs",
