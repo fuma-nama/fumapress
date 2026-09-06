@@ -220,7 +220,19 @@ export async function createRouter<U extends ConfigUtils>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
   ): ReturnType<typeof unstable_createServerEntryAdapter<Options>> {
     return (handlers, options) => {
-      let entry = adapter(handlers, options);
+      let entry = adapter(handlers, { static: context.mode === "static", ...options } as Options);
+
+      const platform = import.meta.env.FUMAPRESS_PLATFORM;
+      if (platform === "cloudflare" || platform === "netlify") {
+        entry.buildOptions = {
+          ...entry.buildOptions,
+          FUMAPRESS_BASE_PATH: import.meta.env.WAKU_CONFIG_BASE_PATH,
+        };
+        entry.buildEnhancers = [
+          ...(entry.buildEnhancers ?? []),
+          "fumapress/router/deploy.enhancer",
+        ];
+      }
 
       for (const plugin of context.plugins) {
         if (plugin.unstable_onServerEntry) entry = plugin.unstable_onServerEntry(entry);
