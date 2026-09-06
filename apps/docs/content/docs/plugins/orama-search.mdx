@@ -24,6 +24,9 @@ export default defineConfig({
 The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
 In static mode, the search index is generated as static data.
 
+Every language works out of the box, including Chinese, Japanese and Korean: the default `multilingual` tokenizer splits text on Unicode word boundaries, and i18n sites share one index filtered by locale.
+You don't need `localeMap`, `@orama/*` packages or a custom search dialog.
+
 ## Options
 
 ### `buildIndex`
@@ -55,6 +58,43 @@ export default defineConfig({
 
 The returned index must include `structuredData`. If your content source does not expose structured data,
 add it with a content adapter or provide it from your own page data.
+
+### `tokenizer`
+
+The `multilingual` tokenizer applies no stemming, so a query for `recordings` won't match a page that only says `recording`.
+Attach a stemmer while keeping multilingual segmentation:
+
+```npm
+npm install @zbsearch/stemmers
+```
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
+// [!code ++]
+import { stemmer } from "@zbsearch/stemmers/english";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  oramaSearchPlugin({
+    // [!code ++]
+    tokenizer: { language: "multilingual", stemming: true, stemmer },
+  }),
+);
+```
+
+<Callout type="warn" title="Static mode">
+  The browser restores the tokenizer language from the exported index, not a custom stemmer, so
+  queries would no longer match the stemmed index. Keep `tokenizer` for the `default` and `dynamic`
+  [render modes](/docs/config#render-mode).
+</Callout>
+
+### Other options
+
+Everything else is passed to [`createFromSource`](https://fumadocs.dev/docs/headless/search/orama) from Fumadocs the same way, such as `search` and `plugins`:
+
+<auto-type-table type="import('fumapress/plugins/orama-search').OramaSearchOptions" />
 
 <Callout type="warn">
   Enable only one search plugin at a time. `oramaSearchPlugin()` and `flexsearchPlugin()` both

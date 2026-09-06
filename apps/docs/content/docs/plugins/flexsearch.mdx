@@ -24,6 +24,8 @@ export default defineConfig({
 The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
 In static mode, the search index is generated as static data.
 
+FlexSearch works for other languages without configuration. For zero-config search tuned to every language, including Chinese, Japanese and Korean, use [Orama Search](/docs/plugins/orama-search) instead.
+
 ## Options
 
 ### `buildIndex`
@@ -55,6 +57,37 @@ export default defineConfig({
 
 The returned index must include `structuredData`. If your content source does not expose structured data,
 add it with a content adapter or provide it from your own page data.
+
+### `localeMap`
+
+On i18n sites, pass [FlexSearch options](https://github.com/nextapps-de/flexsearch/blob/master/doc/encoder.md) per locale to improve results.
+`"cjk"` is a shortcut for the CJK encoder:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  flexsearchPlugin({
+    // [!code ++]
+    localeMap: { cn: "cjk" },
+  }),
+);
+```
+
+### `document`
+
+[Document options](https://github.com/nextapps-de/flexsearch/blob/master/doc/document-search.md) applied to every locale, `localeMap` entries override them.
+
+<Callout type="warn" title="Static mode">
+  The browser loads the exported index with FlexSearch defaults, so a custom encoder (including
+  `"cjk"`) is not applied to queries. Keep `localeMap` and `document` for the `default` and
+  `dynamic` [render modes](/docs/config#render-mode).
+</Callout>
+
+<auto-type-table type="import('fumapress/plugins/flexsearch').FlexsearchOptions" />
 
 <Callout type="warn">
   Enable only one search plugin at a time. `flexsearchPlugin()` and `oramaSearchPlugin()` both
