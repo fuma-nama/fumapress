@@ -74,6 +74,7 @@ The integration is now configured, you can write blog posts under the `content/b
 ---
 title: My Blog Post
 description: Hello World!!!
+date: 2026-09-06
 tags: [my-tag]
 ---
 
@@ -81,6 +82,17 @@ tags: [my-tag]
 
 Welcome to my first blog post.
 ```
+
+`blogPageSchema` supports the following frontmatter fields:
+
+| Field         | Description                                        |
+| ------------- | -------------------------------------------------- |
+| `title`       | The post title (required)                          |
+| `description` | Shown below the title and on post cards            |
+| `date`        | Publish date, posts are sorted by it               |
+| `tags`        | Post tags, each tag gets a page under `/blog/tags` |
+| `authors`     | Author ids, see the [`authors`](#authors) option   |
+| `image`       | Cover image URL, shown on post cards               |
 
 ### Other Content Sources
 
@@ -103,9 +115,9 @@ export default defineConfig({
 ```
 
 <Callout>
-  Post tags are resolved through the `blog:get-tags` adapter hook. The Fumadocs MDX adapter reads
-  the `tags` frontmatter, for other sources, implement the hook in your [adapter](/docs/adapters),
-  otherwise posts have no tags.
+  Post data is resolved through [adapter](/docs/adapters) hooks: `core:get-creation-date` for the
+  date, `blog:get-tags`, `blog:get-authors` and `blog:get-image` for the other fields. The Fumadocs
+  MDX adapter reads them from frontmatter, for other sources, implement the hooks in your adapter.
 </Callout>
 
 ## Options
@@ -131,6 +143,41 @@ export default defineConfig({
 ```
 
 You can set to `false` to disable a certain page.
+
+### `authors`
+
+Register authors once, keyed by the ids used in the `authors` frontmatter of posts.
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { blogPlugin } from "fumapress/plugins/blog";
+
+export default defineConfig({
+  // ...
+}).plugins(
+  blogPlugin({
+    authors: {
+      fuma: {
+        name: "Fuma Nama",
+        title: "Maintainer",
+        url: "https://fuma-nama.dev",
+        image: "https://github.com/fuma-nama.png",
+      },
+    },
+  }),
+);
+```
+
+```mdx title="content/blog/hello-world.mdx"
+---
+title: My Blog Post
+authors: [fuma]
+---
+```
+
+<auto-type-table type="import('fumapress/plugins/blog').BlogAuthor" />
+
+Ids missing from the registry are shown by name only.
 
 ### `layouts`
 
@@ -171,4 +218,42 @@ const config = defineConfig({
 );
 
 export default config;
+```
+
+## Custom Layouts
+
+When writing your own `layouts`, `fumapress/plugins/blog` exports helpers for blog data, so you don't read the loader and adapters yourself:
+
+- `getBlogPosts(ctx, lang?)`: posts of a locale as `{ page, date }`, newest first.
+- `getAdjacentPosts(ctx, page)`: the `newer` and `older` posts around a post.
+- `getBlogAuthors(ctx, page)`: authors of a post, resolved with the [`authors`](#authors) option.
+- `tagSlug(tag)`: URL segment of a tag, for links to tag pages.
+
+```tsx title="press.config.tsx"
+import { getPressContext } from "fumapress";
+import { getAdjacentPosts, getBlogAuthors, type BlogLayoutPage } from "fumapress/plugins/blog";
+
+const BlogPage: BlogLayoutPage<typeof config.$context> = async ({ page }) => {
+  const ctx = getPressContext<typeof config.$context>();
+  const authors = await getBlogAuthors(ctx, page);
+  const { newer, older } = await getAdjacentPosts(ctx, page);
+
+  return (
+    <article>
+      <h1>{page.data.title}</h1>
+      <p>{authors.map((author) => author.name).join(", ")}</p>
+      {(await ctx.getPageBody(page))?.node}
+      {newer && <a href={newer.page.url}>{newer.page.data.title}</a>}
+      {older && <a href={older.page.url}>{older.page.data.title}</a>}
+    </article>
+  );
+};
+```
+
+Tag pages receive the slug as `tag`, link to them with `tagSlug()`:
+
+```tsx
+import { tagSlug } from "fumapress/plugins/blog";
+
+<a href={`/blog/tags/${tagSlug(tag)}`}>{tag}</a>;
 ```

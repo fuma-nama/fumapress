@@ -250,6 +250,14 @@ const config = defineConfig({
 
 export default config.plugins(
   blogPlugin({
+    authors: {
+      fuma: {
+        name: "Fuma Nama",
+        title: "Maintainer",
+        url: "https://fuma-nama.dev",
+        image: "https://github.com/fuma-nama.png",
+      },
+    },
     layouts: {
       layout: HomeLayout,
     },
