@@ -1,5 +1,6 @@
 import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
+import { selectTreeRoot, type TreeRoot } from "@/lib/page-tree";
 import type { Awaitable } from "@/lib/types";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
 import {
@@ -18,6 +19,9 @@ export interface NotebookLayoutOptions<C extends AppShape = AppShape> {
   inherit?: {
     layoutProps?: boolean;
   };
+
+  /** folder path to use as the root of the sidebar tree, such as the `baseDir` of a content source, or a function selecting it per page */
+  treeRoot?: TreeRoot<C["page"]>;
 
   render?: (
     this: AppContext<C> & { lang?: string },
@@ -67,6 +71,7 @@ export interface NotebookLayoutContextData<S extends AppShape = AppShape> {
 
 export function createNotebookLayoutPage<C extends AppShape = AppShape>({
   render,
+  treeRoot,
   renderLayout,
   renderPage,
   renderBody,
@@ -92,7 +97,7 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
     const _raw = await render?.call(ctx, page);
     const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined;
     const layoutProps: DocsLayoutProps = {
-      tree: source.getPageTree(lang),
+      tree: selectTreeRoot(source.getPageTree(lang), treeRoot, page),
       ...deepmerge(inherited, _raw?.layoutProps),
     };
 
