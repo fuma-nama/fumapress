@@ -1,51 +1,50 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Deprecate `createLayoutSwitchAuto`\n\nWrite a `renderPage` function switching on `page.type` instead, plain code with the same result:\n\n```tsx\nrenderPage: (props) => {\n  if (props.page.type === \"blog\") return <BlogPage {...props} />;\n\n  return <DocsPage {...props} />;\n},\n```\n"
-    filename: 2026-08-29-deprecate-layout-switch-auto.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n  npm:@fumapress/notion:\n    type: patch\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n### Swap `cnfast` for `cn`\n\nClass name merging now runs on [`cn`](https://github.com/shadcn-ui/cn) instead of `cnfast`. Both are drop-in replacements for `clsx` + `tailwind-merge`, so merge behavior and the classes you get out are unchanged.\n"
+    filename: 2026-09-05-cn-package.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Use the Markdown renderer from Fumadocs\n\nThe renderer behind `fumapress/markdown` moved into Fumadocs, so `asMarkdown`, `md`, and\n`renderToMarkdown` are now re-exports of `fumadocs-core/server`. The output is unchanged.\n\nThe `fumadocs-core` peer dependency now requires `16.15.3` or above.\n"
-    filename: 2026-08-29-fumadocs-markdown-renderer.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Static deployment output\n\nThe deployment adapter now receives the render mode: with `mode: \"static\"`, Cloudflare deploys static assets without a Worker, Vercel and Netlify emit no function. No custom server entry needed.\n\nCloudflare and Netlify builds write `dist/public/_headers` to cache hashed assets for a year, unless your project has its own `public/_headers`. Static builds on Cloudflare also set `not_found_handling: \"404-page\"` in the generated `wrangler.jsonc`, so unknown URLs get the `404.html` page.\n\n### Base URL fallback\n\nThe `site.baseUrl` fallback no longer reads the Cloudflare Pages variables, which Workers Builds never sets. The warning now says when Workers Builds is detected, since it exposes no site URL.\n"
+    filename: 2026-09-06-cloudflare-static.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Treat `data:` images as unoptimized\n\nVite inlines a small image as a `data:` URL at build time. `Image` sent this URL to the image\noptimizer. An optimizer cannot fetch a `data:` URL, so Vercel returned `400 INVALID_IMAGE_OPTIMIZE_REQUEST`\nand the image did not show. `Image` now treats a `data:` src as unoptimized and renders a plain `<img>`.\n"
-    filename: 2026-08-29-image-data-src.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Video & news entries in sitemaps\n\n`SitemapUrl` declared `videos` and `news` fields that were never serialized, setting them\ntype-checked but the values were silently dropped. They are now written to the sitemap, with the\n`video` and `news` namespaces declared on the `urlset`.\n\n`buildSitemap(entries)` is now exported, like `buildRSS`, for serving custom sitemaps from your own\nroutes.\n"
-    filename: 2026-08-29-sitemap-video-news.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Clean up the starter template\n\n- The generated `press.config.tsx` uses your project name as `site.name`, and drops imports of\n  plugins it never registered (they are enabled by the recommended preset anyway).\n- The generated `.gitignore` covers `.env` and `.env.local`, so new projects don't commit secrets.\n"
-    filename: 2026-08-29-create-fumapress-template.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Takumi: shared options, site image and image URLs\n\n- `options` on `takumiPlugin()` applies to every image, put values resolved once there, like the fonts from `googleFonts()`. The options of `generate()` override them per page.\n- `site` renders a site-wide image at `/opengraph-image.webp` for pages without content, like the home page.\n- `getImageUrl()` from `this.data[\"core:takumi\"]` returns the image URL of a page, or the site image without a page, so custom pages and layouts no longer rebuild the `.webp` path.\n- `googleFonts` and `fontFromUrl` are re-exported from `fumapress/plugins/takumi`, and `fumapress/plugins/takumi.wasm` exports Takumi's WebAssembly build for `options.module`: `takumi-js` no longer needs to be installed next to `fumapress`, which used to end up with two copies.\n- The options accepted by `generate()` no longer drop `quality`, `lossless` and `module`.\n"
+    filename: 2026-09-06-takumi.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
-    updated: false
   - changelogIds:
-      - 2026-08-29-deprecate-layout-switch-auto.md
-      - 2026-08-29-fumadocs-markdown-renderer.md
-      - 2026-08-29-image-data-src.md
-      - 2026-08-29-sitemap-video-news.md
-    id: npm:fumapress
+      - 2026-09-05-cn-package.md
+    id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-08-29-create-fumapress-template.md
-    id: npm:create-fumapress
+      - 2026-09-05-cn-package.md
+      - 2026-09-06-cloudflare-static.md
+      - 2026-09-06-takumi.md
+    id: npm:fumapress
+    updated: true
+  - id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
-  - id: npm:@fumapress/feedback
-    updated: false
+  - changelogIds:
+      - 2026-09-05-cn-package.md
+    id: npm:@fumapress/feedback
+    updated: true
   - id: npm:@fumapress/graphql
     updated: false
   - id: npm:@fumapress/language
     updated: false
   - id: npm:@fumapress/mintlify
     updated: false
-  - id: npm:@fumapress/notion
-    updated: false
+  - changelogIds:
+      - 2026-09-05-cn-package.md
+    id: npm:@fumapress/notion
+    updated: true
   - id: npm:@fumapress/obsidian
     updated: false
   - id: npm:@fumapress/sanity
     updated: false
-  - id: npm:@fumapress/tegami
-    updated: false
+  - changelogIds:
+      - 2026-09-05-cn-package.md
+    id: npm:@fumapress/tegami
+    updated: true
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
