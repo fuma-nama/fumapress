@@ -50,6 +50,8 @@ Plugins that require a server fail the build with an error:
 
 Self-hosted image optimization is skipped automatically.
 
+A page that throws while prerendering fails the build and names the route, so a render error never ships as a blank page.
+
 ## Platforms
 
 Each platform is served by a deployment adapter, detected from environment variables at build time: Vercel, Netlify, and Cloudflare set them on their build machines, other environments fall back to `waku/adapters/node`. To build for a platform from elsewhere (e.g. your own CI), set the `adapter` option:

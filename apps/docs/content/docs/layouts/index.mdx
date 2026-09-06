@@ -78,6 +78,36 @@ export default config;
 
 With multiple content sources, switch on `page.type` instead, see [Content Collections](/docs/collections).
 
+## Custom Layouts
+
+A layout is a server component, `renderPage` can return any JSX. Get the page body from the app context, `getPageBody` returns `{ node }` with the rendered content:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => <LegalPage {...props} />,
+});
+
+export const { getPressContext } = config.utils();
+export default config;
+
+async function LegalPage({ page }: { page: typeof config.$context.page }) {
+  const body = await getPressContext().getPageBody(page);
+  if (!body) throw new Error(`no adapter renders ${page.path}`);
+
+  return (
+    <article>
+      <h1>{page.data.title}</h1>
+      {body.node}
+    </article>
+  );
+}
+```
+
+The context also exposes `getPageToc`, `getPageLastModified`, and `defaultLayoutProps`, the pieces the built-in layouts are made of. A page that throws while rendering fails `fumapress build` with the route name, so a broken layout never ships as a blank page.
+
 ## File-based Layouts
 
 File-based routes in `src/pages` use Waku's file-based routing model. Use `_layout.tsx` files to apply layouts on children routes.
