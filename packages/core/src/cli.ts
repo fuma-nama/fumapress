@@ -11,6 +11,7 @@ import { unstable_combinedPlugins as combinedPlugins } from "waku/vite-plugins";
 import type { Config } from "waku/config";
 import { getDefaultAdapter, type PluginOptions } from "./vite";
 import { assertEsmApp } from "./lib/fs";
+import { assertNoPrerenderErrors } from "./lib/prerender-errors";
 
 const require = createRequire(import.meta.url);
 
@@ -233,6 +234,7 @@ async function runBuild() {
   (globalThis as Record<string, unknown>).__WAKU_START_PREVIEW_SERVER__ = () =>
     startPreviewServer(config);
   await builder.buildApp();
+  await assertNoPrerenderErrors(path.join(config.distDir, "public", config.rscBase));
 }
 
 async function startPreviewServer(config: ResolvedConfig) {
