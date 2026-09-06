@@ -14,6 +14,7 @@ export default defineConfig({
     "src/{client,image}.tsx",
     "src/router/index.tsx",
     "src/router/fs.tsx",
+    "src/router/deploy.enhancer.ts",
     "src/adapters/**",
     "src/{layouts,plugins}/*",
     "!src/plugins/*.client.tsx",

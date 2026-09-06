@@ -317,8 +317,12 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 }
 
 function getDefaultBaseUrl() {
+  const platform =
+    import.meta.env.FUMAPRESS_PLATFORM === "cloudflare"
+      ? " and Cloudflare Workers Builds does not expose the site URL"
+      : "";
   console.warn(
-    '[Fumapress] It is recommended to specify "site.baseUrl" in your config for better SEO; sitemap and RSS will fall back to relative URLs.',
+    `[Fumapress] "site.baseUrl" is not set${platform}; sitemap and RSS will fall back to relative URLs.`,
   );
   if (import.meta.env.DEV) {
     return "http://localhost:3000";
@@ -326,10 +330,6 @@ function getDefaultBaseUrl() {
   const vercelUrl = import.meta.env.VERCEL_URL;
   if (vercelUrl) {
     return `https://${vercelUrl}`;
-  }
-  const cloudflareUrl = import.meta.env.CF_PAGES_URL || import.meta.env.CLOUDFLARE_PAGES_URL;
-  if (cloudflareUrl) {
-    return /^https?:\/\//.test(cloudflareUrl) ? cloudflareUrl : `https://${cloudflareUrl}`;
   }
 }
 

@@ -56,6 +56,7 @@
     "./plugins/takumi": "./dist/plugins/takumi.js",
     "./plugins/takumi.wasm": "./dist/plugins/takumi.wasm.js",
     "./router": "./dist/router/index.js",
+    "./router/deploy.enhancer": "./dist/router/deploy.enhancer.js",
     "./router/fs": "./dist/router/fs.js",
     "./vite": "./dist/vite.js",
     "./package.json": "./package.json",
