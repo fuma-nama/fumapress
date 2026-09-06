@@ -21,9 +21,9 @@ export async function getImage<C extends AppShape>(ctx: AppContext<C>, page: C["
   }
 }
 
-/** URL segment of a tag, tags are matched case-insensitively */
-export function tagSlug(tag: string): string {
-  return encodeURIComponent(tag.toLowerCase());
+/** URL segment of a tag: lowercase, whitespace replaced by `-` */
+export function tagSlug(tag: string) {
+  return tag.toLowerCase().replace(/\s+/g, "-");
 }
 
 export interface TagInfo {

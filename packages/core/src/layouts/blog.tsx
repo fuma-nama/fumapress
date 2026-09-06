@@ -159,12 +159,12 @@ function BlogAuthorItem({ author }: { author: BlogAuthor }) {
   );
 }
 
-function AdjacentPostLink<C extends AppShape>({
+function AdjacentPostLink({
   post,
   className,
   children,
 }: {
-  post: BlogPost<C>;
+  post: BlogPost;
   className?: string;
   children: ReactNode;
 }) {

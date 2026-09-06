@@ -16,6 +16,6 @@ Other content sources supply the new fields through the `blog:get-authors` and `
 
 `fumapress/plugins/blog` exports `getBlogPosts()`, `getAdjacentPosts()`, `getBlogAuthors()` and `tagSlug()`, so custom layouts no longer sort posts or resolve authors themselves.
 
-### Tag pages use lowercase, URL-encoded slugs
+### Tag pages use lowercase slugs
 
-Tag routes and links go through `tagSlug()`, so tags with spaces or capitals resolve. Tags match case-insensitively, and the tag page shows the tag as written in posts.
+Tag routes and links go through `tagSlug()`, which lowercases the tag and replaces whitespace with `-`, so tags with spaces or capitals resolve. The tag page shows the tag as written in posts.

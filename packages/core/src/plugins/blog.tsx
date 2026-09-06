@@ -134,8 +134,7 @@ export async function getBlogAuthors<C extends AppShape>(
   const { authors } = getBlogContext<C>();
   const ids = await getAuthorIds(ctx, page);
   const result: BlogAuthor[] = [];
-
-  if (ids) for (const id of ids) result.push(authors[id] ?? { name: id });
+  for (const id of ids ?? []) result.push(authors[id] ?? { name: id });
   return result;
 }
 

@@ -1,39 +1,48 @@
 import { describe, expect, it } from "vitest";
-import type { AppContext } from "@/app/context";
+import type { Page, PageData } from "fumadocs-core/source";
+import type { AppContext, AppShape } from "@/app/context";
 import type { RouteFns } from "@/lib/types";
 import { blogPlugin, getAdjacentPosts, getBlogPosts, tagSlug } from "@/plugins/blog";
 import { groupTags } from "@/lib/shared/blog";
 
-function post(url: string, data: { date?: string; tags?: string[] }) {
-  return { type: "blog", url, slugs: url.split("/").slice(2), data: { title: url, ...data } };
+interface Data extends PageData {
+  date?: string;
+  tags?: string[];
 }
 
-const pages = [
-  post("/blog/a", { date: "2026-01-01", tags: ["React"] }),
-  post("/blog/b", { date: "2026-03-01", tags: ["react", "Hello World"] }),
-  post("/blog/c", {}),
-  { type: "docs", url: "/docs", slugs: [], data: { title: "Docs" } },
-];
+interface Shape extends AppShape {
+  page: Page<string, Data>;
+}
+
+function mockPage(type: string, url: string, data: Data = {}): Shape["page"] {
+  return { type, path: `${url.slice(1)}.mdx`, url, slugs: url.split("/").slice(2), data };
+}
+
+const a = mockPage("blog", "/blog/a", { date: "2026-01-01", tags: ["React"] });
+const b = mockPage("blog", "/blog/b", { date: "2026-03-01", tags: ["react", "Hello World"] });
+const c = mockPage("blog", "/blog/c");
+const docs = mockPage("docs", "/docs");
+const pages = [a, b, c, docs];
 
 const ctx = {
   mode: "default",
-  adapters: [{ "blog:get-tags": (page: { data: { tags?: string[] } }) => page.data.tags }],
+  adapters: [{ "blog:get-tags": (page: Shape["page"]) => page.data.tags }],
   getLoader: () => ({ getPages: () => pages }),
-  getPageCreatedAt: (page: { data: { date?: string } }) =>
+  getPageCreatedAt: (page: Shape["page"]) =>
     page.data.date ? new Date(page.data.date) : undefined,
-} as unknown as AppContext;
+} as unknown as AppContext<Shape>;
 
 /** register the plugin's routes and run `fn` inside the blog context */
 async function withBlog<T>(fn: () => Promise<T>) {
   let interceptor!: <R>(next: () => Promise<R>) => Promise<R>;
   const staticPaths = new Map<string, unknown>();
 
-  await blogPlugin().createPages!.call(ctx, {
-    createInterceptor: (i) => {
+  await blogPlugin<Shape>().createPages!.call(ctx, {
+    createInterceptor: (i: typeof interceptor) => {
       interceptor = i;
     },
-    createPage: (page) => {
-      staticPaths.set(page.path, "staticPaths" in page ? page.staticPaths : undefined);
+    createPage: (page: { path: string; staticPaths?: unknown }) => {
+      staticPaths.set(page.path, page.staticPaths);
     },
     createLayout: () => {},
   } as unknown as RouteFns);
@@ -42,24 +51,24 @@ async function withBlog<T>(fn: () => Promise<T>) {
 }
 
 describe("tag slugs", () => {
-  it("lowercases and encodes", () => {
-    expect(tagSlug("Hello World")).toBe("hello%20world");
+  it("lowercases and dashes whitespace", () => {
+    expect(tagSlug("Hello World")).toBe("hello-world");
     expect(tagSlug("React")).toBe("react");
   });
 
   it("groups tags case-insensitively, keeping the first spelling", async () => {
-    const grouped = await groupTags(ctx, pages.slice(0, 3));
+    const grouped = await groupTags(ctx, [a, b, c]);
 
     expect(Array.from(grouped)).toEqual([
       ["react", { tag: "React", count: 2 }],
-      ["hello%20world", { tag: "Hello World", count: 1 }],
+      ["hello-world", { tag: "Hello World", count: 1 }],
     ]);
   });
 
   it("registers tag routes with slugs", async () => {
     const { staticPaths } = await withBlog(async () => {});
 
-    expect(staticPaths.get("/(blog)/blog/tags/[tag]")).toEqual(["react", "hello%20world"]);
+    expect(staticPaths.get("/(blog)/blog/tags/[tag]")).toEqual(["react", "hello-world"]);
   });
 });
 
@@ -68,15 +77,15 @@ describe("blog posts", () => {
     const { result } = await withBlog(() => getBlogPosts(ctx));
 
     expect(result.map((post) => post.page.url)).toEqual(["/blog/c", "/blog/b", "/blog/a"]);
-    expect(result[1].date).toEqual(new Date("2026-03-01"));
+    expect(result[1]?.date).toEqual(new Date("2026-03-01"));
   });
 
   it("finds adjacent posts", async () => {
     const { result } = await withBlog(() =>
       Promise.all([
-        getAdjacentPosts(ctx, pages[1]),
-        getAdjacentPosts(ctx, pages[2]),
-        getAdjacentPosts(ctx, pages[3]),
+        getAdjacentPosts(ctx, b),
+        getAdjacentPosts(ctx, c),
+        getAdjacentPosts(ctx, docs),
       ]),
     );
 
