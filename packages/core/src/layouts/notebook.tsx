@@ -137,31 +137,24 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
 
     return Layout({
       ...result.layoutProps,
-      children: (
-        <>
-          {ctx.renderPageMeta(page)}
-          {Page({
-            ...result.pageProps,
-            children: (
-              <>
-                <DocsTitle>{page.data.title}</DocsTitle>
-                <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-                <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-                  {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
-                  <ViewOptionsPopover
-                    markdownUrl={result.markdownUrl}
-                    githubUrl={
-                      page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined
-                    }
-                  />
-                </div>
-                {Body({ children: result.body })}
-                {result.lastModified && <PageLastUpdate date={result.lastModified} />}
-              </>
-            ),
-          })}
-        </>
-      ),
+      children: Page({
+        ...result.pageProps,
+        children: (
+          <>
+            <DocsTitle>{page.data.title}</DocsTitle>
+            <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+            <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+              {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
+              <ViewOptionsPopover
+                markdownUrl={result.markdownUrl}
+                githubUrl={page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined}
+              />
+            </div>
+            {Body({ children: result.body })}
+            {result.lastModified && <PageLastUpdate date={result.lastModified} />}
+          </>
+        ),
+      }),
     });
   };
 }

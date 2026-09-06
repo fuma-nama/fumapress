@@ -106,6 +106,18 @@ export interface SiteConfig {
   /** full URL of app, used for metadata generation*/
   baseUrl?: string;
 
+  /**
+   * Append a trailing slash to generated page URLs (canonical, sitemap, RSS), for hosts that serve pages with one.
+   */
+  trailingSlash?: boolean;
+
+  /**
+   * `hreflang` values by locale, for locale codes that are not BCP 47 language tags.
+   *
+   * @example { cn: "zh-Hans" }
+   */
+  hreflang?: Record<string, string>;
+
   name?: string;
   git?: {
     /**

@@ -7,6 +7,7 @@ import type { AppContext } from "@/app/context";
 import type { ConfigUtils } from "@/config";
 import type { RouteFns } from "@/lib/types";
 import type { I18nConfig } from "fumadocs-core/i18n";
+import type { HandlerInterceptor } from "waku/router/server";
 
 interface Route {
   kind: string;
@@ -17,7 +18,11 @@ interface Route {
 }
 
 const recorded = vi.hoisted(() => {
-  const state = { routes: [] as Route[], pending: undefined as Promise<unknown> | undefined };
+  const state = {
+    routes: [] as Route[],
+    pending: undefined as Promise<unknown> | undefined,
+    interceptor: undefined as HandlerInterceptor | undefined,
+  };
 
   return Object.assign(state, {
     fns() {
@@ -33,7 +38,9 @@ const recorded = vi.hoisted(() => {
         createRoot: record("root"),
         createApi: record("api"),
         createSlice: record("slice"),
-        createInterceptor() {},
+        createInterceptor(fn: HandlerInterceptor) {
+          state.interceptor = fn;
+        },
       } as unknown as RouteFns;
     },
   });
@@ -70,8 +77,16 @@ function route(path: string): Route {
   return found;
 }
 
+// routes render inside the interceptor, which provides the press context
 async function render(route: Route, props: object): Promise<unknown> {
-  return (route.component as FC<object>)(props);
+  const call = async () => (route.component as FC<object>)(props);
+  return recorded.interceptor ? recorded.interceptor(call) : call();
+}
+
+/** rendered page content, without the page meta the router adds in front of it */
+async function content(route: Route, props: object): Promise<unknown> {
+  const element = (await render(route, props)) as { props: { children: unknown[] } };
+  return element.props.children[1];
 }
 
 describe("createRouter", () => {
@@ -113,8 +128,8 @@ describe("createRouter", () => {
     ]);
     expect(route("/en/[...slugs]").staticPaths).toEqual([[], ["guide"]]);
     expect(route("/cn/[...slugs]").staticPaths).toContainEqual([]);
-    expect(await render(route("/en/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
-    expect(await render(route("/cn/[...slugs]"), { slugs: [] })).toBe("cn:");
+    expect(await content(route("/en/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
+    expect(await content(route("/cn/[...slugs]"), { slugs: [] })).toBe("cn:");
     await expect(render(route("/cn/[...slugs]"), { slugs: ["missing"] })).rejects.toThrow(
       "not found",
     );
@@ -145,7 +160,7 @@ describe("createRouter", () => {
       "/cn/[...slugs]",
     ]);
     expect(route("/(default)/[...slugs]").staticPaths).toEqual([[], ["guide"]]);
-    expect(await render(route("/(default)/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
+    expect(await content(route("/(default)/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
 
     const layout = (await render(route("/(default)"), { children: "x" })) as {
       props: { lang: string };
@@ -159,7 +174,7 @@ describe("createRouter", () => {
     expect(paths("root")).toEqual([undefined]);
     expect(paths("layout")).toEqual([]);
     expect(paths("page")).toEqual(["/404", "/[...slugs]"]);
-    expect(await render(route("/[...slugs]"), { slugs: ["guide"] })).toBe("undefined:guide");
+    expect(await content(route("/[...slugs]"), { slugs: ["guide"] })).toBe("undefined:guide");
   });
 
   it("rejects hideLocale: always", async () => {

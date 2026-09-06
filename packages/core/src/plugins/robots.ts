@@ -93,9 +93,7 @@ export function robotsPlugin<C extends AppShape = AppShape>(
 
           if (sitemap) {
             const sitemapPath = typeof sitemap === "string" ? sitemap : "/sitemap.xml";
-            sections.push(
-              `Sitemap: ${this.siteConfig.baseUrl ? new URL(sitemapPath, this.siteConfig.baseUrl).href : sitemapPath}`,
-            );
+            sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath, { file: true })}`);
           }
           if (additionalContent) sections.push(additionalContent);
 

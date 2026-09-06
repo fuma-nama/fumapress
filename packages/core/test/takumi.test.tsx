@@ -28,6 +28,10 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     interceptPageMeta() {},
     localizePath: (lang: string | undefined, pathname: string) =>
       localizePath(overrides.i18nConfig, lang, pathname),
+    absoluteUrl: (pathname: string) =>
+      overrides.siteConfig?.baseUrl
+        ? new URL(pathname, overrides.siteConfig.baseUrl).href
+        : pathname,
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -79,7 +83,7 @@ describe("og:image", () => {
     const { content } = await metaOf(
       {},
       { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
-      { slugs: ["docs"], locale: "cn" },
+      { slugs: ["docs"], locale: "cn", path: "docs.cn.mdx" },
     );
     expect(content).toBe("/cn/_takumi/docs.webp");
   });
@@ -114,6 +118,8 @@ describe("route images", () => {
       data: {},
       siteConfig,
       interceptPageMeta() {},
+      absoluteUrl: (pathname: string) =>
+        "baseUrl" in siteConfig ? new URL(pathname, siteConfig.baseUrl as string).href : pathname,
     } as unknown as AppContext;
     const fns = {
       createPage: (page: never) => created.push(page),

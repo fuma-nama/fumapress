@@ -5,6 +5,11 @@ import { joinPathname } from "./pathname";
 /** route group of pages without a language prefix, rendered inside the root layout of the default language */
 export const DEFAULT_GROUP = "/(default)";
 
+/** the language a fallback page is inherited from */
+export function fallbackLanguage(i18n: I18nConfig): string {
+  return i18n.fallbackLanguage ?? i18n.defaultLanguage;
+}
+
 /** the language served without URL prefix */
 export function hiddenLocale(i18n: I18nConfig | undefined): string | undefined {
   return i18n?.hideLocale === "default-locale" ? i18n.defaultLanguage : undefined;

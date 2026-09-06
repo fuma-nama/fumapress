@@ -17,7 +17,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { preinitPlugins, type PressPlugin } from "./plugin";
-import { localizePath } from "@/lib/i18n";
+import { fallbackLanguage, localizePath } from "@/lib/i18n";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
@@ -62,10 +62,19 @@ export interface AppContext<S extends AppShape = AppShape>
   siteConfig: {
     name: string;
     baseUrl?: string;
+    trailingSlash?: boolean;
+    hreflang?: Record<string, string>;
     git?: GitInfo & {
       rootDir: string;
     };
   };
+}
+
+export interface PageAlternate {
+  locale: string;
+  /** from `site.hreflang`, defaults to the locale code */
+  hreflang: string;
+  href: string;
 }
 
 type RootMetaInterceptor = (opts: { next: () => ReactNode }) => ReactNode;
@@ -92,6 +101,16 @@ export interface FumapressHooks<C extends AppShape> {
 
   /** URL of a file on the configured git provider, requires `site.git` to be configured */
   getFileUrl: (absolutePath: string) => Awaitable<string | undefined>;
+
+  /** translations of the page (fallback pages excluded) for `hreflang` links, empty when it has none */
+  getPageAlternates: (page: C["page"]) => Promise<PageAlternate[]>;
+
+  /**
+   * Absolute URL of a pathname with `site.baseUrl`, the pathname itself when unset.
+   *
+   * `site.trailingSlash` applies to page URLs, pass `file: true` for files like images and feeds.
+   */
+  absoluteUrl: (pathname: string, options?: { file?: boolean }) => string;
 }
 
 export interface FumapressLoader<C extends AppShape = AppShape> {
@@ -139,7 +158,6 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     renderPage = (await import("@/layouts/docs")).createDocsLayoutPage(),
     renderRoot = (await import("@/layouts/root")).createRootLayout(),
   } = config;
-
   const ctx: AppContext = {
     $context: undefined as never,
     getLoader() {
@@ -188,6 +206,8 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     siteConfig: {
       name: site?.name ?? "Fumapress",
       baseUrl: site?.baseUrl ?? getDefaultBaseUrl(),
+      trailingSlash: site?.trailingSlash,
+      hreflang: site?.hreflang,
       git: site?.git
         ? {
             ...site.git,
@@ -266,21 +286,54 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 
       function next(i: number): ReactNode {
         const interceptor = pageMetaInterceptors[i];
-        if (!interceptor)
+        if (!interceptor) {
+          const { title, description } = page.data;
+
           return (
             <>
-              <title>{page.data.title}</title>
-              <meta property="og:title" content={page.data.title} />
-              {page.data.description && (
-                <meta property="og:description" content={page.data.description} />
-              )}
+              <title>{title}</title>
+              {description && <meta name="description" content={description} />}
+              <meta property="og:title" content={title} />
+              {description && <meta property="og:description" content={description} />}
+              <meta property="og:site_name" content={context.siteConfig.name} />
+              <PageLinks page={page} />
               {config.meta?.page?.call(context, page)}
             </>
           );
+        }
         return interceptor({ page, next: () => next(i + 1) });
       }
 
       return next(0);
+    },
+    async getPageAlternates(page) {
+      const ctx = getPressContext();
+      const i18n = ctx.i18nConfig as I18nConfig | undefined;
+      if (!i18n) return [];
+      const source = await ctx.getLoader();
+      const out: PageAlternate[] = [];
+
+      for (const locale of i18n.languages) {
+        const target = source.getPage(page.slugs, locale);
+        if (!target || target.fallback) continue;
+
+        out.push({
+          locale,
+          hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
+          href: ctx.absoluteUrl(target.url),
+        });
+      }
+
+      return out.length > 1 ? out : [];
+    },
+    absoluteUrl(pathname, { file = false } = {}) {
+      const { baseUrl, trailingSlash } = getPressContext().siteConfig;
+
+      if (!file && trailingSlash && pathname !== "/" && !pathname.endsWith("/")) {
+        pathname += "/";
+      }
+
+      return baseUrl ? new URL(pathname, baseUrl).href : pathname;
     },
     async getPageCreatedAt(page) {
       const ctx = getPressContext();
@@ -323,6 +376,35 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
       return getFileUrl(git, p);
     },
   };
+}
+
+/** canonical, `hreflang` and robots tags, they need the content loader */
+async function PageLinks({ page }: { page: Page }) {
+  const ctx = getPressContext();
+  const i18n = ctx.i18nConfig as I18nConfig | undefined;
+  let canonical = page.url;
+
+  if (page.fallback && i18n) {
+    const source = await ctx.getLoader();
+    canonical = source.getPage(page.slugs, fallbackLanguage(i18n))?.url ?? page.url;
+  }
+
+  const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl(canonical) : undefined;
+  const alternates = await ctx.getPageAlternates(page);
+  const xDefault =
+    alternates.find((item) => item.locale === i18n?.defaultLanguage) ?? alternates[0];
+
+  return (
+    <>
+      {url && <link rel="canonical" href={url} />}
+      {url && <meta property="og:url" content={url} />}
+      {alternates.map((item) => (
+        <link key={item.locale} rel="alternate" hrefLang={item.hreflang} href={item.href} />
+      ))}
+      {xDefault && <link rel="alternate" hrefLang="x-default" href={xDefault.href} />}
+      {page.fallback && <meta name="robots" content="noindex" />}
+    </>
+  );
 }
 
 function getDefaultBaseUrl() {

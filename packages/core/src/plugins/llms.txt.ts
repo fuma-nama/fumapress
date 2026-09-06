@@ -185,8 +185,11 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         render: renderMode,
         path: "/llms-full.txt",
         handler: async () => {
-          const source = await this.getLoader();
-          const scanned = await Promise.all(source.getPages().map(getLLMText));
+          const pending: Awaitable<string | undefined>[] = [];
+          for (const page of (await this.getLoader()).getPages()) {
+            if (!page.fallback) pending.push(getLLMText(page));
+          }
+          const scanned = await Promise.all(pending);
 
           return new Response(scanned.filter((item) => item !== undefined).join("\n\n"));
         },

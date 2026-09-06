@@ -1,5 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { buildSitemap } from "@/plugins/sitemap";
+import { appContext, type AppContext } from "@/app/context";
+import type { RouteFns } from "@/lib/types";
+import { buildSitemap, sitemapPlugin } from "@/plugins/sitemap";
+import { createApp, i18n } from "./fixtures";
+
+type ApiConfig = Parameters<RouteFns["createApiIsomorphic"]>[0];
+
+async function generate(ctx: AppContext) {
+  let handler: ApiConfig["handler"] | undefined;
+  await sitemapPlugin().createPages!.call(ctx, {
+    createApiIsomorphic(config: ApiConfig) {
+      handler = config.handler;
+    },
+    unstable_getCreated: () => ({
+      unstable_getRouterConfigs: async () => [
+        {
+          isStatic: true,
+          type: "route",
+          path: [{ name: "cn" }, { name: "docs" }, { name: "only-en" }],
+        },
+        { isStatic: true, type: "route", path: [{ name: "about" }] },
+      ],
+    }),
+  } as unknown as RouteFns);
+
+  const res = await appContext.run(ctx, () =>
+    handler!(new Request("https://example.com/sitemap.xml"), { params: {} }),
+  );
+  return res.text();
+}
+
+describe("sitemapPlugin", () => {
+  it("skips fallback pages and links translations", async () => {
+    const ctx = await createApp({ i18n, site: { hreflang: { cn: "zh-Hans" } } });
+    const xml = await generate(ctx);
+
+    expect(xml).toContain("<loc>https://example.com/en/docs/only-en</loc>");
+    expect(xml).not.toContain("<loc>https://example.com/cn/docs/only-en</loc>");
+    expect(xml).toContain("<url><loc>https://example.com/about</loc><priority>1</priority></url>");
+    expect(xml).toContain(
+      "<url><loc>https://example.com/en/docs/basics</loc><priority>0.8</priority>" +
+        '<xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/docs/basics"/>' +
+        '<xhtml:link rel="alternate" hreflang="zh-Hans" href="https://example.com/cn/docs/basics"/>' +
+        "</url>",
+    );
+  });
+});
 
 describe("buildSitemap", () => {
   it("serializes standard fields", () => {
@@ -31,7 +77,7 @@ describe("buildSitemap", () => {
     const xml = buildSitemap([
       {
         loc: "https://example.com/en/docs",
-        alternates: [{ rel: "alternate", hreflang: "cn", href: "https://example.com/cn/docs" }],
+        alternates: [{ hreflang: "cn", href: "https://example.com/cn/docs" }],
         images: [{ loc: "https://example.com/hero.png", title: "Hero" }],
       },
     ]);

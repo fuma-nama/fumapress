@@ -5,6 +5,7 @@ import { unstable_notFound } from "waku/router/server";
 import type { FC, ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
+import { fallbackLanguage } from "@/lib/i18n";
 import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
 import { asMarkdown } from "@/markdown";
 
@@ -81,7 +82,6 @@ export function takumiPlugin<C extends AppShape = AppShape>(
   } = options;
   let basePath: string;
   let renderMode: "static" | "dynamic";
-  let toUrl: (pathname: string) => string;
 
   function render(node: ReactNode, options?: TakumiImageOptions) {
     return new ImageResponse(node, {
@@ -136,18 +136,18 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     init() {
       renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
-      toUrl = (pathname) =>
-        this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
 
       this.interceptPageMeta(({ page, next }) => (
         <>
           {next()}
           {imageMeta(
-            toUrl(
+            this.absoluteUrl(
               this.localizePath(
-                page.locale,
+                // fallback pages have no image of their own, point at the source page's
+                page.fallback ? fallbackLanguage(this.i18nConfig!) : page.locale,
                 joinPathname(basePath, ...slugsToImagePath(page.slugs)),
               ),
+              { file: true },
             ),
           )}
         </>
@@ -206,7 +206,8 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
           component: (props: { path: string }) => (
             <>
-              {!asMarkdown() && imageMeta(toUrl(routeImagePath(props.path, dynamic)))}
+              {!asMarkdown() &&
+                imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
               {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
             </>
           ),
@@ -216,6 +217,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     async createPages({ createApiIsomorphic }) {
       const staticPathsByLang = new Map<string | undefined, string[][]>();
       for (const page of (await this.getLoader()).getPages()) {
+        if (page.fallback) continue;
         const paths = staticPathsByLang.get(page.locale);
         if (paths) paths.push(slugsToImagePath(page.slugs));
         else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);
