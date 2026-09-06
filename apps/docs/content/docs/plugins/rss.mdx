@@ -33,7 +33,7 @@ export default defineConfig({
 
 ### `getItem`
 
-Controls how a page becomes a feed item. Pages are dated with the creation date from your content source (e.g. the `date` frontmatter with Fumadocs MDX), falling back to the last modified date, **undated pages are excluded**.
+Controls how a page becomes a feed item. Pages are dated with the creation date from your content source (e.g. the `date` frontmatter with Fumadocs MDX), falling back to the last modified date, **undated pages are excluded**, so are [fallback pages](/docs/internationalization#fallback-pages).
 
 Override it to change titles, add categories, or filter pages, return `undefined` to exclude one:
 
@@ -44,7 +44,7 @@ rssPlugin({
 
     return {
       title: page.data.title,
-      link: new URL(page.url, this.siteConfig.baseUrl).href,
+      link: this.absoluteUrl(page.url),
       description: page.data.description,
       pubDate: await this.getPageCreatedAt(page),
     };

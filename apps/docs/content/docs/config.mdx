@@ -40,6 +40,42 @@ The repository is used for the icon link in navbar, and the link to source file 
 
 Source file links are resolved against the detected git root, set `git.rootDir` to override it, such as when building in an environment without the `.git` directory.
 
+#### URLs
+
+`baseUrl` makes generated URLs absolute: sitemap entries, feed links, `og:image`, and the canonical link of each page. Set `trailingSlash` when your host serves pages with one, like Cloudflare Pages for static builds, so those URLs match:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    baseUrl: "https://press.fumadocs.dev",
+    // [!code ++]
+    trailingSlash: true,
+  },
+});
+```
+
+Plugins build the same URLs with `this.absoluteUrl(pathname)`, pass `{ file: true }` for files so they never get a trailing slash.
+
+#### Locales
+
+With [i18n](/docs/internationalization), every page links its translations with `hreflang`. Locale codes are used as is, map the ones that are not BCP 47 language tags:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+
+export default defineConfig({
+  site: {
+    // [!code ++:4]
+    hreflang: {
+      cn: "zh-Hans",
+      tw: "zh-Hant",
+    },
+  },
+});
+```
+
 #### Git Providers
 
 `git.provider` supports `github` (default), `gitlab`, and `bitbucket`, the navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
@@ -179,7 +215,15 @@ Leave it disabled to control this yourself with `getPressContext().revalidateLoa
 
 ### Meta
 
-To add meta tags, you can leverage the `meta` config.
+Every content page comes with:
+
+- `<title>` and `<meta name="description">` from the page frontmatter.
+- `og:title`, `og:description`, `og:site_name`, and `og:url`.
+- `<link rel="canonical">`, requires `site.baseUrl`.
+- `hreflang` links to its translations, see [Internationalization](/docs/internationalization#fallback-pages).
+- `og:image` from the [Takumi plugin](/docs/plugins/takumi).
+
+They are rendered by the router rather than layouts, so custom `renderPage` functions get them as well. To add more, use the `meta` config:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";

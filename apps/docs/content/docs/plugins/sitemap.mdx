@@ -26,7 +26,7 @@ export default defineConfig({
 
 The plugin creates a sitemap at `/sitemap.xml`.
 
-By default, every page from your content source is included with a `priority` of `0.8`, and **static routes** are included as well.
+By default, every page from your content source is included with a `priority` of `0.8` and `hreflang` alternates for its translations, **static routes** are included as well. [Fallback pages](/docs/internationalization#fallback-pages) are skipped.
 
 ## Options
 
@@ -61,21 +61,22 @@ export default defineConfig({
       if (page.path.startsWith("drafts/")) return;
 
       return {
-        loc: new URL(page.url, this.siteConfig.baseUrl).href,
+        loc: this.absoluteUrl(page.url),
         lastmod: page.data.lastModified,
         changefreq: "weekly",
         priority: page.path === "index" ? 1 : 0.8,
+        alternates: await this.getPageAlternates(page),
       };
     },
   }),
 );
 ```
 
-`getEntry` receives the app context as `this`, so you can access `siteConfig`, and other plugin APIs.
+`getEntry` receives the app context as `this`, so you can access `siteConfig`, `absoluteUrl()`, and other plugin APIs.
 
 Each entry supports the standard sitemap fields (`loc`, `lastmod`, `changefreq`, `priority`), plus the Google extensions:
 
-- `alternates`: alternate language versions of the page, written as `xhtml:link` hreflang elements.
+- `alternates`: alternate language versions of the page, written as `xhtml:link` hreflang elements. `this.getPageAlternates(page)` returns the translations of a page.
 - `images`: images on the page ([image extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps)).
 - `videos`: videos on the page ([video extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps)).
 - `news`: news article metadata ([Google News extension](https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap)), at most one per URL.
@@ -94,25 +95,6 @@ An entry with a video looks like:
     },
   ],
 }
-```
-
-For example, linking language versions on an internationalized site:
-
-```tsx title="press.config.tsx"
-sitemapPlugin({
-  async getEntry(page) {
-    const { baseUrl } = this.siteConfig;
-
-    return {
-      loc: new URL(page.url, baseUrl).href,
-      alternates: this.i18nConfig!.languages.map((lang) => ({
-        rel: "alternate",
-        hreflang: lang,
-        href: new URL(`/${lang}/${page.slugs.join("/")}`, baseUrl).href,
-      })),
-    };
-  },
-});
 ```
 
 ### `additionalEntries`
@@ -145,7 +127,7 @@ sitemapPlugin({
   additionalEntries() {
     return [
       {
-        loc: new URL("/rss.xml", this.siteConfig.baseUrl).href,
+        loc: this.absoluteUrl("/rss.xml", { file: true }),
         changefreq: "daily",
       },
     ];

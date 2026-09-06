@@ -120,6 +120,15 @@ Add Markdown/JSON files for different languages by appending `.{locale}` to your
   </Folder>
 </Files>
 
+### Fallback Pages
+
+Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does. Fumapress treats such pages as duplicates of the source page:
+
+- They get `<meta name="robots" content="noindex">` and a canonical link to the source page, and are left out of `hreflang` links.
+- The sitemap, RSS feed, search index, `llms-full.txt`, and OG image generation skip them.
+
+Plugins can check it with `this.isFallbackPage(page)`.
+
 ## Routing
 
 Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale` in your i18n config:
