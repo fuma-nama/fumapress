@@ -48,7 +48,7 @@ Plugins that require a server fail the build with an error:
 - [Feedback](/docs/plugins/feedback) integrations
 - [Notion](/docs/adapters/notion) file proxy
 
-Self-hosted image optimization is skipped automatically.
+Self-hosted image optimization is skipped automatically, and deployment adapters skip their server: no Vercel or Netlify function, no Cloudflare Worker.
 
 ## Platforms
 
@@ -93,19 +93,34 @@ No configuration needed: import the repository, and the build produces a [Build 
 
 ### Netlify
 
-The build emits a `netlify.toml` when your project has none, with `dist/public` as the publish directory and a Netlify Function for dynamic routes. Commit the generated file, or configure those values yourself.
+The build emits a `netlify.toml` when your project has none, with `dist/public` as the publish directory and a Netlify Function for dynamic routes. It also writes `dist/public/_headers` to cache hashed assets for a year, unless your project has a `public/_headers`. Commit the generated `netlify.toml`, or configure those values yourself.
 
 ### Cloudflare
 
-The app deploys as a Cloudflare Worker with static assets. [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected automatically; to build elsewhere, set the adapter as shown above.
+The app deploys to Cloudflare Workers with [static assets](https://developers.cloudflare.com/workers/static-assets/): prerendered pages and assets are uploaded as files, a Worker serves the remaining routes. With `mode: "static"` there is no Worker at all. [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected automatically; to build elsewhere, set the adapter as shown above.
 
-The build generates a Wrangler config unless your project already has one, in which case its `name` and compatibility settings are reused. It also points Wrangler at the built worker, so you can deploy right after building:
+The build generates:
+
+| File                   | Purpose                                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wrangler.jsonc`       | Wrangler config named after `package.json`, skipped when your project has one. Static mode adds `not_found_handling: "404-page"`, so unknown URLs get the nearest `404.html`.    |
+| `dist/public/_headers` | Caches hashed assets under `/assets/` for a year, skipped when your project has a `public/_headers`. Other responses keep Cloudflare's default of revalidating on every request. |
+
+With your own Wrangler config, the build reuses its `name` and compatibility settings and points Wrangler at the built Worker; in static mode, set `assets.directory` to `./dist/public` yourself. Deploy right after building:
 
 ```bash
 npx wrangler deploy
 ```
 
-Image optimization uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/), enable it on your zone.
+Image optimization uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/), enable it on your zone. Workers Builds does not expose the site URL, set `site.baseUrl`.
+
+#### Trailing Slashes
+
+The generated Wrangler config sets `html_handling: "drop-trailing-slash"`: `/docs/` redirects to `/docs`. URLs Fumapress generates for the sitemap and feeds have no trailing slash either, keep both in sync if you change one.
+
+#### Reloads During Deploys
+
+Waku bakes a build id into the client bundle and every RSC payload, and reloads the page when a navigation receives a payload from another build. While a deploy rolls out, the edge can briefly serve HTML and payloads from mixed builds, so open tabs may reload more than once until it converges. Cloudflare revalidates HTML and payloads on every request by default, and the generated `_headers` keeps hashed assets immutable, so nothing stale outlives the rollout. Do not pin `WAKU_BUILD_ID` with `define` to silence it: that disables the check entirely, and stale tabs never pick up a new build.
 
 ### Static Hosting
 
