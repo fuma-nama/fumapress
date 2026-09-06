@@ -120,6 +120,10 @@ Add Markdown/JSON files for different languages by appending `.{locale}` to your
   </Folder>
 </Files>
 
+### Fallback Pages
+
+Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does, marked with `page.fallback`.
+
 ## Routing
 
 Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale` in your i18n config:
