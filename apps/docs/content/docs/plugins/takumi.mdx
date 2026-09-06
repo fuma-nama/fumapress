@@ -5,9 +5,7 @@ description: Generate Open Graph images for your documentation pages.
 
 ## Installation
 
-This plugin is included in `fumapress`.
-
-Enable the plugin in your Fumapress config:
+This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). Add it yourself to configure it:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -21,7 +19,7 @@ export default defineConfig({
   .plugins(takumiPlugin());
 ```
 
-The plugin creates a `.webp` Open Graph image for every docs page with [Takumi](https://takumi.kane.tw), and adds the matching metadata:
+The plugin creates a `.webp` Open Graph image for every content page with [Takumi](https://takumi.kane.tw), and adds the matching metadata:
 
 ```html
 <meta property="og:image" content="/docs/page.webp" />
@@ -53,7 +51,7 @@ export default defineConfig({
 
 ### `generate`
 
-Customize the image content or image response options:
+Customize the image of a page, `this` is the app context:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -82,15 +80,58 @@ export default defineConfig({
             <h1>{page.data.title}</h1>
           </div>
         ),
+        // image response options of this page
         options: {
-          // passed to @takumi-rs/image-response
-          debug: false,
+          quality: 80,
         },
       };
     },
   }),
 );
 ```
+
+### `options`
+
+Image response options shared by every image, the ones returned from `generate()` override them per page.
+
+Anything resolved once belongs here. `googleFonts()` downloads the font files on every call, so create the promise at module scope instead of inside `generate()`:
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { googleFonts, takumiPlugin } from "fumapress/plugins/takumi";
+
+const fonts = googleFonts([{ name: "Geist", weight: [500, 800] }]);
+
+export default defineConfig({
+  // ...
+}).plugins(
+  takumiPlugin({
+    options: { fonts },
+  }),
+);
+```
+
+`fontFromUrl()` does the same for a self-hosted font file. Both come from `takumi-js` through `fumapress/plugins/takumi`, don't install `takumi-js` yourself: a second copy renders with mismatched versions.
+
+### `site`
+
+A site-wide image for pages without content, like the home page or a blog index:
+
+```tsx title="press.config.tsx"
+takumiPlugin({
+  site: {
+    node: (
+      <div style={{ display: "flex", padding: 80, background: "#111", color: "white" }}>
+        <h1>My Site</h1>
+      </div>
+    ),
+  },
+});
+```
+
+`node` can also be a function, `this` is the app context. The image is generated at `/opengraph-image.webp`, change it with `path`.
+
+Pages outside your content don't receive `og:image` automatically, link it with [`getImageUrl()`](#image-urls).
 
 ### `width` / `height`
 
@@ -99,3 +140,44 @@ The image dimensions, defaulting to `1200x630`. They are applied to the rendered
 ```tsx title="press.config.tsx"
 takumiPlugin({ width: 1600, height: 840 });
 ```
+
+## Image URLs
+
+The plugin registers `getImageUrl()` in the app context. It returns the image URL of a page, or the [site image](#site) without arguments, absolute when `site.baseUrl` is set.
+
+Use it in [custom pages](/docs/basics#read-content-from-code) and layouts instead of building the `.webp` path yourself:
+
+```tsx title="src/pages/index.tsx"
+import { getPressContext } from "../../press.config";
+
+export default function Page() {
+  const { getImageUrl } = getPressContext().data["core:takumi"]!;
+
+  return (
+    <>
+      <title>My Site</title>
+      <meta property="og:image" content={getImageUrl()} />
+      <main>...</main>
+    </>
+  );
+}
+```
+
+## WebAssembly
+
+Takumi renders with its native Rust addon on Node.js and Bun, and with WebAssembly on other runtimes. When the machine building your site can't load the native addon, like Cloudflare Workers Builds, pass the WebAssembly build instead:
+
+```tsx title="press.config.tsx"
+import { takumiPlugin } from "fumapress/plugins/takumi";
+// [!code ++]
+import wasm from "fumapress/plugins/takumi.wasm";
+
+takumiPlugin({
+  options: {
+    // [!code ++]
+    module: wasm,
+  },
+});
+```
+
+It is the `takumi-js` of `fumapress` again, and the binary is only bundled when you import it.
