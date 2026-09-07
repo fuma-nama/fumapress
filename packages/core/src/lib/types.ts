@@ -1,4 +1,5 @@
 import type { AppContext, AppShape } from "@/app/context";
+import type { TakumiRouteOptions } from "@/plugins/takumi";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
@@ -92,4 +93,11 @@ export interface RouteConfig {
    * @default true
    */
   autoI18n?: boolean;
+
+  /**
+   * Open Graph image of the page, only read by the Takumi plugin (`fumapress/plugins/takumi`).
+   *
+   * The image is prerendered next to a static page as `<path>.webp`, or rendered on request for a dynamic page, and the `og:image` meta tags are added to the page.
+   */
+  takumiOptions?: TakumiRouteOptions;
 }

@@ -2,9 +2,11 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
+import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
+import { asMarkdown } from "@/markdown";
 
 export { fontFromUrl, googleFonts } from "takumi-js/helpers";
 
@@ -34,13 +36,6 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
    */
   options?: TakumiImageOptions;
 
-  /** A site-wide image for pages without content, like the home page. Link it with `getImageUrl()`. */
-  site?: {
-    /** @default "/opengraph-image.webp" */
-    path?: string;
-    node: ReactNode | ((this: AppContext<C>) => Awaitable<ReactNode>);
-  };
-
   generate?: (
     this: AppContext<C>,
     page: C["page"],
@@ -50,14 +45,22 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   }>;
 }
 
-export interface TakumiContextData<C extends AppShape = AppShape> {
-  /**
-   * URL of the generated image of a page, or the site image without a page.
-   *
-   * Absolute when `site.baseUrl` is configured.
-   */
-  getImageUrl: (page?: C["page"]) => string;
+/** The image of a route: a `node` to draw, or `title` and `description` for the default template. */
+export interface TakumiRouteImage {
+  node?: ReactNode;
+  title?: string;
+  description?: string;
+  /** image response options of this route, over the shared `options` */
+  options?: TakumiImageOptions;
 }
+
+/**
+ * The `takumiOptions` of a route config. A function receives the route params of the rendered path
+ * (`lang` included for `autoI18n` pages), `this` is the app context.
+ */
+export type TakumiRouteOptions<C extends AppShape = AppShape> =
+  | TakumiRouteImage
+  | ((this: AppContext<C>, params: RouteParams) => Awaitable<TakumiRouteImage>);
 
 export function takumiPlugin<C extends AppShape = AppShape>(
   options: TakumiOptions<NoInfer<C>> = {},
@@ -65,7 +68,6 @@ export function takumiPlugin<C extends AppShape = AppShape>(
   const {
     width = 1200,
     height = 630,
-    site,
     options: shared,
     generate = function fn(page) {
       return {
@@ -77,9 +79,9 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       };
     },
   } = options;
-  const sitePath = site?.path ?? "/opengraph-image.webp";
   let basePath: string;
   let renderMode: "static" | "dynamic";
+  let toUrl: (pathname: string) => string;
 
   function render(node: ReactNode, options?: TakumiImageOptions) {
     return new ImageResponse(node, {
@@ -115,30 +117,97 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     return slugs;
   }
 
+  /** static routes get a `.webp` file next to the page, dynamic ones an image route under `/_takumi` */
+  function routeImagePath(pathname: string, dynamic: boolean) {
+    if (dynamic) return joinPathname(basePath === "/" ? "/_takumi" : basePath, pathname);
+    return joinPathname(basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
+  }
+
+  function imageMeta(url: string) {
+    return (
+      <>
+        <meta property="og:image" content={url} />
+        <meta property="og:image:width" content={`${width}`} />
+        <meta property="og:image:height" content={`${height}`} />
+        <meta property="twitter:card" content="summary_large_image" />
+      </>
+    );
+  }
+
   return {
     name: "core:takumi",
     init() {
       renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
-
-      const getImageUrl: TakumiContextData<C>["getImageUrl"] = (page) => {
-        if (!page && !site)
-          throw new Error("[Fumapress] No site image, configure `site` in takumiPlugin().");
-        const pathname = page ? slugsToImagePath(page.slugs, page.locale).pathname : sitePath;
-
-        return this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
-      };
-      this.data["core:takumi"] = { getImageUrl };
+      toUrl = (pathname) =>
+        this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname;
 
       this.interceptPageMeta(({ page, next }) => (
         <>
           {next()}
-          <meta property="og:image" content={getImageUrl(page)} />
-          <meta property="og:image:width" content={`${width}`} />
-          <meta property="og:image:height" content={`${height}`} />
-          <meta property="twitter:card" content="summary_large_image" />
+          {imageMeta(toUrl(slugsToImagePath(page.slugs, page.locale).pathname))}
         </>
       ));
+    },
+    prepareCreatePages(fns) {
+      const { createPage } = fns;
+      fns.createPage = (page) => {
+        const { takumiOptions: image, ...rest } = page as CreatedPage & {
+          takumiOptions?: TakumiRouteOptions<C>;
+        };
+        if (!image) return createPage(page);
+
+        const renderImage = async (params: RouteParams) => {
+          const { node, title, description, options } =
+            typeof image === "function" ? await image.call(this, params) : image;
+
+          return render(
+            node ?? generateDefault({ title, description, site: this.siteConfig.name }),
+            options,
+          );
+        };
+        const dynamic = rest.render === "dynamic";
+        const segments = rest.path.split("/").filter(Boolean);
+
+        if (dynamic) {
+          const spec: string[] = [];
+          for (const seg of segments) if (!seg.startsWith("(")) spec.push(seg);
+
+          fns.createApiIsomorphic({
+            render: "dynamic",
+            path: routeImagePath("/" + spec.join("/"), true),
+            handler: (_, { params }) => renderImage(params),
+          });
+        } else {
+          const entries = segments.some((seg) => seg.startsWith("["))
+            ? (rest.staticPaths ?? [])
+            : [[]];
+          for (const entry of entries) {
+            const { pathname, params } = expandStaticPath(
+              segments,
+              typeof entry === "string" ? [entry] : entry,
+            );
+
+            fns.createApiIsomorphic({
+              render: "static",
+              path: routeImagePath(pathname, false),
+              handler: () => renderImage(params),
+            });
+          }
+        }
+
+        const Page = rest.component as FC<{ path: string }>;
+        return createPage({
+          ...rest,
+          // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
+          component: (props: { path: string }) => (
+            <>
+              {!asMarkdown() && imageMeta(toUrl(routeImagePath(props.path, dynamic)))}
+              {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
+            </>
+          ),
+        } as never);
+      };
     },
     async createPages({ createApiIsomorphic }) {
       createApiIsomorphic({
@@ -159,15 +228,6 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           return render(node, options);
         },
       });
-
-      if (site) {
-        const { node } = site;
-        createApiIsomorphic({
-          render: renderMode,
-          path: sitePath,
-          handler: async () => render(typeof node === "function" ? await node.call(this) : node),
-        });
-      }
     },
   };
 }

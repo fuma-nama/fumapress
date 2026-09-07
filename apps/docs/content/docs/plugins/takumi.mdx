@@ -113,26 +113,6 @@ export default defineConfig({
 
 `fontFromUrl()` does the same for a self-hosted font file. Both come from `takumi-js` through `fumapress/plugins/takumi`, don't install `takumi-js` yourself: a second copy renders with mismatched versions.
 
-### `site`
-
-A site-wide image for pages without content, like the home page or a blog index:
-
-```tsx title="press.config.tsx"
-takumiPlugin({
-  site: {
-    node: (
-      <div style={{ display: "flex", padding: 80, background: "#111", color: "white" }}>
-        <h1>My Site</h1>
-      </div>
-    ),
-  },
-});
-```
-
-`node` can also be a function, `this` is the app context. The image is generated at `/opengraph-image.webp`, change it with `path`.
-
-Pages outside your content don't receive `og:image` automatically, link it with [`getImageUrl()`](#image-urls).
-
 ### `width` / `height`
 
 The image dimensions, defaulting to `1200x630`. They are applied to the rendered image and the `og:image` meta tags, the response format is always `webp`.
@@ -141,27 +121,36 @@ The image dimensions, defaulting to `1200x630`. They are applied to the rendered
 takumiPlugin({ width: 1600, height: 840 });
 ```
 
-## Image URLs
+## Route Images
 
-The plugin registers `getImageUrl()` in the app context. It returns the image URL of a page, or the [site image](#site) without arguments, absolute when `site.baseUrl` is set.
+Pages outside your content, like the ones in `src/pages`, get an image from their route config:
 
-Use it in [custom pages](/docs/basics#read-content-from-code) and layouts instead of building the `.webp` path yourself:
+```tsx title="src/pages/about.tsx"
+import type { RouteConfig } from "fumapress";
 
-```tsx title="src/pages/index.tsx"
-import { getPressContext } from "../../press.config";
-
-export default function Page() {
-  const { getImageUrl } = getPressContext().data["core:takumi"]!;
-
-  return (
-    <>
-      <title>My Site</title>
-      <meta property="og:image" content={getImageUrl()} />
-      <main>...</main>
-    </>
-  );
+export function getConfig() {
+  return {
+    takumiOptions: { title: "About", description: "Who we are" },
+  } satisfies RouteConfig;
 }
 ```
+
+The image is prerendered as `/about.webp` with the default template, and the page receives the same `og:image` meta tags as a content page. Pass `node` to draw it yourself, and `options` for the image response options of this route.
+
+For routes with slugs, a function receives the route params, `lang` included with [i18n](/docs/internationalization), and `this` is the app context:
+
+```tsx title="src/pages/tags/[tag].tsx"
+import type { RouteConfig } from "fumapress";
+
+export function getConfig() {
+  return {
+    staticPaths: ["react", "vue"],
+    takumiOptions: ({ tag }) => ({ node: <TagImage tag={tag} /> }),
+  } satisfies RouteConfig;
+}
+```
+
+A static page gets a prerendered `.webp` file next to it, one per entry of `staticPaths`. A dynamic page renders its image on request from an image route under `/_takumi`.
 
 ## WebAssembly
 

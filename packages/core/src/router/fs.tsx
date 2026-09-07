@@ -181,6 +181,7 @@ export function fsRouterFn<C extends AppShape>(
         component,
         render: renderMode,
         staticPaths,
+        takumiOptions: config?.takumiOptions,
         unstable_sourceFile: srcPath,
       } as never);
     }

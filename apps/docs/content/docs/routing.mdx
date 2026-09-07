@@ -102,6 +102,8 @@ export default function Page() {
 }
 ```
 
+Plugins read their own settings from it too, like `takumiOptions` for the [Open Graph image](/docs/plugins/takumi#route-images) of the page.
+
 A static page with slugs declares its `staticPaths` there as well:
 
 ```tsx title="src/pages/tags/[tag].tsx"
