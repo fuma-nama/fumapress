@@ -9,5 +9,6 @@ export {
   type PageAlternate,
 } from "./app/context";
 export * from "./app/plugin";
+export { localeRoutes, withLang, type LocaleRoute } from "@/lib/i18n";
 export type { RouteConfig, Adapter, RouteFns, PressLoaderOptions } from "@/lib/types";
 export type { GitProvider, GitInfo } from "@/lib/git";

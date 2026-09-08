@@ -168,3 +168,27 @@ const ctx = getPressContext();
 ctx.localizePath("cn", "/blog"); // "/cn/blog"
 ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
 ```
+
+A plugin that creates its own pages registers one route per language with `localeRoutes()`, and fixes the `lang` prop of each copy with `withLang()`:
+
+```tsx title="press.config.tsx"
+import { localeRoutes, withLang, type PressPlugin } from "fumapress";
+
+const plugin: PressPlugin = {
+  name: "changelog",
+  createPages({ createPage }) {
+    const routes = this.i18nConfig ? localeRoutes(this.i18nConfig) : [{ base: "" }];
+
+    for (const { base, lang } of routes) {
+      createPage({
+        render: "static",
+        path: `${base}/changelog`,
+        staticPaths: [],
+        component: lang ? withLang(ChangelogPage, lang) : ChangelogPage,
+      });
+    }
+  },
+};
+```
+
+`base` is the language prefix, or the `(default)` route group for the language `hideLocale` hides. Registering a literal path per language keeps `staticPaths` free for the route's own dynamic segments.
