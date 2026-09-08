@@ -142,11 +142,6 @@ const i18n = defineI18n({
 | Not found page             | `/404`, `/en/404`, `/cn/404`    | `/404`, `/cn/404`              |
 | `/`                        | redirects to `/en`              | the index page of `en`         |
 
-<Callout type="warn">
-  `hideLocale: "always"` is not supported, the prefix is what tells languages apart. A build with it
-  fails with an error.
-</Callout>
-
 ### File-based Pages
 
 Pages and layouts in `src/pages` are registered once per language, under its prefix and with a `lang` prop:
