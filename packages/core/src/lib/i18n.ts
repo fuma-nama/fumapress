@@ -1,4 +1,5 @@
 import type { I18nConfig } from "fumadocs-core/i18n";
+import type { LoaderConfig, LoaderOutput, Page } from "fumadocs-core/source";
 import { createElement, type FC } from "react";
 import { joinPathname } from "./pathname";
 
@@ -8,6 +9,21 @@ export const DEFAULT_GROUP = "/(default)";
 /** the language a fallback page is inherited from */
 export function fallbackLanguage(i18n: I18nConfig): string {
   return i18n.fallbackLanguage ?? i18n.defaultLanguage;
+}
+
+/**
+ * the page this one is inherited from when the locale has no file of its own, pages shared by every language (`$`) count too
+ */
+export function inheritedFrom(
+  source: Pick<LoaderOutput<LoaderConfig>, "getPage">,
+  i18n: I18nConfig | undefined,
+  page: Page,
+): Page | undefined {
+  if (!i18n || !page.absolutePath) return;
+  const lang = fallbackLanguage(i18n);
+  if (page.locale === lang) return;
+  const origin = source.getPage(page.slugs, lang);
+  if (origin?.absolutePath === page.absolutePath) return origin;
 }
 
 /** the language served without URL prefix */

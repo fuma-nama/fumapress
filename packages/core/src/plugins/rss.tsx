@@ -2,6 +2,7 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
+import { inheritedFrom } from "@/lib/i18n";
 
 /**
  * An `<item>` entry of the RSS feed.
@@ -164,7 +165,6 @@ export function rssPlugin<C extends AppShape = AppShape>(
     limit = 20,
     alternateLink = true,
     getItem: _getItem = async function getItemDefault(page) {
-      if (page.fallback) return;
       const date = (await this.getPageCreatedAt(page)) ?? (await this.getPageLastModified(page));
       // only include dated pages, so edits don't flood the feed with undated noise
       if (!date) return;
@@ -205,9 +205,11 @@ export function rssPlugin<C extends AppShape = AppShape>(
         path,
         handler: async () => {
           const source = await this.getLoader();
-          const items = (await Promise.all(source.getPages().map(getItem))).filter(
-            (item) => item !== undefined,
-          );
+          const pending: Awaitable<RSSItem | undefined>[] = [];
+          for (const page of source.getPages()) {
+            if (!inheritedFrom(source, this.i18nConfig, page)) pending.push(getItem(page));
+          }
+          const items = (await Promise.all(pending)).filter((item) => item !== undefined);
 
           if (additionalItems) {
             items.push(

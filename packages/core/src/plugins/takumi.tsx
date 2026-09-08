@@ -5,7 +5,7 @@ import { unstable_notFound } from "waku/router/server";
 import type { FC, ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
-import { fallbackLanguage } from "@/lib/i18n";
+import { inheritedFrom } from "@/lib/i18n";
 import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
 import { asMarkdown } from "@/markdown";
 
@@ -137,19 +137,24 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
 
+      // fallback pages have no image of their own, point at the source page's
+      const PageImage = async ({ page }: { page: C["page"] }) => {
+        const origin = inheritedFrom(await this.getLoader(), this.i18nConfig, page);
+        return imageMeta(
+          this.absoluteUrl(
+            this.localizePath(
+              (origin ?? page).locale,
+              joinPathname(basePath, ...slugsToImagePath(page.slugs)),
+            ),
+            { file: true },
+          ),
+        );
+      };
+
       this.interceptPageMeta(({ page, next }) => (
         <>
           {next()}
-          {imageMeta(
-            this.absoluteUrl(
-              this.localizePath(
-                // fallback pages have no image of their own, point at the source page's
-                page.fallback ? fallbackLanguage(this.i18nConfig!) : page.locale,
-                joinPathname(basePath, ...slugsToImagePath(page.slugs)),
-              ),
-              { file: true },
-            ),
-          )}
+          <PageImage page={page} />
         </>
       ));
     },
@@ -216,8 +221,9 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     },
     async createPages({ createApiIsomorphic }) {
       const staticPathsByLang = new Map<string | undefined, string[][]>();
-      for (const page of (await this.getLoader()).getPages()) {
-        if (page.fallback) continue;
+      const source = await this.getLoader();
+      for (const page of source.getPages()) {
+        if (inheritedFrom(source, this.i18nConfig, page)) continue;
         const paths = staticPathsByLang.get(page.locale);
         if (paths) paths.push(slugsToImagePath(page.slugs));
         else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);

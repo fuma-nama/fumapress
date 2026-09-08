@@ -66,8 +66,9 @@ describe("og:image", () => {
         meta = fn({ page, next: () => null } as never) as never;
       },
     } as Partial<AppContext>);
-    const image = meta.props.children[1] as ReactElement<{ children: ReactElement[] }>;
-    return image.props.children[0]!.props as { content: string };
+    const image = meta.props.children[1] as ReactElement<{ page: object }, FC<{ page: object }>>;
+    const rendered = (await image.type(image.props)) as ReactElement<{ children: ReactElement[] }>;
+    return rendered.props.children[0]!.props as { content: string };
   }
 
   it("resolves the page image against the base URL", async () => {

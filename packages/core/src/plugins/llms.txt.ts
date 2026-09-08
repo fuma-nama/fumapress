@@ -6,6 +6,7 @@ import { CreatePage, unstable_notFound } from "waku/router/server";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { joinPathname } from "@/lib/pathname";
+import { inheritedFrom } from "@/lib/i18n";
 import { DocsLayoutContextData } from "@/layouts/docs";
 import { renderRoute } from "fumadocs-core/server";
 import { createElement, type FC } from "react";
@@ -186,8 +187,9 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         path: "/llms-full.txt",
         handler: async () => {
           const pending: Awaitable<string | undefined>[] = [];
-          for (const page of (await this.getLoader()).getPages()) {
-            if (!page.fallback) pending.push(getLLMText(page));
+          const source = await this.getLoader();
+          for (const page of source.getPages()) {
+            if (!inheritedFrom(source, this.i18nConfig, page)) pending.push(getLLMText(page));
           }
           const scanned = await Promise.all(pending);
 

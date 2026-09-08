@@ -122,7 +122,7 @@ Add Markdown/JSON files for different languages by appending `.{locale}` to your
 
 ### Fallback Pages
 
-Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does, marked with `page.fallback`.
+Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does. Inherited pages are served but not advertised: they get `noindex` with a canonical link to the source page, and the sitemap, RSS feed, `llms-full.txt` and Takumi images skip them.
 
 ## Routing
 

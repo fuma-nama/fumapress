@@ -6,7 +6,12 @@ import type { VirtualFile } from "fumadocs-core/source";
 export const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
 function page(path: string): VirtualFile {
-  return { type: "page", path, data: { title: path, description: `About ${path}` } };
+  return {
+    type: "page",
+    path,
+    absolutePath: `/content/${path}`,
+    data: { title: path, description: `About ${path}` },
+  };
 }
 
 type Config = FumapressConfig<any, string>;

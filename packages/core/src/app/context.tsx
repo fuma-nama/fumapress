@@ -17,7 +17,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { preinitPlugins, type PressPlugin } from "./plugin";
-import { fallbackLanguage, localizePath } from "@/lib/i18n";
+import { inheritedFrom, localizePath } from "@/lib/i18n";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
@@ -315,7 +315,7 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 
       for (const locale of i18n.languages) {
         const target = source.getPage(page.slugs, locale);
-        if (!target || target.fallback) continue;
+        if (!target || inheritedFrom(source, i18n, target)) continue;
 
         out.push({
           locale,
@@ -382,14 +382,8 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 async function PageLinks({ page }: { page: Page }) {
   const ctx = getPressContext();
   const i18n = ctx.i18nConfig as I18nConfig | undefined;
-  let canonical = page.url;
-
-  if (page.fallback && i18n) {
-    const source = await ctx.getLoader();
-    canonical = source.getPage(page.slugs, fallbackLanguage(i18n))?.url ?? page.url;
-  }
-
-  const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl(canonical) : undefined;
+  const origin = inheritedFrom(await ctx.getLoader(), i18n, page);
+  const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl((origin ?? page).url) : undefined;
   const alternates = await ctx.getPageAlternates(page);
   const xDefault =
     alternates.find((item) => item.locale === i18n?.defaultLanguage) ?? alternates[0];
@@ -402,7 +396,7 @@ async function PageLinks({ page }: { page: Page }) {
         <link key={item.locale} rel="alternate" hrefLang={item.hreflang} href={item.href} />
       ))}
       {xDefault && <link rel="alternate" hrefLang="x-default" href={xDefault.href} />}
-      {page.fallback && <meta name="robots" content="noindex" />}
+      {origin && <meta name="robots" content="noindex" />}
     </>
   );
 }

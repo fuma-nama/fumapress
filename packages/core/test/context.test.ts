@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderToReadableStream } from "react-dom/server.edge";
-import type { Page } from "fumadocs-core/source";
 import { appContext, type AppContext } from "@/app/context";
 import { createApp, i18n } from "./fixtures";
 

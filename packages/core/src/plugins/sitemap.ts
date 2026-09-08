@@ -2,6 +2,7 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
+import { inheritedFrom } from "@/lib/i18n";
 
 /**
  * How frequently a page is likely to change.
@@ -343,8 +344,6 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
   const {
     path = "/sitemap.xml",
     getEntry: _getEntry = async function getEntryDefault(page) {
-      if (page.fallback) return;
-
       return {
         loc: this.absoluteUrl(page.url),
         lastmod: await this.getPageLastModified(page),
@@ -365,8 +364,13 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
         render: renderMode,
         path,
         handler: async () => {
-          const pages = (await this.getLoader()).getPages();
-          const results = await Promise.all(pages.map(getEntry));
+          const source = await this.getLoader();
+          const pages = source.getPages();
+          const results = await Promise.all(
+            pages.map((page) =>
+              inheritedFrom(source, this.i18nConfig, page) ? undefined : getEntry(page),
+            ),
+          );
           const entries: SitemapUrl[] = [];
           // content pages are listed by `getEntry` only, `getRouterConfigs()` must not re-add excluded ones
           const pageLocs = new Set<string>();
