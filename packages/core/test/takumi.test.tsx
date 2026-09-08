@@ -4,6 +4,7 @@ import type { RouteFns } from "@/lib/types";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 import type { RouteParams } from "@/lib/routes";
 import type { FC, ReactElement } from "react";
+import { localizePath } from "@/lib/i18n";
 
 vi.mock("waku/router/server", () => ({
   unstable_notFound() {
@@ -25,6 +26,12 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     data: {},
     siteConfig: { name: "Site" },
     interceptPageMeta() {},
+    localizePath: (lang: string | undefined, pathname: string) =>
+      localizePath(overrides.i18nConfig, lang, pathname),
+    absoluteUrl: (pathname: string) =>
+      overrides.siteConfig?.baseUrl
+        ? new URL(pathname, overrides.siteConfig.baseUrl).href
+        : pathname,
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -59,8 +66,9 @@ describe("og:image", () => {
         meta = fn({ page, next: () => null } as never) as never;
       },
     } as Partial<AppContext>);
-    const image = meta.props.children[1] as ReactElement<{ children: ReactElement[] }>;
-    return image.props.children[0]!.props as { content: string };
+    const image = meta.props.children[1] as ReactElement<{ page: object }, FC<{ page: object }>>;
+    const rendered = (await image.type(image.props)) as ReactElement<{ children: ReactElement[] }>;
+    return rendered.props.children[0]!.props as { content: string };
   }
 
   it("resolves the page image against the base URL", async () => {
@@ -73,7 +81,11 @@ describe("og:image", () => {
   });
 
   it("follows locale and the dynamic base path", async () => {
-    const { content } = await metaOf({}, { mode: "dynamic" }, { slugs: ["docs"], locale: "cn" });
+    const { content } = await metaOf(
+      {},
+      { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
+      { slugs: ["docs"], locale: "cn", path: "docs.cn.mdx" },
+    );
     expect(content).toBe("/cn/_takumi/docs.webp");
   });
 });
@@ -107,6 +119,8 @@ describe("route images", () => {
       data: {},
       siteConfig,
       interceptPageMeta() {},
+      absoluteUrl: (pathname: string) =>
+        "baseUrl" in siteConfig ? new URL(pathname, siteConfig.baseUrl as string).href : pathname,
     } as unknown as AppContext;
     const fns = {
       createPage: (page: never) => created.push(page),

@@ -2,6 +2,7 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
+import { inheritedFrom } from "@/lib/i18n";
 
 /**
  * An `<item>` entry of the RSS feed.
@@ -171,7 +172,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
       return {
         title: page.data.title ?? page.path,
         description: page.data.description,
-        link: this.siteConfig.baseUrl ? new URL(page.url, this.siteConfig.baseUrl).href : page.url,
+        link: this.absoluteUrl(page.url),
         pubDate: date,
       };
     },
@@ -204,9 +205,11 @@ export function rssPlugin<C extends AppShape = AppShape>(
         path,
         handler: async () => {
           const source = await this.getLoader();
-          const items = (await Promise.all(source.getPages().map(getItem))).filter(
-            (item) => item !== undefined,
-          );
+          const pending: Awaitable<RSSItem | undefined>[] = [];
+          for (const page of source.getPages()) {
+            if (!inheritedFrom(source, this.i18nConfig, page)) pending.push(getItem(page));
+          }
+          const items = (await Promise.all(pending)).filter((item) => item !== undefined);
 
           if (additionalItems) {
             items.push(
@@ -222,12 +225,10 @@ export function rssPlugin<C extends AppShape = AppShape>(
           return new Response(
             buildRSS({
               title: channelTitle,
-              link: this.siteConfig.baseUrl ?? "/",
+              link: this.absoluteUrl("/"),
               description: description ?? channelTitle,
               language,
-              selfUrl: this.siteConfig.baseUrl
-                ? new URL(path, this.siteConfig.baseUrl).href
-                : undefined,
+              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path, { file: true }) : undefined,
               items: items.slice(0, limit),
             }),
             {

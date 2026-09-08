@@ -50,7 +50,6 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
 
     return (
       <BlogProvider toc={result.toc}>
-        {ctx.renderPageMeta(page)}
         <div className="flex flex-col gap-4 items-center border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
           <div className="flex flex-row items-center gap-2 w-full max-w-[900px]">
             <LinkToHome lang={lang} />
@@ -66,7 +65,7 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
                   return (
                     <Link
                       key={t}
-                      href={joinPathname(lang ?? "", tagsPath, t)}
+                      href={ctx.localizePath(lang, joinPathname(tagsPath, t))}
                       className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
                     >
                       {t}
