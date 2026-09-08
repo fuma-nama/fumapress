@@ -99,6 +99,22 @@ describe("renderPageMeta", () => {
     expect(html).not.toContain("hrefLang");
   });
 
+  it("marks fallback pages of sources without an absolute path", async () => {
+    const ctx = await createApp({ i18n, absolutePath: false });
+    const page = await getPage(ctx, ["docs", "only-en"], "cn");
+    const html = await render(ctx, () => ctx.renderPageMeta(page));
+
+    expect(html).toContain('<meta name="robots" content="noindex"/>');
+    expect(html).toContain('<link rel="canonical" href="https://example.com/en/docs/only-en"/>');
+
+    const translated = await getPage(ctx, ["docs", "basics"], "cn");
+    const translatedHtml = await render(ctx, () => ctx.renderPageMeta(translated));
+    expect(translatedHtml).not.toContain("noindex");
+    expect(translatedHtml).toContain(
+      '<link rel="canonical" href="https://example.com/cn/docs/basics"/>',
+    );
+  });
+
   it("skips canonical without baseUrl", async () => {
     const ctx = await createApp();
     ctx.siteConfig.baseUrl = undefined;

@@ -35,14 +35,18 @@ const framework: Framework = {
 };
 
 export interface PressProviderProps extends RootProviderProps {
-  /** the language served without URL prefix, the locale switch keeps its URLs unprefixed */
+  /**
+   * the language served without URL prefix, the locale switch keeps its URLs unprefixed.
+   *
+   * Ignored when `i18n.onLocaleChange` is given, your handler owns the navigation then.
+   */
   hiddenLocale?: string;
 }
 
 export function PressProvider({ hiddenLocale, i18n, ...props }: PressProviderProps) {
   const router = useRouter();
 
-  if (i18n && hiddenLocale) {
+  if (i18n && hiddenLocale && !i18n.onLocaleChange) {
     const { locale } = i18n;
     i18n = {
       ...i18n,

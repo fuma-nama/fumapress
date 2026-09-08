@@ -13,17 +13,20 @@ export function fallbackLanguage(i18n: I18nConfig): string {
 
 /**
  * the page this one is inherited from when the locale has no file of its own, pages shared by every language (`$`) count too
+ *
+ * Translations are told apart by their file path: the loader assigns a file to a language by its
+ * `.{locale}` suffix, so two languages share a `path` only when they share the file.
  */
 export function inheritedFrom(
   source: Pick<LoaderOutput<LoaderConfig>, "getPage">,
   i18n: I18nConfig | undefined,
   page: Page,
 ): Page | undefined {
-  if (!i18n || !page.absolutePath) return;
+  if (!i18n) return;
   const lang = fallbackLanguage(i18n);
   if (page.locale === lang) return;
   const origin = source.getPage(page.slugs, lang);
-  if (origin?.absolutePath === page.absolutePath) return origin;
+  if (origin?.path === page.path) return origin;
 }
 
 /** the language served without URL prefix */

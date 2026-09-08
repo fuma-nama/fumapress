@@ -388,6 +388,8 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
               const segments = route.path.map((v) => v.name!);
               // exclude not-found pages
               if (segments.at(-1) === "404") continue;
+              // on i18n sites `/` is the language redirect, the index page of a language is listed above
+              if (segments.length === 0 && this.i18nConfig) continue;
               const loc = this.absoluteUrl("/" + segments.join("/"));
               if (pageLocs.has(loc)) continue;
 

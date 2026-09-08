@@ -20,6 +20,8 @@ async function generate(ctx: AppContext) {
           path: [{ name: "cn" }, { name: "docs" }, { name: "only-en" }],
         },
         { isStatic: true, type: "route", path: [{ name: "about" }] },
+        // the language redirect the router registers at `/`
+        { isStatic: true, type: "route", path: [] },
       ],
     }),
   } as unknown as RouteFns);
@@ -38,6 +40,7 @@ describe("sitemapPlugin", () => {
     expect(xml).toContain("<loc>https://example.com/en/docs/only-en</loc>");
     expect(xml).not.toContain("<loc>https://example.com/cn/docs/only-en</loc>");
     expect(xml).toContain("<url><loc>https://example.com/about</loc><priority>1</priority></url>");
+    expect(xml).not.toContain("<loc>https://example.com/</loc>");
     expect(xml).toContain(
       "<url><loc>https://example.com/en/docs/basics</loc><priority>0.8</priority>" +
         '<xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/docs/basics"/>' +

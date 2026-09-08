@@ -277,6 +277,7 @@ function RedirectDocument({ to }: { to: string }) {
     <html>
       <head>
         <meta charSet="utf-8" />
+        <meta name="robots" content="noindex" />
         <meta httpEquiv="refresh" content={`0; url=${href}`} />
         <link rel="canonical" href={href} />
       </head>
