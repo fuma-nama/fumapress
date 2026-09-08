@@ -1,5 +1,6 @@
-import { localeRoutes, withLang, type AppShape, type PressPlugin } from "fumapress";
+import type { AppShape, PressPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
+import { localeRoutes, withLang } from "fumapress/internal";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
 import { joinPathname } from "./lib/pathname.ts";

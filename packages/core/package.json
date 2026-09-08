@@ -29,6 +29,7 @@
     "./client": "./dist/client.js",
     "./i18n": "./dist/i18n.js",
     "./image": "./dist/image.js",
+    "./internal": "./dist/internal.js",
     "./layouts/blog": "./dist/layouts/blog.js",
     "./layouts/blog.index": "./dist/layouts/blog.index.js",
     "./layouts/blog.tags": "./dist/layouts/blog.tags.js",

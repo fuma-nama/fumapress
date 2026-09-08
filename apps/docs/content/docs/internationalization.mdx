@@ -169,10 +169,11 @@ ctx.localizePath("cn", "/blog"); // "/cn/blog"
 ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
 ```
 
-A plugin that creates its own pages registers one route per language with `localeRoutes()`, and fixes the `lang` prop of each copy with `withLang()`:
+A plugin that creates its own pages registers one route per language with `localeRoutes()`, and fixes the `lang` prop of each copy with `withLang()`. They live in `fumapress/internal`, which is not covered by semver:
 
 ```tsx title="press.config.tsx"
-import { localeRoutes, withLang, type PressPlugin } from "fumapress";
+import type { PressPlugin } from "fumapress";
+import { localeRoutes, withLang } from "fumapress/internal";
 
 const plugin: PressPlugin = {
   name: "changelog",
