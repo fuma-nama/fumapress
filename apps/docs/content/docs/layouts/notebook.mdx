@@ -35,12 +35,7 @@ import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
 
 const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
   async render(page) {
-    let pageTree = (await this.getLoader()).getPageTree(page.locale);
-
     return {
-      layoutProps: {
-        tree: pageTree,
-      },
       pageProps: {
         full: true,
       },
@@ -57,3 +52,5 @@ export default config;
 ```
 
 The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.
+
+Other options, such as `treeRoot` and interceptors, work the same as in the [docs layout](/docs/layouts/docs#options).
