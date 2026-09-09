@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ImageOptimizationCache,
+  createImageOptimizer,
   getOptimizeCacheKey,
   parseImageParams,
   readResponseBodyWithLimit,
@@ -11,6 +12,7 @@ import CachePolicy from "http-cache-semantics";
 import { createProvider as createCloudflareProvider } from "@/plugins/image/cloudflare.client";
 import { resolveCloudflareImageConfig } from "@/plugins/image/cloudflare.utils";
 import { createProvider } from "@/plugins/image/self-hosted.client";
+import { resolveVercelImageConfig } from "@/plugins/image/vercel.utils";
 
 const sourceUrl = "https://example.com/hero.png";
 const cacheRequest = {
@@ -255,5 +257,76 @@ describe("Image URLs", () => {
         "srcSet": "/_img?src=%2Fhero.png&width=1920&quality=80 1x, /_img?src=%2Fhero.png&width=3840&quality=80 2x",
       }
     `);
+  });
+});
+
+describe("image optimization redirects", () => {
+  /** answer the first request with a redirect to `location`, then a 404 */
+  function mockRedirect(location: string) {
+    const seen: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      seen.push(url);
+      if (seen.length === 1) {
+        return Promise.resolve(new Response(null, { status: 302, headers: { location } }));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+
+    return seen;
+  }
+
+  /** request `/hero.png` of the deployment itself */
+  function optimize(config = resolveImageConfig()) {
+    return createImageOptimizer(config)(
+      new Request("https://site.example/_img?src=%2Fhero.png&width=640&quality=75"),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("follows redirects within the site's own origin", async () => {
+    const seen = mockRedirect("https://site.example/static/hero.png");
+    const res = await optimize();
+
+    expect(seen).toEqual(["https://site.example/hero.png", "https://site.example/static/hero.png"]);
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects redirects leaving the origin unless allowed", async () => {
+    mockRedirect("https://cdn.example/hero.png");
+    const res = await optimize();
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe(
+      'Image URL "https://cdn.example/hero.png" is not in allowedHosts',
+    );
+
+    mockRedirect("https://cdn.example/hero.png");
+    expect((await optimize(resolveImageConfig({ allowedHosts: ["cdn.example"] }))).status).toBe(
+      404,
+    );
+  });
+});
+
+describe("vercel image config", () => {
+  it("keeps the options written to the build output", () => {
+    const config = resolveVercelImageConfig({
+      domains: ["avatars.githubusercontent.com"],
+      remotePatterns: [{ hostname: "cdn.example" }],
+      localPatterns: [{ pathname: "/assets/**" }],
+      formats: ["image/webp"],
+      minimumCacheTTL: 60,
+    });
+
+    expect(config).toMatchObject({
+      domains: ["avatars.githubusercontent.com"],
+      remotePatterns: [{ hostname: "cdn.example" }],
+      localPatterns: [{ pathname: "/assets/**" }],
+      formats: ["image/webp"],
+      minimumCacheTTL: 60,
+    });
   });
 });

@@ -1,4 +1,5 @@
 import type { AppContext, AppShape } from "@/app/context";
+import type { TakumiRouteOptions } from "@/plugins/takumi";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
@@ -41,6 +42,10 @@ export interface Adapter<C extends AppShape = AppShape> {
   "core:get-modified-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
 
   "blog:get-tags"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
+  /** author ids of a blog post */
+  "blog:get-authors"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
+  /** cover image URL of a blog post */
+  "blog:get-image"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
 }
 
 /** make plugins an array for easier modification */
@@ -83,13 +88,21 @@ export interface RouteFns extends BaseRouteFns {
 export interface RouteConfig {
   render?: "static" | "dynamic";
 
-  /** static paths of a static page with slugs, the language segment of `autoI18n` is added for you */
+  /** static paths of a static page with slugs, shared by every language of `autoI18n` */
   staticPaths?: string[] | string[][];
 
   /**
-   * automatically insert `/[lang]` route segment if i18n is configured, only applicable for pages & layouts.
+   * register the page (or layout) once per language if i18n is configured, under the language prefix and with a `lang` prop.
+   * Otherwise, it is registered once without prefix, and rendered as the default language.
    *
    * @default true
    */
   autoI18n?: boolean;
+
+  /**
+   * Open Graph image of the page, only read by the Takumi plugin (`fumapress/plugins/takumi`).
+   *
+   * The image is prerendered next to a static page as `<path>.webp`, or rendered on request for a dynamic page, and the `og:image` meta tags are added to the page.
+   */
+  takumiOptions?: TakumiRouteOptions;
 }

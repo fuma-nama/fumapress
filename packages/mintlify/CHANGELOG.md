@@ -1,3 +1,21 @@
+## @fumapress/mintlify@1.1.3
+
+### Honor `hideLocale` in routing
+
+`hideLocale: "default-locale"` in your i18n config now serves the default language without URL prefix, so routes match `page.url`: content pages, `src/pages`, blog routes, Open Graph images and `.md` versions all follow. Build language-aware links in plugins and layouts with `this.localizePath(lang, pathname)`.
+
+### Root pages of i18n sites
+
+Static i18n builds emit `index.html` (a redirect to the default language, or its index page when the prefix is hidden) and a root `404.html`. Pages with `autoI18n: false` render inside the root layout of the default language instead of a bare document.
+
+### Locale switch with hidden prefix
+
+Switching back to the default language no longer navigates to a prefixed URL that does not exist.
+
+### Integrations follow the prefix policy
+
+`localeRoutes()` and `withLang()` are available from `fumapress/internal`, so plugins outside the core can register one route per language too. That entry point is not covered by semver. The Tegami changelog routes, the Mintlify 404 redirect and the `get_page` tool of the MCP server follow the policy now, instead of assuming every language has a URL prefix.
+
 ## @fumapress/mintlify@1.1.2
 
 ### Loosen `fumapress` dependency ranges

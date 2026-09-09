@@ -1,8 +1,7 @@
-import { OrderedBlogGrid } from "@/components/blog";
+import { BlogGrid } from "@/components/blog";
 import { T } from "@fuma-translate/react";
 import { cn } from "@/lib/cn";
-import { joinPathname } from "@/lib/pathname";
-import { getBlogContext, type BlogIndexPage } from "@/plugins/blog";
+import { getBlogContext, getBlogPosts, type BlogIndexPage } from "@/plugins/blog";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -20,8 +19,7 @@ export function createBlogIndexPage<C extends AppShape = AppShape>({
 }: BlogIndexPageOptions = {}): BlogIndexPage<C> {
   return async function BlogIndexPage({ lang }) {
     const ctx = getPressContext<C>();
-    const { tagsPath, isBlog } = getBlogContext<C>();
-    const source = await ctx.getLoader();
+    const { tagsPath } = getBlogContext<C>();
 
     return (
       <>
@@ -32,7 +30,7 @@ export function createBlogIndexPage<C extends AppShape = AppShape>({
           </p>
           {tagsPath !== false && (
             <Link
-              href={lang ? joinPathname(lang, tagsPath) : tagsPath}
+              href={ctx.localizePath(lang, tagsPath)}
               className={cn(
                 buttonVariants({
                   variant: "primary",
@@ -46,7 +44,7 @@ export function createBlogIndexPage<C extends AppShape = AppShape>({
           )}
         </div>
 
-        <OrderedBlogGrid<C> posts={source.getPages(lang).filter(isBlog.bind(ctx))} />
+        <BlogGrid<C> posts={await getBlogPosts(ctx, lang)} />
       </>
     );
   };

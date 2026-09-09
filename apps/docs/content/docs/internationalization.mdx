@@ -119,3 +119,77 @@ Add Markdown/JSON files for different languages by appending `.{locale}` to your
     <File name="get-started.cn.mdx" />
   </Folder>
 </Files>
+
+### Fallback Pages
+
+Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does. Inherited pages are served but not advertised: they get `noindex` with a canonical link to the source page, and the sitemap, RSS feed, `llms-full.txt` and Takumi images skip them.
+
+## Routing
+
+Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale` in your i18n config:
+
+```tsx title="press.config.tsx"
+const i18n = defineI18n({
+  languages: ["cn", "en"],
+  defaultLanguage: "en",
+  // [!code ++]
+  hideLocale: "default-locale",
+});
+```
+
+| Source                     | `hideLocale: "never"` (default) | `hideLocale: "default-locale"` |
+| -------------------------- | ------------------------------- | ------------------------------ |
+| `content/docs/index.mdx`   | `/en`, `/cn`                    | `/`, `/cn`                     |
+| `content/docs/setup.mdx`   | `/en/setup`, `/cn/setup`        | `/setup`, `/cn/setup`          |
+| `src/pages/about.tsx`      | `/en/about`, `/cn/about`        | `/about`, `/cn/about`          |
+| Blog index (plugin routes) | `/en/blog`, `/cn/blog`          | `/blog`, `/cn/blog`            |
+| Not found page             | `/404`, `/en/404`, `/cn/404`    | `/404`, `/cn/404`              |
+| `/`                        | redirects to `/en`              | the index page of `en`         |
+
+### File-based Pages
+
+Pages and layouts in `src/pages` are registered once per language, under its prefix and with a `lang` prop:
+
+```tsx title="src/pages/about.tsx"
+export default function Page({ lang }: { lang: string }) {
+  return <h1>{lang === "cn" ? "关于" : "About"}</h1>;
+}
+```
+
+With `autoI18n: false`, a page is registered once at its own path (e.g. `/privacy`) and rendered as the default language, root layout included. See [Routing](/docs/routing#file-based-routing) for route config.
+
+### In Plugins and Layouts
+
+Build language-aware links with `localizePath()` from the app context, it adds the prefix unless `hideLocale` hides it:
+
+```tsx
+const ctx = getPressContext();
+
+ctx.localizePath("cn", "/blog"); // "/cn/blog"
+ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
+```
+
+A plugin that creates its own pages registers one route per language with `localeRoutes()`, and fixes the `lang` prop of each copy with `withLang()`. They live in `fumapress/internal`, which is not covered by semver:
+
+```tsx title="press.config.tsx"
+import type { PressPlugin } from "fumapress";
+import { localeRoutes, withLang } from "fumapress/internal";
+
+const plugin: PressPlugin = {
+  name: "changelog",
+  createPages({ createPage }) {
+    const routes = this.i18nConfig ? localeRoutes(this.i18nConfig) : [{ base: "" }];
+
+    for (const { base, lang } of routes) {
+      createPage({
+        render: "static",
+        path: `${base}/changelog`,
+        staticPaths: [],
+        component: lang ? withLang(ChangelogPage, lang) : ChangelogPage,
+      });
+    }
+  },
+};
+```
+
+`base` is the language prefix, or the `(default)` route group for the language `hideLocale` hides. Registering a literal path per language keeps `staticPaths` free for the route's own dynamic segments.

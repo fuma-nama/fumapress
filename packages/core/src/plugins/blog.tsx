@@ -3,14 +3,31 @@ import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
 import { joinPathname } from "@/lib/pathname";
 import { AppShape, type AppContext } from "@/app/context";
-import { groupTags, groupTagsI18n } from "@/lib/shared/blog";
+import { getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
+import { localeRoutes, withLang } from "@/lib/i18n";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FC, ReactNode } from "react";
 import { PressPlugin } from "@/app/plugin";
 
+export { tagSlug } from "@/lib/shared/blog";
+
+export interface BlogAuthor {
+  name: string;
+  /** role or job title */
+  title?: string;
+  /** link to profile or website */
+  url?: string;
+  /** avatar URL */
+  image?: string;
+}
+
 export interface BlogPluginOptions<C extends AppShape = AppShape> {
   /** default to checking from `page.type` */
   isBlog?: (this: AppContext<C>, page: C["page"]) => boolean;
+
+  /** author registry, keyed by the ids used in posts */
+  authors?: Record<string, BlogAuthor>;
+
   paths?: {
     /**
      * pathname for index page
@@ -49,6 +66,7 @@ export interface BlogContext<C extends AppShape = AppShape> {
   indexPath: string | false;
   tagsPath: string | false;
   isBlog: (this: AppContext<C>, page: C["page"]) => boolean;
+  authors: Record<string, BlogAuthor>;
 }
 
 const blogContext = new AsyncLocalStorage({
@@ -63,6 +81,49 @@ export function getBlogContext<C extends AppShape = AppShape>(): BlogContext<C> 
       "[Fumapress] Missing blog context for Fumapress, make sure the blog plugin is configured",
     );
   return store as BlogContext<C>;
+}
+
+export interface BlogPost<C extends AppShape = AppShape> {
+  page: C["page"];
+  /** creation date, from `core:get-creation-date` */
+  date?: Date;
+}
+
+async function toPost<C extends AppShape>(
+  ctx: AppContext<C>,
+  page: C["page"],
+): Promise<BlogPost<C>> {
+  return { page, date: await ctx.getPageCreatedAt(page) };
+}
+
+/** blog posts of a locale, newest first (posts without a date come first) */
+export async function getBlogPosts<C extends AppShape>(
+  ctx: AppContext<C>,
+  lang?: string,
+): Promise<BlogPost<C>[]> {
+  const { isBlog } = getBlogContext<C>();
+  const source = await ctx.getLoader();
+  const pending: Promise<BlogPost<C>>[] = [];
+
+  for (const page of source.getPages(lang)) {
+    if (isBlog.call(ctx, page)) pending.push(toPost(ctx, page));
+  }
+
+  const posts = await Promise.all(pending);
+  const now = Date.now();
+  return posts.sort((a, b) => (b.date?.getTime() ?? now) - (a.date?.getTime() ?? now));
+}
+
+/** authors of a post, ids missing from the `authors` option are shown by name only */
+export async function getBlogAuthors<C extends AppShape>(
+  ctx: AppContext<C>,
+  page: C["page"],
+): Promise<BlogAuthor[]> {
+  const { authors } = getBlogContext<C>();
+  const ids = await getAuthorIds(ctx, page);
+  const result: BlogAuthor[] = [];
+  for (const id of ids ?? []) result.push(authors[id] ?? { name: id });
+  return result;
 }
 
 export type BlogLayoutPage<C extends AppShape = AppShape> = FC<{
@@ -86,18 +147,21 @@ export type BlogTagsPage<C extends AppShape = AppShape> = FC<{
 
 export type BlogTagPage<C extends AppShape = AppShape> = FC<{
   lang?: string;
+  /** tag slug from the URL */
   tag: string;
 }> & { $ctx?: C };
 
 export function blogPlugin<C extends AppShape = AppShape>({
   paths = {},
   isBlog = (page) => page.type === "blog",
+  authors = {},
   layouts = {},
 }: BlogPluginOptions<C> = {}): PressPlugin<C> {
   const blogCtx: BlogContext<C> = {
     indexPath: paths.index ?? "/blog",
     tagsPath: paths.tags ?? "/blog/tags",
     isBlog,
+    authors,
   };
 
   const Layout = layouts.layout ?? createBlogLayout<C>();
@@ -116,74 +180,61 @@ export function blogPlugin<C extends AppShape = AppShape>({
     },
     async createPages({ createPage, createLayout, createInterceptor }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
+      const { indexPath, tagsPath } = blogCtx;
       const source = await this.getLoader();
       const blogPages = source.getPages().filter(isBlog.bind(this));
+      const index = indexPath !== false && {
+        path: indexPath,
+        Page: layouts.index ?? createBlogIndexPage<C>(),
+      };
+      const tags = tagsPath !== false && {
+        path: tagsPath,
+        TagsPage: layouts.tags ?? createBlogTagsPage<C>(),
+        TagPage: layouts.tag ?? createBlogTagPage<C>(),
+        grouped: await groupTagsI18n(this, blogPages),
+      };
 
       createInterceptor((next) => blogContext.run(blogCtx, next));
 
-      createLayout({
-        render: renderMode,
-        path: this.i18nConfig ? "/[lang]/(blog)" : "/(blog)",
-        component: Layout,
-      });
+      const routes: { base: string; lang?: string }[] = this.i18nConfig
+        ? localeRoutes(this.i18nConfig)
+        : [{ base: "/" }];
 
-      if (blogCtx.indexPath !== false) {
-        const IndexPage = layouts.index ?? createBlogIndexPage<C>();
+      for (const { base, lang } of routes) {
+        const group = joinPathname(base, "(blog)");
 
-        createPage({
+        createLayout({
           render: renderMode,
-          path: this.i18nConfig
-            ? (joinPathname("/[lang]/(blog)", blogCtx.indexPath) as "/[lang]")
-            : (joinPathname("/(blog)", blogCtx.indexPath) as "/[lang]"),
-          staticPaths: this.i18nConfig ? this.i18nConfig.languages : [],
-          component: IndexPage,
-        });
-      }
-
-      if (this.i18nConfig && blogCtx.tagsPath !== false) {
-        const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
-        const TagPage = layouts.tag ?? createBlogTagPage<C>();
-
-        createPage({
-          path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath) as "/[lang]",
-          render: renderMode,
-          staticPaths: this.i18nConfig.languages,
-          component: TagsPage,
+          path: group,
+          component: lang ? withLang(Layout, lang) : Layout,
         });
 
-        const groupedTags = await groupTagsI18n(this, blogPages);
-        const staticPaths: [string, string][] = [];
-        for (const [locale, tags] of groupedTags) {
-          for (const tag of tags.keys()) {
-            staticPaths.push([locale, tag]);
-          }
+        if (index) {
+          createPage({
+            render: renderMode,
+            path: joinPathname(group, index.path) as "/",
+            staticPaths: [],
+            component: (lang ? withLang(index.Page, lang) : index.Page) as FC,
+          });
         }
 
-        createPage({
-          path: joinPathname("/[lang]/(blog)", blogCtx.tagsPath, "[tag]") as "/[lang]/[tag]",
-          render: renderMode,
-          staticPaths,
-          component: TagPage,
-        });
-      } else if (blogCtx.tagsPath !== false) {
-        const TagsPage = layouts.tags ?? createBlogTagsPage<C>();
-        const TagPage = layouts.tag ?? createBlogTagPage<C>();
+        if (tags) {
+          const { TagsPage, TagPage, grouped } = tags;
 
-        createPage({
-          path: joinPathname("/(blog)", blogCtx.tagsPath) as "/",
-          render: renderMode,
-          staticPaths: [],
-          component: TagsPage as FC,
-        });
+          createPage({
+            render: renderMode,
+            path: joinPathname(group, tags.path) as "/",
+            staticPaths: [],
+            component: (lang ? withLang(TagsPage, lang) : TagsPage) as FC,
+          });
 
-        const grouped = await groupTags(this, blogPages);
-
-        createPage({
-          path: joinPathname("/(blog)", blogCtx.tagsPath, "[tag]") as "/[tag]",
-          render: renderMode,
-          staticPaths: Array.from(grouped.keys()),
-          component: TagPage,
-        });
+          createPage({
+            render: renderMode,
+            path: joinPathname(group, tags.path, "[tag]") as "/[tag]",
+            staticPaths: Array.from(grouped.get(lang ?? "")?.keys() ?? []),
+            component: lang ? withLang(TagPage, lang) : TagPage,
+          });
+        }
       }
     },
   };

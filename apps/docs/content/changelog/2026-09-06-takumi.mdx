@@ -1,0 +1,14 @@
+---
+title: "Takumi: route images, shared options, fonts and WebAssembly"
+date: 2026-09-09T17:18:17.016Z
+packages:
+  fumapress:
+    version: 1.3.0
+---
+
+### Takumi: route images, shared options, fonts and WebAssembly
+
+- `takumiOptions` in the `getConfig()` of a route gives it an Open Graph image: `title` and `description` for the default template, or a `node` to draw it yourself. A static page gets the image prerendered next to it (`/about.webp`), a dynamic page renders it on request under `/_takumi`, and both receive the `og:image` meta tags like a content page. A function form receives the route params.
+- `options` on `takumiPlugin()` applies to every image, put values resolved once there, like the fonts from `googleFonts()`. The options of `generate()` override them per page.
+- `googleFonts` and `fontFromUrl` are re-exported from `fumapress/plugins/takumi`, and `fumapress/plugins/takumi.wasm` exports Takumi's WebAssembly build for `options.module`: `takumi-js` no longer needs to be installed next to `fumapress`, which used to end up with two copies.
+- The options accepted by `generate()` no longer drop `quality`, `lossless` and `module`.

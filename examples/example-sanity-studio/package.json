@@ -13,14 +13,14 @@
     "start": "sanity start"
   },
   "dependencies": {
-    "@sanity/code-input": "^7.3.7",
+    "@sanity/code-input": "^7.3.8",
     "@sanity/icons": "^5.2.1",
-    "@sanity/vision": "^6.11.0",
-    "fumadocs-core": "^16.15.4",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.4",
+    "@sanity/vision": "^6.12.0",
+    "fumadocs-core": "^16.15.7",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sanity": "^6.11.0",
+    "sanity": "^6.12.0",
     "styled-components": "^6.5.3"
   },
   "devDependencies": {

@@ -79,17 +79,20 @@ export function mcpPlugin<C extends AppShape = AppShape>(
           },
           async ({ path: pagePath }) => {
             const source = await this.getLoader();
-            const segments = pagePath.split("/").filter((v) => v.length > 0);
-            let lang: string | undefined;
+            // match `page.url` rather than stripping a prefix: `hideLocale` serves one language without one
+            const href =
+              "/" +
+              pagePath
+                .split("/")
+                .filter((v) => v.length > 0)
+                .join("/");
+            let page;
 
-            if (this.i18nConfig && segments.length > 0) {
-              const languages = Object.keys(this.i18nConfig.languages);
-              if (languages.includes(segments[0]!)) {
-                lang = segments.shift();
-              }
+            for (const language of this.i18nConfig?.languages ?? [undefined]) {
+              page = source.getPageByHref(href, { language })?.page;
+              if (page) break;
             }
 
-            const page = source.getPage(segments, lang);
             if (!page) {
               return {
                 content: [

@@ -2,9 +2,21 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
+import { inheritedFrom } from "@/lib/i18n";
+import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
+import { asMarkdown } from "@/markdown";
+
+export { fontFromUrl, googleFonts } from "takumi-js/helpers";
+
+/** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
+export type TakumiImageOptions = ImageResponseOptions extends infer T
+  ? T extends { format?: "webp" }
+    ? Omit<T, "format">
+    : never
+  : never;
 
 export interface TakumiOptions<C extends AppShape = AppShape> {
   /**
@@ -18,14 +30,38 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   /** @default 630 */
   height?: number;
 
+  /**
+   * Options shared by every image, `generate()` overrides them per page.
+   *
+   * Values resolved once belong here, like the fonts from `googleFonts()`.
+   */
+  options?: TakumiImageOptions;
+
   generate?: (
     this: AppContext<C>,
     page: C["page"],
   ) => Awaitable<{
     node: ReactNode;
-    options?: Omit<Partial<ImageResponseOptions>, "format">;
+    options?: TakumiImageOptions;
   }>;
 }
+
+/** The image of a route: a `node` to draw, or `title` and `description` for the default template. */
+export interface TakumiRouteImage {
+  node?: ReactNode;
+  title?: string;
+  description?: string;
+  /** image response options of this route, over the shared `options` */
+  options?: TakumiImageOptions;
+}
+
+/**
+ * The `takumiOptions` of a route config. A function receives the route params of the rendered path
+ * (`lang` included for `autoI18n` pages), `this` is the app context.
+ */
+export type TakumiRouteOptions<C extends AppShape = AppShape> =
+  | TakumiRouteImage
+  | ((this: AppContext<C>, params: RouteParams) => Awaitable<TakumiRouteImage>);
 
 export function takumiPlugin<C extends AppShape = AppShape>(
   options: TakumiOptions<NoInfer<C>> = {},
@@ -33,6 +69,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
   const {
     width = 1200,
     height = 630,
+    options: shared,
     generate = function fn(page) {
       return {
         node: generateDefault({
@@ -44,8 +81,19 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     },
   } = options;
   let basePath: string;
+  let renderMode: "static" | "dynamic";
 
-  function slugsToImagePath(slugs: string[], lang: string | undefined) {
+  function render(node: ReactNode, options?: TakumiImageOptions) {
+    return new ImageResponse(node, {
+      width,
+      height,
+      ...shared,
+      ...options,
+      format: "webp",
+    });
+  }
+
+  function slugsToImagePath(slugs: string[]) {
     const segments = [...slugs];
     if (segments.length === 0) {
       segments.push("index.webp");
@@ -53,10 +101,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       segments[segments.length - 1] += ".webp";
     }
 
-    return {
-      staticPath: lang ? [lang, ...segments] : segments,
-      pathname: joinPathname(lang ?? "", basePath, ...segments),
-    };
+    return segments;
   }
 
   function imagePathToSlugs(segs: string[]) {
@@ -69,57 +114,136 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     return slugs;
   }
 
+  /** static routes get a `.webp` file next to the page, dynamic ones an image route under `/_takumi` */
+  function routeImagePath(pathname: string, dynamic: boolean) {
+    if (dynamic) return joinPathname(basePath === "/" ? "/_takumi" : basePath, pathname);
+    return joinPathname(basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
+  }
+
+  function imageMeta(url: string) {
+    return (
+      <>
+        <meta property="og:image" content={url} />
+        <meta property="og:image:width" content={`${width}`} />
+        <meta property="og:image:height" content={`${height}`} />
+        <meta property="twitter:card" content="summary_large_image" />
+      </>
+    );
+  }
+
   return {
     name: "core:takumi",
     init() {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+      renderMode = this.mode === "default" ? "static" : this.mode;
       basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
 
-      this.interceptPageMeta(({ page, next }) => {
-        const pathname = slugsToImagePath(page.slugs, page.locale).pathname;
-
-        return (
-          <>
-            {next()}
-            <meta
-              property="og:image"
-              content={
-                this.siteConfig.baseUrl ? new URL(pathname, this.siteConfig.baseUrl).href : pathname
-              }
-            />
-            <meta property="og:image:width" content={`${width}`} />
-            <meta property="og:image:height" content={`${height}`} />
-            <meta property="twitter:card" content="summary_large_image" />
-          </>
+      // fallback pages have no image of their own, point at the source page's
+      const PageImage = async ({ page }: { page: C["page"] }) => {
+        const origin = inheritedFrom(await this.getLoader(), this.i18nConfig, page);
+        return imageMeta(
+          this.absoluteUrl(
+            this.localizePath(
+              (origin ?? page).locale,
+              joinPathname(basePath, ...slugsToImagePath(page.slugs)),
+            ),
+            { file: true },
+          ),
         );
-      });
+      };
+
+      this.interceptPageMeta(({ page, next }) => (
+        <>
+          {next()}
+          <PageImage page={page} />
+        </>
+      ));
+    },
+    prepareCreatePages(fns) {
+      const { createPage } = fns;
+      fns.createPage = (page) => {
+        const { takumiOptions: image, ...rest } = page as CreatedPage & {
+          takumiOptions?: TakumiRouteOptions<C>;
+        };
+        if (!image) return createPage(page);
+
+        const renderImage = async (params: RouteParams) => {
+          const { node, title, description, options } =
+            typeof image === "function" ? await image.call(this, params) : image;
+
+          return render(
+            node ?? generateDefault({ title, description, site: this.siteConfig.name }),
+            options,
+          );
+        };
+        const dynamic = rest.render === "dynamic";
+        const segments = rest.path.split("/").filter(Boolean);
+
+        if (dynamic) {
+          const spec: string[] = [];
+          for (const seg of segments) if (!seg.startsWith("(")) spec.push(seg);
+
+          fns.createApiIsomorphic({
+            render: "dynamic",
+            path: routeImagePath("/" + spec.join("/"), true),
+            handler: (_, { params }) => renderImage(params),
+          });
+        } else {
+          const entries = segments.some((seg) => seg.startsWith("["))
+            ? (rest.staticPaths ?? [])
+            : [[]];
+          for (const entry of entries) {
+            const { pathname, params } = expandStaticPath(
+              segments,
+              typeof entry === "string" ? [entry] : entry,
+            );
+
+            fns.createApiIsomorphic({
+              render: "static",
+              path: routeImagePath(pathname, false),
+              handler: () => renderImage(params),
+            });
+          }
+        }
+
+        const Page = rest.component as FC<{ path: string }>;
+        return createPage({
+          ...rest,
+          // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
+          component: (props: { path: string }) => (
+            <>
+              {!asMarkdown() &&
+                imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
+              {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
+            </>
+          ),
+        } as never);
+      };
     },
     async createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+      const staticPathsByLang = new Map<string | undefined, string[][]>();
+      const source = await this.getLoader();
+      for (const page of source.getPages()) {
+        if (inheritedFrom(source, this.i18nConfig, page)) continue;
+        const paths = staticPathsByLang.get(page.locale);
+        if (paths) paths.push(slugsToImagePath(page.slugs));
+        else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);
+      }
 
-      createApiIsomorphic({
-        render: renderMode,
-        path: joinPathname(this.i18nConfig ? "[lang]" : "", basePath, "[...slugs]"),
-        staticPaths: (await this.getLoader())
-          .getPages()
-          .map((page) => slugsToImagePath(page.slugs, page.locale).staticPath),
-        handler: async (_, { params }) => {
-          const source = await this.getLoader();
-          const page = source.getPage(
-            imagePathToSlugs(params.slugs as string[]),
-            params.lang as string,
-          );
-          if (!page) unstable_notFound();
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        createApiIsomorphic({
+          render: renderMode,
+          path: this.localizePath(lang, joinPathname(basePath, "[...slugs]")),
+          staticPaths: staticPathsByLang.get(lang) ?? [],
+          handler: async (_, { params }) => {
+            const source = await this.getLoader();
+            const page = source.getPage(imagePathToSlugs(params.slugs as string[]), lang);
+            if (!page) unstable_notFound();
 
-          const { node, options } = await generate.call(this, page);
-          return new ImageResponse(node, {
-            width,
-            height,
-            ...options,
-            format: "webp",
-          });
-        },
-      });
+            const { node, options } = await generate.call(this, page);
+            return render(node, options);
+          },
+        });
+      }
     },
   };
 }

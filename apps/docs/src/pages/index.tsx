@@ -9,6 +9,15 @@ import { AutoSetupCommand } from "../home.client";
 import { Image } from "fumapress/image";
 import { asMarkdown, md } from "fumapress/markdown";
 import { commands, plugins } from "../home.data";
+import type { RouteConfig } from "fumapress";
+
+const description = "The composable site generator powered by Fumadocs";
+
+export function getConfig() {
+  return {
+    takumiOptions: { title: "Fumapress", description },
+  } satisfies RouteConfig;
+}
 
 export default function Page() {
   if (asMarkdown()) return pageMarkdown();
@@ -17,7 +26,7 @@ export default function Page() {
     <>
       <title>Fumapress</title>
       <meta property="og:title" content="Fumapress" />
-      <meta property="og:description" content="The composable site generator powered by Fumadocs" />
+      <meta property="og:description" content={description} />
       <section className="relative grid grid-cols-1 min-h-[50vh] border lg:grid-cols-2 lg:divide-x lg:divide-fd-border">
         <div className="flex flex-col px-6 py-12 md:px-12 md:py-24">
           <p className="text-fd-muted-foreground">

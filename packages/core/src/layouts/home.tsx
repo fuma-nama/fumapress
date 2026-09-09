@@ -44,7 +44,6 @@ export function createHomeLayoutPage<C extends AppShape = AppShape>({
 
     return (
       <Container lang={lang} layoutProps={_raw?.layoutProps}>
-        {ctx.renderPageMeta(page)}
         {body}
       </Container>
     );

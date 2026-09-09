@@ -201,10 +201,14 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
       if (!location) {
         return new Response("Invalid redirect: missing Location header", { status: 400 });
       }
-      const nextUrl = new URL(location, currentUrl).toString();
-      const validation = validateImageSrc(config, nextUrl);
-      if (!validation.allowed) return new Response(validation.reason, { status: 403 });
-      currentUrl = nextUrl;
+      const nextUrl = new URL(location, currentUrl);
+      // a site redirecting within its own origin is as safe as the URL we already fetched,
+      // only leaving it needs to be in `allowedHosts`
+      if (nextUrl.origin !== new URL(currentUrl).origin) {
+        const validation = validateImageSrc(config, nextUrl.toString());
+        if (!validation.allowed) return new Response(validation.reason, { status: 403 });
+      }
+      currentUrl = nextUrl.toString();
       redirectCount += 1;
     }
 

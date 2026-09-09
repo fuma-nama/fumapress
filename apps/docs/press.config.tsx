@@ -16,6 +16,7 @@ import { Card, Cards } from "fumadocs-ui/components/card";
 import path from "node:path";
 import { createHomeLayout } from "fumapress/layouts/home";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+import { imagePlugin } from "fumapress/plugins/image/vercel";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import { mcpPlugin } from "@fumapress/ai";
 import { Image } from "fumapress/image";
@@ -70,22 +71,9 @@ const changelog = defineDocs({
 });
 
 const NotebookLayout = createNotebookLayoutPage<typeof config.$context>({
-  async render({ locale }) {
-    let pageTree = (await this.getLoader()).getPageTree(locale);
-
-    for (const child of pageTree.children) {
-      if (child.type === "folder" && child.$id === "docs") {
-        pageTree = {
-          ...pageTree,
-          children: child.children,
-        };
-      }
-    }
-
+  treeRoot: "docs",
+  render() {
     return {
-      layoutProps: {
-        tree: pageTree,
-      },
       pageProps: {
         tableOfContent: {
           footer: <SponsorsMarquee />,
@@ -217,10 +205,24 @@ const config = defineConfig({
       },
     }),
   )
-  .plugins(linkValidationPlugin(), mcpPlugin(), llmsPlugin({ routes: "all" }));
+  .plugins(
+    linkValidationPlugin(),
+    mcpPlugin(),
+    llmsPlugin({ routes: "all" }),
+    // `github.com/<user>.png` redirects to the avatars host, both are validated
+    imagePlugin({ domains: ["github.com", "avatars.githubusercontent.com"] }),
+  );
 
 export default config.plugins(
   blogPlugin({
+    authors: {
+      fuma: {
+        name: "Fuma Nama",
+        title: "Maintainer",
+        url: "https://fuma-nama.dev",
+        image: "https://github.com/fuma-nama.png",
+      },
+    },
     layouts: {
       layout: HomeLayout,
     },

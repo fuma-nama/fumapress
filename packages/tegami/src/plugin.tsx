@@ -1,5 +1,6 @@
 import type { AppShape, PressPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
+import { localeRoutes, withLang } from "fumapress/internal";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
 import { joinPathname } from "./lib/pathname.ts";
@@ -52,27 +53,36 @@ export function changelogPlugin<C extends AppShape = AppShape>({
     name: "tegami:changelog",
     async createPages({ createPage, createLayout, createInterceptor }) {
       const renderMode = this.mode === "default" ? "static" : this.mode;
+      const { indexPath } = changelogCtx;
+      const index = indexPath !== false && {
+        path: indexPath,
+        Page: layouts.index ?? createChangelogIndexPage<C>(),
+      };
 
       createInterceptor((next) => changelogContext.run(changelogCtx, next));
 
-      createLayout({
-        render: renderMode,
-        path: this.i18nConfig ? "/[lang]/(changelog)" : "/(changelog)",
-        component: Layout,
-      });
+      const routes: { base: string; lang?: string }[] = this.i18nConfig
+        ? localeRoutes(this.i18nConfig)
+        : [{ base: "/" }];
 
-      if (changelogCtx.indexPath === false) return;
+      for (const { base, lang } of routes) {
+        const group = joinPathname(base, "(changelog)");
 
-      const IndexPage = layouts.index ?? createChangelogIndexPage<C>();
+        createLayout({
+          render: renderMode,
+          path: group,
+          component: lang ? withLang(Layout, lang) : Layout,
+        });
 
-      createPage({
-        render: renderMode,
-        path: this.i18nConfig
-          ? (joinPathname("/[lang]/(changelog)", changelogCtx.indexPath) as "/[lang]")
-          : (joinPathname("/(changelog)", changelogCtx.indexPath) as "/[lang]"),
-        staticPaths: this.i18nConfig ? this.i18nConfig.languages : [],
-        component: IndexPage,
-      });
+        if (index) {
+          createPage({
+            render: renderMode,
+            path: joinPathname(group, index.path) as "/",
+            staticPaths: [],
+            component: (lang ? withLang(index.Page, lang) : index.Page) as FC,
+          });
+        }
+      }
     },
   };
 }

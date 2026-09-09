@@ -44,7 +44,7 @@ rssPlugin({
 
     return {
       title: page.data.title,
-      link: new URL(page.url, this.siteConfig.baseUrl).href,
+      link: this.absoluteUrl(page.url),
       description: page.data.description,
       pubDate: await this.getPageCreatedAt(page),
     };
