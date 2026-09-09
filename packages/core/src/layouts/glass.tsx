@@ -1,6 +1,6 @@
 import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
-import { selectTreeRoot, type TreeRoot } from "@/lib/page-tree";
+import { selectTreeRoot } from "@/lib/page-tree";
 import type { Awaitable } from "@/lib/types";
 import { GlassLayout, type GlassLayoutProps } from "fumadocs-ui/layouts/glass";
 import {
@@ -20,8 +20,8 @@ export interface GlassLayoutOptions<C extends AppShape = AppShape> {
     layoutProps?: boolean;
   };
 
-  /** folder path to use as the root of the sidebar tree, such as the `baseDir` of a content source, or a function selecting it per page */
-  treeRoot?: TreeRoot<C["page"]>;
+  /** folder path to use as the root of the sidebar tree, such as the `baseDir` of a content source */
+  treeRoot?: string;
 
   render?: (
     this: AppContext<C> & { lang?: string },
@@ -97,7 +97,7 @@ export function createGlassLayoutPage<C extends AppShape = AppShape>({
     const _raw = await render?.call(ctx, page);
     const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined;
     const layoutProps: GlassLayoutProps = {
-      tree: selectTreeRoot(source.getPageTree(lang), treeRoot, page),
+      tree: selectTreeRoot(source.getPageTree(lang), treeRoot),
       ...deepmerge(inherited, _raw?.layoutProps),
     };
 
