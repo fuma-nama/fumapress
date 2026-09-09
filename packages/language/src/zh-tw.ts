@@ -47,6 +47,8 @@ const fumapress = {
   "Table of Contents(blog panel)": "目錄",
   "Share(blog panel)": "分享",
   "Copied(blog panel)": "已複製",
+  "Newer post(blog post navigation)": "較新文章",
+  "Older post(blog post navigation)": "較舊文章",
 } satisfies FumapressTranslations;
 
 type Keys =

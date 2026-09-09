@@ -1,6 +1,9 @@
 import type { VercelImageOptions } from "./vercel";
 
-export interface ResolvedVercelImageConfig {
+export interface ResolvedVercelImageConfig extends Omit<
+  VercelImageOptions,
+  "sizes" | "qualities" | "dangerouslyAllowSVG"
+> {
   path: string;
   sizes: number[];
   qualities: number[];
@@ -14,6 +17,8 @@ export function resolveVercelImageConfig(
   const qualities = options.qualities ?? [75];
 
   return {
+    // the rest is written to the Vercel build output as-is
+    ...options,
     path: "/_vercel/image",
     dangerouslyAllowSVG: options.dangerouslyAllowSVG ?? false,
     sizes: options.sizes
