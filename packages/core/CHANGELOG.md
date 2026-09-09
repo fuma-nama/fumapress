@@ -1,3 +1,85 @@
+## fumapress@1.3.0
+
+### Swap `cnfast` for `cn`
+
+Class name merging now runs on [`cn`](https://github.com/shadcn-ui/cn) instead of `cnfast`. Both are drop-in replacements for `clsx` + `tailwind-merge`, so merge behavior and the classes you get out are unchanged.
+
+### Blog authors, cover images and post navigation
+
+`blogPageSchema` now includes `date`, `authors` and `image`. Register authors once with the `authors` option of `blogPlugin()`, the default layouts render the rest:
+
+- post pages show the authors, the publish date, and links to the newer and older posts.
+- post cards show the cover image and author avatars.
+
+Both render through the `Image` component, so remote hosts need to be allowed by the image plugin.
+
+Other content sources supply the new fields through the `blog:get-authors` and `blog:get-image` adapter hooks.
+
+### Blog helpers for custom layouts
+
+`fumapress/plugins/blog` exports `getBlogPosts()`, `getBlogAuthors()` and `tagSlug()`, so custom layouts no longer sort posts or resolve authors themselves.
+
+### Tag pages use lowercase slugs
+
+Tag routes and links go through `tagSlug()`, which lowercases the tag and replaces whitespace with `-`, so tags with spaces or capitals resolve. The tag page shows the tag as written in posts.
+
+### Static deployment output
+
+The deployment adapter now receives the render mode: with `mode: "static"`, Cloudflare deploys static assets without a Worker, Vercel and Netlify emit no function. No custom server entry needed.
+
+Cloudflare and Netlify builds write `dist/public/_headers` to cache hashed assets for a year, unless your project has its own `public/_headers`. Static builds on Cloudflare also set `not_found_handling: "404-page"` in the generated `wrangler.jsonc`, so unknown URLs get the `404.html` page.
+
+### Base URL fallback
+
+The `site.baseUrl` fallback no longer reads the Cloudflare Pages variables, which Workers Builds never sets. The warning now says when Workers Builds is detected, since it exposes no site URL.
+
+### Select the sidebar tree root
+
+The docs, notebook and glass layouts accept a `treeRoot` option: the folder path to use as the root of the sidebar tree, such as the `baseDir` of a content collection. Paths are matched against the folder itself, so the same value works on every locale, and an unknown path throws with the available folders.
+
+### Honor `hideLocale` in routing
+
+`hideLocale: "default-locale"` in your i18n config now serves the default language without URL prefix, so routes match `page.url`: content pages, `src/pages`, blog routes, Open Graph images and `.md` versions all follow. Build language-aware links in plugins and layouts with `this.localizePath(lang, pathname)`.
+
+### Root pages of i18n sites
+
+Static i18n builds emit `index.html` (a redirect to the default language, or its index page when the prefix is hidden) and a root `404.html`. Pages with `autoI18n: false` render inside the root layout of the default language instead of a bare document.
+
+### Locale switch with hidden prefix
+
+Switching back to the default language no longer navigates to a prefixed URL that does not exist.
+
+### Integrations follow the prefix policy
+
+`localeRoutes()` and `withLang()` are available from `fumapress/internal`, so plugins outside the core can register one route per language too. That entry point is not covered by semver. The Tegami changelog routes, the Mintlify 404 redirect and the `get_page` tool of the MCP server follow the policy now, instead of assuming every language has a URL prefix.
+
+### SEO meta for every page
+
+Page meta tags are rendered by the router now, so custom `renderPage` functions and plugin layouts get them without calling `renderPageMeta()`. The defaults grew from title and Open Graph tags to `<meta name="description">`, `og:site_name`, `og:url`, a canonical link (with `site.baseUrl`), and `hreflang` links to translations. The new `site.trailingSlash` and `site.hreflang` options control the generated URLs and language tags.
+
+### Fallback pages are not advertised
+
+With i18n, pages inherited from the fallback language (they share the source page's file) get `noindex` and a canonical link to the source page, and the sitemap, RSS feed, `llms-full.txt`, and Takumi image generation skip them. They stay in the search index, so readers of that locale still find the content.
+
+### Context helpers
+
+`this.absoluteUrl(pathname)` builds absolute URLs from `site.baseUrl`, and `this.getPageAlternates(page)` lists the translations of a page. The sitemap fills `alternates` from it by default, and `SitemapAlternateLink` no longer takes `rel`.
+
+### Takumi: route images, shared options, fonts and WebAssembly
+
+- `takumiOptions` in the `getConfig()` of a route gives it an Open Graph image: `title` and `description` for the default template, or a `node` to draw it yourself. A static page gets the image prerendered next to it (`/about.webp`), a dynamic page renders it on request under `/_takumi`, and both receive the `og:image` meta tags like a content page. A function form receives the route params.
+- `options` on `takumiPlugin()` applies to every image, put values resolved once there, like the fonts from `googleFonts()`. The options of `generate()` override them per page.
+- `googleFonts` and `fontFromUrl` are re-exported from `fumapress/plugins/takumi`, and `fumapress/plugins/takumi.wasm` exports Takumi's WebAssembly build for `options.module`: `takumi-js` no longer needs to be installed next to `fumapress`, which used to end up with two copies.
+- The options accepted by `generate()` no longer drop `quality`, `lossless` and `module`.
+
+### Same-origin redirects no longer need `allowedHosts`
+
+Self-hosted image optimization resolves a local `src` against the site's own URL before fetching it. When that request redirected, even to the same origin, the target was checked against `allowedHosts` and refused, so a plain `/cover.png` could fail to optimize on hosts that redirect their own assets. Redirects within one origin are now followed; leaving it still requires an entry.
+
+### Vercel image options are applied
+
+`remotePatterns`, `domains`, `localPatterns`, `formats`, `minimumCacheTTL`, `contentDispositionType` and `contentSecurityPolicy` of the Vercel image plugin were dropped instead of written to the build output, so remote images could not be allowed at all. They now reach `.vercel/output/config.json`.
+
 ## fumapress@1.2.0
 
 ### Deprecate `createLayoutSwitchAuto`

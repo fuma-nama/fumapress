@@ -1,3 +1,9 @@
+## @fumapress/notion@1.1.3
+
+### Swap `cnfast` for `cn`
+
+Class name merging now runs on [`cn`](https://github.com/shadcn-ui/cn) instead of `cnfast`. Both are drop-in replacements for `clsx` + `tailwind-merge`, so merge behavior and the classes you get out are unchanged.
+
 ## @fumapress/notion@1.1.2
 
 ### Loosen `fumapress` dependency ranges
