@@ -75,18 +75,18 @@ export function BlogGrid<C extends AppShape>({ posts }: { posts: BlogPost<C>[] }
   );
 }
 
-export function LinkToHome({ lang }: { lang?: string }) {
+export function LinkToHome({ lang, ...props }: { lang?: string } & ComponentProps<"a">) {
   const { indexPath } = getBlogContext();
   if (!indexPath) return;
 
   return (
     <Link
+      {...props}
       href={getPressContext().localizePath(lang, indexPath)}
       className={cn(
-        buttonVariants({
-          variant: "ghost",
-          className: "text-fd-muted-foreground gap-2",
-        }),
+        buttonVariants({ variant: "ghost" }),
+        "text-fd-muted-foreground gap-2 -mx-2",
+        props.className,
       )}
     >
       <CornerLeftUpIcon className="size-3.5" />

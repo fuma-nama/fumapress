@@ -47,7 +47,7 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
   return async function BlogLayoutPage({ page, lang }) {
     const ctx = getPressContext<C>();
     const { tagsPath } = getBlogContext<C>();
-    const [tags, authors, posts] = await Promise.all([
+    const [tags = [], authors, posts] = await Promise.all([
       getTags(ctx, page),
       getBlogAuthors(ctx, page),
       getBlogPosts(ctx, page.locale),
@@ -66,46 +66,55 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
 
     return (
       <BlogProvider toc={result.toc}>
-        <div className="flex flex-col gap-4 items-center border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
-          <div className="flex flex-row items-center gap-2 w-full max-w-[900px]">
-            <LinkToHome lang={lang} />
+        <div className="border-y px-4 pt-3.5 pb-6 bg-fd-card text-fd-card-foreground shadow-inner max-sm:-mx-4 sm:rounded-xl sm:border">
+          <div className="flex flex-col gap-4 w-full mx-auto max-w-[900px]">
+            <LinkToHome lang={lang} className="w-fit" />
+
+            <h1 className="font-semibold text-2xl">{page.data.title}</h1>
+            <p className="text-fd-muted-foreground empty:hidden">{page.data.description}</p>
+            {authors.length > 0 && (
+              <div className="flex flex-row flex-wrap items-start gap-x-6 gap-y-2">
+                {authors.map((author) => (
+                  <BlogAuthorItem key={author.name} author={author} />
+                ))}
+              </div>
+            )}
+            {(tags.length > 0 || result.creationDate) && (
+              <div className="mt-2 flex flex-row flex-wrap items-center gap-2 flex-wrap">
+                {tags.length > 0 && (
+                  <>
+                    <TagIcon className="size-4 text-fd-muted-foreground" />
+                    {tags.map((t) => {
+                      const shared =
+                        "px-1.5 py-0.5 rounded-lg text-sm text-fd-primary-foreground bg-fd-primary font-mono";
+                      if (tagsPath === false)
+                        return (
+                          <p key={t} className={shared}>
+                            {t}
+                          </p>
+                        );
+                      return (
+                        <Link
+                          key={t}
+                          href={ctx.localizePath(lang, joinPathname(tagsPath, tagSlug(t)))}
+                          className={shared}
+                        >
+                          {t}
+                        </Link>
+                      );
+                    })}
+                  </>
+                )}
+
+                {result.creationDate && (
+                  <BlogDate
+                    date={result.creationDate}
+                    className="ms-auto text-xs text-fd-muted-foreground"
+                  />
+                )}
+              </div>
+            )}
           </div>
-          <h1 className="font-semibold text-2xl w-full max-w-[900px]">{page.data.title}</h1>
-          <p className="text-fd-muted-foreground w-full max-w-[900px]">{page.data.description}</p>
-          {(authors.length > 0 || result.creationDate) && (
-            <div className="flex flex-row flex-wrap items-center gap-x-6 gap-y-2 w-full max-w-[900px]">
-              {authors.map((author) => (
-                <BlogAuthorItem key={author.name} author={author} />
-              ))}
-              {result.creationDate && (
-                <BlogDate date={result.creationDate} className="text-sm text-fd-muted-foreground" />
-              )}
-            </div>
-          )}
-          {tags && tags.length > 0 && (
-            <div className="flex flex-row items-center gap-2 flex-wrap w-full max-w-[900px] text-sm text-fd-primary-foreground font-mono">
-              <TagIcon className="size-4 text-fd-muted-foreground" />
-
-              {tags.map((t) => {
-                if (tagsPath !== false)
-                  return (
-                    <Link
-                      key={t}
-                      href={ctx.localizePath(lang, joinPathname(tagsPath, tagSlug(t)))}
-                      className="px-1.5 py-0.5 rounded-lg bg-fd-primary"
-                    >
-                      {t}
-                    </Link>
-                  );
-
-                return (
-                  <p key={t} className="px-1.5 py-0.5 rounded-lg bg-fd-primary">
-                    {t}
-                  </p>
-                );
-              })}
-            </div>
-          )}
         </div>
         <article className="prose mt-6 mx-auto w-full max-w-[900px]">{result.body}</article>
         {(adjacent.newer || adjacent.older) && (
