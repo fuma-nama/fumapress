@@ -1,23 +1,23 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Smaller CLI\n\n`create-fumapress` parses arguments with `cac` instead of `commander`, cutting the installed size of the scaffolder.\n"
-    filename: 2026-09-10-cac-cli.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Customize page actions\n\nDocs, notebook, and glass layouts accept a `renderPageActions` interceptor for the Markdown copy button and view options menu, like the existing `renderLayout`, `renderPage`, and `renderBody` options.\n\nReturn `null` to hide the actions:\n\n```tsx\ncreateDocsLayoutPage({\n  renderPageActions: () => null,\n});\n```\n\nPlugins can intercept them too, through `actionsInterceptors` on the layout context data.\n"
+    filename: 2026-09-10-page-actions.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
     updated: false
-  - id: npm:fumapress
-    updated: false
   - changelogIds:
-      - 2026-09-10-cac-cli.md
-    id: npm:create-fumapress
+      - 2026-09-10-page-actions.md
+    id: npm:fumapress
+    updated: true
+  - id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
     updated: false
-  - id: npm:@fumapress/language
-    updated: false
   - id: npm:@fumapress/graphql
+    updated: false
+  - id: npm:@fumapress/language
     updated: false
   - id: npm:@fumapress/mintlify
     updated: false
@@ -35,10 +35,16 @@ npm:packages:
   - id: npm:create-fumapress
   - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
-  - id: npm:@fumapress/language
   - id: npm:@fumapress/graphql
+  - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/notion
   - id: npm:@fumapress/obsidian
   - id: npm:@fumapress/sanity
   - id: npm:@fumapress/tegami
+  - id: npm:docs
+  - id: npm:example-sanity
+  - id: npm:example-notion
+  - id: npm:example-obsidian
+  - id: npm:example-openapi
+  - id: npm:example-radix-ui
