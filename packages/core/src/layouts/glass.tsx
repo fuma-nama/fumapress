@@ -42,6 +42,14 @@ export interface GlassLayoutOptions<C extends AppShape = AppShape> {
 
   /** props/renderer for `<DocsBody />` */
   renderBody?: GlassInterceptor<C, ComponentProps<"div">>;
+
+  /** props/renderer for the page actions, return `null` to hide them */
+  renderPageActions?: GlassInterceptor<C, PageActionsProps>;
+}
+
+export interface PageActionsProps {
+  markdownUrl?: string;
+  githubUrl?: string;
 }
 
 export interface GlassLayoutRenderData {
@@ -67,6 +75,7 @@ export interface GlassLayoutContextData<S extends AppShape = AppShape> {
   pageInterceptors?: GlassInterceptor<S, DocsPageProps>[];
   layoutInterceptors?: GlassInterceptor<S, GlassLayoutProps>[];
   bodyInterceptors?: GlassInterceptor<S, ComponentProps<"div">>[];
+  actionsInterceptors?: GlassInterceptor<S, PageActionsProps>[];
 }
 
 export function createGlassLayoutPage<C extends AppShape = AppShape>({
@@ -75,6 +84,7 @@ export function createGlassLayoutPage<C extends AppShape = AppShape>({
   renderLayout,
   renderPage,
   renderBody,
+  renderPageActions,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: GlassLayoutOptions<NoInfer<C>> = {}) {
   return async function Layout({
@@ -90,8 +100,13 @@ export function createGlassLayoutPage<C extends AppShape = AppShape>({
       getLoader,
       data: { "core:glass-layout": layoutData },
     } = ctx;
-    const { bodyInterceptors, layoutInterceptors, pageInterceptors, transformers } =
-      layoutData ?? {};
+    const {
+      actionsInterceptors,
+      bodyInterceptors,
+      layoutInterceptors,
+      pageInterceptors,
+      transformers,
+    } = layoutData ?? {};
     const source = await getLoader();
 
     const _raw = await render?.call(ctx, page);
@@ -138,6 +153,18 @@ export function createGlassLayoutPage<C extends AppShape = AppShape>({
       renderBody,
     ]);
 
+    const Actions = renderWithInterceptors(
+      ctx,
+      { lang, page },
+      ({ markdownUrl, githubUrl }: PageActionsProps) => (
+        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+          {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
+        </div>
+      ),
+      [...(actionsInterceptors ?? []), renderPageActions],
+    );
+
     return Layout({
       ...result.layoutProps,
       children: Page({
@@ -146,13 +173,10 @@ export function createGlassLayoutPage<C extends AppShape = AppShape>({
           <>
             <DocsTitle>{page.data.title}</DocsTitle>
             <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-            <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-              {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
-              <ViewOptionsPopover
-                markdownUrl={result.markdownUrl}
-                githubUrl={page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined}
-              />
-            </div>
+            {Actions({
+              markdownUrl: result.markdownUrl,
+              githubUrl: page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined,
+            })}
             {Body({ children: result.body })}
             {result.lastModified && <PageLastUpdate date={result.lastModified} />}
           </>

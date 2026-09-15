@@ -42,6 +42,14 @@ export interface DocsLayoutOptions<C extends AppShape = AppShape> {
 
   /** props/renderer for `<DocsBody />` */
   renderBody?: DocsInterceptor<C, ComponentProps<"div">>;
+
+  /** props/renderer for the page actions, return `null` to hide them */
+  renderPageActions?: DocsInterceptor<C, PageActionsProps>;
+}
+
+export interface PageActionsProps {
+  markdownUrl?: string;
+  githubUrl?: string;
 }
 
 export interface DocsLayoutRenderData {
@@ -67,6 +75,7 @@ export interface DocsLayoutContextData<S extends AppShape = AppShape> {
   pageInterceptors?: DocsInterceptor<S, DocsPageProps>[];
   layoutInterceptors?: DocsInterceptor<S, DocsLayoutProps>[];
   bodyInterceptors?: DocsInterceptor<S, ComponentProps<"div">>[];
+  actionsInterceptors?: DocsInterceptor<S, PageActionsProps>[];
 }
 
 export function createDocsLayoutPage<C extends AppShape = AppShape>({
@@ -75,6 +84,7 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
   renderLayout,
   renderPage,
   renderBody,
+  renderPageActions,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: DocsLayoutOptions<NoInfer<C>> = {}) {
   return async function Layout({
@@ -86,8 +96,13 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
     page: C["page"];
   }) {
     const ctx = getPressContext<C>();
-    const { bodyInterceptors, layoutInterceptors, pageInterceptors, transformers } =
-      ctx.data["core:docs-layout"] ?? {};
+    const {
+      actionsInterceptors,
+      bodyInterceptors,
+      layoutInterceptors,
+      pageInterceptors,
+      transformers,
+    } = ctx.data["core:docs-layout"] ?? {};
     const source = await ctx.getLoader();
 
     const _raw = await render?.call(ctx, page);
@@ -136,6 +151,18 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
       renderBody,
     ]);
 
+    const Actions = renderWithInterceptors(
+      ctx,
+      { lang, page },
+      ({ markdownUrl, githubUrl }: PageActionsProps) => (
+        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+          {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
+        </div>
+      ),
+      [...(actionsInterceptors ?? []), renderPageActions],
+    );
+
     return Layout({
       ...result.layoutProps,
       children: Page({
@@ -144,13 +171,10 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
           <>
             <DocsTitle>{page.data.title}</DocsTitle>
             <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-            <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-              {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
-              <ViewOptionsPopover
-                markdownUrl={result.markdownUrl}
-                githubUrl={page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined}
-              />
-            </div>
+            {Actions({
+              markdownUrl: result.markdownUrl,
+              githubUrl: page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined,
+            })}
             {Body({ children: result.body })}
             {result.lastModified && <PageLastUpdate date={result.lastModified} />}
           </>

@@ -85,6 +85,7 @@ Nested paths like `docs/guides` work too, and an unknown path throws with the li
 - `renderLayout`: wraps `<DocsLayout />`.
 - `renderPage`: wraps `<DocsPage />`.
 - `renderBody`: wraps the body element.
+- `renderPageActions`: wraps the page actions, the Markdown copy button and view options menu shown under the page description.
 
 Each receives the resolved props and a `next` function rendering the original component:
 
@@ -100,6 +101,33 @@ const DocsLayout = createDocsLayoutPage<typeof config.$context>({
         </>
       ),
     });
+  },
+});
+```
+
+Return your own node instead of calling `next` to replace the component. For example, to hide the page actions:
+
+```tsx title="press.config.tsx"
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  // [!code ++]
+  renderPageActions: () => null,
+});
+```
+
+Or to keep the Markdown copy button without the view options menu:
+
+```tsx title="press.config.tsx"
+import { MarkdownCopyButton } from "fumadocs-ui/layouts/docs/page";
+
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  renderPageActions({ props }) {
+    if (!props.markdownUrl) return null;
+
+    return (
+      <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+        <MarkdownCopyButton markdownUrl={props.markdownUrl} />
+      </div>
+    );
   },
 });
 ```
