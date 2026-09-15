@@ -1,3 +1,19 @@
+## fumapress@1.3.1
+
+### Customize page actions
+
+Docs, notebook, and glass layouts accept a `renderPageActions` interceptor for the Markdown copy button and view options menu, like the existing `renderLayout`, `renderPage`, and `renderBody` options.
+
+Return `null` to hide the actions:
+
+```tsx
+createDocsLayoutPage({
+  renderPageActions: () => null,
+});
+```
+
+Plugins can intercept them too, through `actionsInterceptors` on the layout context data.
+
 ## fumapress@1.3.0
 
 ### Swap `cnfast` for `cn`

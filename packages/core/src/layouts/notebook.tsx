@@ -42,6 +42,14 @@ export interface NotebookLayoutOptions<C extends AppShape = AppShape> {
 
   /** props/renderer for `<DocsBody />` */
   renderBody?: NotebookInterceptor<C, ComponentProps<"div">>;
+
+  /** props/renderer for the page actions, return `null` to hide them */
+  renderPageActions?: NotebookInterceptor<C, PageActionsProps>;
+}
+
+export interface PageActionsProps {
+  markdownUrl?: string;
+  githubUrl?: string;
 }
 
 export interface NotebookLayoutRenderData {
@@ -67,6 +75,7 @@ export interface NotebookLayoutContextData<S extends AppShape = AppShape> {
   pageInterceptors?: NotebookInterceptor<S, DocsPageProps>[];
   layoutInterceptors?: NotebookInterceptor<S, DocsLayoutProps>[];
   bodyInterceptors?: NotebookInterceptor<S, ComponentProps<"div">>[];
+  actionsInterceptors?: NotebookInterceptor<S, PageActionsProps>[];
 }
 
 export function createNotebookLayoutPage<C extends AppShape = AppShape>({
@@ -75,6 +84,7 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
   renderLayout,
   renderPage,
   renderBody,
+  renderPageActions,
   inherit: { layoutProps: inheritLayoutProps = true } = {},
 }: NotebookLayoutOptions<NoInfer<C>> = {}) {
   return async function Layout({
@@ -90,8 +100,13 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
       getLoader,
       data: { "core:notebook-layout": layoutData },
     } = ctx;
-    const { bodyInterceptors, layoutInterceptors, pageInterceptors, transformers } =
-      layoutData ?? {};
+    const {
+      actionsInterceptors,
+      bodyInterceptors,
+      layoutInterceptors,
+      pageInterceptors,
+      transformers,
+    } = layoutData ?? {};
     const source = await getLoader();
 
     const _raw = await render?.call(ctx, page);
@@ -140,6 +155,18 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
       renderBody,
     ]);
 
+    const Actions = renderWithInterceptors(
+      ctx,
+      { lang, page },
+      ({ markdownUrl, githubUrl }: PageActionsProps) => (
+        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+          {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
+        </div>
+      ),
+      [...(actionsInterceptors ?? []), renderPageActions],
+    );
+
     return Layout({
       ...result.layoutProps,
       children: Page({
@@ -148,13 +175,10 @@ export function createNotebookLayoutPage<C extends AppShape = AppShape>({
           <>
             <DocsTitle>{page.data.title}</DocsTitle>
             <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-            <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-              {result.markdownUrl && <MarkdownCopyButton markdownUrl={result.markdownUrl} />}
-              <ViewOptionsPopover
-                markdownUrl={result.markdownUrl}
-                githubUrl={page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined}
-              />
-            </div>
+            {Actions({
+              markdownUrl: result.markdownUrl,
+              githubUrl: page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined,
+            })}
             {Body({ children: result.body })}
             {result.lastModified && <PageLastUpdate date={result.lastModified} />}
           </>

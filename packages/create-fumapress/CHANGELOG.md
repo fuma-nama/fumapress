@@ -1,3 +1,9 @@
+## create-fumapress@0.1.14
+
+### Smaller CLI
+
+`create-fumapress` parses arguments with `cac` instead of `commander`, cutting the installed size of the scaffolder.
+
 ## create-fumapress@0.1.12
 
 ### Clean up the starter template

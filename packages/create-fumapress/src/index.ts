@@ -3,7 +3,7 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { cancel, confirm, intro, isCancel, log, outro, text } from "@clack/prompts";
-import { Command } from "commander";
+import { cac } from "cac";
 import { x } from "tinyexec";
 import * as versionsPkg from "../../create-fumapress-versions/package.json";
 import * as corePkg from "../../core/package.json";
@@ -19,42 +19,51 @@ type CliOptions = {
 
 const packageManagers = ["npm", "pnpm", "yarn", "bun"] as const;
 
-const program = new Command()
-  .name("create-fumapress")
-  .description("Initialize a Fumapress app")
-  .argument("[directory]", "directory to create the app in")
+const cli = cac("create-fumapress");
+
+cli
+  .command("[directory]", "Initialize a Fumapress app in the given directory")
   .option("-y, --yes", "use defaults and install dependencies")
   .option("--force", "write files even when the target directory is not empty")
-  .option("--install", "install dependencies after scaffolding")
-  .option("--no-install", "skip dependency installation")
+  .option("--install", "install dependencies after scaffolding, or --no-install to skip")
   .option("--package-manager <name>", "package manager to use: npm, pnpm, yarn, or bun")
-  .parse(process.argv);
+  .action(create);
 
-const [directory] = program.args as [string | undefined];
-const options = program.opts<CliOptions>();
+// the only command is the default one, so cac's "run any command with --help" hint points at itself
+cli.help((sections) => sections.filter((section) => !section.title?.startsWith("For more info")));
 
-intro("create-fumapress");
-
-const projectDirectory = options.yes
-  ? (directory ?? "my-fumapress-app")
-  : await promptProjectDirectory(directory);
-const packageManager = getPackageManager(options.packageManager);
-const shouldInstall = options.yes
-  ? options.install !== false
-  : (options.install ?? (await promptInstall(packageManager)));
-const root = path.resolve(projectDirectory);
-const name = toPackageName(path.basename(root));
-
-await assertCanInitialize(root, Boolean(options.force));
-await writeProject(root, name);
-
-log.success(`Created ${path.relative(process.cwd(), root) || "."}`);
-
-if (shouldInstall) {
-  await installDependencies(root, packageManager);
+try {
+  cli.parse();
+} catch (error) {
+  // cac reports unknown options and missing option values by throwing
+  cancel(error instanceof Error ? error.message : String(error));
+  process.exit(1);
 }
 
-printNextSteps(root, packageManager, shouldInstall);
+async function create(directory: string | undefined, options: CliOptions) {
+  intro("create-fumapress");
+
+  const projectDirectory = options.yes
+    ? (directory ?? "my-fumapress-app")
+    : await promptProjectDirectory(directory);
+  const packageManager = getPackageManager(options.packageManager);
+  const shouldInstall = options.yes
+    ? options.install !== false
+    : (options.install ?? (await promptInstall(packageManager)));
+  const root = path.resolve(projectDirectory);
+  const name = toPackageName(path.basename(root));
+
+  await assertCanInitialize(root, Boolean(options.force));
+  await writeProject(root, name);
+
+  log.success(`Created ${path.relative(process.cwd(), root) || "."}`);
+
+  if (shouldInstall) {
+    await installDependencies(root, packageManager);
+  }
+
+  printNextSteps(root, packageManager, shouldInstall);
+}
 
 async function promptProjectDirectory(initialValue?: string) {
   const value = await text({
