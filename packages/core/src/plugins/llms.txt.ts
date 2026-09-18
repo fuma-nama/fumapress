@@ -178,7 +178,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         path: "/llms.txt",
         handler: async () => {
           const source = await this.getLoader();
-          return new Response(llms(source).index());
+          return new Response(await llms(source).index());
         },
       });
 
