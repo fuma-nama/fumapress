@@ -1,3 +1,9 @@
+## fumapress@1.3.2
+
+### Fix `/llms.txt` content
+
+`/llms.txt` was written as the literal string `[object Promise]` because the generated index was stringified instead of awaited. It now serves the real index. `/llms-full.txt` and the per-page `.md` routes were unaffected.
+
 ## fumapress@1.3.1
 
 ### Customize page actions
