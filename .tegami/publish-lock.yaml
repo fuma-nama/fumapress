@@ -1,17 +1,17 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Customize page actions\n\nDocs, notebook, and glass layouts accept a `renderPageActions` interceptor for the Markdown copy button and view options menu, like the existing `renderLayout`, `renderPage`, and `renderBody` options.\n\nReturn `null` to hide the actions:\n\n```tsx\ncreateDocsLayoutPage({\n  renderPageActions: () => null,\n});\n```\n\nPlugins can intercept them too, through `actionsInterceptors` on the layout context data.\n"
-    filename: 2026-09-10-page-actions.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Fix `/llms.txt` content\n\n`/llms.txt` was written as the literal string `[object Promise]` because the generated index was stringified instead of awaited. It now serves the real index. `/llms-full.txt` and the per-page `.md` routes were unaffected.\n"
+    filename: 2026-09-18-llms-txt-await.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
     updated: false
   - changelogIds:
-      - 2026-09-10-page-actions.md
+      - 2026-09-18-llms-txt-await.md
     id: npm:fumapress
     updated: true
-  - id: npm:create-fumapress
-    updated: true
   - id: npm:create-fumapress-versions
+    updated: true
+  - id: npm:create-fumapress
     updated: true
   - id: npm:@fumapress/feedback
     updated: false
@@ -32,8 +32,8 @@ core:packages:
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:fumapress
-  - id: npm:create-fumapress
   - id: npm:create-fumapress-versions
+  - id: npm:create-fumapress
   - id: npm:@fumapress/feedback
   - id: npm:@fumapress/graphql
   - id: npm:@fumapress/language
