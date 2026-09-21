@@ -18,13 +18,13 @@
     "@sanity/vision": "^6.12.0",
     "fumadocs-core": "^16.15.7",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.7",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "sanity": "^6.12.0",
     "styled-components": "^6.5.3"
   },
   "devDependencies": {
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "typescript": "^7.0.2"
   }
 }

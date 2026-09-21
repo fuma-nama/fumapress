@@ -45,12 +45,12 @@
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",
     "@types/node": "^26.4.1",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "fumadocs-core": "^16.15.7",
     "fumadocs-ui": "^16.15.7",
     "fumapress": "workspace:*",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"
