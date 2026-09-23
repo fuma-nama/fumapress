@@ -1,5 +1,6 @@
 import type { AppContext, AppShape, PressPlugin } from "fumapress";
 import type { DocsLayoutContextData } from "fumapress/layouts/docs";
+import { unstable_formatRouterRequest, unstable_parseRouterRequest } from "waku/router/server";
 import type { MiddlewareHandler } from "hono";
 import { getMintlifyLanguages, I18nConfigExtended, type MintlifyI18nOptions } from "./i18n";
 import {
@@ -256,12 +257,16 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
 
       const match = createRedirectMatcher(redirects);
       const middleware: MiddlewareHandler = async (c, next) => {
-        const result = match(c.req.path);
-        if (result) {
-          return c.redirect(result.destination, result.permanent ? 308 : 307);
-        }
+        // match both document & RSC requests (client-side navigation), and redirect to the same kind
+        const parsed = unstable_parseRouterRequest(c.req.raw);
+        const result = parsed?.type === "route" ? match(parsed.path) : undefined;
+        if (!result) return next();
 
-        return next();
+        const { destination, permanent } = result;
+        const location = URL.canParse(destination)
+          ? destination
+          : unstable_formatRouterRequest(c.req.raw, destination)?.href;
+        return location ? c.redirect(location, permanent ? 308 : 307) : next();
       };
 
       return [middleware];

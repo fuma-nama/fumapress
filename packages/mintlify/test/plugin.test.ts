@@ -1,7 +1,10 @@
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "fumapress";
 import { mintlifyPlugin } from "@/index";
+
+// `waku/router/server` needs the `react-server` condition, which this environment doesn't enable
+vi.mock("waku/router/server", () => ({}));
 
 const fixturesRoot = path.join(import.meta.dirname, "fixtures");
 
