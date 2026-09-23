@@ -54,7 +54,7 @@ async function create(directory: string | undefined, options: CliOptions) {
   const name = toPackageName(path.basename(root));
 
   await assertCanInitialize(root, Boolean(options.force));
-  await writeProject(root, name);
+  await writeProject(root, name, packageManager);
 
   log.success(`Created ${path.relative(process.cwd(), root) || "."}`);
 
@@ -134,9 +134,9 @@ async function assertCanInitialize(root: string, force: boolean) {
   }
 }
 
-async function writeProject(root: string, name: string) {
+async function writeProject(root: string, name: string, packageManager: PackageManager) {
   await Promise.all(
-    Object.entries(getFiles(name)).map(async ([file, content]) => {
+    Object.entries(getFiles(name, packageManager)).map(async ([file, content]) => {
       const target = path.join(root, file);
 
       await mkdir(path.dirname(target), { recursive: true });
@@ -145,8 +145,8 @@ async function writeProject(root: string, name: string) {
   );
 }
 
-function getFiles(name: string) {
-  return {
+function getFiles(name: string, packageManager: PackageManager) {
+  const files: Record<string, string> = {
     ".gitignore": `.DS_Store
 /node_modules/
 
@@ -241,6 +241,15 @@ export default defineConfig({
 });
 `,
   };
+
+  if (packageManager === "pnpm") {
+    // pnpm fails the install on unapproved build scripts, esbuild doesn't need its own
+    files["pnpm-workspace.yaml"] = `allowBuilds:
+  esbuild: false
+`;
+  }
+
+  return files;
 }
 
 function getPackageJson(name: string) {
