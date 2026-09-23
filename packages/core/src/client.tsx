@@ -3,6 +3,7 @@
 import { useRouter as useRouterBase } from "waku/router/client";
 
 export { Link, type LinkProps } from "@/components/link";
+export { useNavigationStatus_UNSTABLE as useNavigationStatus } from "waku/router/client";
 
 export interface Router {
   push: (

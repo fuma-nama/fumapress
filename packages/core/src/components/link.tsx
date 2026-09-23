@@ -1,7 +1,8 @@
 "use client";
 import { useRouter } from "@/client";
-import type { ComponentProps, ReactNode, TransitionFunction } from "react";
-import { Link as BaseLink, Unstable_PrefetchOptions } from "waku/router/client";
+import type { ComponentProps } from "react";
+import { Link as BaseLink } from "waku/router/client";
+import type { Unstable_PrefetchOptions } from "waku/router/client-core";
 
 export interface LinkProps extends ComponentProps<"a"> {
   /**
@@ -11,11 +12,9 @@ export interface LinkProps extends ComponentProps<"a"> {
    * - `undefined`: scroll on path/hash change (not on query-only change)
    */
   scroll?: boolean;
-  unstable_pending?: ReactNode;
-  unstable_notPending?: ReactNode;
+  unstable_instant?: boolean;
   unstable_prefetchOnEnter?: boolean | Unstable_PrefetchOptions;
   unstable_prefetchOnView?: boolean | Unstable_PrefetchOptions;
-  unstable_startTransition?: ((fn: TransitionFunction) => void) | undefined;
 }
 
 export function Link({
@@ -33,18 +32,10 @@ export function Link({
     <BaseLink
       to={href}
       unstable_prefetchOnView={
-        unstable_prefetchOnView
-          ? unstable_prefetchOnView === true
-            ? {}
-            : unstable_prefetchOnView
-          : undefined
+        unstable_prefetchOnView === true ? {} : unstable_prefetchOnView || undefined
       }
       unstable_prefetchOnEnter={
-        unstable_prefetchOnEnter
-          ? unstable_prefetchOnEnter === true
-            ? {}
-            : unstable_prefetchOnEnter
-          : undefined
+        unstable_prefetchOnEnter === true ? {} : unstable_prefetchOnEnter || undefined
       }
       {...props}
     >

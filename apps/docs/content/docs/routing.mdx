@@ -295,6 +295,10 @@ The router also exposes:
 - `prefetch(to)`: preload a route before navigating.
 - `hash`: the current location hash.
 
+### `useNavigationStatus()`
+
+Inside a `<Link>`, `useNavigationStatus().pending` is `true` while its navigation is in progress.
+
 ### Server Redirects
 
 On the server, use `redirect` to redirect to another route:
