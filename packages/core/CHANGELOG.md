@@ -1,3 +1,17 @@
+## fumapress@1.4.0
+
+### Update to Waku 1.0.0-rc.1
+
+Waku moves from `1.0.0-rc.0` to `1.0.0-rc.1`, which pins its React peers to `~19.3.0`.
+
+`fumapress` now requires `react` and `react-dom` `^19.3.0`. Upgrade React alongside this release:
+
+```bash
+npm i react@^19.3.0 react-dom@^19.3.0
+```
+
+Projects created with `create-fumapress` are scaffolded with React 19.3 already.
+
 ## fumapress@1.3.2
 
 ### Fix `/llms.txt` content

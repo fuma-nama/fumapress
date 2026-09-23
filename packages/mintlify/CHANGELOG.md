@@ -1,3 +1,9 @@
+## @fumapress/mintlify@1.1.4
+
+### Fix redirects
+
+Match redirects for RSC requests.
+
 ## @fumapress/mintlify@1.1.3
 
 ### Honor `hideLocale` in routing
