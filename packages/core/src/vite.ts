@@ -185,29 +185,10 @@ function core(options: PluginOptions = {}): Plugin {
         );
       }
     },
-    async config(config, { command }) {
+    async config(config) {
       const out = generateViteConfig
-        ? await crawlFrameworkPkgs({
-            root: config.root ?? process.cwd(),
-            isBuild: command === "build",
-            isFrameworkPkgByName(pkgName) {
-              if (
-                pkgName.startsWith("@fumapress/") ||
-                pkgName.startsWith("@fumadocs/") ||
-                pkgName.startsWith("fumadocs-") ||
-                pkgName.startsWith("fumapress-") ||
-                pkgName === "fumapress"
-              )
-                return true;
-              switch (pkgName) {
-                case "vite":
-                case "waku":
-                case "shiki":
-                  return false;
-              }
-            },
-          })
-        : null;
+        ? await crawlFrameworkPkgs(config.root ?? process.cwd(), isFrameworkPkg)
+        : undefined;
 
       const adapter = options.adapter ?? getDefaultAdapter();
 
@@ -221,13 +202,13 @@ function core(options: PluginOptions = {}): Plugin {
         resolve: {
           // packages with React contexts must resolve to a single copy, e.g. pnpm can otherwise
           // instantiate `fumadocs-core` twice from its optional `waku` peer dependency
-          dedupe: out?.ssr.noExternal,
+          dedupe: out?.framework,
         },
         ssr: {
-          noExternal: out?.ssr.noExternal,
+          noExternal: out?.framework,
           external: ["sharp"],
         },
-        optimizeDeps: out?.optimizeDeps,
+        optimizeDeps: out && { include: out.include, exclude: out.framework },
       };
     },
     async resolveId(source, _importer, options) {
@@ -250,6 +231,25 @@ function core(options: PluginOptions = {}): Plugin {
       }
     },
   };
+}
+
+function isFrameworkPkg(name: string): boolean | undefined {
+  if (
+    name === "fumapress" ||
+    name.startsWith("@fumapress/") ||
+    name.startsWith("fumapress-") ||
+    name.startsWith("@fumadocs/") ||
+    name.startsWith("fumadocs-")
+  )
+    return true;
+
+  // no CommonJS below these, crawling them is wasted work
+  switch (name) {
+    case "vite":
+    case "waku":
+    case "shiki":
+      return false;
+  }
 }
 
 function getManagedServerEntry() {
