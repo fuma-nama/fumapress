@@ -1,19 +1,20 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n### Update to Waku 1.0.0-rc.1\n\nWaku moves from `1.0.0-rc.0` to `1.0.0-rc.1`, which pins its React peers to `~19.3.0`.\n\n`fumapress` now requires `react` and `react-dom` `^19.3.0`. Upgrade React alongside this release:\n\n```bash\nnpm i react@^19.3.0 react-dom@^19.3.0\n```\n\nProjects created with `create-fumapress` are scaffolded with React 19.3 already.\n"
-    filename: 2026-09-21-waku-rc-1.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Support `fumadocs-openapi` v12\n\nThe `fumadocs-openapi` peer dependency now requires `^12.0.0`. Upgrade it alongside Fumapress if you use OpenAPI pages.\n"
+    filename: 2026-09-25-openapi-v12.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/mintlify:\n    type: patch\n---\n\n## Fix redirects\n\nMatch redirects for RSC requests.\n"
-    filename: 2026-09-23-mudp357g.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Faster Vite config generation\n\nThe dependency crawl now reads each package once, keeps the shortest chain for every CommonJS dependency, and is memoized until the package manager's install state changes.\n\nIt also stops pre-bundling declaration-only packages such as `@types/mdx`, which made esbuild fail on type-space imports.\n"
+    filename: 2026-09-25-vite-config-crawl.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
-    updated: false
   - changelogIds:
-      - 2026-09-21-waku-rc-1.md
+      - 2026-09-25-openapi-v12.md
+      - 2026-09-25-vite-config-crawl.md
     id: npm:fumapress
     updated: true
   - id: npm:create-fumapress
     updated: true
+  - id: npm:@fumapress/ai
+    updated: false
   - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
@@ -22,10 +23,8 @@ core:packages:
     updated: false
   - id: npm:@fumapress/language
     updated: false
-  - changelogIds:
-      - 2026-09-23-mudp357g.md
-    id: npm:@fumapress/mintlify
-    updated: true
+  - id: npm:@fumapress/mintlify
+    updated: false
   - id: npm:@fumapress/notion
     updated: false
   - id: npm:@fumapress/obsidian
@@ -35,9 +34,9 @@ core:packages:
   - id: npm:@fumapress/tegami
     updated: false
 npm:packages:
-  - id: npm:@fumapress/ai
   - id: npm:fumapress
   - id: npm:create-fumapress
+  - id: npm:@fumapress/ai
   - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
   - id: npm:@fumapress/graphql
