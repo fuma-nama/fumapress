@@ -37,23 +37,23 @@
     "@floating-ui/react-dom": "^2.1.9",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.5",
-    "lucide-react": "^1.40.0",
+    "cn": "^0.4.0",
+    "lucide-react": "^1.47.0",
     "octokit": "^5.0.5",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.3.3",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.15.7",
-    "fumadocs-ui": "^16.15.7",
+    "fumadocs-core": "^16.15.14",
+    "fumadocs-ui": "^16.15.14",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.3.0"
   },
   "peerDependencies": {
     "@types/react": "*",
