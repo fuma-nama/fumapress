@@ -1,3 +1,15 @@
+## fumapress@1.4.1
+
+### Support `fumadocs-openapi` v12
+
+The `fumadocs-openapi` peer dependency now requires `^12.0.0`. Upgrade it alongside Fumapress if you use OpenAPI pages.
+
+### Faster Vite config generation
+
+The dependency crawl now reads each package once, keeps the shortest chain for every CommonJS dependency, and is memoized until the package manager's install state changes.
+
+It also stops pre-bundling declaration-only packages such as `@types/mdx`, which made esbuild fail on type-space imports.
+
 ## fumapress@1.4.0
 
 ### Update to Waku 1.0.0-rc.1
