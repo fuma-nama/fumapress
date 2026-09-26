@@ -38,6 +38,7 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
       ..._options?.providerProps,
       children,
     };
+    providerProps.trailingSlash ??= ctx.siteConfig.trailingSlash;
 
     if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
       providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()), lang);

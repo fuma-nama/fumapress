@@ -2,7 +2,7 @@ import { createPages as base_createPages } from "waku";
 import { type AppContext, type AppShape, initApp, appContext } from "../app/context";
 import { FC, Fragment, ReactNode } from "react";
 import { DEFAULT_GROUP, hiddenLocale, localeRoutes } from "@/lib/i18n";
-import { resolveBaseUrl } from "@/lib/pathname";
+import { resolveBaseUrl, withTrailingSlash } from "@/lib/pathname";
 import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
@@ -150,7 +150,8 @@ export async function createRouter<U extends ConfigUtils>(
         }
 
         if (!hidden) {
-          const to = `/${i18n.defaultLanguage}`;
+          let to = `/${i18n.defaultLanguage}`;
+          if (context.siteConfig.trailingSlash) to = withTrailingSlash(to);
 
           if (context.mode === "static") {
             fns.createPage({

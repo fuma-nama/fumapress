@@ -56,6 +56,8 @@ export default defineConfig({
 });
 ```
 
+Internal links follow it too: links rendered with `Link` from `fumapress/client`, which includes navigation, blog and tag links, and site-root links in your content like `[Basics](/docs/basics)` or `[Basics](./basics.mdx)`. Links to files (a `.` in the last segment, like `/feed.xml`), external URLs, and relative links like `../basics` are kept as is.
+
 Plugins build the same URLs with `this.absoluteUrl(pathname)`, pass `{ file: true }` for files so they never get a trailing slash.
 
 #### Locales

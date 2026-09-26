@@ -4,6 +4,8 @@ import { type RootProviderProps, RootProvider } from "fumadocs-ui/provider/base"
 import { useMemo } from "react";
 import { Image } from "./image";
 import { Link, useRouter } from "@/client";
+import { withPageTrailingSlash } from "@/lib/pathname";
+import { TrailingSlashProvider, useResolveHref } from "./link";
 
 const framework: Framework = {
   useParams() {
@@ -15,13 +17,14 @@ const framework: Framework = {
   },
   useRouter() {
     const router = useRouter();
+    const resolveHref = useResolveHref();
 
     return useMemo(
       () => ({
-        push: router.push.bind(router),
+        push: (url) => router.push(resolveHref(url)),
         refresh: router.reload.bind(router),
       }),
-      [router],
+      [router, resolveHref],
     );
   },
   Image: ({ priority, ...props }) => (
@@ -41,9 +44,17 @@ export interface PressProviderProps extends RootProviderProps {
    * Ignored when `i18n.onLocaleChange` is given, your handler owns the navigation then.
    */
   hiddenLocale?: string;
+
+  /** append a trailing slash to internal page links, from `site.trailingSlash` */
+  trailingSlash?: boolean;
 }
 
-export function PressProvider({ hiddenLocale, i18n, ...props }: PressProviderProps) {
+export function PressProvider({
+  hiddenLocale,
+  trailingSlash = false,
+  i18n,
+  ...props
+}: PressProviderProps) {
   const router = useRouter();
 
   if (i18n && hiddenLocale && !i18n.onLocaleChange) {
@@ -54,14 +65,17 @@ export function PressProvider({ hiddenLocale, i18n, ...props }: PressProviderPro
         const segments = router.path.split("/").filter(Boolean);
         if (segments[0] === locale) segments.shift();
         if (target !== hiddenLocale) segments.unshift(target);
-        void router.push("/" + segments.join("/"));
+        const pathname = "/" + segments.join("/");
+        void router.push(trailingSlash ? withPageTrailingSlash(pathname) : pathname);
       },
     };
   }
 
   return (
-    <FrameworkProvider {...framework}>
-      <RootProvider {...props} i18n={i18n} />
-    </FrameworkProvider>
+    <TrailingSlashProvider value={trailingSlash}>
+      <FrameworkProvider {...framework}>
+        <RootProvider {...props} i18n={i18n} />
+      </FrameworkProvider>
+    </TrailingSlashProvider>
   );
 }

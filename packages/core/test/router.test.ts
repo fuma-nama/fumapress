@@ -90,11 +90,15 @@ async function content(route: Route, props: object): Promise<unknown> {
 }
 
 describe("createRouter", () => {
-  function config(i18n: I18nConfig | undefined, mode: "static" | "default" = "static") {
+  function config(
+    i18n: I18nConfig | undefined,
+    mode: "static" | "default" = "static",
+    trailingSlash?: boolean,
+  ) {
     return defineConfig({
       mode,
       preset: false,
-      site: { baseUrl: "https://example.com" },
+      site: { baseUrl: "https://example.com", trailingSlash },
       content: {
         files: [
           { type: "page", path: "index.mdx", data: { title: "Home" } },
@@ -147,6 +151,15 @@ describe("createRouter", () => {
 
     expect(route("/").render).toBe("dynamic");
     await expect(render(route("/"), {})).rejects.toThrow("redirect:/en");
+  });
+
+  it("redirects the root with a trailing slash when configured", async () => {
+    await routes(config(prefixed, "static", true));
+    const redirect = (await render(route("/"), {})) as { props: { to: string } };
+    expect(redirect.props.to).toBe("/en/");
+
+    await routes(config(prefixed, "default", true));
+    await expect(render(route("/"), {})).rejects.toThrow("redirect:/en/");
   });
 
   it("serves the hidden default language without prefix", async () => {
