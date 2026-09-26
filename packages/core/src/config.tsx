@@ -107,7 +107,9 @@ export interface SiteConfig {
   baseUrl?: string;
 
   /**
-   * Append a trailing slash to generated page URLs (canonical, sitemap, RSS), for hosts that serve pages with one.
+   * Append a trailing slash to page URLs, for hosts that serve pages with one: the canonical link,
+   * sitemap, RSS, and internal links rendered by `Link` (including links in content and navigation
+   * from `router.push()`). Files and external URLs are not affected.
    */
   trailingSlash?: boolean;
 

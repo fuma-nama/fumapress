@@ -18,6 +18,7 @@ import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { preinitPlugins, type PressPlugin } from "./plugin";
 import { inheritedFrom, localizePath } from "@/lib/i18n";
+import { withTrailingSlash } from "@/lib/pathname";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
@@ -329,9 +330,7 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
     absoluteUrl(pathname, { file = false } = {}) {
       const { baseUrl, trailingSlash } = getPressContext().siteConfig;
 
-      if (!file && trailingSlash && pathname !== "/" && !pathname.endsWith("/")) {
-        pathname += "/";
-      }
+      if (!file && trailingSlash) pathname = withTrailingSlash(pathname);
 
       return baseUrl ? new URL(pathname, baseUrl).href : pathname;
     },

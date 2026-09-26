@@ -25,6 +25,7 @@ describe("absoluteUrl", () => {
     await appContext.run(ctx, () => {
       expect(ctx.absoluteUrl("/docs/basics")).toBe("https://example.com/docs/basics/");
       expect(ctx.absoluteUrl("/")).toBe("https://example.com/");
+      expect(ctx.absoluteUrl("/docs/basics?a=1#h")).toBe("https://example.com/docs/basics/?a=1#h");
       expect(ctx.absoluteUrl("/docs/basics.webp", { file: true })).toBe(
         "https://example.com/docs/basics.webp",
       );
