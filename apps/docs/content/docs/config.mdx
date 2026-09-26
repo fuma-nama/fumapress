@@ -42,7 +42,7 @@ Source file links are resolved against the detected git root, set `git.rootDir` 
 
 #### URLs
 
-`baseUrl` makes generated URLs absolute: sitemap entries, feed links, `og:image`, and the canonical link of each page. Set `trailingSlash` when your host serves pages with one, like Cloudflare Pages for static builds, so those URLs match:
+`baseUrl` makes generated URLs absolute: sitemap entries, feed links, `og:image`, and the canonical link (with `og:url`) of each page. Canonical links cover content pages and the routes of the [blog plugin](/docs/plugins/blog#canonical-urls): the index, tags and tag pages. The not-found page never gets one. Set `trailingSlash` when your host serves pages with one, like Cloudflare Pages for static builds, so those URLs match:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";

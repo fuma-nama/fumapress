@@ -30,6 +30,15 @@ export function adjacentPosts<C extends AppShape>(posts: BlogPost<C>[], page: C[
   return { newer: posts[index - 1], older: posts[index + 1] };
 }
 
+/** the router passes the URL segment as-is, it is percent-encoded on dynamic requests */
+export function decodeSlug(slug: string) {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 /** URL segment of a tag: lowercase, whitespace replaced by `-` */
 export function tagSlug(tag: string) {
   return tag.toLowerCase().replace(/\s+/g, "-");

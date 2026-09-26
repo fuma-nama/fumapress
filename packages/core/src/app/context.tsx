@@ -385,6 +385,21 @@ async function PageLinks({ page }: { page: Page }) {
   const origin = inheritedFrom(await ctx.getLoader(), i18n, page);
   const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl((origin ?? page).url) : undefined;
   const alternates = await ctx.getPageAlternates(page);
+
+  return (
+    <>
+      {renderLinks(ctx, { url, alternates })}
+      {origin && <meta name="robots" content="noindex" />}
+    </>
+  );
+}
+
+/** canonical, `og:url` and `hreflang` tags, shared by content pages and plugin routes */
+export function renderLinks<C extends AppShape>(
+  ctx: AppContext<C>,
+  { url, alternates }: { url: string | undefined; alternates: PageAlternate[] },
+): ReactNode {
+  const i18n = ctx.i18nConfig as I18nConfig | undefined;
   const xDefault =
     alternates.find((item) => item.locale === i18n?.defaultLanguage) ?? alternates[0];
 
@@ -396,7 +411,6 @@ async function PageLinks({ page }: { page: Page }) {
         <link key={item.locale} rel="alternate" hrefLang={item.hreflang} href={item.href} />
       ))}
       {xDefault && <link rel="alternate" hrefLang="x-default" href={xDefault.href} />}
-      {origin && <meta name="robots" content="noindex" />}
     </>
   );
 }

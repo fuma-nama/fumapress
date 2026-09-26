@@ -1,6 +1,6 @@
 import { BlogGrid, LinkToHome } from "@/components/blog";
 import { T } from "@fuma-translate/react";
-import { getTags, groupTags, tagSlug } from "@/lib/shared/blog";
+import { decodeSlug, getTags, groupTags, tagSlug } from "@/lib/shared/blog";
 import { joinPathname } from "@/lib/pathname";
 import {
   BlogTagPage,
@@ -126,13 +126,4 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
       </>
     );
   };
-}
-
-/** the router passes the URL segment as-is, it is percent-encoded on dynamic requests */
-function decodeSlug(slug: string) {
-  try {
-    return decodeURIComponent(slug);
-  } catch {
-    return slug;
-  }
 }
