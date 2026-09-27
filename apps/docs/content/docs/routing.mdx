@@ -179,7 +179,6 @@ function changelogPlugin<C extends AppShape>(): PressPlugin<C> {
     async createPages({ createPage }) {
       createPage({
         path: "/changelog",
-        render: "static",
         component() {
           return <main>Changelog</main>;
         },
@@ -207,7 +206,6 @@ function allDocsPlugin<C extends AppShape>(): PressPlugin<C> {
 
       createPage({
         path: "/all-docs",
-        render: "static",
         component() {
           return (
             <ul>
@@ -229,8 +227,9 @@ export default defineConfig({
 }).plugins(allDocsPlugin());
 ```
 
-A plugin can also observe the pages of your app and other plugins: `prepareCreatePages()` runs
-before any page is created, wrap `fns.createPage` there to see every page passing through.
+With i18n, pass `lang` to register a page under a language, see [Internationalization](/docs/internationalization#routing).
+
+A plugin can also work with the pages of your app and other plugins: `configureRoutes()` runs after every page is created, with them in `fns.getRoutes()`. Derive routes from them, like the Markdown version of each page, or add head tags to a page with `route.meta`.
 
 ## Client
 

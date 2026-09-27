@@ -29,3 +29,12 @@ export function resolveBaseUrl(base: string, pathname: string) {
   if (pathname.startsWith("/")) pathname = pathname.slice(1);
   return `${base}/${pathname}`;
 }
+
+/** decode a percent-encoded pathname (the router passes URL segments as-is on dynamic requests), unchanged when malformed */
+export function decodePathname(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}

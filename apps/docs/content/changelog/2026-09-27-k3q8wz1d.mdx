@@ -1,0 +1,27 @@
+---
+title: Route functions for every language
+date: 2026-09-27T11:14:05.871Z
+packages:
+  fumapress:
+    version: 1.5.0
+---
+
+## Route functions for every language
+
+`createPage()` and `createLayout()` of `createPages()` register a route under the prefix of its `lang` with the prop fixed, or outside any language without one. They replace `localeRoutes()` and `withLang()` in plugins, so the `fumapress/internal` entry point is removed, and `render` defaults to the mode of the app, for `createApiIsomorphic()` too.
+
+## Routes of the app
+
+Every page of `createPage()` is listed in `getRoutes()` of `createPages()` with its pages and their translations. Plugins work with them in the new `configureRoutes()` hook, which replaces `prepareCreatePages()`: Takumi and llms.txt derive their image and Markdown routes from it, and `route.meta` adds head tags to a page. `unstable_getCreated()` is removed. The sitemap lists the translations of routes, and the pages a dynamic route declares in `staticPaths`.
+
+## Canonical URLs for every page
+
+Pages of `src/pages` and `createPage()` get `<link rel="canonical">`, `og:url` and `hreflang` links like content pages, the blog routes included. Remove canonical links you added to these pages yourself, or they end up with two.
+
+## `site.trailingSlash` is removed
+
+Page URLs never have a trailing slash, like the routes of Waku.js. Hosts are configured to serve them that way instead: the generated `netlify.toml` disables Pretty URLs, so `/docs` no longer redirects to `/docs/`, and the Wrangler config already drops trailing slashes. `this.absoluteUrl()` lost its `file` option along with the policy.
+
+## Blog tag pages without posts respond 404
+
+On dynamic requests, a tag no post uses rendered an empty page.

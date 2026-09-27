@@ -197,11 +197,9 @@ export function rssPlugin<C extends AppShape = AppShape>(
       ));
     },
     async createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
       const getItem = _getItem.bind(this);
 
       createApiIsomorphic({
-        render: renderMode,
         path,
         handler: async () => {
           const source = await this.getLoader();
@@ -228,7 +226,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
               link: this.absoluteUrl("/"),
               description: description ?? channelTitle,
               language,
-              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path, { file: true }) : undefined,
+              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path) : undefined,
               items: items.slice(0, limit),
             }),
             {

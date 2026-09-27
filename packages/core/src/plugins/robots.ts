@@ -83,17 +83,14 @@ export function robotsPlugin<C extends AppShape = AppShape>(
       }
     },
     createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
-
       createApiIsomorphic({
-        render: renderMode,
         path,
         handler: async () => {
           const sections = rules.map(ruleToText);
 
           if (sitemap) {
             const sitemapPath = typeof sitemap === "string" ? sitemap : "/sitemap.xml";
-            sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath, { file: true })}`);
+            sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath)}`);
           }
           if (additionalContent) sections.push(additionalContent);
 

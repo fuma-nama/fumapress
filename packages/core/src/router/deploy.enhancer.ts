@@ -12,22 +12,25 @@ export interface BuildOptions {
 const wranglerConfigs = ["wrangler.toml", "wrangler.json", "wrangler.jsonc"];
 
 /**
- * Post-build step for Cloudflare and Netlify: cache hashed assets, and serve `404.html` for unknown URLs on Cloudflare static assets.
+ * Post-build step for Cloudflare and Netlify: cache hashed assets, serve pages at their slashless
+ * URLs, and serve `404.html` for unknown URLs on Cloudflare static assets.
  */
 export default async function buildEnhancer(
   build: (utils: unknown, options: BuildOptions) => Promise<void>,
 ): Promise<typeof build> {
   return async (utils, options) => {
-    // Waku's Cloudflare enhancer generates `wrangler.jsonc` when the project has no Wrangler config
+    // Waku's enhancers generate `wrangler.jsonc` and `netlify.toml` when the project has none
     const hadWranglerConfig = wranglerConfigs.some(existsSync);
+    const hadNetlifyConfig = existsSync("netlify.toml");
     await build(utils, options);
-    postBuild(options, hadWranglerConfig);
+    postBuild(options, hadWranglerConfig, hadNetlifyConfig);
   };
 }
 
 function postBuild(
   { distDir, DIST_PUBLIC, serverless, FUMAPRESS_BASE_PATH }: BuildOptions,
   hadWranglerConfig: boolean,
+  hadNetlifyConfig: boolean,
 ): void {
   // Vite copies the project's own `public/_headers` here
   const headersFile = path.join(distDir, DIST_PUBLIC, "_headers");
@@ -36,6 +39,13 @@ function postBuild(
       headersFile,
       `${FUMAPRESS_BASE_PATH}assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`,
     );
+  }
+
+  // Netlify's pretty URLs redirect `/docs` to `/docs/` for `docs/index.html`
+  if (!hadNetlifyConfig && existsSync("netlify.toml")) {
+    writeFileSync("netlify.toml", "[build.processing.html]\n  pretty_urls = false\n", {
+      flag: "a",
+    });
   }
 
   if (serverless || hadWranglerConfig || !existsSync("wrangler.jsonc")) return;

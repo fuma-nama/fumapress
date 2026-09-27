@@ -5,7 +5,6 @@ import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext, AppShape } from "@/app/context";
 import { joinPathname } from "@/lib/pathname";
-import { DEFAULT_GROUP, localeRoutes, withLang } from "@/lib/i18n";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);
@@ -154,37 +153,22 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
-      const routes: { base: string; lang?: string }[] = [];
-      if (!this.i18nConfig) {
-        routes.push({ base: "/(fs)" });
-      } else if (config?.autoI18n ?? true) {
-        for (const route of localeRoutes(this.i18nConfig)) {
-          routes.push({ base: joinPathname(route.base, "(fs)"), lang: route.lang });
-        }
-      } else {
-        routes.push({ base: joinPathname(DEFAULT_GROUP, "(fs)") });
-      }
+      const { autoI18n = true, ...pageConfig } = config ?? {};
+      const langs = this.i18nConfig && autoI18n ? this.i18nConfig.languages : [undefined];
 
-      for (const { base, lang } of routes) {
-        const routePath = joinPathname(base, path);
-        const routeComponent = lang ? withLang(component, lang) : component;
+      for (const lang of langs) {
+        const route = {
+          path: joinPathname("(fs)", path),
+          lang,
+          component,
+          render: renderMode,
+          unstable_sourceFile: srcPath,
+        };
 
         if (pathItems.at(-1) === "_layout") {
-          createLayout({
-            path: routePath,
-            component: routeComponent,
-            render: renderMode,
-            unstable_sourceFile: srcPath,
-          } as never);
+          createLayout(route);
         } else {
-          createPage({
-            path: routePath,
-            component: routeComponent,
-            render: renderMode,
-            staticPaths: config?.staticPaths,
-            takumiOptions: config?.takumiOptions,
-            unstable_sourceFile: srcPath,
-          } as never);
+          createPage({ ...pageConfig, ...route });
         }
       }
     }

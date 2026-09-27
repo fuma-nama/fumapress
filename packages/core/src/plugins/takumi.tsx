@@ -2,12 +2,11 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
-import type { FC, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 import { inheritedFrom } from "@/lib/i18n";
-import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
-import { asMarkdown } from "@/markdown";
+import type { RouteParams } from "@/lib/routes";
 
 export { fontFromUrl, googleFonts } from "takumi-js/helpers";
 
@@ -146,7 +145,6 @@ export function takumiPlugin<C extends AppShape = AppShape>(
               (origin ?? page).locale,
               joinPathname(basePath, ...slugsToImagePath(page.slugs)),
             ),
-            { file: true },
           ),
         );
       };
@@ -158,13 +156,10 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         </>
       ));
     },
-    prepareCreatePages(fns) {
-      const { createPage } = fns;
-      fns.createPage = (page) => {
-        const { takumiOptions: image, ...rest } = page as CreatedPage & {
-          takumiOptions?: TakumiRouteOptions<C>;
-        };
-        if (!image) return createPage(page);
+    configureRoutes({ createApiIsomorphic, getRoutes }) {
+      for (const route of getRoutes()) {
+        const image = route.takumiOptions as TakumiRouteOptions<C> | undefined;
+        if (!image) continue;
 
         const renderImage = async (params: RouteParams) => {
           const { node, title, description, options } =
@@ -175,49 +170,28 @@ export function takumiPlugin<C extends AppShape = AppShape>(
             options,
           );
         };
-        const dynamic = rest.render === "dynamic";
-        const segments = rest.path.split("/").filter(Boolean);
+        const dynamic = route.render === "dynamic";
 
         if (dynamic) {
-          const spec: string[] = [];
-          for (const seg of segments) if (!seg.startsWith("(")) spec.push(seg);
-
-          fns.createApiIsomorphic({
+          createApiIsomorphic({
             render: "dynamic",
-            path: routeImagePath("/" + spec.join("/"), true),
+            path: routeImagePath(route.path, true),
             handler: (_, { params }) => renderImage(params),
           });
         } else {
-          const entries = segments.some((seg) => seg.startsWith("["))
-            ? (rest.staticPaths ?? [])
-            : [[]];
-          for (const entry of entries) {
-            const { pathname, params } = expandStaticPath(
-              segments,
-              typeof entry === "string" ? [entry] : entry,
-            );
-
-            fns.createApiIsomorphic({
+          for (const { path, params } of route.pages) {
+            createApiIsomorphic({
               render: "static",
-              path: routeImagePath(pathname, false),
+              path: routeImagePath(path, false),
               handler: () => renderImage(params),
             });
           }
         }
 
-        const Page = rest.component as FC<{ path: string }>;
-        return createPage({
-          ...rest,
-          // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
-          component: (props: { path: string }) => (
-            <>
-              {!asMarkdown() &&
-                imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
-              {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
-            </>
-          ),
-        } as never);
-      };
+        route.meta.push((props) =>
+          imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic))),
+        );
+      }
     },
     async createPages({ createApiIsomorphic }) {
       const staticPathsByLang = new Map<string | undefined, string[][]>();

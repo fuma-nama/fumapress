@@ -1,6 +1,5 @@
 import type { AppShape, PressPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
-import { localeRoutes, withLang } from "fumapress/internal";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
 import { joinPathname } from "./lib/pathname.ts";
@@ -52,35 +51,15 @@ export function changelogPlugin<C extends AppShape = AppShape>({
   return {
     name: "tegami:changelog",
     async createPages({ createPage, createLayout, createInterceptor }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
       const { indexPath } = changelogCtx;
-      const index = indexPath !== false && {
-        path: indexPath,
-        Page: layouts.index ?? createChangelogIndexPage<C>(),
-      };
-
+      const index = layouts.index ?? createChangelogIndexPage<C>();
       createInterceptor((next) => changelogContext.run(changelogCtx, next));
 
-      const routes: { base: string; lang?: string }[] = this.i18nConfig
-        ? localeRoutes(this.i18nConfig)
-        : [{ base: "/" }];
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        createLayout({ path: "/(changelog)", lang, component: Layout });
 
-      for (const { base, lang } of routes) {
-        const group = joinPathname(base, "(changelog)");
-
-        createLayout({
-          render: renderMode,
-          path: group,
-          component: lang ? withLang(Layout, lang) : Layout,
-        });
-
-        if (index) {
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, index.path) as "/",
-            staticPaths: [],
-            component: (lang ? withLang(index.Page, lang) : index.Page) as FC,
-          });
+        if (indexPath !== false) {
+          createPage({ path: joinPathname("(changelog)", indexPath), lang, component: index });
         }
       }
     },

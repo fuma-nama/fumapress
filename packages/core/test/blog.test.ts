@@ -1,9 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Page, PageData } from "fumadocs-core/source";
-import type { AppContext, AppShape } from "@/app/context";
+import { appContext, type AppContext, type AppShape } from "@/app/context";
 import type { RouteFns } from "@/lib/types";
 import { blogPlugin, getBlogPosts, tagSlug } from "@/plugins/blog";
 import { adjacentPosts, groupTags } from "@/lib/shared/blog";
+import { createBlogTagPage } from "@/layouts/blog.tags";
+
+vi.mock("waku/router/server", () => ({
+  unstable_notFound() {
+    throw new Error("not found");
+  },
+}));
 
 interface Data extends PageData {
   date?: string;
@@ -88,5 +95,15 @@ describe("blog posts", () => {
     expect(adjacentPosts(posts, c).newer).toBeUndefined();
     expect(adjacentPosts(posts, c).older?.page.url).toBe("/blog/b");
     expect(adjacentPosts(posts, docs)).toEqual({});
+  });
+});
+
+describe("tag page", () => {
+  const TagPage = createBlogTagPage<Shape>();
+  const render = (tag: string) => appContext.run(ctx, () => withBlog(async () => TagPage({ tag })));
+
+  it("responds 404 for tags without posts", async () => {
+    await expect(render("missing")).rejects.toThrow("not found");
+    await expect(render("hello-world")).resolves.toBeDefined();
   });
 });

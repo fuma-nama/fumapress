@@ -19,15 +19,12 @@ function render(ctx: AppContext, node: () => ReactNode) {
 }
 
 describe("absoluteUrl", () => {
-  it("applies the trailing slash policy to page URLs only", async () => {
-    const ctx = await createApp({ site: { trailingSlash: true } });
+  it("resolves pathnames against the base URL", async () => {
+    const ctx = await createApp();
 
     await appContext.run(ctx, () => {
-      expect(ctx.absoluteUrl("/docs/basics")).toBe("https://example.com/docs/basics/");
+      expect(ctx.absoluteUrl("/docs/basics")).toBe("https://example.com/docs/basics");
       expect(ctx.absoluteUrl("/")).toBe("https://example.com/");
-      expect(ctx.absoluteUrl("/docs/basics.webp", { file: true })).toBe(
-        "https://example.com/docs/basics.webp",
-      );
     });
   });
 

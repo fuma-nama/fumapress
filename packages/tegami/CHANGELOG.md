@@ -1,3 +1,9 @@
+## @fumapress/tegami@1.1.4
+
+### Changelog routes get canonical links
+
+The changelog routes are registered with `createPage()` and `createLayout()` of Fumapress.
+
 ## @fumapress/tegami@1.1.3
 
 ### Swap `cnfast` for `cn`

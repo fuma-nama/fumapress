@@ -1,6 +1,6 @@
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
-import type { AppContext, AppShape } from "@/app/context";
+import { type AppContext, type AppShape, pageAlternate, type PageAlternate } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
 import { inheritedFrom } from "@/lib/i18n";
 
@@ -356,12 +356,10 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
 
   return {
     name: "core:sitemap",
-    async createPages({ createApiIsomorphic, unstable_getCreated }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+    async createPages({ createApiIsomorphic, getRoutes }) {
       const getEntry = _getEntry.bind(this);
 
       createApiIsomorphic({
-        render: renderMode,
         path,
         handler: async () => {
           const source = await this.getLoader();
@@ -372,7 +370,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
             ),
           );
           const entries: SitemapUrl[] = [];
-          // content pages are listed by `getEntry` only, `getRouterConfigs()` must not re-add excluded ones
+          // content pages are listed by `getEntry` only, routes must not re-add excluded ones
           const pageLocs = new Set<string>();
 
           for (let i = 0; i < pages.length; i++) {
@@ -383,17 +381,18 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
             entries.push(entry);
           }
 
-          for (const route of await unstable_getCreated().unstable_getRouterConfigs()) {
-            if (route.isStatic && route.type === "route") {
-              const segments = route.path.map((v) => v.name!);
-              // exclude not-found pages
-              if (segments.at(-1) === "404") continue;
-              // on i18n sites `/` is the language redirect, the index page of a language is listed above
-              if (segments.length === 0 && this.i18nConfig) continue;
-              const loc = this.absoluteUrl("/" + segments.join("/"));
+          for (const route of getRoutes()) {
+            for (const page of route.pages) {
+              const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;
 
-              entries.push({ loc, priority: 1 });
+              const alternates: PageAlternate[] = [];
+              if (page.translations.length > 1) {
+                for (const { locale, path } of page.translations) {
+                  alternates.push(pageAlternate(this, locale, path));
+                }
+              }
+              entries.push({ loc, priority: 1, alternates });
             }
           }
 
