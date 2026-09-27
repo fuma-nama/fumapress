@@ -85,33 +85,42 @@ export function matchRoutePath(
 }
 
 /**
- * The concrete pathname (without route groups) and route params of one entry in `staticPaths`,
- * where its values fill the dynamic segments of `routePath` in order.
+ * The pages Waku.js creates for a route, with their concrete pathname (without route groups) and
+ * route params: one per entry of `staticPaths` when the path has slugs, the path itself otherwise.
  */
-export function expandStaticPath(
-  segments: string[],
-  values: readonly string[],
-): { pathname: string; params: RouteParams } {
-  const params: RouteParams = {};
-  let pathname = "";
-  let i = 0;
+export function expandPage(
+  path: string,
+  staticPaths: readonly string[] | readonly string[][] | undefined,
+): { pathname: string; params: RouteParams }[] {
+  const segments = path.split("/").filter(Boolean);
+  const entries = segments.some((seg) => seg.startsWith("[")) ? (staticPaths ?? []) : [[]];
+  const pages: { pathname: string; params: RouteParams }[] = [];
 
-  for (const seg of segments) {
-    if (seg.startsWith("(") && seg.endsWith(")")) continue;
+  for (const entry of entries) {
+    const values = typeof entry === "string" ? [entry] : entry;
+    const params: RouteParams = {};
+    let pathname = "";
+    let i = 0;
 
-    if (seg.startsWith("[...") && seg.endsWith("]")) {
-      const rest = values.slice(i);
-      i = values.length;
-      params[seg.slice(4, -1)] = rest;
-      for (const value of rest) pathname += "/" + value;
-    } else if (seg.startsWith("[") && seg.endsWith("]")) {
-      const value = values[i++]!;
-      params[seg.slice(1, -1)] = value;
-      pathname += "/" + value;
-    } else {
-      pathname += "/" + seg;
+    for (const seg of segments) {
+      if (seg.startsWith("(") && seg.endsWith(")")) continue;
+
+      if (seg.startsWith("[...") && seg.endsWith("]")) {
+        const rest = values.slice(i);
+        i = values.length;
+        params[seg.slice(4, -1)] = rest;
+        for (const value of rest) pathname += "/" + value;
+      } else if (seg.startsWith("[") && seg.endsWith("]")) {
+        const value = values[i++]!;
+        params[seg.slice(1, -1)] = value;
+        pathname += "/" + value;
+      } else {
+        pathname += "/" + seg;
+      }
     }
+
+    pages.push({ pathname: pathname.length === 0 ? "/" : pathname, params });
   }
 
-  return { pathname: pathname.length === 0 ? "/" : pathname, params };
+  return pages;
 }

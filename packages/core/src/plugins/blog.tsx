@@ -4,7 +4,6 @@ import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
 import { joinPathname } from "@/lib/pathname";
 import { AppShape, type AppContext } from "@/app/context";
 import { getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
-import { localeRoutes, withLang } from "@/lib/i18n";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FC, ReactNode } from "react";
 import { PressPlugin } from "@/app/plugin";
@@ -178,63 +177,31 @@ export function blogPlugin<C extends AppShape = AppShape>({
         </Layout>
       );
     },
-    async createPages({ createPage, createLayout, createInterceptor }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+    async createPages({ createPageI18n, createLayoutI18n, createInterceptor }) {
       const { indexPath, tagsPath } = blogCtx;
-      const source = await this.getLoader();
-      const blogPages = source.getPages().filter(isBlog.bind(this));
-      const index = indexPath !== false && {
-        path: indexPath,
-        Page: layouts.index ?? createBlogIndexPage<C>(),
-      };
-      const tags = tagsPath !== false && {
-        path: tagsPath,
-        TagsPage: layouts.tags ?? createBlogTagsPage<C>(),
-        TagPage: layouts.tag ?? createBlogTagPage<C>(),
-        grouped: await groupTagsI18n(this, blogPages),
-      };
-
       createInterceptor((next) => blogContext.run(blogCtx, next));
+      createLayoutI18n({ path: "/(blog)", component: Layout });
 
-      const routes: { base: string; lang?: string }[] = this.i18nConfig
-        ? localeRoutes(this.i18nConfig)
-        : [{ base: "/" }];
-
-      for (const { base, lang } of routes) {
-        const group = joinPathname(base, "(blog)");
-
-        createLayout({
-          render: renderMode,
-          path: group,
-          component: lang ? withLang(Layout, lang) : Layout,
+      if (indexPath !== false) {
+        createPageI18n({
+          path: joinPathname("(blog)", indexPath),
+          component: layouts.index ?? createBlogIndexPage<C>(),
         });
+      }
 
-        if (index) {
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, index.path) as "/",
-            staticPaths: [],
-            component: (lang ? withLang(index.Page, lang) : index.Page) as FC,
-          });
-        }
+      if (tagsPath !== false) {
+        const source = await this.getLoader();
+        const grouped = await groupTagsI18n(this, source.getPages().filter(isBlog.bind(this)));
 
-        if (tags) {
-          const { TagsPage, TagPage, grouped } = tags;
-
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, tags.path) as "/",
-            staticPaths: [],
-            component: (lang ? withLang(TagsPage, lang) : TagsPage) as FC,
-          });
-
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, tags.path, "[tag]") as "/[tag]",
-            staticPaths: Array.from(grouped.get(lang ?? "")?.keys() ?? []),
-            component: lang ? withLang(TagPage, lang) : TagPage,
-          });
-        }
+        createPageI18n({
+          path: joinPathname("(blog)", tagsPath),
+          component: layouts.tags ?? createBlogTagsPage<C>(),
+        });
+        createPageI18n({
+          path: joinPathname("(blog)", tagsPath, "[tag]"),
+          staticPaths: (lang) => Array.from(grouped.get(lang ?? "")?.keys() ?? []),
+          component: layouts.tag ?? createBlogTagPage<C>(),
+        });
       }
     },
   };

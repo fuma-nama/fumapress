@@ -5,7 +5,6 @@ import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext, AppShape } from "@/app/context";
 import { joinPathname } from "@/lib/pathname";
-import { DEFAULT_GROUP, localeRoutes, withLang } from "@/lib/i18n";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);
@@ -46,7 +45,7 @@ export function fsRouterFn<C extends AppShape>(
   options: Options = {},
 ): (this: AppContext<C>, fns: RouteFns) => Awaitable<void> {
   return async function (fns) {
-    const { createPage, createLayout, createRoot, createApi, createSlice } = fns;
+    const { createPageI18n, createLayoutI18n, createRoot, createApi, createSlice } = fns;
     const { pagesDir = "pages", apiDir = "_api", slicesDir = "_slices" } = options;
 
     const pagesDirPrefix = pagesDir + "/";
@@ -154,38 +153,22 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
-      const routes: { base: string; lang?: string }[] = [];
-      if (!this.i18nConfig) {
-        routes.push({ base: "/(fs)" });
-      } else if (config?.autoI18n ?? true) {
-        for (const route of localeRoutes(this.i18nConfig)) {
-          routes.push({ base: joinPathname(route.base, "(fs)"), lang: route.lang });
-        }
+      const route = {
+        path: joinPathname("(fs)", path),
+        component,
+        render: renderMode,
+        autoI18n: config?.autoI18n,
+        unstable_sourceFile: srcPath,
+      };
+
+      if (pathItems.at(-1) === "_layout") {
+        createLayoutI18n(route);
       } else {
-        routes.push({ base: joinPathname(DEFAULT_GROUP, "(fs)") });
-      }
-
-      for (const { base, lang } of routes) {
-        const routePath = joinPathname(base, path);
-        const routeComponent = lang ? withLang(component, lang) : component;
-
-        if (pathItems.at(-1) === "_layout") {
-          createLayout({
-            path: routePath,
-            component: routeComponent,
-            render: renderMode,
-            unstable_sourceFile: srcPath,
-          } as never);
-        } else {
-          createPage({
-            path: routePath,
-            component: routeComponent,
-            render: renderMode,
-            staticPaths: config?.staticPaths,
-            takumiOptions: config?.takumiOptions,
-            unstable_sourceFile: srcPath,
-          } as never);
-        }
+        createPageI18n({
+          ...route,
+          staticPaths: config?.staticPaths,
+          takumiOptions: config?.takumiOptions,
+        });
       }
     }
   };

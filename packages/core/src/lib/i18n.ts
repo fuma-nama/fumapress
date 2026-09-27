@@ -1,6 +1,5 @@
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { LoaderConfig, LoaderOutput, Page } from "fumadocs-core/source";
-import { createElement, type FC } from "react";
 import { joinPathname } from "./pathname";
 
 /** route group of pages without a language prefix, rendered inside the root layout of the default language */
@@ -57,20 +56,4 @@ export function localeRoutes(i18n: I18nConfig): LocaleRoute[] {
     routes.push({ base: lang === hidden ? DEFAULT_GROUP : `/${lang}`, lang });
   }
   return routes;
-}
-
-/**
- * Fix the `lang` prop of a route component.
- *
- * Server components are called in place, so the Markdown renderer of llms.txt still sees their `asMarkdown()` call.
- */
-export function withLang<P extends object>(
-  component: FC<P & { lang?: string }>,
-  lang: string,
-): FC<P> {
-  if (typeof component === "function" && !("$$typeof" in component)) {
-    return (props) => component({ ...props, lang });
-  }
-
-  return (props) => createElement(component, { ...props, lang });
 }

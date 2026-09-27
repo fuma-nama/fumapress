@@ -12,7 +12,7 @@ import { renderRoute } from "fumadocs-core/server";
 import { createElement, type FC } from "react";
 import {
   type CreatedPage,
-  expandStaticPath,
+  expandPage,
   matchRoutePath,
   precompileRoutePath,
   type PrecompiledRoutePath,
@@ -210,17 +210,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
             continue;
           }
 
-          const segments = page.path.split("/").filter(Boolean);
-          // `staticPaths` is required (and validated by Waku.js) only for paths with dynamic segments
-          const entries = segments.some((seg) => seg.startsWith("["))
-            ? (page.staticPaths ?? [])
-            : [[]];
-
-          for (const entry of entries) {
-            staticPages.push({
-              ...expandStaticPath(segments, typeof entry === "string" ? [entry] : entry),
-              page,
-            });
+          for (const expanded of expandPage(page.path, page.staticPaths)) {
+            staticPages.push({ ...expanded, page });
           }
         }
 
