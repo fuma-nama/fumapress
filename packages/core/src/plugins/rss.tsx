@@ -226,7 +226,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
               link: this.absoluteUrl("/"),
               description: description ?? channelTitle,
               language,
-              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path, { file: true }) : undefined,
+              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path) : undefined,
               items: items.slice(0, limit),
             }),
             {
