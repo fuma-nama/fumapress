@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/app/context";
-import type { RouteFns } from "@/lib/types";
+import type { PressRoute, RouteFns } from "@/lib/types";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 import type { RouteParams } from "@/lib/routes";
 import type { FC, ReactElement } from "react";
@@ -111,9 +111,18 @@ describe("routes", () => {
 });
 
 describe("route images", () => {
-  async function createRoute(page: object, siteConfig: object = { name: "Site" }) {
+  async function createRoute(
+    partial: Partial<PressRoute> & { path: string },
+    siteConfig: object = { name: "Site" },
+  ) {
     const apis: Api[] = [];
-    const created: { component: FC<{ path: string }> }[] = [];
+    const route: PressRoute = {
+      render: "static",
+      component: () => null,
+      meta: [],
+      pages: [],
+      ...partial,
+    };
     const ctx = {
       mode: "default",
       data: {},
@@ -122,33 +131,31 @@ describe("route images", () => {
       absoluteUrl: (pathname: string) =>
         "baseUrl" in siteConfig ? new URL(pathname, siteConfig.baseUrl as string).href : pathname,
     } as unknown as AppContext;
-    const fns = {
-      createPage: (page: never) => created.push(page),
-      createApiIsomorphic: (api: Api) => apis.push(api),
-    } as unknown as RouteFns;
     const plugin = takumiPlugin();
 
     await plugin.init!.call(ctx);
-    await plugin.prepareCreatePages!.call(ctx, fns);
-    fns.createPage(page as never);
+    await plugin.configureRoutes!.call(ctx, {
+      createApiIsomorphic: (api: Api) => apis.push(api),
+      getRoutes: () => [route],
+    } as unknown as RouteFns);
 
-    return { apis, fns, page: created[0]! };
+    return { apis, route };
   }
 
-  function metaOf(page: { component: FC<{ path: string }> }, path: string) {
-    const element = page.component({ path }) as ReactElement<{ children: ReactElement[] }>;
-    const meta = element.props.children[0] as ReactElement<{ children: ReactElement[] }>;
+  function metaOf(route: PressRoute, path: string) {
+    const meta = route.meta[0]!({ path }) as ReactElement<{ children: ReactElement[] }>;
     return meta.props.children[0]!.props as { property: string; content: string };
   }
 
   it("prerenders an image per static path and adds the meta tags", async () => {
     const seen: RouteParams[] = [];
-    const { apis, page } = await createRoute({
+    const { apis, route } = await createRoute({
       path: "/tags/[tag]",
-      render: "static",
-      staticPaths: ["react", "vue"],
-      component: () => <main>Tag</main>,
-      takumiOptions(params: RouteParams) {
+      pages: [
+        { path: "/tags/react", params: { tag: "react" }, translations: [] },
+        { path: "/tags/vue", params: { tag: "vue" }, translations: [] },
+      ],
+      takumiOptions(params) {
         seen.push(params);
         return { title: `Tag ${params.tag}` };
       },
@@ -160,29 +167,32 @@ describe("route images", () => {
     ]);
     await readImage(apis[0]!);
     expect(seen).toEqual([{ tag: "react" }]);
-    expect(metaOf(page, "/tags/react")).toEqual({
+    expect(metaOf(route, "/tags/react")).toEqual({
       property: "og:image",
       content: "/tags/react.webp",
     });
   });
 
   it("names the root image index.webp and resolves it against the base URL", async () => {
-    const { apis, page } = await createRoute(
-      { path: "/", render: "static", component: () => null, takumiOptions: { node: <div /> } },
+    const { apis, route } = await createRoute(
+      {
+        path: "/",
+        pages: [{ path: "/", params: {}, translations: [] }],
+        takumiOptions: { node: <div /> },
+      },
       { name: "Site", baseUrl: "https://example.com" },
     );
 
     expect(apis.map((api) => api.path)).toEqual(["/index.webp"]);
-    expect(metaOf(page, "/").content).toBe("https://example.com/index.webp");
+    expect(metaOf(route, "/").content).toBe("https://example.com/index.webp");
   });
 
   it("serves dynamic pages from an image route with their params", async () => {
     const seen: RouteParams[] = [];
-    const { apis, page } = await createRoute({
-      path: "/[lang]/(fs)/tags/[tag]",
+    const { apis, route } = await createRoute({
+      path: "/[lang]/tags/[tag]",
       render: "dynamic",
-      component: () => null,
-      takumiOptions(params: RouteParams) {
+      takumiOptions(params) {
         seen.push(params);
         return { title: String(params.tag) };
       },
@@ -196,6 +206,6 @@ describe("route images", () => {
     });
     expect(res.headers.get("content-type")).toBe("image/webp");
     expect(seen).toEqual([{ lang: "en", tag: "react" }]);
-    expect(metaOf(page, "/en/tags/react").content).toBe("/_takumi/en/tags/react");
+    expect(metaOf(route, "/en/tags/react").content).toBe("/_takumi/en/tags/react");
   });
 });

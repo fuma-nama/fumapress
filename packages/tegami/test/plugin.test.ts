@@ -9,8 +9,8 @@ async function routes(options: ChangelogPluginOptions = {}) {
   await changelogPlugin(options).createPages!.call(
     {} as AppContext,
     {
-      createPageI18n: (page: { path: string }) => pages.push(page.path),
-      createLayoutI18n: (layout: { path: string }) => layouts.push(layout.path),
+      createPage: (page: { path: string }) => pages.push(page.path),
+      createLayout: (layout: { path: string }) => layouts.push(layout.path),
       createInterceptor: () => {},
     } as unknown as RouteFns,
   );

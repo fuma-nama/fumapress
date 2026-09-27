@@ -21,27 +21,40 @@ vi.mock("fumadocs-core/source/llms", async (importOriginal) => {
 });
 
 import { appContext, type AppContext } from "@/app/context";
-import type { RouteFns } from "@/lib/types";
-import { llmsPlugin } from "@/plugins/llms.txt";
+import type { PressRoute, RouteFns } from "@/lib/types";
+import { llmsPlugin, type LLMsOptions } from "@/plugins/llms.txt";
+import { asMarkdown } from "@/markdown";
 import { createApp } from "./fixtures";
 
 type ApiConfig = Parameters<RouteFns["createApiIsomorphic"]>[0];
 
-async function createRoutes(ctx: AppContext) {
+async function createRoutes(ctx: AppContext, options: LLMsOptions = {}, routes: PressRoute[] = []) {
   const handlers = new Map<string, ApiConfig["handler"]>();
-  const plugin = llmsPlugin();
+  const plugin = llmsPlugin(options);
   const register = (config: ApiConfig) => {
     handlers.set(config.path, config.handler);
   };
+  const fns = {
+    createApi: register,
+    createApiIsomorphic: register,
+    getRoutes: () => routes,
+  } as unknown as RouteFns;
 
-  await plugin.prepareCreatePages!.call(ctx, { createPage: () => {} } as unknown as RouteFns);
-  await appContext.run(ctx, () =>
-    plugin.createPages!.call(ctx, {
-      createApi: register,
-      createApiIsomorphic: register,
-    } as unknown as RouteFns),
-  );
+  await appContext.run(ctx, async () => {
+    await plugin.createPages!.call(ctx, fns);
+    await plugin.configureRoutes!.call(ctx, fns);
+  });
   return handlers;
+}
+
+function route(path: string, render: PressRoute["render"] = "static"): PressRoute {
+  return {
+    render,
+    path,
+    component: ({ path }: { path: string }) => (asMarkdown() ? `# ${path}` : null),
+    meta: [],
+    pages: render === "static" ? [{ path, params: {}, translations: [] }] : [],
+  };
 }
 
 describe("llmsPlugin", () => {
@@ -56,5 +69,34 @@ describe("llmsPlugin", () => {
 
     expect(txt).not.toContain("[object Promise]");
     expect(txt).toContain("/docs/basics");
+  });
+
+  it("derives Markdown routes from the pages of createPage()", async () => {
+    const ctx = await createApp();
+    const handlers = await createRoutes(ctx, { routes: "all" }, [
+      route("/about"),
+      { ...route("/plain"), component: () => null },
+      route("/posts/[slug]", "dynamic"),
+    ]);
+
+    expect(Array.from(handlers.keys())).toEqual([
+      "/llms.txt",
+      "/llms-full.txt",
+      "/[...slugs]",
+      "/about.md",
+      "/_llms.txt/posts/[slug]",
+    ]);
+    const about = await handlers.get("/about.md")!(new Request("https://example.com/about.md"), {
+      params: {},
+    });
+    expect(await about.text()).toBe("# /about");
+
+    const post = await appContext.run(ctx, () =>
+      handlers.get("/_llms.txt/posts/[slug]")!(
+        new Request("https://example.com/docs/_llms.txt/posts/hello"),
+        { params: { slug: "hello" } },
+      ),
+    );
+    expect(await post.text()).toBe("# /posts/hello");
   });
 });

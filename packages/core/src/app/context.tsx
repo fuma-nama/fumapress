@@ -263,7 +263,6 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
 function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
   const rootMetaInterceptors: RootMetaInterceptor[] = [];
   const pageMetaInterceptors: PageMetaInterceptor<S>[] = [];
-
   return {
     interceptPageMeta(interceptor) {
       pageMetaInterceptors.push(interceptor);

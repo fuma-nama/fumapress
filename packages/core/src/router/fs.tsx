@@ -45,7 +45,7 @@ export function fsRouterFn<C extends AppShape>(
   options: Options = {},
 ): (this: AppContext<C>, fns: RouteFns) => Awaitable<void> {
   return async function (fns) {
-    const { createPageI18n, createLayoutI18n, createRoot, createApi, createSlice } = fns;
+    const { createPage, createLayout, createRoot, createApi, createSlice } = fns;
     const { pagesDir = "pages", apiDir = "_api", slicesDir = "_slices" } = options;
 
     const pagesDirPrefix = pagesDir + "/";
@@ -162,13 +162,9 @@ export function fsRouterFn<C extends AppShape>(
       };
 
       if (pathItems.at(-1) === "_layout") {
-        createLayoutI18n(route);
+        createLayout(route);
       } else {
-        createPageI18n({
-          ...route,
-          staticPaths: config?.staticPaths,
-          takumiOptions: config?.takumiOptions,
-        });
+        createPage({ ...config, ...route });
       }
     }
   };

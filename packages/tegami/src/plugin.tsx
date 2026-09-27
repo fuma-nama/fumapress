@@ -50,13 +50,13 @@ export function changelogPlugin<C extends AppShape = AppShape>({
 
   return {
     name: "tegami:changelog",
-    async createPages({ createPageI18n, createLayoutI18n, createInterceptor }) {
+    async createPages({ createPage, createLayout, createInterceptor }) {
       const { indexPath } = changelogCtx;
       createInterceptor((next) => changelogContext.run(changelogCtx, next));
-      createLayoutI18n({ path: "/(changelog)", component: Layout });
+      createLayout({ path: "/(changelog)", component: Layout });
 
       if (indexPath !== false) {
-        createPageI18n({
+        createPage({
           path: joinPathname("(changelog)", indexPath),
           component: layouts.index ?? createChangelogIndexPage<C>(),
         });

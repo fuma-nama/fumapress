@@ -177,13 +177,13 @@ export function blogPlugin<C extends AppShape = AppShape>({
         </Layout>
       );
     },
-    async createPages({ createPageI18n, createLayoutI18n, createInterceptor }) {
+    async createPages({ createPage, createLayout, createInterceptor }) {
       const { indexPath, tagsPath } = blogCtx;
       createInterceptor((next) => blogContext.run(blogCtx, next));
-      createLayoutI18n({ path: "/(blog)", component: Layout });
+      createLayout({ path: "/(blog)", component: Layout });
 
       if (indexPath !== false) {
-        createPageI18n({
+        createPage({
           path: joinPathname("(blog)", indexPath),
           component: layouts.index ?? createBlogIndexPage<C>(),
         });
@@ -193,11 +193,11 @@ export function blogPlugin<C extends AppShape = AppShape>({
         const source = await this.getLoader();
         const grouped = await groupTagsI18n(this, source.getPages().filter(isBlog.bind(this)));
 
-        createPageI18n({
+        createPage({
           path: joinPathname("(blog)", tagsPath),
           component: layouts.tags ?? createBlogTagsPage<C>(),
         });
-        createPageI18n({
+        createPage({
           path: joinPathname("(blog)", tagsPath, "[tag]"),
           staticPaths: (lang) => Array.from(grouped.get(lang ?? "")?.keys() ?? []),
           component: layouts.tag ?? createBlogTagPage<C>(),
