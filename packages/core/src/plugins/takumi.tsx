@@ -6,8 +6,7 @@ import type { FC, ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 import { inheritedFrom } from "@/lib/i18n";
-import { type CreatedPage, expandStaticPath, type RouteParams } from "@/lib/routes";
-import { asMarkdown } from "@/markdown";
+import { type CreatedPage, expandPage, type RouteParams } from "@/lib/routes";
 
 export { fontFromUrl, googleFonts } from "takumi-js/helpers";
 
@@ -176,11 +175,10 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           );
         };
         const dynamic = rest.render === "dynamic";
-        const segments = rest.path.split("/").filter(Boolean);
 
         if (dynamic) {
           const spec: string[] = [];
-          for (const seg of segments) if (!seg.startsWith("(")) spec.push(seg);
+          for (const seg of rest.path.split("/")) if (seg && !seg.startsWith("(")) spec.push(seg);
 
           fns.createApiIsomorphic({
             render: "dynamic",
@@ -188,15 +186,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
             handler: (_, { params }) => renderImage(params),
           });
         } else {
-          const entries = segments.some((seg) => seg.startsWith("["))
-            ? (rest.staticPaths ?? [])
-            : [[]];
-          for (const entry of entries) {
-            const { pathname, params } = expandStaticPath(
-              segments,
-              typeof entry === "string" ? [entry] : entry,
-            );
-
+          for (const { pathname, params } of expandPage(rest.path, rest.staticPaths)) {
             fns.createApiIsomorphic({
               render: "static",
               path: routeImagePath(pathname, false),
@@ -208,12 +198,10 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         const Page = rest.component as FC<{ path: string }>;
         return createPage({
           ...rest,
-          // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
           component: (props: { path: string }) => (
             <>
-              {!asMarkdown() &&
-                imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
-              {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
+              {imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
+              <Page {...props} />
             </>
           ),
         } as never);

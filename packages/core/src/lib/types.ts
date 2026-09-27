@@ -4,7 +4,7 @@ import type { I18nConfig } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import type {
   createPages,
   CreatePage,
@@ -78,8 +78,38 @@ export interface RouteFns extends BaseRouteFns {
     unstable_sourceFile?: string;
   }) => void;
 
+  /**
+   * Create a page once per language under its prefix with `lang` fixed on the component, or once
+   * at `path` without i18n (see `autoI18n`).
+   *
+   * The page advertises its URL: a canonical link and `og:url` with `site.baseUrl`, and `hreflang`
+   * links to the languages it exists in.
+   */
+  createPageI18n: (page: I18nPage) => void;
+
+  /** Create a layout once per language like `createPageI18n()`. */
+  createLayoutI18n: (layout: I18nLayout) => void;
+
   /** access `createPages()` output */
   unstable_getCreated: () => ReturnType<typeof createPages>;
+}
+
+/** a layout of `createLayoutI18n()` */
+export interface I18nLayout extends Pick<RouteConfig, "render" | "autoI18n"> {
+  /** pathname without language prefix */
+  path: string;
+  component: FC<never>;
+  /** source file of the route, files only used by static routes are pruned from the server bundle */
+  unstable_sourceFile?: string;
+}
+
+/** a page of `createPageI18n()` */
+export interface I18nPage extends I18nLayout, Pick<RouteConfig, "takumiOptions"> {
+  /** the `staticPaths` of every language, or per language */
+  staticPaths?:
+    | RouteConfig["staticPaths"]
+    | ((lang: string | undefined) => RouteConfig["staticPaths"]);
+  exactPath?: boolean;
 }
 
 /**

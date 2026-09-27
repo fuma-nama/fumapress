@@ -2,20 +2,11 @@ import { createBlogLayout, createBlogLayoutPage } from "@/layouts/blog";
 import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
 import { joinPathname } from "@/lib/pathname";
-import {
-  AppShape,
-  getPressContext,
-  renderLinks,
-  type AppContext,
-  type PageAlternate,
-} from "@/app/context";
-import { decodeSlug, getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
-import { localeRoutes, withLang } from "@/lib/i18n";
+import { AppShape, type AppContext } from "@/app/context";
+import { getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FC, ReactNode } from "react";
 import { PressPlugin } from "@/app/plugin";
-import { asMarkdown } from "@/markdown";
-import type { Awaitable } from "@/lib/types";
 
 export { tagSlug } from "@/lib/shared/blog";
 
@@ -186,133 +177,32 @@ export function blogPlugin<C extends AppShape = AppShape>({
         </Layout>
       );
     },
-    async createPages({ createPage, createLayout, createInterceptor }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
+    async createPages({ createPageI18n, createLayoutI18n, createInterceptor }) {
       const { indexPath, tagsPath } = blogCtx;
-      const source = await this.getLoader();
-      const blogPages = source.getPages().filter(isBlog.bind(this));
-      const languages = this.i18nConfig?.languages ?? [];
-      const index = indexPath !== false && {
-        path: indexPath,
-        Page: withRouteLinks<C>(layouts.index ?? createBlogIndexPage<C>(), () => ({
-          pathname: indexPath,
-          locales: languages,
-        })),
-      };
-      const tags = tagsPath !== false && {
-        path: tagsPath,
-        TagsPage: withRouteLinks<C>(layouts.tags ?? createBlogTagsPage<C>(), () => ({
-          pathname: tagsPath,
-          locales: languages,
-        })),
-        TagPage: withRouteLinks<C, { lang?: string; tag: string }>(
-          layouts.tag ?? createBlogTagPage<C>(),
-          async function ({ lang, tag }) {
-            const slug = decodeSlug(tag);
-            const source = await this.getLoader();
-            const grouped = await groupTagsI18n(this, source.getPages().filter(isBlog.bind(this)));
-            // tags without posts render on dynamic requests, but they are not real pages
-            if (!grouped.get(lang ?? "")?.has(slug)) return;
-
-            return {
-              pathname: joinPathname(tagsPath, slug),
-              locales: languages.filter((locale) => grouped.get(locale)?.has(slug)),
-            };
-          },
-        ),
-        grouped: await groupTagsI18n(this, blogPages),
-      };
-
       createInterceptor((next) => blogContext.run(blogCtx, next));
+      createLayoutI18n({ path: "/(blog)", component: Layout });
 
-      const routes: { base: string; lang?: string }[] = this.i18nConfig
-        ? localeRoutes(this.i18nConfig)
-        : [{ base: "/" }];
-
-      for (const { base, lang } of routes) {
-        const group = joinPathname(base, "(blog)");
-
-        createLayout({
-          render: renderMode,
-          path: group,
-          component: lang ? withLang(Layout, lang) : Layout,
+      if (indexPath !== false) {
+        createPageI18n({
+          path: joinPathname("(blog)", indexPath),
+          component: layouts.index ?? createBlogIndexPage<C>(),
         });
+      }
 
-        if (index) {
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, index.path) as "/",
-            staticPaths: [],
-            component: (lang ? withLang(index.Page, lang) : index.Page) as FC,
-          });
-        }
+      if (tagsPath !== false) {
+        const source = await this.getLoader();
+        const grouped = await groupTagsI18n(this, source.getPages().filter(isBlog.bind(this)));
 
-        if (tags) {
-          const { TagsPage, TagPage, grouped } = tags;
-
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, tags.path) as "/",
-            staticPaths: [],
-            component: (lang ? withLang(TagsPage, lang) : TagsPage) as FC,
-          });
-
-          createPage({
-            render: renderMode,
-            path: joinPathname(group, tags.path, "[tag]") as "/[tag]",
-            staticPaths: Array.from(grouped.get(lang ?? "")?.keys() ?? []),
-            component: lang ? withLang(TagPage, lang) : TagPage,
-          });
-        }
+        createPageI18n({
+          path: joinPathname("(blog)", tagsPath),
+          component: layouts.tags ?? createBlogTagsPage<C>(),
+        });
+        createPageI18n({
+          path: joinPathname("(blog)", tagsPath, "[tag]"),
+          staticPaths: (lang) => Array.from(grouped.get(lang ?? "")?.keys() ?? []),
+          component: layouts.tag ?? createBlogTagPage<C>(),
+        });
       }
     },
   };
-}
-
-interface RouteLinks {
-  /** pathname of the route, without language prefix */
-  pathname: string;
-  /** languages the route exists in, for `hreflang` links */
-  locales: string[];
-}
-
-/**
- * Add the canonical and `hreflang` links of a route to its page, so custom `layouts` get them too.
- *
- * `resolve()` returns `undefined` for pages that should not be advertised.
- */
-function withRouteLinks<C extends AppShape, P extends { lang?: string } = { lang?: string }>(
-  Page: FC<P>,
-  resolve: (this: AppContext<C>, props: P) => Awaitable<RouteLinks | undefined>,
-): FC<P> {
-  async function Links(props: P) {
-    const ctx = getPressContext<C>();
-    const route = await resolve.call(ctx, props);
-    if (!route) return;
-
-    const { pathname, locales } = route;
-    const url = ctx.siteConfig.baseUrl
-      ? ctx.absoluteUrl(ctx.localizePath(props.lang, pathname))
-      : undefined;
-    const alternates: PageAlternate[] = [];
-    if (locales.length > 1) {
-      for (const locale of locales) {
-        alternates.push({
-          locale,
-          hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
-          href: ctx.absoluteUrl(ctx.localizePath(locale, pathname)),
-        });
-      }
-    }
-
-    return renderLinks(ctx, { url, alternates });
-  }
-
-  // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
-  return (props) => (
-    <>
-      {!asMarkdown() && <Links {...props} />}
-      {"$$typeof" in Page ? <Page {...props} /> : Page(props)}
-    </>
-  );
 }

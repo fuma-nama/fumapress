@@ -1,8 +1,17 @@
 import { createPages as base_createPages } from "waku";
-import { type AppContext, type AppShape, initApp, appContext } from "../app/context";
+import {
+  type AppContext,
+  type AppShape,
+  initApp,
+  appContext,
+  PageLinks,
+  pageAlternate,
+  type PageAlternate,
+} from "../app/context";
 import { FC, Fragment, ReactNode } from "react";
 import { DEFAULT_GROUP, hiddenLocale, localeRoutes } from "@/lib/i18n";
-import { resolveBaseUrl } from "@/lib/pathname";
+import { decodePathname, joinPathname, resolveBaseUrl } from "@/lib/pathname";
+import { expandPage } from "@/lib/routes";
 import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
 import type { Awaitable, RouteFns } from "../lib/types";
@@ -38,6 +47,12 @@ export async function createRouter<U extends ConfigUtils>(
       // components rather than calls: `renderNotFound` defaults to a client component
       const Root = context.renderRoot as FC<{ lang?: string; children: ReactNode }>;
       const NotFound = context.renderNotFound as FC<{ lang?: string }>;
+      const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
+      const i18n = context.i18nConfig;
+      /** the copies of a route: one per language under its prefix, or one outside any language */
+      const copiesOf = (autoI18n = true): { base: string; lang?: string }[] =>
+        i18n && autoI18n ? localeRoutes(i18n) : [{ base: i18n ? DEFAULT_GROUP : "/" }];
+
       let fns: RouteFns = {
         ..._fns,
         unstable_getCreated() {
@@ -62,6 +77,66 @@ export async function createRouter<U extends ConfigUtils>(
               },
               unstable_sourceFile: config.unstable_sourceFile,
             });
+          }
+        },
+        createLayoutI18n({ path, component, render = defaultRenderMode, autoI18n, ...rest }) {
+          const Layout = component as FC<{ lang?: string }>;
+
+          for (const { base, lang } of copiesOf(autoI18n)) {
+            fns.createLayout({
+              ...rest,
+              render,
+              path: joinPathname(base, path),
+              component: lang ? (props: object) => <Layout {...props} lang={lang} /> : Layout,
+            } as never);
+          }
+        },
+        createPageI18n({
+          path,
+          component,
+          staticPaths,
+          render = defaultRenderMode,
+          autoI18n,
+          ...rest
+        }) {
+          const Page = component as FC<{ lang?: string }>;
+          // the pages of every copy by the route path Waku.js renders them at, the copies of a
+          // pathname are its translations
+          const pages = new Map<string, { pathname: string; locales: string[] }>();
+          const byPathname = new Map<string, { pathname: string; locales: string[] }>();
+          const alternates = (routePath: string): PageAlternate[] => {
+            const page = pages.get(decodePathname(routePath));
+            const out: PageAlternate[] = [];
+            if (!page || page.locales.length < 2) return out;
+
+            for (const locale of page.locales) {
+              out.push(pageAlternate(context, locale, context.localizePath(locale, page.pathname)));
+            }
+            return out;
+          };
+
+          for (const { base, lang } of copiesOf(autoI18n)) {
+            const paths = typeof staticPaths === "function" ? staticPaths(lang) : staticPaths;
+            for (const { pathname } of expandPage(path, paths)) {
+              let page = byPathname.get(pathname);
+              if (!page) byPathname.set(pathname, (page = { pathname, locales: [] }));
+              if (lang) page.locales.push(lang);
+              pages.set(context.localizePath(lang, pathname), page);
+            }
+
+            fns.createPage({
+              ...rest,
+              render,
+              path: joinPathname(base, path),
+              staticPaths: paths,
+              // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
+              component: (props: { path: string }) => (
+                <>
+                  <PageLinks pathname={props.path} alternates={alternates(props.path)} />
+                  {"$$typeof" in Page ? <Page {...props} lang={lang} /> : Page({ ...props, lang })}
+                </>
+              ),
+            } as never);
           }
         },
       };
@@ -103,9 +178,7 @@ export async function createRouter<U extends ConfigUtils>(
         await plugin.createPages?.call(context, fns);
       }
 
-      const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
       const pages = (await context.getLoader()).getPages();
-      const i18n = context.i18nConfig;
 
       if (i18n) {
         const hidden = hiddenLocale(i18n);

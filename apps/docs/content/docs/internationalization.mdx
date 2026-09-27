@@ -169,27 +169,20 @@ ctx.localizePath("cn", "/blog"); // "/cn/blog"
 ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
 ```
 
-A plugin that creates its own pages registers one route per language with `localeRoutes()`, and fixes the `lang` prop of each copy with `withLang()`. They live in `fumapress/internal`, which is not covered by semver:
+A plugin that creates its own pages registers one route per language with `createPageI18n()`: `path` is prefixed for each language and the copy gets a `lang` prop. `staticPaths` can be a function of the language:
 
 ```tsx title="press.config.tsx"
 import type { PressPlugin } from "fumapress";
-import { localeRoutes, withLang } from "fumapress/internal";
 
 const plugin: PressPlugin = {
   name: "changelog",
-  createPages({ createPage }) {
-    const routes = this.i18nConfig ? localeRoutes(this.i18nConfig) : [{ base: "" }];
-
-    for (const { base, lang } of routes) {
-      createPage({
-        render: "static",
-        path: `${base}/changelog`,
-        staticPaths: [],
-        component: lang ? withLang(ChangelogPage, lang) : ChangelogPage,
-      });
-    }
+  createPages({ createPageI18n }) {
+    createPageI18n({
+      path: "/changelog",
+      component: ChangelogPage,
+    });
   },
 };
 ```
 
-`base` is the language prefix, or the `(default)` route group for the language `hideLocale` hides. Registering a literal path per language keeps `staticPaths` free for the route's own dynamic segments.
+Pass `autoI18n: false` for a single copy without prefix, rendered as the default language. For other routes, `localeRoutes()` from `fumapress/internal` lists the prefixes, that entry point is not covered by semver.

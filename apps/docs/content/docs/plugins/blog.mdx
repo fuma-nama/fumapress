@@ -243,12 +243,6 @@ const config = defineConfig({
 export default config;
 ```
 
-## Canonical URLs
-
-With [`site.baseUrl`](/docs/config#urls) set, the index, tags and tag pages get `<link rel="canonical">` and `og:url`, built like the ones of blog posts: they respect `paths`, the locale prefix (and `hideLocale`), and `site.trailingSlash`. With [i18n](/docs/internationalization), each route links the same route in the other languages with `hreflang`. A tag page only links the languages whose posts use that tag.
-
-The links belong to the routes, not to the default layouts, so pages you render with custom `layouts` get them too. Don't add your own canonical link to these layouts, or the page ends up with two. Tag slugs that no post uses still render on dynamic requests, but they get no canonical link.
-
 ## Custom Layouts
 
 When writing your own `layouts`, `fumapress/plugins/blog` exports helpers for blog data, so you don't read the loader and adapters yourself:

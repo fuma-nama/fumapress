@@ -3,4 +3,4 @@
  *
  * Not covered by semver, use it only when the public API cannot express what you need.
  */
-export { localeRoutes, withLang, type LocaleRoute } from "@/lib/i18n";
+export { localeRoutes, type LocaleRoute } from "@/lib/i18n";

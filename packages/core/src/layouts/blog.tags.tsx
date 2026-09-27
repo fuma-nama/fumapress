@@ -1,7 +1,7 @@
 import { BlogGrid, LinkToHome } from "@/components/blog";
 import { T } from "@fuma-translate/react";
-import { decodeSlug, getTags, groupTags, tagSlug } from "@/lib/shared/blog";
-import { joinPathname } from "@/lib/pathname";
+import { getTags, groupTags, tagSlug } from "@/lib/shared/blog";
+import { decodePathname, joinPathname } from "@/lib/pathname";
 import {
   BlogTagPage,
   BlogTagsPage,
@@ -13,6 +13,7 @@ import { NewspaperIcon, TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@/client";
 import { getPressContext, type AppShape } from "@/app/context";
+import { unstable_notFound } from "waku/router/server";
 
 export interface BlogTagsPageOptions {
   heading?: ReactNode;
@@ -79,9 +80,9 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
 }: BlogTagsPageOptions = {}): BlogTagPage<C> {
   return async function BlogTagPage({ lang, tag }) {
     const ctx = getPressContext<C>();
-    const slug = decodeSlug(tag);
-    // the tag as written in posts, fall back to the slug when nothing matches
-    let name = slug;
+    const slug = decodePathname(tag);
+    // the tag as written in posts
+    let name: string | undefined;
     const posts: BlogPost<C>[] = [];
 
     for (const post of await getBlogPosts(ctx, lang)) {
@@ -90,11 +91,13 @@ export function createBlogTagPage<C extends AppShape = AppShape>({
 
       for (const t of tags) {
         if (tagSlug(t) !== slug) continue;
-        if (posts.length === 0) name = t;
+        name ??= t;
         posts.push(post);
         break;
       }
     }
+
+    if (name === undefined) unstable_notFound();
 
     return (
       <>

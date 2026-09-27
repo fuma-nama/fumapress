@@ -176,10 +176,9 @@ import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 function changelogPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "changelog",
-    async createPages({ createPage }) {
-      createPage({
+    async createPages({ createPageI18n }) {
+      createPageI18n({
         path: "/changelog",
-        render: "static",
         component() {
           return <main>Changelog</main>;
         },
@@ -201,13 +200,12 @@ import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 function allDocsPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "all-docs",
-    async createPages({ createPage }) {
+    async createPages({ createPageI18n }) {
       const source = await this.getLoader();
       const pages = source.getPages();
 
-      createPage({
+      createPageI18n({
         path: "/all-docs",
-        render: "static",
         component() {
           return (
             <ul>
@@ -228,6 +226,8 @@ export default defineConfig({
   // ...
 }).plugins(allDocsPlugin());
 ```
+
+`createPageI18n()` and `createLayoutI18n()` register the route once per language when i18n is configured, see [Internationalization](/docs/internationalization#routing). Waku's `createPage()` and `createLayout()` are available for raw routes.
 
 A plugin can also observe the pages of your app and other plugins: `prepareCreatePages()` runs
 before any page is created, wrap `fns.createPage` there to see every page passing through.

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createElement, type FC, type ReactNode } from "react";
+import { renderToReadableStream } from "react-dom/server.edge";
 import { defineConfig } from "@/config";
 import { createRouter } from "@/router";
 import { fsRouterFn } from "@/router/fs";
-import type { AppContext } from "@/app/context";
 import type { ConfigUtils } from "@/config";
 import type { RouteFns } from "@/lib/types";
 import type { I18nConfig } from "fumadocs-core/i18n";
@@ -89,26 +89,38 @@ async function content(route: Route, props: object): Promise<unknown> {
   return element.props.children[1];
 }
 
-describe("createRouter", () => {
-  function config(i18n: I18nConfig | undefined, mode: "static" | "default" = "static") {
-    return defineConfig({
-      mode,
-      preset: false,
-      site: { baseUrl: "https://example.com" },
-      content: {
-        files: [
-          { type: "page", path: "index.mdx", data: { title: "Home" } },
-          { type: "page", path: "index.cn.mdx", data: { title: "首页" } },
-          { type: "page", path: "guide.mdx", data: { title: "Guide" } },
-        ],
-      },
-      i18n: i18n as never,
-      renderRoot: ({ lang, children }) => createElement("html", { lang }, children),
-      renderPage: ({ lang, slugs }) => `${lang}:${slugs.join("/")}`,
-      renderNotFound: ({ lang }) => `404:${lang}`,
-    });
-  }
+/** rendered HTML of a route */
+function html(route: Route, props: object): Promise<string> {
+  return recorded.interceptor!(async () => {
+    const stream = await renderToReadableStream(await (route.component as FC<object>)(props));
+    await stream.allReady;
+    return new Response(stream).text();
+  }) as Promise<string>;
+}
 
+const Lang: FC<{ lang?: string }> = ({ lang }) => createElement("p", null, lang);
+const Path: FC<{ path: string }> = ({ path }) => createElement("p", null, path);
+
+function config(i18n: I18nConfig | undefined, mode: "static" | "default" = "static") {
+  return defineConfig({
+    mode,
+    preset: false,
+    site: { baseUrl: "https://example.com" },
+    content: {
+      files: [
+        { type: "page", path: "index.mdx", data: { title: "Home" } },
+        { type: "page", path: "index.cn.mdx", data: { title: "首页" } },
+        { type: "page", path: "guide.mdx", data: { title: "Guide" } },
+      ],
+    },
+    i18n: i18n as never,
+    renderRoot: ({ lang, children }) => createElement("html", { lang }, children),
+    renderPage: ({ lang, slugs }) => `${lang}:${slugs.join("/")}`,
+    renderNotFound: ({ lang }) => `404:${lang}`,
+  });
+}
+
+describe("createRouter", () => {
   async function routes(cfg: ReturnType<typeof config>) {
     (await createRouter(cfg as ConfigUtils)).createPages();
     await recorded.pending;
@@ -177,6 +189,91 @@ describe("createRouter", () => {
     expect(await content(route("/[...slugs]"), { slugs: ["guide"] })).toBe("undefined:guide");
   });
 
+  it("advertises the URL of pages from createPageI18n", async () => {
+    const cfg = config(undefined).plugins({
+      createPages({ createPageI18n }) {
+        createPageI18n({
+          path: "/(plugin)/changelog",
+          component: () => createElement("p", null, "changelog"),
+        });
+      },
+    });
+    (await createRouter(cfg as ConfigUtils)).createPages(({ createPageI18n }) => {
+      createPageI18n({ path: "/about", component: Path });
+    });
+    await recorded.pending;
+
+    expect(route("/about").render).toBe("static");
+    const about = await html(route("/about"), { path: "/about" });
+    expect(about).toContain('<link rel="canonical" href="https://example.com/about"/>');
+    expect(about).toContain('<meta property="og:url" content="https://example.com/about"/>');
+    expect(about).toContain("<p>/about</p>");
+    expect(about).not.toContain("hrefLang");
+
+    const changelog = await html(route("/(plugin)/changelog"), { path: "/changelog" });
+    expect(changelog).toContain('<link rel="canonical" href="https://example.com/changelog"/>');
+    expect(changelog).toContain("<p>changelog</p>");
+  });
+
+  it("registers a copy per language that links its translations", async () => {
+    const tags: Record<string, string[]> = { en: ["react", "vue"], cn: ["react"] };
+    (await createRouter(config(prefixed) as ConfigUtils)).createPages(({ createPageI18n }) => {
+      createPageI18n({
+        path: "/(fs)/tags/[tag]",
+        staticPaths: (lang) => tags[lang!],
+        component: Lang,
+      });
+      createPageI18n({ path: "/(fs)/posts/[slug]", render: "dynamic", component: Lang });
+      createPageI18n({ path: "/(fs)/legal", autoI18n: false, component: Lang });
+    });
+    await recorded.pending;
+
+    expect(route("/en/(fs)/tags/[tag]").staticPaths).toEqual(["react", "vue"]);
+    expect(route("/cn/(fs)/tags/[tag]").staticPaths).toEqual(["react"]);
+    const react = await html(route("/cn/(fs)/tags/[tag]"), { path: "/cn/tags/react" });
+    expect(react).toContain("<p>cn</p>");
+    expect(react).toContain('<link rel="canonical" href="https://example.com/cn/tags/react"/>');
+    expect(react).toContain(
+      '<link rel="alternate" hrefLang="en" href="https://example.com/en/tags/react"/>',
+    );
+    expect(react).toContain(
+      '<link rel="alternate" hrefLang="cn" href="https://example.com/cn/tags/react"/>',
+    );
+    expect(react).toContain(
+      '<link rel="alternate" hrefLang="x-default" href="https://example.com/en/tags/react"/>',
+    );
+    // only English lists it
+    expect(await html(route("/en/(fs)/tags/[tag]"), { path: "/en/tags/vue" })).not.toContain(
+      "hrefLang",
+    );
+    // the translations of a dynamic page without static paths are unknown
+    expect(await html(route("/en/(fs)/posts/[slug]"), { path: "/en/posts/hi" })).not.toContain(
+      "hrefLang",
+    );
+
+    const legal = await html(route("/(default)/(fs)/legal"), { path: "/legal" });
+    expect(legal).toContain('<link rel="canonical" href="https://example.com/legal"/>');
+    expect(legal).not.toContain("hrefLang");
+    expect(legal).toContain("<p></p>");
+  });
+
+  it("links the hidden default language without prefix, decoding dynamic requests", async () => {
+    (await createRouter(config(hidden) as ConfigUtils)).createPages(({ createPageI18n }) => {
+      createPageI18n({ path: "/(fs)/tags/[tag]", staticPaths: ["café"], component: Lang });
+    });
+    await recorded.pending;
+
+    expect(route("/(default)/(fs)/tags/[tag]").staticPaths).toEqual(["café"]);
+    const page = await html(route("/cn/(fs)/tags/[tag]"), { path: "/cn/tags/caf%C3%A9" });
+    expect(page).toContain('<link rel="canonical" href="https://example.com/cn/tags/caf%C3%A9"/>');
+    expect(page).toContain(
+      '<link rel="alternate" hrefLang="en" href="https://example.com/tags/caf%C3%A9"/>',
+    );
+    expect(page).toContain(
+      '<link rel="alternate" hrefLang="x-default" href="https://example.com/tags/caf%C3%A9"/>',
+    );
+  });
+
   it("rejects hideLocale: always", async () => {
     await expect(
       createRouter(config({ ...prefixed, hideLocale: "always" }) as ConfigUtils),
@@ -185,45 +282,45 @@ describe("createRouter", () => {
 });
 
 describe("fsRouterFn", () => {
-  const Page: FC<{ lang?: string }> = ({ lang }) => createElement("p", null, lang);
   const Layout: FC<{ lang?: string; children?: ReactNode }> = ({ lang, children }) =>
     createElement("div", { lang }, children);
 
   const modules = {
     "./pages/_layout.tsx": async () => ({ default: Layout }),
-    "./pages/about.tsx": async () => ({ default: Page }),
-    "./pages/legal.tsx": async () => ({ default: Page, getConfig: () => ({ autoI18n: false }) }),
+    "./pages/about.tsx": async () => ({ default: Lang }),
+    "./pages/legal.tsx": async () => ({ default: Lang, getConfig: () => ({ autoI18n: false }) }),
     "./pages/tags/[tag].tsx": async () => ({
-      default: Page,
+      default: Lang,
       getConfig: () => ({ staticPaths: ["react"] }),
     }),
   };
 
-  async function routes(i18nConfig: I18nConfig | undefined) {
-    await fsRouterFn(modules).call(
-      { mode: "static", i18nConfig } as unknown as AppContext,
-      recorded.fns(),
-    );
+  async function routes(i18n: I18nConfig | undefined) {
+    (await createRouter(config(i18n) as ConfigUtils)).createPages(fsRouterFn(modules));
+    await recorded.pending;
   }
 
-  async function lang(path: string) {
-    const element = (await render(route(path), {})) as { props: { children?: string } };
-    return element.props.children;
+  /** the routes of the pages directory, next to the ones of the content */
+  function fsPaths(kind: string) {
+    return paths(kind).filter((path) => path.includes("(fs)"));
   }
 
   it("registers pages once without i18n", async () => {
     await routes(undefined);
 
-    expect(paths("layout")).toEqual(["/(fs)"]);
-    expect(paths("page")).toEqual(["/(fs)/about", "/(fs)/legal", "/(fs)/tags/[tag]"]);
-    expect(route("/(fs)/about").component).toBe(Page);
+    expect(fsPaths("layout")).toEqual(["/(fs)"]);
+    expect(fsPaths("page")).toEqual(["/(fs)/about", "/(fs)/legal", "/(fs)/tags/[tag]"]);
+    expect(route("/(fs)/tags/[tag]").staticPaths).toEqual(["react"]);
+    expect(await html(route("/(fs)/about"), { path: "/about" })).toContain(
+      '<link rel="canonical" href="https://example.com/about"/>',
+    );
   });
 
   it("registers a copy per language with the lang prop", async () => {
     await routes(prefixed);
 
-    expect(paths("layout")).toEqual(["/cn/(fs)", "/en/(fs)"]);
-    expect(paths("page")).toEqual([
+    expect(fsPaths("layout")).toEqual(["/cn/(fs)", "/en/(fs)"]);
+    expect(fsPaths("page")).toEqual([
       "/(default)/(fs)/legal",
       "/cn/(fs)/about",
       "/cn/(fs)/tags/[tag]",
@@ -231,22 +328,25 @@ describe("fsRouterFn", () => {
       "/en/(fs)/tags/[tag]",
     ]);
     expect(route("/cn/(fs)/tags/[tag]").staticPaths).toEqual(["react"]);
-    expect(await lang("/cn/(fs)/about")).toBe("cn");
-    expect(await lang("/en/(fs)/about")).toBe("en");
-    expect(route("/(default)/(fs)/legal").component).toBe(Page);
+    expect(await html(route("/cn/(fs)/about"), { path: "/cn/about" })).toContain("<p>cn</p>");
+    expect(await html(route("/(default)/(fs)/legal"), { path: "/legal" })).toContain("<p></p>");
+    const layout = (await render(route("/cn/(fs)"), { children: "x" })) as {
+      props: { lang: string };
+    };
+    expect(layout.props.lang).toBe("cn");
   });
 
   it("puts the hidden default language in the default group", async () => {
     await routes(hidden);
 
-    expect(paths("layout")).toEqual(["/(default)/(fs)", "/cn/(fs)"]);
-    expect(paths("page")).toEqual([
+    expect(fsPaths("layout")).toEqual(["/(default)/(fs)", "/cn/(fs)"]);
+    expect(fsPaths("page")).toEqual([
       "/(default)/(fs)/about",
       "/(default)/(fs)/legal",
       "/(default)/(fs)/tags/[tag]",
       "/cn/(fs)/about",
       "/cn/(fs)/tags/[tag]",
     ]);
-    expect(await lang("/(default)/(fs)/about")).toBe("en");
+    expect(await html(route("/(default)/(fs)/about"), { path: "/about" })).toContain("<p>en</p>");
   });
 });
