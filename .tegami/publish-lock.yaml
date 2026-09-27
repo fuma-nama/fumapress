@@ -1,20 +1,19 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Support `fumadocs-openapi` v12\n\nThe `fumadocs-openapi` peer dependency now requires `^12.0.0`. Upgrade it alongside Fumapress if you use OpenAPI pages.\n"
-    filename: 2026-09-25-openapi-v12.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n## Route functions for every language\n\n`createPage()` and `createLayout()` of `createPages()` register a route under the prefix of its `lang` with the prop fixed, or outside any language without one. They replace `localeRoutes()` and `withLang()` in plugins, so the `fumapress/internal` entry point is removed, and `render` defaults to the mode of the app, for `createApiIsomorphic()` too.\n\n## Routes of the app\n\nEvery page of `createPage()` is listed in `getRoutes()` of `createPages()` with its pages and their translations. Plugins work with them in the new `configureRoutes()` hook, which replaces `prepareCreatePages()`: Takumi and llms.txt derive their image and Markdown routes from it, and `route.meta` adds head tags to a page. `unstable_getCreated()` is removed. The sitemap lists the translations of routes, and the pages a dynamic route declares in `staticPaths`.\n\n## Canonical URLs for every page\n\nPages of `src/pages` and `createPage()` get `<link rel=\"canonical\">`, `og:url` and `hreflang` links like content pages, the blog routes included. Remove canonical links you added to these pages yourself, or they end up with two.\n\n## `site.trailingSlash` is removed\n\nPage URLs never have a trailing slash, like the routes of Waku.js. Hosts are configured to serve them that way instead: the generated `netlify.toml` disables Pretty URLs, so `/docs` no longer redirects to `/docs/`, and the Wrangler config already drops trailing slashes. `this.absoluteUrl()` lost its `file` option along with the policy.\n\n## Blog tag pages without posts respond 404\n\nOn dynamic requests, a tag no post uses rendered an empty page.\n"
+    filename: 2026-09-27-k3q8wz1d.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Faster Vite config generation\n\nThe dependency crawl now reads each package once, keeps the shortest chain for every CommonJS dependency, and is memoized until the package manager's install state changes.\n\nIt also stops pre-bundling declaration-only packages such as `@types/mdx`, which made esbuild fail on type-space imports.\n"
-    filename: 2026-09-25-vite-config-crawl.md
+  - content: "---\npackages:\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n## Changelog routes get canonical links\n\nThe changelog routes are registered with `createPage()` and `createLayout()` of Fumapress.\n"
+    filename: 2026-09-27-p7d2xm4q.md
     v: 0.0.0
 core:packages:
+  - id: npm:@fumapress/ai
+    updated: false
   - changelogIds:
-      - 2026-09-25-openapi-v12.md
-      - 2026-09-25-vite-config-crawl.md
+      - 2026-09-27-k3q8wz1d.md
     id: npm:fumapress
     updated: true
   - id: npm:create-fumapress
     updated: true
-  - id: npm:@fumapress/ai
-    updated: false
   - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
@@ -31,12 +30,14 @@ core:packages:
     updated: false
   - id: npm:@fumapress/sanity
     updated: false
-  - id: npm:@fumapress/tegami
-    updated: false
+  - changelogIds:
+      - 2026-09-27-p7d2xm4q.md
+    id: npm:@fumapress/tegami
+    updated: true
 npm:packages:
+  - id: npm:@fumapress/ai
   - id: npm:fumapress
   - id: npm:create-fumapress
-  - id: npm:@fumapress/ai
   - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
   - id: npm:@fumapress/graphql
