@@ -62,7 +62,6 @@ export interface AppContext<S extends AppShape = AppShape>
   siteConfig: {
     name: string;
     baseUrl?: string;
-    trailingSlash?: boolean;
     hreflang?: Record<string, string>;
     git?: GitInfo & {
       rootDir: string;
@@ -105,12 +104,8 @@ export interface FumapressHooks<C extends AppShape> {
   /** translations of the page (fallback pages excluded) for `hreflang` links, empty when it has none */
   getPageAlternates: (page: C["page"]) => Promise<PageAlternate[]>;
 
-  /**
-   * Absolute URL of a pathname with `site.baseUrl`, the pathname itself when unset.
-   *
-   * `site.trailingSlash` applies to page URLs, pass `file: true` for files like images and feeds.
-   */
-  absoluteUrl: (pathname: string, options?: { file?: boolean }) => string;
+  /** Absolute URL of a pathname with `site.baseUrl`, the pathname itself when unset. */
+  absoluteUrl: (pathname: string) => string;
 }
 
 export interface FumapressLoader<C extends AppShape = AppShape> {
@@ -206,7 +201,6 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     siteConfig: {
       name: site?.name ?? "Fumapress",
       baseUrl: site?.baseUrl ?? getDefaultBaseUrl(),
-      trailingSlash: site?.trailingSlash,
       hreflang: site?.hreflang,
       git: site?.git
         ? {
@@ -320,13 +314,8 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
 
       return out.length > 1 ? out : [];
     },
-    absoluteUrl(pathname, { file = false } = {}) {
-      const { baseUrl, trailingSlash } = getPressContext().siteConfig;
-
-      if (!file && trailingSlash && pathname !== "/" && !pathname.endsWith("/")) {
-        pathname += "/";
-      }
-
+    absoluteUrl(pathname) {
+      const { baseUrl } = getPressContext().siteConfig;
       return baseUrl ? new URL(pathname, baseUrl).href : pathname;
     },
     async getPageCreatedAt(page) {

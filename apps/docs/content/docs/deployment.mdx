@@ -93,7 +93,12 @@ No configuration needed: import the repository, and the build produces a [Build 
 
 ### Netlify
 
-The build emits a `netlify.toml` when your project has none, with `dist/public` as the publish directory and a Netlify Function for dynamic routes. It also writes `dist/public/_headers` to cache hashed assets for a year, unless your project has a `public/_headers`. Commit the generated `netlify.toml`, or configure those values yourself.
+The build generates:
+
+- `netlify.toml`, skipped when your project has one: `dist/public` as the publish directory, a Netlify Function for dynamic routes, and Pretty URLs disabled so pages are served without a trailing slash.
+- `dist/public/_headers`, skipped when your project has a `public/_headers`: caches hashed assets for a year.
+
+Commit the generated `netlify.toml`, or keep those settings in your own.
 
 ### Cloudflare
 
@@ -116,7 +121,7 @@ Image optimization uses [Cloudflare Image Transformations](https://developers.cl
 
 #### Trailing Slashes
 
-The generated Wrangler config sets `html_handling: "drop-trailing-slash"`: `/docs/` redirects to `/docs`. URLs Fumapress generates for the sitemap and feeds have no trailing slash either, keep both in sync if you change one.
+The generated Wrangler config sets `html_handling: "drop-trailing-slash"`, so `/docs/` redirects to `/docs`. Keep it with your own Wrangler config.
 
 ### Static Hosting
 

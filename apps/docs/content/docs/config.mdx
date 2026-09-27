@@ -42,7 +42,7 @@ Source file links are resolved against the detected git root, set `git.rootDir` 
 
 #### URLs
 
-`baseUrl` makes generated URLs absolute: sitemap entries, feed links, `og:image`, and the canonical link of each page. Set `trailingSlash` when your host serves pages with one, like Cloudflare Pages for static builds, so those URLs match:
+`baseUrl` is required for some features to know the absolute URL of a page.
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -50,13 +50,11 @@ import { defineConfig } from "fumapress";
 export default defineConfig({
   site: {
     baseUrl: "https://press.fumadocs.dev",
-    // [!code ++]
-    trailingSlash: true,
   },
 });
 ```
 
-Plugins build the same URLs with `this.absoluteUrl(pathname)`, pass `{ file: true }` for files so they never get a trailing slash.
+Page URLs have no trailing slash, the [deployment adapters](/docs/deployment) configure hosts to serve them that way.
 
 #### Locales
 

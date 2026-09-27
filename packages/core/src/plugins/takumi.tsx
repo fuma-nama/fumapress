@@ -145,7 +145,6 @@ export function takumiPlugin<C extends AppShape = AppShape>(
               (origin ?? page).locale,
               joinPathname(basePath, ...slugsToImagePath(page.slugs)),
             ),
-            { file: true },
           ),
         );
       };
@@ -190,7 +189,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         }
 
         route.meta.push((props) =>
-          imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true })),
+          imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic))),
         );
       }
     },
