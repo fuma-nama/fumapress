@@ -52,14 +52,15 @@ export function changelogPlugin<C extends AppShape = AppShape>({
     name: "tegami:changelog",
     async createPages({ createPage, createLayout, createInterceptor }) {
       const { indexPath } = changelogCtx;
+      const index = layouts.index ?? createChangelogIndexPage<C>();
       createInterceptor((next) => changelogContext.run(changelogCtx, next));
-      createLayout({ path: "/(changelog)", component: Layout });
 
-      if (indexPath !== false) {
-        createPage({
-          path: joinPathname("(changelog)", indexPath),
-          component: layouts.index ?? createChangelogIndexPage<C>(),
-        });
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        createLayout({ path: "/(changelog)", lang, component: Layout });
+
+        if (indexPath !== false) {
+          createPage({ path: joinPathname("(changelog)", indexPath), lang, component: index });
+        }
       }
     },
   };

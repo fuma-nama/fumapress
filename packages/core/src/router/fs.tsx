@@ -153,18 +153,23 @@ export function fsRouterFn<C extends AppShape>(
         continue;
       }
 
-      const route = {
-        path: joinPathname("(fs)", path),
-        component,
-        render: renderMode,
-        autoI18n: config?.autoI18n,
-        unstable_sourceFile: srcPath,
-      };
+      const { autoI18n = true, ...pageConfig } = config ?? {};
+      const langs = this.i18nConfig && autoI18n ? this.i18nConfig.languages : [undefined];
 
-      if (pathItems.at(-1) === "_layout") {
-        createLayout(route);
-      } else {
-        createPage({ ...config, ...route });
+      for (const lang of langs) {
+        const route = {
+          path: joinPathname("(fs)", path),
+          lang,
+          component,
+          render: renderMode,
+          unstable_sourceFile: srcPath,
+        };
+
+        if (pathItems.at(-1) === "_layout") {
+          createLayout(route);
+        } else {
+          createPage({ ...pageConfig, ...route });
+        }
       }
     }
   };

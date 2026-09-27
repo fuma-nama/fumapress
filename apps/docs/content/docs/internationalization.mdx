@@ -169,7 +169,7 @@ ctx.localizePath("cn", "/blog"); // "/cn/blog"
 ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
 ```
 
-A plugin that creates its own pages registers one route per language with `createPage()`: `path` is prefixed for each language and the copy gets a `lang` prop. `staticPaths` can be a function of the language:
+A plugin that creates its own pages registers one per language with `createPage()`: `path` is prefixed for `lang`, the page gets it as a prop, and the pages sharing a `path` link each other as translations:
 
 ```tsx title="press.config.tsx"
 import type { PressPlugin } from "fumapress";
@@ -177,12 +177,11 @@ import type { PressPlugin } from "fumapress";
 const plugin: PressPlugin = {
   name: "changelog",
   createPages({ createPage }) {
-    createPage({
-      path: "/changelog",
-      component: ChangelogPage,
-    });
+    for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+      createPage({ path: "/changelog", lang, component: ChangelogPage });
+    }
   },
 };
 ```
 
-Pass `autoI18n: false` for a single copy without prefix, rendered as the default language. For other routes, `localeRoutes()` from `fumapress/internal` lists the prefixes, that entry point is not covered by semver.
+Without `lang`, the page is served without prefix as the default language.

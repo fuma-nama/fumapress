@@ -49,8 +49,7 @@ async function withBlog<T>(fn: () => Promise<T>) {
       interceptor = i;
     },
     createPage: (page: { path: string; staticPaths?: unknown }) => {
-      const { staticPaths: paths } = page;
-      staticPaths.set(page.path, typeof paths === "function" ? paths(undefined) : paths);
+      staticPaths.set(page.path, page.staticPaths);
     },
     createLayout: () => {},
   } as unknown as RouteFns);

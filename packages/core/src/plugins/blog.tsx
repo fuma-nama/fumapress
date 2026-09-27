@@ -179,29 +179,35 @@ export function blogPlugin<C extends AppShape = AppShape>({
     },
     async createPages({ createPage, createLayout, createInterceptor }) {
       const { indexPath, tagsPath } = blogCtx;
+      const index = layouts.index ?? createBlogIndexPage<C>();
+      const tags = tagsPath !== false && {
+        path: tagsPath,
+        TagsPage: layouts.tags ?? createBlogTagsPage<C>(),
+        TagPage: layouts.tag ?? createBlogTagPage<C>(),
+        grouped: await groupTagsI18n(
+          this,
+          (await this.getLoader()).getPages().filter(isBlog.bind(this)),
+        ),
+      };
+
       createInterceptor((next) => blogContext.run(blogCtx, next));
-      createLayout({ path: "/(blog)", component: Layout });
 
-      if (indexPath !== false) {
-        createPage({
-          path: joinPathname("(blog)", indexPath),
-          component: layouts.index ?? createBlogIndexPage<C>(),
-        });
-      }
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        createLayout({ path: "/(blog)", lang, component: Layout });
 
-      if (tagsPath !== false) {
-        const source = await this.getLoader();
-        const grouped = await groupTagsI18n(this, source.getPages().filter(isBlog.bind(this)));
+        if (indexPath !== false) {
+          createPage({ path: joinPathname("(blog)", indexPath), lang, component: index });
+        }
 
-        createPage({
-          path: joinPathname("(blog)", tagsPath),
-          component: layouts.tags ?? createBlogTagsPage<C>(),
-        });
-        createPage({
-          path: joinPathname("(blog)", tagsPath, "[tag]"),
-          staticPaths: (lang) => Array.from(grouped.get(lang ?? "")?.keys() ?? []),
-          component: layouts.tag ?? createBlogTagPage<C>(),
-        });
+        if (tags) {
+          createPage({ path: joinPathname("(blog)", tags.path), lang, component: tags.TagsPage });
+          createPage({
+            path: joinPathname("(blog)", tags.path, "[tag]"),
+            lang,
+            staticPaths: Array.from(tags.grouped.get(lang ?? "")?.keys() ?? []),
+            component: tags.TagPage,
+          });
+        }
       }
     },
   };

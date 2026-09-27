@@ -227,7 +227,7 @@ export default defineConfig({
 }).plugins(allDocsPlugin());
 ```
 
-`createPage()` and `createLayout()` register the route once per language when i18n is configured, see [Internationalization](/docs/internationalization#routing).
+With i18n, pass `lang` to register a page under a language, see [Internationalization](/docs/internationalization#routing).
 
 A plugin can also work with the pages of your app and other plugins: `configureRoutes()` runs after every page is created, with them in `fns.getRoutes()`. Derive routes from them, like the Markdown version of each page, or add head tags to a page with `route.meta`.
 

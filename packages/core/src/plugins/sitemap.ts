@@ -387,8 +387,10 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
               if (pageLocs.has(loc)) continue;
 
               const alternates: PageAlternate[] = [];
-              for (const { locale, path } of page.translations) {
-                alternates.push(pageAlternate(this, locale, path));
+              if (page.translations.length > 1) {
+                for (const { locale, path } of page.translations) {
+                  alternates.push(pageAlternate(this, locale, path));
+                }
               }
               entries.push({ loc, priority: 1, alternates });
             }

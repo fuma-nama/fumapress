@@ -6,7 +6,6 @@ import { PressProvider, type PressProviderProps } from "@/components/provider";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
 import { Interceptor, renderWithInterceptors } from "@/lib/interceptors";
-import { hiddenLocale } from "@/lib/i18n";
 
 export interface RootLayoutOptions {
   providerProps?: Omit<PressProviderProps, "children">;
@@ -41,7 +40,9 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
 
     if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
       providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()), lang);
-      providerProps.hiddenLocale ??= hiddenLocale(ctx.i18nConfig);
+      if (ctx.i18nConfig?.hideLocale === "default-locale") {
+        providerProps.hiddenLocale ??= ctx.i18nConfig.defaultLanguage;
+      }
     } else if (ctx.translationsConfig) {
       providerProps.i18n ??= i18nProvider(ctx.translationsConfig.extend(uiTranslations()));
     }

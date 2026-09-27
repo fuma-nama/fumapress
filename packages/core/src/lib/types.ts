@@ -50,15 +50,10 @@ export interface PressLoaderOptions<
 }
 
 export interface RouteFns {
-  /**
-   * Create a page once per language under its prefix with a `lang` prop (see `autoI18n`), listed in
-   * `routes`. The page advertises its URL with a canonical link, `og:url` and `hreflang` links.
-   */
   createPage: (page: PageOptions) => void;
 
-  /** Create a layout once per language like `createPage()`. */
   createLayout: (
-    layout: Pick<PageOptions, "path" | "component" | "render" | "autoI18n" | "unstable_sourceFile">,
+    layout: Pick<PageOptions, "path" | "lang" | "component" | "render" | "unstable_sourceFile">,
   ) => void;
 
   createApiIsomorphic: (config: {
@@ -81,9 +76,11 @@ export interface RouteFns {
 }
 
 /** options of `createPage()` */
-export interface PageOptions extends RouteConfig {
+export interface PageOptions extends Omit<RouteConfig, "autoI18n"> {
   /** pathname without language prefix */
   path: string;
+  /** the language of the page, its copies in other languages share the `path` */
+  lang?: string;
   component: FC<never>;
   /** match `path` literally, for paths with brackets */
   exactPath?: boolean;
@@ -98,14 +95,11 @@ export interface RouteProps {
   [param: string]: string | string[] | undefined;
 }
 
-/** one copy of a page of `createPage()`, as the router registered it */
-export interface PressRoute extends Omit<PageOptions, "render" | "staticPaths" | "autoI18n"> {
+/** a page of `createPage()`, as the router registered it */
+export interface PressRoute extends Omit<PageOptions, "render"> {
   render: "static" | "dynamic";
-  /** URL pattern of the copy, with its language prefix and without route groups */
+  /** URL pattern of the page, with its language prefix and without route groups */
   path: string;
-  lang?: string;
-  /** static paths of this copy */
-  staticPaths?: string[] | string[][];
   /** head tags rendered with the page, in order */
   meta: ((props: RouteProps) => ReactNode)[];
   /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
@@ -113,7 +107,7 @@ export interface PressRoute extends Omit<PageOptions, "render" | "staticPaths" |
     /** URL path */
     path: string;
     params: RouteParams;
-    /** the page in every language it exists in, itself included, or empty when it is the only one */
+    /** the page in every language it exists in, itself included */
     translations: { locale: string; path: string }[];
   }[];
 }
@@ -126,11 +120,8 @@ export interface PressRoute extends Omit<PageOptions, "render" | "staticPaths" |
 export interface RouteConfig {
   render?: "static" | "dynamic";
 
-  /** static paths of a page with slugs, shared by every language of `autoI18n` or per language */
-  staticPaths?:
-    | string[]
-    | string[][]
-    | ((lang: string | undefined) => string[] | string[][] | undefined);
+  /** static paths of a static page with slugs, shared by every language of `autoI18n` */
+  staticPaths?: string[] | string[][];
 
   /**
    * register the page (or layout) once per language if i18n is configured, under the language prefix and with a `lang` prop.

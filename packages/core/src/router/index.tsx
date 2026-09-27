@@ -9,7 +9,7 @@ import {
   type PageAlternate,
 } from "../app/context";
 import { createElement, FC, Fragment, ReactNode } from "react";
-import { DEFAULT_GROUP, hiddenLocale, localeRoutes } from "@/lib/i18n";
+import { localizePath } from "@/lib/i18n";
 import { decodePathname, joinPathname, resolveBaseUrl } from "@/lib/pathname";
 import { expandRoute } from "@/lib/routes";
 import type { ConfigUtils } from "../config";
@@ -20,6 +20,9 @@ import type { MiddlewareHandler } from "hono";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 
 type Options = Parameters<typeof base_createPages>[1];
+
+/** route group of pages without a language prefix, rendered inside the root layout of the default language */
+const DEFAULT_GROUP = "/(default)";
 
 export interface Router<C extends AppShape = AppShape> {
   createPages: (
@@ -50,9 +53,17 @@ export async function createRouter<U extends ConfigUtils>(
       const NotFound = context.renderNotFound as FC<{ lang?: string }>;
       const defaultRenderMode = context.mode === "default" ? "static" : context.mode;
       const i18n = context.i18nConfig;
-      /** the copies of a route: one per language under its prefix, or one outside any language */
-      const copiesOf = (autoI18n = true): { base: string; lang?: string }[] =>
-        i18n && autoI18n ? localeRoutes(i18n) : [{ base: i18n ? DEFAULT_GROUP : "/" }];
+      /** the route prefix of a language, pages outside any language join the default group */
+      const getLangBasePath = (lang?: string): string => {
+        const out = localizePath(i18n, lang, "/");
+        if (out === "/" && i18n) return DEFAULT_GROUP;
+        return out;
+      };
+      // the pages of the languages by path, then by pathname: they are translations
+      const translations = new Map<
+        string,
+        Map<string, PressRoute["pages"][number]["translations"]>
+      >();
 
       const fns: RouteFns = {
         ..._fns,
@@ -65,92 +76,83 @@ export async function createRouter<U extends ConfigUtils>(
             _fns.createApi({ render, path, handlers: { GET: handler }, unstable_sourceFile });
           }
         },
-        createLayout({ path, component, render = defaultRenderMode, autoI18n, ...rest }) {
+        createLayout({ path, lang, component, render = defaultRenderMode, ...rest }) {
           const Layout = component as FC<{ lang?: string }>;
 
-          for (const { base, lang } of copiesOf(autoI18n)) {
-            _fns.createLayout({
-              ...rest,
-              render,
-              path: joinPathname(base, path),
-              component: lang ? (props: object) => <Layout {...props} lang={lang} /> : Layout,
-            } as never);
-          }
+          _fns.createLayout({
+            ...rest,
+            render,
+            path: joinPathname(getLangBasePath(lang), path),
+            component: lang ? (props: object) => <Layout {...props} lang={lang} /> : Layout,
+          } as never);
         },
         createPage({
           path,
+          lang,
           component,
           staticPaths,
           render = defaultRenderMode,
-          autoI18n,
           exactPath,
           unstable_sourceFile,
           ...options
         }) {
           const Page = component as FC<{ lang?: string }>;
-          // the copies of a pathname are its translations
-          const translations = new Map<string, PressRoute["pages"][number]["translations"]>();
-
-          for (const { base, lang } of copiesOf(autoI18n)) {
-            const paths = typeof staticPaths === "function" ? staticPaths(lang) : staticPaths;
-            const { pattern, pages } = expandRoute(path, paths, exactPath);
-            const byPath = new Map<string, PressRoute["pages"][number]>();
-            const route: PressRoute = {
-              ...options,
-              render,
-              path: context.localizePath(lang, pattern),
-              lang,
-              staticPaths: paths,
-              exactPath,
-              unstable_sourceFile,
-              component,
-              meta: [
-                (props) => {
-                  const page = byPath.get(decodePathname(props.path));
-                  const alternates: PageAlternate[] = [];
-                  for (const { locale, path } of page?.translations ?? []) {
+          const { pattern, pages } = expandRoute(path, staticPaths, exactPath);
+          let siblingsOf = translations.get(path);
+          if (!siblingsOf) translations.set(path, (siblingsOf = new Map()));
+          const byPath = new Map<string, PressRoute["pages"][number]>();
+          const route: PressRoute = {
+            ...options,
+            render,
+            path: context.localizePath(lang, pattern),
+            lang,
+            staticPaths,
+            exactPath,
+            unstable_sourceFile,
+            component,
+            meta: [
+              (props) => {
+                const page = byPath.get(decodePathname(props.path));
+                const alternates: PageAlternate[] = [];
+                if (page && page.translations.length > 1) {
+                  for (const { locale, path } of page.translations) {
                     alternates.push(pageAlternate(context, locale, path));
                   }
-                  return <PageLinks pathname={props.path} alternates={alternates} />;
-                },
-              ],
-              pages: [],
+                }
+                return <PageLinks pathname={props.path} alternates={alternates} />;
+              },
+            ],
+            pages: [],
+          };
+
+          for (const { pathname, params } of pages) {
+            let siblings = siblingsOf.get(pathname);
+            if (!siblings) siblingsOf.set(pathname, (siblings = []));
+            const page = {
+              path: context.localizePath(lang, pathname),
+              params,
+              translations: siblings,
             };
-
-            for (const { pathname, params } of pages) {
-              let siblings = translations.get(pathname);
-              if (!siblings) translations.set(pathname, (siblings = []));
-              const page = {
-                path: context.localizePath(lang, pathname),
-                params,
-                translations: siblings,
-              };
-              if (lang) siblings.push({ locale: lang, path: page.path });
-              byPath.set(page.path, page);
-              route.pages.push(page);
-            }
-
-            routes.push(route);
-            _fns.createPage({
-              render,
-              path: joinPathname(base, path),
-              staticPaths: paths,
-              exactPath,
-              unstable_sourceFile,
-              component: (props: RouteProps) =>
-                createElement(
-                  Fragment,
-                  null,
-                  ...route.meta.map((meta) => meta(props)),
-                  <Page {...props} lang={lang} />,
-                ),
-            } as never);
+            if (lang) siblings.push({ locale: lang, path: page.path });
+            byPath.set(page.path, page);
+            route.pages.push(page);
           }
 
-          // a page is its own translation only next to others
-          for (const siblings of translations.values()) {
-            if (siblings.length < 2) siblings.length = 0;
-          }
+          routes.push(route);
+          _fns.createPage({
+            render,
+            path: joinPathname(getLangBasePath(lang), path),
+            staticPaths,
+            exactPath,
+            unstable_sourceFile,
+            component: (props: RouteProps) =>
+              createElement(
+                Fragment,
+                null,
+                ...route.meta.map((meta) => meta(props)),
+                <Page {...props} lang={lang} />,
+              ),
+          } as never);
         },
       };
 
@@ -193,7 +195,6 @@ export async function createRouter<U extends ConfigUtils>(
       const pages = (await context.getLoader()).getPages();
 
       if (i18n) {
-        const hidden = hiddenLocale(i18n);
         const slugsByLang = new Map<string, string[][]>();
         for (const page of pages) {
           const slugs = slugsByLang.get(page.locale!);
@@ -222,9 +223,12 @@ export async function createRouter<U extends ConfigUtils>(
         });
 
         // pages outside of any language (e.g. `autoI18n: false`) still need a root layout
-        if (!hidden) createLocaleRoot(DEFAULT_GROUP, i18n.defaultLanguage);
+        if (i18n.hideLocale !== "default-locale") {
+          createLocaleRoot(DEFAULT_GROUP, i18n.defaultLanguage);
+        }
 
-        for (const { base, lang } of localeRoutes(i18n)) {
+        for (const lang of i18n.languages) {
+          const base = getLangBasePath(lang);
           createLocaleRoot(base, lang);
           _fns.createPage({
             render: defaultRenderMode,
@@ -234,7 +238,7 @@ export async function createRouter<U extends ConfigUtils>(
           });
         }
 
-        if (!hidden) {
+        if (i18n.hideLocale !== "default-locale") {
           const to = `/${i18n.defaultLanguage}`;
 
           if (context.mode === "static") {
