@@ -83,10 +83,7 @@ export function robotsPlugin<C extends AppShape = AppShape>(
       }
     },
     createPages({ createApiIsomorphic }) {
-      const renderMode = this.mode === "default" ? "static" : this.mode;
-
       createApiIsomorphic({
-        render: renderMode,
         path,
         handler: async () => {
           const sections = rules.map(ruleToText);

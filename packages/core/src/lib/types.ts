@@ -5,15 +5,8 @@ import type { StructuredData } from "fumadocs-core/mdx-plugins";
 import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { FC, ReactNode } from "react";
-import type {
-  createPages,
-  CreatePage,
-  CreateLayout,
-  CreateRoot,
-  CreateApi,
-  CreateSlice,
-  CreateInterceptor,
-} from "waku/router/server";
+import type { CreateRoot, CreateApi, CreateSlice, CreateInterceptor } from "waku/router/server";
+import type { RouteParams } from "./routes";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -56,70 +49,88 @@ export interface PressLoaderOptions<
   plugins?: LoaderPluginOption[];
 }
 
-export interface BaseRouteFns {
-  createPage: CreatePage;
-  createLayout: CreateLayout;
+export interface RouteFns {
+  /**
+   * Create a page once per language under its prefix with a `lang` prop (see `autoI18n`), listed in
+   * `routes`. The page advertises its URL with a canonical link, `og:url` and `hreflang` links.
+   */
+  createPage: (page: PageOptions) => void;
+
+  /** Create a layout once per language like `createPage()`. */
+  createLayout: (
+    layout: Pick<PageOptions, "path" | "component" | "render" | "autoI18n" | "unstable_sourceFile">,
+  ) => void;
+
+  createApiIsomorphic: (config: {
+    /** defaults to the render mode of pages */
+    render?: "static" | "dynamic";
+    path: string;
+    staticPaths?: string[] | string[][];
+    handler: (req: Request, ctx: { params: RouteParams }) => Promise<Response>;
+    /** source file of the route, files only used by static routes are pruned from the server bundle */
+    unstable_sourceFile?: string;
+  }) => void;
+
+  /** the pages of `createPage()` so far, complete in `configureRoutes()` */
+  getRoutes: () => PressRoute[];
+
   createRoot: CreateRoot;
   createApi: CreateApi;
   createSlice: CreateSlice;
   createInterceptor: CreateInterceptor;
 }
 
-export interface RouteFns extends BaseRouteFns {
-  createApiIsomorphic: (config: {
-    render: "static" | "dynamic";
-    path: string;
-    staticPaths?: string[] | string[][];
-    handler: (
-      req: Request,
-      ctx: { params: Record<string, string | string[]> },
-    ) => Promise<Response>;
-    /** source file of the route, files only used by static routes are pruned from the server bundle */
-    unstable_sourceFile?: string;
-  }) => void;
-
-  /**
-   * Create a page once per language under its prefix with `lang` fixed on the component, or once
-   * at `path` without i18n (see `autoI18n`).
-   *
-   * The page advertises its URL: a canonical link and `og:url` with `site.baseUrl`, and `hreflang`
-   * links to the languages it exists in.
-   */
-  createPageI18n: (page: I18nPage) => void;
-
-  /** Create a layout once per language like `createPageI18n()`. */
-  createLayoutI18n: (layout: I18nLayout) => void;
-
-  /** access `createPages()` output */
-  unstable_getCreated: () => ReturnType<typeof createPages>;
-}
-
-/** a layout of `createLayoutI18n()` */
-export interface I18nLayout extends Pick<RouteConfig, "render" | "autoI18n"> {
+/** options of `createPage()` */
+export interface PageOptions extends RouteConfig {
   /** pathname without language prefix */
   path: string;
   component: FC<never>;
+  /** match `path` literally, for paths with brackets */
+  exactPath?: boolean;
   /** source file of the route, files only used by static routes are pruned from the server bundle */
   unstable_sourceFile?: string;
 }
 
-/** a page of `createPageI18n()` */
-export interface I18nPage extends I18nLayout, Pick<RouteConfig, "takumiOptions"> {
-  /** the `staticPaths` of every language, or per language */
-  staticPaths?:
-    | RouteConfig["staticPaths"]
-    | ((lang: string | undefined) => RouteConfig["staticPaths"]);
-  exactPath?: boolean;
+/** props of a page component: the route params, the `path` it renders at and the `lang` of the copy */
+export interface RouteProps {
+  path: string;
+  lang?: string;
+  [param: string]: string | string[] | undefined;
+}
+
+/** one copy of a page of `createPage()`, as the router registered it */
+export interface PressRoute extends Omit<PageOptions, "render" | "staticPaths" | "autoI18n"> {
+  render: "static" | "dynamic";
+  /** URL pattern of the copy, with its language prefix and without route groups */
+  path: string;
+  lang?: string;
+  /** static paths of this copy */
+  staticPaths?: string[] | string[][];
+  /** head tags rendered with the page, in order */
+  meta: ((props: RouteProps) => ReactNode)[];
+  /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
+  pages: {
+    /** URL path */
+    path: string;
+    params: RouteParams;
+    /** the page in every language it exists in, itself included, or empty when it is the only one */
+    translations: { locale: string; path: string }[];
+  }[];
 }
 
 /**
- * For file-system router, route files can export a `getConfig()` function that returns a `RouteConfig` object.
+ * Options of a route: the `getConfig()` of a route file, or `createPage()` and `createLayout()` of
+ * plugins. Plugins read their own options from it, like `takumiOptions`, extend it with declaration
+ * merging.
  */
 export interface RouteConfig {
   render?: "static" | "dynamic";
 
-  /** static paths of a static page with slugs, shared by every language of `autoI18n` */
-  staticPaths?: string[] | string[][];
+  /** static paths of a page with slugs, shared by every language of `autoI18n` or per language */
+  staticPaths?:
+    | string[]
+    | string[][]
+    | ((lang: string | undefined) => string[] | string[][] | undefined);
 
   /**
    * register the page (or layout) once per language if i18n is configured, under the language prefix and with a `lang` prop.

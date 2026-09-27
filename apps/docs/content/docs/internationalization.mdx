@@ -169,15 +169,15 @@ ctx.localizePath("cn", "/blog"); // "/cn/blog"
 ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
 ```
 
-A plugin that creates its own pages registers one route per language with `createPageI18n()`: `path` is prefixed for each language and the copy gets a `lang` prop. `staticPaths` can be a function of the language:
+A plugin that creates its own pages registers one route per language with `createPage()`: `path` is prefixed for each language and the copy gets a `lang` prop. `staticPaths` can be a function of the language:
 
 ```tsx title="press.config.tsx"
 import type { PressPlugin } from "fumapress";
 
 const plugin: PressPlugin = {
   name: "changelog",
-  createPages({ createPageI18n }) {
-    createPageI18n({
+  createPages({ createPage }) {
+    createPage({
       path: "/changelog",
       component: ChangelogPage,
     });

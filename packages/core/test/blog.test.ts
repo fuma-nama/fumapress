@@ -48,11 +48,11 @@ async function withBlog<T>(fn: () => Promise<T>) {
     createInterceptor: (i: typeof interceptor) => {
       interceptor = i;
     },
-    createPageI18n: (page: { path: string; staticPaths?: unknown }) => {
+    createPage: (page: { path: string; staticPaths?: unknown }) => {
       const { staticPaths: paths } = page;
       staticPaths.set(page.path, typeof paths === "function" ? paths(undefined) : paths);
     },
-    createLayoutI18n: () => {},
+    createLayout: () => {},
   } as unknown as RouteFns);
 
   return { staticPaths, result: await interceptor(fn) };

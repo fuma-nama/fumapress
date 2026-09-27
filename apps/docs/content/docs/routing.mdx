@@ -176,8 +176,8 @@ import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 function changelogPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "changelog",
-    async createPages({ createPageI18n }) {
-      createPageI18n({
+    async createPages({ createPage }) {
+      createPage({
         path: "/changelog",
         component() {
           return <main>Changelog</main>;
@@ -200,11 +200,11 @@ import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
 function allDocsPlugin<C extends AppShape>(): PressPlugin<C> {
   return {
     name: "all-docs",
-    async createPages({ createPageI18n }) {
+    async createPages({ createPage }) {
       const source = await this.getLoader();
       const pages = source.getPages();
 
-      createPageI18n({
+      createPage({
         path: "/all-docs",
         component() {
           return (
@@ -227,10 +227,9 @@ export default defineConfig({
 }).plugins(allDocsPlugin());
 ```
 
-`createPageI18n()` and `createLayoutI18n()` register the route once per language when i18n is configured, see [Internationalization](/docs/internationalization#routing). Waku's `createPage()` and `createLayout()` are available for raw routes.
+`createPage()` and `createLayout()` register the route once per language when i18n is configured, see [Internationalization](/docs/internationalization#routing).
 
-A plugin can also observe the pages of your app and other plugins: `prepareCreatePages()` runs
-before any page is created, wrap `fns.createPage` there to see every page passing through.
+A plugin can also work with the pages of your app and other plugins: `configureRoutes()` runs after every page is created, with them in `fns.getRoutes()`. Derive routes from them, like the Markdown version of each page, or add head tags to a page with `route.meta`.
 
 ## Client
 

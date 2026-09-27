@@ -32,8 +32,13 @@ export interface PressPlugin<C extends AppShape = AppShape> {
   /** receive & modify context */
   configure?: (this: AppContext<C>) => Awaitable<void>;
 
-  prepareCreatePages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<RouteFns | undefined>;
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
+
+  /**
+   * Runs after every plugin created its pages, with `fns.getRoutes()` complete: derive routes from them
+   * with `fns`, or add head tags to them with `route.meta`.
+   */
+  configureRoutes?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
   /**
    * Override the page renderer, use default fallback if `undefined` is returned.

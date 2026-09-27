@@ -2,11 +2,11 @@ import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
-import type { FC, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { joinPathname } from "@/lib/pathname";
 import { inheritedFrom } from "@/lib/i18n";
-import { type CreatedPage, expandPage, type RouteParams } from "@/lib/routes";
+import type { RouteParams } from "@/lib/routes";
 
 export { fontFromUrl, googleFonts } from "takumi-js/helpers";
 
@@ -157,13 +157,10 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         </>
       ));
     },
-    prepareCreatePages(fns) {
-      const { createPage } = fns;
-      fns.createPage = (page) => {
-        const { takumiOptions: image, ...rest } = page as CreatedPage & {
-          takumiOptions?: TakumiRouteOptions<C>;
-        };
-        if (!image) return createPage(page);
+    configureRoutes({ createApiIsomorphic, getRoutes }) {
+      for (const route of getRoutes()) {
+        const image = route.takumiOptions as TakumiRouteOptions<C> | undefined;
+        if (!image) continue;
 
         const renderImage = async (params: RouteParams) => {
           const { node, title, description, options } =
@@ -174,38 +171,28 @@ export function takumiPlugin<C extends AppShape = AppShape>(
             options,
           );
         };
-        const dynamic = rest.render === "dynamic";
+        const dynamic = route.render === "dynamic";
 
         if (dynamic) {
-          const spec: string[] = [];
-          for (const seg of rest.path.split("/")) if (seg && !seg.startsWith("(")) spec.push(seg);
-
-          fns.createApiIsomorphic({
+          createApiIsomorphic({
             render: "dynamic",
-            path: routeImagePath("/" + spec.join("/"), true),
+            path: routeImagePath(route.path, true),
             handler: (_, { params }) => renderImage(params),
           });
         } else {
-          for (const { pathname, params } of expandPage(rest.path, rest.staticPaths)) {
-            fns.createApiIsomorphic({
+          for (const { path, params } of route.pages) {
+            createApiIsomorphic({
               render: "static",
-              path: routeImagePath(pathname, false),
+              path: routeImagePath(path, false),
               handler: () => renderImage(params),
             });
           }
         }
 
-        const Page = rest.component as FC<{ path: string }>;
-        return createPage({
-          ...rest,
-          component: (props: { path: string }) => (
-            <>
-              {imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true }))}
-              <Page {...props} />
-            </>
-          ),
-        } as never);
-      };
+        route.meta.push((props) =>
+          imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic), { file: true })),
+        );
+      }
     },
     async createPages({ createApiIsomorphic }) {
       const staticPathsByLang = new Map<string | undefined, string[][]>();

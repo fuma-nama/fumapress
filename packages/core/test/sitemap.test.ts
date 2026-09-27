@@ -1,29 +1,39 @@
 import { describe, expect, it } from "vitest";
 import { appContext, type AppContext } from "@/app/context";
-import type { RouteFns } from "@/lib/types";
+import type { PressRoute, RouteFns } from "@/lib/types";
 import { buildSitemap, sitemapPlugin } from "@/plugins/sitemap";
 import { createApp, i18n } from "./fixtures";
 
 type ApiConfig = Parameters<RouteFns["createApiIsomorphic"]>[0];
 
+function route(path: string, page: Partial<PressRoute["pages"][number]> = {}): PressRoute {
+  return {
+    render: "static",
+    path,
+    component: () => null,
+    meta: [],
+    pages: [{ path, params: {}, translations: [], ...page }],
+  };
+}
+
 async function generate(ctx: AppContext) {
   let handler: ApiConfig["handler"] | undefined;
+  const getRoutes = () => [
+    // a route at the URL of a fallback page stays excluded
+    route("/cn/docs/only-en"),
+    route("/about"),
+    route("/cn/blog", {
+      translations: [
+        { locale: "en", path: "/en/blog" },
+        { locale: "cn", path: "/cn/blog" },
+      ],
+    }),
+  ];
   await sitemapPlugin().createPages!.call(ctx, {
     createApiIsomorphic(config: ApiConfig) {
       handler = config.handler;
     },
-    unstable_getCreated: () => ({
-      unstable_getRouterConfigs: async () => [
-        {
-          isStatic: true,
-          type: "route",
-          path: [{ name: "cn" }, { name: "docs" }, { name: "only-en" }],
-        },
-        { isStatic: true, type: "route", path: [{ name: "about" }] },
-        // the language redirect the router registers at `/`
-        { isStatic: true, type: "route", path: [] },
-      ],
-    }),
+    getRoutes,
   } as unknown as RouteFns);
 
   const res = await appContext.run(ctx, () =>
@@ -40,7 +50,12 @@ describe("sitemapPlugin", () => {
     expect(xml).toContain("<loc>https://example.com/en/docs/only-en</loc>");
     expect(xml).not.toContain("<loc>https://example.com/cn/docs/only-en</loc>");
     expect(xml).toContain("<url><loc>https://example.com/about</loc><priority>1</priority></url>");
-    expect(xml).not.toContain("<loc>https://example.com/</loc>");
+    expect(xml).toContain(
+      "<url><loc>https://example.com/cn/blog</loc><priority>1</priority>" +
+        '<xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/blog"/>' +
+        '<xhtml:link rel="alternate" hreflang="zh-Hans" href="https://example.com/cn/blog"/>' +
+        "</url>",
+    );
     expect(xml).toContain(
       "<url><loc>https://example.com/en/docs/basics</loc><priority>0.8</priority>" +
         '<xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/docs/basics"/>' +

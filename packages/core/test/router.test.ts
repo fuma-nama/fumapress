@@ -5,7 +5,7 @@ import { defineConfig } from "@/config";
 import { createRouter } from "@/router";
 import { fsRouterFn } from "@/router/fs";
 import type { ConfigUtils } from "@/config";
-import type { RouteFns } from "@/lib/types";
+import type { PressRoute, RouteFns } from "@/lib/types";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { HandlerInterceptor } from "waku/router/server";
 
@@ -189,17 +189,17 @@ describe("createRouter", () => {
     expect(await content(route("/[...slugs]"), { slugs: ["guide"] })).toBe("undefined:guide");
   });
 
-  it("advertises the URL of pages from createPageI18n", async () => {
+  it("advertises the URL of pages from createPage", async () => {
     const cfg = config(undefined).plugins({
-      createPages({ createPageI18n }) {
-        createPageI18n({
+      createPages({ createPage }) {
+        createPage({
           path: "/(plugin)/changelog",
           component: () => createElement("p", null, "changelog"),
         });
       },
     });
-    (await createRouter(cfg as ConfigUtils)).createPages(({ createPageI18n }) => {
-      createPageI18n({ path: "/about", component: Path });
+    (await createRouter(cfg as ConfigUtils)).createPages(({ createPage }) => {
+      createPage({ path: "/about", component: Path });
     });
     await recorded.pending;
 
@@ -217,14 +217,14 @@ describe("createRouter", () => {
 
   it("registers a copy per language that links its translations", async () => {
     const tags: Record<string, string[]> = { en: ["react", "vue"], cn: ["react"] };
-    (await createRouter(config(prefixed) as ConfigUtils)).createPages(({ createPageI18n }) => {
-      createPageI18n({
+    (await createRouter(config(prefixed) as ConfigUtils)).createPages(({ createPage }) => {
+      createPage({
         path: "/(fs)/tags/[tag]",
         staticPaths: (lang) => tags[lang!],
         component: Lang,
       });
-      createPageI18n({ path: "/(fs)/posts/[slug]", render: "dynamic", component: Lang });
-      createPageI18n({ path: "/(fs)/legal", autoI18n: false, component: Lang });
+      createPage({ path: "/(fs)/posts/[slug]", render: "dynamic", component: Lang });
+      createPage({ path: "/(fs)/legal", autoI18n: false, component: Lang });
     });
     await recorded.pending;
 
@@ -258,8 +258,8 @@ describe("createRouter", () => {
   });
 
   it("links the hidden default language without prefix, decoding dynamic requests", async () => {
-    (await createRouter(config(hidden) as ConfigUtils)).createPages(({ createPageI18n }) => {
-      createPageI18n({ path: "/(fs)/tags/[tag]", staticPaths: ["café"], component: Lang });
+    (await createRouter(config(hidden) as ConfigUtils)).createPages(({ createPage }) => {
+      createPage({ path: "/(fs)/tags/[tag]", staticPaths: ["café"], component: Lang });
     });
     await recorded.pending;
 
@@ -271,6 +271,46 @@ describe("createRouter", () => {
     );
     expect(page).toContain(
       '<link rel="alternate" hrefLang="x-default" href="https://example.com/tags/caf%C3%A9"/>',
+    );
+  });
+
+  it("lists routes for configureRoutes and renders their meta", async () => {
+    let seen: PressRoute[] = [];
+    const cfg = config(prefixed).plugins({
+      createPages({ createPage }) {
+        createPage({
+          path: "/(fs)/tags/[tag]",
+          staticPaths: (lang) => (lang === "en" ? ["react", "vue"] : ["react"]),
+          component: Lang,
+        });
+      },
+      configureRoutes({ getRoutes }) {
+        seen = getRoutes();
+        for (const route of seen) {
+          route.meta.push((props) => createElement("meta", { name: "x", content: props.path }));
+        }
+      },
+    });
+    (await createRouter(cfg as ConfigUtils)).createPages();
+    await recorded.pending;
+
+    expect(seen.map((route) => [route.path, route.lang, route.render])).toEqual([
+      ["/en/tags/[tag]", "en", "static"],
+      ["/cn/tags/[tag]", "cn", "static"],
+    ]);
+    expect(seen[0]!.pages).toEqual([
+      {
+        path: "/en/tags/react",
+        params: { tag: "react" },
+        translations: [
+          { locale: "en", path: "/en/tags/react" },
+          { locale: "cn", path: "/cn/tags/react" },
+        ],
+      },
+      { path: "/en/tags/vue", params: { tag: "vue" }, translations: [] },
+    ]);
+    expect(await html(route("/en/(fs)/tags/[tag]"), { path: "/en/tags/vue" })).toContain(
+      '<meta name="x" content="/en/tags/vue"/>',
     );
   });
 

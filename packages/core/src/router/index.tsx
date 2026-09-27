@@ -8,13 +8,13 @@ import {
   pageAlternate,
   type PageAlternate,
 } from "../app/context";
-import { FC, Fragment, ReactNode } from "react";
+import { createElement, FC, Fragment, ReactNode } from "react";
 import { DEFAULT_GROUP, hiddenLocale, localeRoutes } from "@/lib/i18n";
 import { decodePathname, joinPathname, resolveBaseUrl } from "@/lib/pathname";
-import { expandPage } from "@/lib/routes";
+import { expandRoute } from "@/lib/routes";
 import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
-import type { Awaitable, RouteFns } from "../lib/types";
+import type { Awaitable, PressRoute, RouteFns, RouteProps } from "../lib/types";
 import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
@@ -44,6 +44,7 @@ export async function createRouter<U extends ConfigUtils>(
   ) {
     const result = base_createPages(async (_fns) => {
       const { renderPage } = context;
+      const routes: PressRoute[] = [];
       // components rather than calls: `renderNotFound` defaults to a client component
       const Root = context.renderRoot as FC<{ lang?: string; children: ReactNode }>;
       const NotFound = context.renderNotFound as FC<{ lang?: string }>;
@@ -53,37 +54,22 @@ export async function createRouter<U extends ConfigUtils>(
       const copiesOf = (autoI18n = true): { base: string; lang?: string }[] =>
         i18n && autoI18n ? localeRoutes(i18n) : [{ base: i18n ? DEFAULT_GROUP : "/" }];
 
-      let fns: RouteFns = {
+      const fns: RouteFns = {
         ..._fns,
-        unstable_getCreated() {
-          return result;
-        },
+        getRoutes: () => routes,
         createApiIsomorphic(config) {
-          if (config.render === "static") {
-            _fns.createApi({
-              render: "static",
-              method: "GET",
-              staticPaths: config.staticPaths,
-              path: config.path,
-              handler: config.handler,
-              unstable_sourceFile: config.unstable_sourceFile,
-            });
+          const { render = defaultRenderMode, path, handler, unstable_sourceFile } = config;
+          if (render === "static") {
+            _fns.createApi({ ...config, render, method: "GET" });
           } else {
-            _fns.createApi({
-              render: "dynamic",
-              path: config.path,
-              handlers: {
-                GET: config.handler,
-              },
-              unstable_sourceFile: config.unstable_sourceFile,
-            });
+            _fns.createApi({ render, path, handlers: { GET: handler }, unstable_sourceFile });
           }
         },
-        createLayoutI18n({ path, component, render = defaultRenderMode, autoI18n, ...rest }) {
+        createLayout({ path, component, render = defaultRenderMode, autoI18n, ...rest }) {
           const Layout = component as FC<{ lang?: string }>;
 
           for (const { base, lang } of copiesOf(autoI18n)) {
-            fns.createLayout({
+            _fns.createLayout({
               ...rest,
               render,
               path: joinPathname(base, path),
@@ -91,52 +77,79 @@ export async function createRouter<U extends ConfigUtils>(
             } as never);
           }
         },
-        createPageI18n({
+        createPage({
           path,
           component,
           staticPaths,
           render = defaultRenderMode,
           autoI18n,
-          ...rest
+          exactPath,
+          unstable_sourceFile,
+          ...options
         }) {
           const Page = component as FC<{ lang?: string }>;
-          // the pages of every copy by the route path Waku.js renders them at, the copies of a
-          // pathname are its translations
-          const pages = new Map<string, { pathname: string; locales: string[] }>();
-          const byPathname = new Map<string, { pathname: string; locales: string[] }>();
-          const alternates = (routePath: string): PageAlternate[] => {
-            const page = pages.get(decodePathname(routePath));
-            const out: PageAlternate[] = [];
-            if (!page || page.locales.length < 2) return out;
-
-            for (const locale of page.locales) {
-              out.push(pageAlternate(context, locale, context.localizePath(locale, page.pathname)));
-            }
-            return out;
-          };
+          // the copies of a pathname are its translations
+          const translations = new Map<string, PressRoute["pages"][number]["translations"]>();
 
           for (const { base, lang } of copiesOf(autoI18n)) {
             const paths = typeof staticPaths === "function" ? staticPaths(lang) : staticPaths;
-            for (const { pathname } of expandPage(path, paths)) {
-              let page = byPathname.get(pathname);
-              if (!page) byPathname.set(pathname, (page = { pathname, locales: [] }));
-              if (lang) page.locales.push(lang);
-              pages.set(context.localizePath(lang, pathname), page);
+            const { pattern, pages } = expandRoute(path, paths, exactPath);
+            const byPath = new Map<string, PressRoute["pages"][number]>();
+            const route: PressRoute = {
+              ...options,
+              render,
+              path: context.localizePath(lang, pattern),
+              lang,
+              staticPaths: paths,
+              exactPath,
+              unstable_sourceFile,
+              component,
+              meta: [
+                (props) => {
+                  const page = byPath.get(decodePathname(props.path));
+                  const alternates: PageAlternate[] = [];
+                  for (const { locale, path } of page?.translations ?? []) {
+                    alternates.push(pageAlternate(context, locale, path));
+                  }
+                  return <PageLinks pathname={props.path} alternates={alternates} />;
+                },
+              ],
+              pages: [],
+            };
+
+            for (const { pathname, params } of pages) {
+              let siblings = translations.get(pathname);
+              if (!siblings) translations.set(pathname, (siblings = []));
+              const page = {
+                path: context.localizePath(lang, pathname),
+                params,
+                translations: siblings,
+              };
+              if (lang) siblings.push({ locale: lang, path: page.path });
+              byPath.set(page.path, page);
+              route.pages.push(page);
             }
 
-            fns.createPage({
-              ...rest,
+            routes.push(route);
+            _fns.createPage({
               render,
               path: joinPathname(base, path),
               staticPaths: paths,
-              // called in place, so the Markdown renderer of llms.txt still sees its `asMarkdown()`
-              component: (props: { path: string }) => (
-                <>
-                  <PageLinks pathname={props.path} alternates={alternates(props.path)} />
-                  {"$$typeof" in Page ? <Page {...props} lang={lang} /> : Page({ ...props, lang })}
-                </>
-              ),
+              exactPath,
+              unstable_sourceFile,
+              component: (props: RouteProps) =>
+                createElement(
+                  Fragment,
+                  null,
+                  ...route.meta.map((meta) => meta(props)),
+                  <Page {...props} lang={lang} />,
+                ),
             } as never);
+          }
+
+          // a page is its own translation only next to others
+          for (const siblings of translations.values()) {
+            if (siblings.length < 2) siblings.length = 0;
           }
         },
       };
@@ -165,17 +178,16 @@ export async function createRouter<U extends ConfigUtils>(
         );
       }
 
-      for (const plugin of context.plugins) {
-        const out = await plugin.prepareCreatePages?.call(context, fns);
-        if (out) fns = out;
-      }
-
       fns.createInterceptor((next) => appContext.run(context, next));
 
       await base?.call(context, fns);
 
       for (const plugin of context.plugins) {
         await plugin.createPages?.call(context, fns);
+      }
+
+      for (const plugin of context.plugins) {
+        await plugin.configureRoutes?.call(context, fns);
       }
 
       const pages = (await context.getLoader()).getPages();
@@ -190,13 +202,13 @@ export async function createRouter<U extends ConfigUtils>(
         }
 
         const createLocaleRoot = (base: string, lang: string) => {
-          fns.createLayout({
+          _fns.createLayout({
             render: defaultRenderMode,
             path: base,
             component: ({ children }) => <Root lang={lang}>{children}</Root>,
           });
 
-          fns.createPage({
+          _fns.createPage({
             render: defaultRenderMode,
             path: `${base}/404` as "/404",
             staticPaths: [],
@@ -204,7 +216,7 @@ export async function createRouter<U extends ConfigUtils>(
           });
         };
 
-        fns.createRoot({
+        _fns.createRoot({
           render: defaultRenderMode,
           component: Fragment,
         });
@@ -214,7 +226,7 @@ export async function createRouter<U extends ConfigUtils>(
 
         for (const { base, lang } of localeRoutes(i18n)) {
           createLocaleRoot(base, lang);
-          fns.createPage({
+          _fns.createPage({
             render: defaultRenderMode,
             path: `${base}/[...slugs]` as "/[...slugs]",
             staticPaths: slugsByLang.get(lang) ?? [],
@@ -226,13 +238,13 @@ export async function createRouter<U extends ConfigUtils>(
           const to = `/${i18n.defaultLanguage}`;
 
           if (context.mode === "static") {
-            fns.createPage({
+            _fns.createPage({
               render: "static",
               path: "/",
               component: () => <RedirectDocument to={to} />,
             });
           } else {
-            fns.createPage({
+            _fns.createPage({
               render: "dynamic",
               path: "/",
               component: () => unstable_redirect(to),
@@ -243,19 +255,19 @@ export async function createRouter<U extends ConfigUtils>(
         const staticPaths: string[][] = [];
         for (const page of pages) staticPaths.push(page.slugs);
 
-        fns.createRoot({
+        _fns.createRoot({
           render: defaultRenderMode,
           component: Root,
         });
 
-        fns.createPage({
+        _fns.createPage({
           render: defaultRenderMode,
           path: "/[...slugs]",
           staticPaths,
           component: ({ slugs }) => renderContent(slugs),
         });
 
-        fns.createPage({
+        _fns.createPage({
           render: defaultRenderMode,
           staticPaths: [],
           path: "/404",

@@ -2,7 +2,7 @@ import { llms } from "fumadocs-core/source/llms";
 import type { Awaitable } from "@/lib/types";
 import type { PressPlugin } from "@/app/plugin";
 import { appContext, type AppContext, type AppShape } from "@/app/context";
-import { CreatePage, unstable_notFound } from "waku/router/server";
+import { unstable_notFound } from "waku/router/server";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { joinPathname } from "@/lib/pathname";
@@ -10,14 +10,8 @@ import { inheritedFrom } from "@/lib/i18n";
 import { DocsLayoutContextData } from "@/layouts/docs";
 import { renderRoute } from "fumadocs-core/server";
 import { createElement, type FC } from "react";
-import {
-  type CreatedPage,
-  expandPage,
-  matchRoutePath,
-  precompileRoutePath,
-  type PrecompiledRoutePath,
-  type RouteParams,
-} from "@/lib/routes";
+import type { RouteParams } from "@/lib/routes";
+import type { PressRoute, RouteProps } from "@/lib/types";
 
 export interface LLMsOptions<C extends AppShape = AppShape> {
   /**
@@ -80,8 +74,14 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     });
   }
 
-  let includedPages: CreatedPage[] = [];
-  let mocked_createPage: CreatePage | undefined;
+  /** Markdown of a page of `createPage()`, `undefined` when its component doesn't call `asMarkdown()` */
+  function renderMarkdown(route: PressRoute, path: string, params: RouteParams) {
+    const Page = route.component as FC<RouteProps>;
+    return renderRoute(createElement(Page, { ...params, path, lang: route.lang }));
+  }
+
+  /** `.md` paths of the static site, content pages first */
+  const mdPaths = new Set<string>();
   return {
     name: "core:llms.txt",
     enforce: "post",
@@ -141,19 +141,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
 
       return middlewares;
     },
-    prepareCreatePages(fns) {
-      mocked_createPage = fns.createPage;
-      includedPages = [];
-      fns.createPage = (page) => {
-        if (routes === "all" && page.component) {
-          includedPages.push(page);
-        }
-        return mocked_createPage!(page);
-      };
-    },
     async createPages(fns) {
-      fns.createPage = mocked_createPage!;
-      const renderMode = this.mode === "default" ? "static" : this.mode;
       const getLLMText = _getLLMText.bind(this);
       const getPageByUrl = async (url: string) => {
         const source = await this.getLoader();
@@ -162,19 +150,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           if (page) return page;
         }
       };
-      const renderPage = (page: CreatedPage, pathname: string, params: RouteParams) =>
-        renderRoute(
-          createElement(
-            page.component as FC,
-            {
-              ...params,
-              path: pathname,
-            } as Record<string, unknown>,
-          ),
-        );
 
       fns.createApiIsomorphic({
-        render: renderMode,
         path: "/llms.txt",
         handler: async () => {
           const source = await this.getLoader();
@@ -183,7 +160,6 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       });
 
       fns.createApiIsomorphic({
-        render: renderMode,
         path: "/llms-full.txt",
         handler: async () => {
           const pending: Awaitable<string | undefined>[] = [];
@@ -197,51 +173,13 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         },
       });
 
-      // custom pages of `routes: "all"`, dynamic ones are matched per request
-      const dynamicPages: (PrecompiledRoutePath & CreatedPage)[] = [];
-      const staticPages: { pathname: string; params: RouteParams; page: CreatedPage }[] = [];
-
-      if (routes === "all") {
-        for (const page of includedPages) {
-          if (page.exactPath) continue;
-
-          if (page.render === "dynamic") {
-            dynamicPages.push({ ...precompileRoutePath(page.path), ...page });
-            continue;
-          }
-
-          for (const expanded of expandPage(page.path, page.staticPaths)) {
-            staticPages.push({ ...expanded, page });
-          }
-        }
-
-        // match more specific routes first like Waku.js, a root path only matches "/" so it goes before catch-alls
-        dynamicPages.sort((a, b) => {
-          if (a.length === 0 || b.length === 0) return a.length - b.length;
-          return b.length - a.length || a.priority - b.priority;
-        });
-      }
-
-      if (this.mode === "dynamic" || this.mode === "default") {
+      if (this.mode === "dynamic") {
         const handler = async (_req: Request, { params }: { params: RouteParams }) => {
           const slugs = (params.slugs as string[] | undefined) ?? [];
-          const pathname = "/" + slugs.join("/");
+          const page = await getPageByUrl("/" + slugs.join("/"));
+          if (!page) unstable_notFound();
 
-          if (this.mode === "dynamic") {
-            const page = await getPageByUrl(pathname);
-            if (page) return markdownResponse((await getLLMText(page)) ?? "");
-          }
-
-          for (const page of dynamicPages) {
-            const routeParams = matchRoutePath(page, pathname);
-            if (!routeParams) continue;
-
-            const res = await renderPage(page, pathname, routeParams);
-            if (res) return markdownResponse(res);
-            break;
-          }
-
-          unstable_notFound();
+          return markdownResponse((await getLLMText(page)) ?? "");
         };
 
         // Waku.js `[...slugs]` never matches zero segments under a non-root base
@@ -249,7 +187,6 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         fns.createApiIsomorphic({ render: "dynamic", path: "/_llms.txt/[...slugs]", handler });
       }
 
-      const mdPaths = new Set<string>();
       if (this.mode === "static" || this.mode === "default") {
         const staticPaths: string[][] = [];
         for (const page of (await this.getLoader()).getPages()) {
@@ -271,25 +208,53 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           },
         });
       }
+    },
+    async configureRoutes({ createApi, createApiIsomorphic, getRoutes }) {
+      if (routes !== "all") return;
 
-      // routes for static custom pages hold their Markdown pre-rendered: a static route that 404s
-      // would fail the build, so only pages with a Markdown form get one. Content pages take
-      // precedence when a custom page maps to the same `.md` path.
-      for (const { pathname, params, page } of staticPages) {
-        const path = withMd(pathname);
-        if (mdPaths.has(path)) continue;
+      // static pages hold their Markdown pre-rendered: a static route that 404s would fail the build,
+      // so only pages with a Markdown form get one. Content pages take precedence when a page maps
+      // to the same `.md` path.
+      for (const route of getRoutes()) {
+        // dynamic pages render on request, from a route mirroring theirs so Waku.js matches it
+        if (route.render === "dynamic") {
+          if (route.exactPath) continue;
+          createApiIsomorphic({
+            render: "dynamic",
+            path: joinPathname("_llms.txt", route.path),
+            handler: async (req, { params }) => {
+              const { pathname } = new URL(req.url);
+              const text = await renderMarkdown(
+                route,
+                pathname.slice(pathname.indexOf("/_llms.txt") + "/_llms.txt".length) || "/",
+                params,
+              );
+              if (text === undefined) unstable_notFound();
 
-        const text = await appContext.run(this, () => renderPage(page, pathname, params));
-        if (text === undefined) continue;
+              return markdownResponse(text);
+            },
+          });
+          continue;
+        }
 
-        mdPaths.add(path);
-        fns.createApi({
-          render: "static",
-          path,
-          method: "GET",
-          unstable_sourceFile: page.unstable_sourceFile,
-          handler: async () => markdownResponse(text),
-        });
+        for (const page of route.pages) {
+          const path = withMd(page.path);
+          if (mdPaths.has(path)) continue;
+
+          const text = await appContext.run(this, () =>
+            renderMarkdown(route, page.path, page.params),
+          );
+          if (text === undefined) continue;
+
+          mdPaths.add(path);
+          createApi({
+            render: "static",
+            path,
+            method: "GET",
+            unstable_sourceFile: route.unstable_sourceFile,
+            handler: async () => markdownResponse(text),
+          });
+        }
       }
     },
   };

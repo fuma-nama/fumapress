@@ -9,5 +9,12 @@ export {
   type PageAlternate,
 } from "./app/context";
 export * from "./app/plugin";
-export type { RouteConfig, Adapter, RouteFns, PressLoaderOptions } from "@/lib/types";
+export type {
+  RouteConfig,
+  RouteFns,
+  PageOptions,
+  PressRoute,
+  Adapter,
+  PressLoaderOptions,
+} from "@/lib/types";
 export type { GitProvider, GitInfo } from "@/lib/git";
