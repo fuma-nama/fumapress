@@ -87,13 +87,13 @@ async function promptInstall(packageManager: PackageManager) {
   return unwrapPrompt(value);
 }
 
-function unwrapPrompt<T>(value: T | symbol): T {
+function unwrapPrompt<T>(value: T | symbol): Exclude<T, symbol> {
   if (isCancel(value)) {
     cancel("Operation cancelled.");
     process.exit(0);
   }
 
-  return value as T;
+  return value as Exclude<T, symbol>;
 }
 
 function getPackageManager(value?: string): PackageManager {
