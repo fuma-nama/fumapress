@@ -2,14 +2,11 @@ import { defineConfig } from "tsdown";
 import { Scanner } from "@tailwindcss/oxide";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { packageTranslationsPlugin } from "../shared/compile-package-translations.ts";
 
 export default defineConfig({
   target: "es2023",
   format: "esm",
-  ignoreWatch: ["src/.translations/**"],
-  plugins: [packageTranslationsPlugin()],
-  entry: ["src/index.tsx", "src/i18n.ts", "src/components/search.tsx"],
+  entry: ["src/index.tsx", "src/i18n.ts", "src/components/chat.tsx"],
   dts: {
     sourcemap: false,
   },

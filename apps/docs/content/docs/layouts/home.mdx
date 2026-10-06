@@ -1,17 +1,45 @@
 ---
 title: Home Layout
-description: Render standalone pages with the shared home layout.
+description: A navbar-only layout for landing and custom pages.
 ---
 
-## Overview
+![Home Layout](/layouts/home.webp)
 
-Use the home layout for standalone content pages that only need shared navbar.
+See [Fumadocs Home Layout](https://fumadocs.dev/docs/ui/layouts/home-layout) for the available props.
 
-It is a good fit for marketing pages, landing pages, or custom content pages that should live in your content source.
+## Custom Pages
 
-## Config
+`createHomeLayout()` returns a component wrapping its children with the navbar. `layoutProps` is deep-merged with `defaultLayoutProps`, set `inherit: { layoutProps: false }` to opt out.
 
-Define the layout and pass it through `renderPage`.
+```tsx title="press.config.tsx"
+import { createHomeLayout } from "fumapress/layouts/home";
+import { BookIcon } from "lucide-react";
+
+export const HomeLayout = createHomeLayout<typeof config.$context>({
+  layoutProps: {
+    links: [
+      {
+        url: "/docs",
+        text: "Documentation",
+        icon: <BookIcon />,
+        active: "nested-url",
+      },
+    ],
+  },
+});
+```
+
+Use it as a [file-based layout](/docs/layouts#file-based-layouts), or pass it to plugins that render their own pages:
+
+```tsx title="press.config.tsx"
+config.plugins(
+  blogPlugin({
+    layouts: { layout: HomeLayout },
+  }),
+);
+```
+
+## Content Pages
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -27,89 +55,4 @@ const config = defineConfig({
 export default config;
 ```
 
-Customize the rendered body or layout props with the `render` option:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createHomeLayoutPage } from "fumapress/layouts/home";
-
-const HomePage = createHomeLayoutPage<typeof config.$context>({
-  render(page) {
-    return {
-      layoutProps: {
-        nav: {
-          title: page.data.title,
-        },
-      },
-    };
-  },
-});
-
-const config = defineConfig({
-  // ...
-  renderPage: (props) => <HomePage {...props} />,
-});
-
-export default config;
-```
-
-## File-based Layout
-
-For custom route files, use `createHomeLayout()` directly as a wrapper:
-
-```tsx title="src/pages/_layout.tsx"
-import type { ReactNode } from "react";
-import { createHomeLayout } from "fumapress/layouts/home";
-import type PressConfig from "../../press.config";
-
-const HomeLayout = createHomeLayout<typeof PressConfig.$context>();
-
-export default function Layout({ children }: { children: ReactNode }) {
-  return <HomeLayout>{children}</HomeLayout>;
-}
-```
-
-The `<HomeLayout />` is a normal component that you can use anywhere.
-
-## Layout Props
-
-`createHomeLayout` accepts `layoutProps` to configure the navbar, deep-merged with `defaultLayoutProps`:
-
-```tsx title="press.config.tsx"
-import { createHomeLayout } from "fumapress/layouts/home";
-import { BookIcon } from "lucide-react";
-
-export const HomeLayout = createHomeLayout<typeof config.$context>({
-  layoutProps: {
-    links: [
-      {
-        url: "/docs",
-        text: "Documentation",
-        icon: <BookIcon />,
-        active: "nested-url",
-      },
-      {
-        url: "https://github.com/acme/docs",
-        text: "GitHub",
-        external: true,
-      },
-    ],
-  },
-});
-```
-
-Set `inherit: { layoutProps: false }` to opt out of `defaultLayoutProps`.
-
-A layout defined this way can be shared across your app, as a file-based layout and with plugins that render their own pages:
-
-```tsx tab="src/pages/_layout.tsx"
-export { HomeLayout as default } from "../../press.config";
-```
-
-```tsx tab="press.config.tsx"
-config.plugins(
-  blogPlugin({
-    layouts: { layout: HomeLayout },
-  }),
-);
-```
+Pass a `render` function to return `layoutProps` or a custom `body` for each page.

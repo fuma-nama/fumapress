@@ -1,10 +1,10 @@
+import { createMcpHandler, type Implementation, McpServer } from "@modelcontextprotocol/server";
+import { registerSourceTools } from "fumadocs-core/mcp";
+import type { LoaderOutput } from "fumadocs-core/source";
 import { llms } from "fumadocs-core/source/llms";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AppContext, AppShape, PressPlugin } from "fumapress";
 import { z } from "zod";
-import { createMcpRequestHandler } from "./mcp-server";
 import { createSearch, type SearchOptions } from "./search";
-import type { Implementation } from "@modelcontextprotocol/sdk/types";
 
 export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
   /**
@@ -35,8 +35,17 @@ export function mcpPlugin<C extends AppShape = AppShape>(
       }
 
       const { execute, pageToIndex } = createSearch(options, this);
+      // the loader config of a generic app can't be inferred
+      const getLoader = this.getLoader as () => Promise<LoaderOutput>;
+      const docsLlms = llms(getLoader, {
+        async renderPage(page) {
+          const doc = await pageToIndex(page as C["page"]);
+          return doc ? `# ${doc.title} (${doc.url})\n\n${doc.content}` : "";
+        },
+      });
 
-      const handler = createMcpRequestHandler(async () => {
+      // stateless, every request is served by a new server instance
+      const handler = createMcpHandler(async () => {
         const server = new McpServer({
           ...serverInfo,
           name: serverInfo?.name ?? this.siteConfig.name,
@@ -68,77 +77,8 @@ export function mcpPlugin<C extends AppShape = AppShape>(
           },
         );
 
-        server.registerTool(
-          "get_page",
-          {
-            title: "Get Page",
-            description: "Fetch the full content of a documentation page",
-            inputSchema: z.object({
-              path: z.string().describe("the page URL path (e.g. /docs/getting-started)"),
-            }),
-          },
-          async ({ path: pagePath }) => {
-            const source = await this.getLoader();
-            // match `page.url` rather than stripping a prefix: `hideLocale` serves one language without one
-            const href =
-              "/" +
-              pagePath
-                .split("/")
-                .filter((v) => v.length > 0)
-                .join("/");
-            let page;
-
-            for (const language of this.i18nConfig?.languages ?? [undefined]) {
-              page = source.getPageByHref(href, { language })?.page;
-              if (page) break;
-            }
-
-            if (!page) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Page not found: ${pagePath}`,
-                  },
-                ],
-                isError: true,
-              };
-            }
-
-            const doc = await pageToIndex(page);
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: doc ? `# ${doc.title} (${doc.url})\n\n${doc.content}` : "",
-                },
-              ],
-            };
-          },
-        );
-
-        server.registerTool(
-          "list_pages",
-          {
-            title: "List Pages",
-            description:
-              "List all documentation pages as a structured index, use the get_page tool to retrieve full content",
-            inputSchema: z.object({}),
-          },
-          async () => {
-            const source = await this.getLoader();
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: llms(source).index(),
-                },
-              ],
-            };
-          },
-        );
+        // `list_pages` and `get_page`
+        registerSourceTools(server, getLoader, docsLlms);
 
         if (registerTools) {
           await registerTools.call(this, server);
@@ -151,7 +91,7 @@ export function mcpPlugin<C extends AppShape = AppShape>(
         render: "dynamic",
         path,
         handlers: {
-          all: handler,
+          all: (req: Request) => handler.fetch(req),
         },
       });
     },

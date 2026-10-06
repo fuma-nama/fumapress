@@ -1,0 +1,27 @@
+---
+title: Chat UI from `@fumadocs/ai-chat`
+date: 2026-10-06T07:12:37.828Z
+packages:
+  "@fumapress/ai":
+    version: 1.2.0
+---
+
+## Chat UI from `@fumadocs/ai-chat`
+
+The chat UI is replaced with [`@fumadocs/ai-chat`](https://www.npmjs.com/package/@fumadocs/ai-chat): questions rest at the top while answers stream below, Markdown is rendered block by block, and search calls expand to the pages they found. Questions send the page title along with its URL, so the model can answer the "Summarize this page" suggestion.
+
+The chat is passed to the `aiChat` option of layouts, docked beside the page on wide viewports and floating over it on smaller ones, in the docs, notebook, glass, and the new spacious layouts. Glass and spacious layouts show the Ask AI trigger in their own header, docs and notebook layouts keep the floating trigger. It requires Fumadocs UI v16.16.0 or above, `@fumapress/ai/css/preset.css` includes the styles of the chat.
+
+### `@fumapress/ai/components/search` is removed
+
+Use `@fumapress/ai/components/chat` instead: `AIChat` connects the `@fumadocs/ai-chat` components to the `/api/ai` endpoint, and it re-exports `AIChatPanel`, `AIChatTrigger`, and `useAIChat()`.
+
+The translation keys of `aiTranslations()` are the ones of `@fumadocs/ai-chat`, update your translations of the chat.
+
+## MCP server on MCP SDK v2
+
+`mcpPlugin()` serves requests with `createMcpHandler()` of `@modelcontextprotocol/server` v2, instead of `@modelcontextprotocol/sdk` v1. It's stateless: sessions are no longer kept in memory, so the server works across serverless instances.
+
+- `list_pages` and `get_page` are registered with `registerSourceTools()` from `fumadocs-core/mcp`, `get_page` takes the page `url` instead of `path`.
+- `list_pages` returned a pending promise instead of the index since Fumadocs v16.15.9, it returns the `llms.txt` index again.
+- The `server` given to the `tools` option is an `McpServer` of `@modelcontextprotocol/server`.

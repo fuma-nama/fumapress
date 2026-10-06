@@ -89,6 +89,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       initTransformers((this.data["core:docs-layout"] ??= {}));
       initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
       initTransformers((this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>);
+      initTransformers((this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>);
     },
     createMiddlewares({ app }) {
       if (this.mode === "static") return;
@@ -143,13 +144,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     },
     async createPages(fns) {
       const getLLMText = _getLLMText.bind(this);
-      const getPageByUrl = async (url: string) => {
-        const source = await this.getLoader();
-        for (const language of this.i18nConfig?.languages ?? [undefined]) {
-          const page = source.getPageByHref(url, { language })?.page;
-          if (page) return page;
-        }
-      };
+      // looks up every language
+      const getPageByUrl = async (url: string) => (await this.getLoader()).getPageByUrl(url);
 
       fns.createApiIsomorphic({
         path: "/llms.txt",

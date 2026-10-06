@@ -1,0 +1,21 @@
+---
+title: Spacious layout
+date: 2026-10-06T07:12:37.828Z
+packages:
+  fumapress:
+    version: 1.6.0
+---
+
+## Spacious layout
+
+`createSpaciousLayoutPage()` from `fumapress/layouts/spacious` renders pages with the Spacious layout of Fumadocs UI: a less compact docs layout, where the page sits in an inset panel beside the sidebar. It takes the same options as the other docs layouts, and the OpenAPI, AsyncAPI, and llms.txt plugins support it.
+
+It requires the Base UI version of Fumadocs UI (`@fumadocs/base-ui`) v16.16.0 or above. Import its styles in `src/app.css`:
+
+```css
+@import "fumadocs-ui/css/generated/spacious.css";
+```
+
+## Look up pages with `getPageByUrl()`
+
+The `.md` routes of the llms.txt plugin find pages with `getPageByUrl()` of the loader, the `fumadocs-core` peer dependency now requires v16.15.9 or above.

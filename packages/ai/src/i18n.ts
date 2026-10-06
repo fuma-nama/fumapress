@@ -1,9 +1,8 @@
-import type { TranslationExtension } from "fumadocs-core/i18n";
-import translationKeys from "@/.translations/keys.json";
-import type { Translations } from "@/.translations";
+import { aiChatTranslations, type Translations } from "@fumadocs/ai-chat/i18n";
 
 export type { Translations };
 
-export function aiTranslations(): TranslationExtension<keyof Translations> {
-  return { keys: translationKeys as never };
+/** translations of the AI chat, from `@fumadocs/ai-chat` */
+export function aiTranslations() {
+  return aiChatTranslations();
 }

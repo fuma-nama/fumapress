@@ -1,0 +1,42 @@
+---
+title: Spacious Layout
+description: The docs layout with the page in an inset panel.
+---
+
+![Spacious Layout](/layouts/spacious.webp)
+
+See [Fumadocs Spacious Layout](https://fumadocs.dev/docs/ui/layouts/spacious) for the available props.
+
+Requires Fumadocs UI v16.16.0 or above (`@fumadocs/base-ui`). Its styles are not in the Fumadocs UI preset, import them:
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code ++] */
+@import "fumadocs-ui/css/generated/spacious.css";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+```
+
+```tsx title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createSpaciousLayoutPage } from "fumapress/layouts/spacious";
+
+const SpaciousLayout = createSpaciousLayoutPage<typeof config.$context>();
+
+const config = defineConfig({
+  // ...
+  renderPage: (props) => <SpaciousLayout {...props} />,
+});
+
+export default config;
+```
+
+It accepts the same [options](/docs/layouts/docs#options) as the docs layout, and the [AI plugin](/docs/plugins/ai) docks its chat beside the page on wide screens.
+
+<Callout title="Important to know">
+
+- The spacious layout is a client component, `layoutProps` cannot contain unserializable values (e.g. functions) unless they are supported slots.
+- On desktop, the page scrolls inside the panel instead of the window.
+
+</Callout>

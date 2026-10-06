@@ -37,11 +37,11 @@ In production, use your site URL with the configured path (for example, `https:/
 
 The plugin registers three tools on the MCP server:
 
-| Tool         | Description                                                                               |
-| ------------ | ----------------------------------------------------------------------------------------- |
-| `search`     | Full-text search over your documentation. Returns matching pages as JSON.                 |
-| `get_page`   | Fetch the full text content of a page by URL path (for example, `/docs/getting-started`). |
-| `list_pages` | Return a structured index of all documentation pages.                                     |
+| Tool         | Description                                                                       |
+| ------------ | --------------------------------------------------------------------------------- |
+| `search`     | Full-text search over your documentation. Returns matching pages as JSON.         |
+| `get_page`   | Fetch the content of a page by its URL (for example, `/docs/getting-started`).    |
+| `list_pages` | Return the `llms.txt` index of all documentation pages, with the URL of each one. |
 
 When i18n is configured, the `search` tool accepts a `locale` parameter to filter results by language.
 
@@ -114,7 +114,7 @@ Return `null` to exclude a page from search.
 
 ### `tools`
 
-Register additional tools on the MCP server:
+Register additional tools on the MCP server, an `McpServer` of [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server) v2:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
