@@ -1,49 +1,19 @@
 ---
 title: Docs Layout
-description: Render documentation pages with sidebar navigation and table of contents.
+description: The default layout, with sidebar and table of contents.
 ---
 
-## Overview
+![Docs Layout](/layouts/docs.webp)
 
-Use the docs layout for documentation pages with sidebar navigation, page title, description, table of contents, view options, and last updated time.
+See [Fumadocs Docs Layout](https://fumadocs.dev/docs/ui/layouts/docs) and [Docs Page](https://fumadocs.dev/docs/ui/layouts/page) for the available props.
 
-Fumapress uses this layout by default, so you only need to configure it when you want to customize the renderer.
-
-## Config
-
-Define the layout and pass it through `renderPage`.
+Fumapress uses it by default. To customize it, create the layout and pass it to `renderPage`:
 
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 import { createDocsLayoutPage } from "fumapress/layouts/docs";
 
 const DocsLayout = createDocsLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // [!code ++]
-  renderPage: (props) => <DocsLayout {...props} />,
-});
-
-export default config;
-```
-
-Customize what the layout renders with the `render` option:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
-
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  async render(page) {
-    return {
-      pageProps: {
-        tableOfContent: {
-          style: "clerk",
-        },
-      },
-    };
-  },
-});
 
 const config = defineConfig({
   // ...
@@ -53,41 +23,37 @@ const config = defineConfig({
 export default config;
 ```
 
-The `render` function can return page props, layout props, markdown URL, last modified date, or a custom body.
-
 ## Options
 
-### `treeRoot`
+### `render`
 
-The sidebar shows the whole page tree, which spans every collection in a multi-source setup. Pass the folder path to use as the root instead, such as the `baseDir` of a [content collection](/docs/collections):
+Return `pageProps`, `layoutProps`, `markdownUrl`, `lastModified`, or a custom `body` for each page:
 
 ```tsx title="press.config.tsx"
 const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  // [!code ++]
-  treeRoot: "docs",
-});
-
-const config = defineConfig({
-  content: {
-    docs: docs.toFumadocsSource({ baseDir: "docs" }),
-    blog: blog.toFumadocsSource({ baseDir: "blog" }),
+  async render(page) {
+    return {
+      pageProps: {
+        tableOfContent: { style: "clerk" },
+      },
+    };
   },
-  renderPage: (props) => <DocsLayout {...props} />,
 });
 ```
 
-Nested paths like `docs/guides` work too, and an unknown path throws with the list of available folders.
+### `treeRoot`
+
+Use a folder as the sidebar root instead of the whole page tree, such as the `baseDir` of a [content collection](/docs/collections). Nested paths like `docs/guides` work too.
+
+```tsx title="press.config.tsx"
+const DocsLayout = createDocsLayoutPage<typeof config.$context>({
+  treeRoot: "docs",
+});
+```
 
 ### Interceptors
 
-`render` returns props. For full control over the rendered components, intercept them instead:
-
-- `renderLayout`: wraps `<DocsLayout />`.
-- `renderPage`: wraps `<DocsPage />`.
-- `renderBody`: wraps the body element.
-- `renderPageActions`: wraps the page actions, the Markdown copy button and view options menu shown under the page description.
-
-Each receives the resolved props and a `next` function rendering the original component:
+`renderLayout`, `renderPage`, `renderBody`, and `renderPageActions` wrap `<DocsLayout />`, `<DocsPage />`, the body, and the page actions. Each receives the resolved props and a `next` function rendering the original component, return your own node to replace it:
 
 ```tsx title="press.config.tsx"
 const DocsLayout = createDocsLayoutPage<typeof config.$context>({
@@ -102,36 +68,11 @@ const DocsLayout = createDocsLayoutPage<typeof config.$context>({
       ),
     });
   },
-});
-```
-
-Return your own node instead of calling `next` to replace the component. For example, to hide the page actions:
-
-```tsx title="press.config.tsx"
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  // [!code ++]
+  // hide the page actions
   renderPageActions: () => null,
-});
-```
-
-Or to keep the Markdown copy button without the view options menu:
-
-```tsx title="press.config.tsx"
-import { MarkdownCopyButton } from "fumadocs-ui/layouts/docs/page";
-
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  renderPageActions({ props }) {
-    if (!props.markdownUrl) return null;
-
-    return (
-      <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-        <MarkdownCopyButton markdownUrl={props.markdownUrl} />
-      </div>
-    );
-  },
 });
 ```
 
 ### `inherit`
 
-By default, layouts merge `defaultLayoutProps` into their props, set `inherit: { layoutProps: false }` to opt out.
+Set `inherit: { layoutProps: false }` to stop merging `defaultLayoutProps`.
