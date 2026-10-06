@@ -247,6 +247,10 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
           (this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>,
           this,
         );
+        initNavigationTransformer(
+          (this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>,
+          this,
+        );
       }
     },
     createMiddlewares() {

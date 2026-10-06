@@ -37,7 +37,7 @@
     "@fumadocs/sanity": "^0.2.3",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.15.14",
+    "fumadocs-core": "^16.16.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "tsdown": "0.23.0",

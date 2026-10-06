@@ -1,5 +1,7 @@
+import type { AIChatClientData } from "@fumadocs/ai-chat";
 import {
   convertToModelMessages,
+  type InferUITool,
   type LanguageModel,
   stepCountIs,
   streamText,
@@ -9,20 +11,17 @@ import {
 } from "ai";
 import type { AppShape, PressPlugin } from "fumapress";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
-import type { DocsLayoutContextData } from "fumapress/layouts/docs";
-import type { GlassLayoutContextData } from "fumapress/layouts/glass";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
+import type { DocsLayoutContextData } from "fumapress/layouts/docs";
+import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import { type ElementType, isValidElement } from "react";
 
 export type ChatUIMessage = UIMessage<
   never,
-  {
-    client: {
-      location: string;
-      locale: string | null;
-    };
-  }
+  { client: AIChatClientData & { locale: string | null } },
+  { search: InferUITool<SearchTool> }
 >;
 
 type Awaitable<T> = T | Promise<T>;
@@ -44,33 +43,6 @@ export function aiPlugin<C extends AppShape = AppShape>(
 ): PressPlugin<C> {
   const { configureUI = true } = options;
 
-  /** bind AI chat to the layout's native `aiChat` prop */
-  async function initGlassUI(ctxData: GlassLayoutContextData<C>) {
-    const { GlassAILayout } = await import("./components/glass");
-
-    ctxData.layoutInterceptors ??= [];
-    ctxData.layoutInterceptors.push(({ props }) => {
-      return <GlassAILayout {...props} />;
-    });
-  }
-
-  async function initUI(ctxData: DocsLayoutContextData<C>) {
-    const { DefaultComponent } = await import("./components/default");
-    const interceptors = (ctxData.layoutInterceptors ??= []);
-
-    interceptors.push(function ({ props, next }) {
-      return next({
-        ...props,
-        children: (
-          <>
-            {props.children}
-            <DefaultComponent />
-          </>
-        ),
-      });
-    });
-  }
-
   return {
     name: "ai:main",
     async init() {
@@ -80,9 +52,51 @@ export function aiPlugin<C extends AppShape = AppShape>(
       }
 
       if (configureUI) {
-        await initUI((this.data["core:docs-layout"] ??= {}));
-        await initUI((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
-        await initGlassUI((this.data["core:glass-layout"] ??= {}));
+        const { AIChatLayout } = await import("./components/chat");
+        const { DocsLayout } = await import("./components/layouts/docs");
+        const { DocsLayout: NotebookLayout } = await import("./components/layouts/notebook");
+
+        /**
+         * render the layout element from a client component, with the chat as its `aiChat` option.
+         *
+         * @param layout - the layout as a client component, defaults to the element type: Glass and Spacious layouts are client components already, and importing Spacious layout (Base UI only) would fail Radix UI builds.
+         * @param trigger - add a floating trigger, for layouts without their own
+         */
+        const initUI = (
+          data: DocsLayoutContextData<C>,
+          layout: ElementType | undefined,
+          trigger: boolean,
+        ) => {
+          (data.layoutInterceptors ??= []).push(({ props, next }) => {
+            const element = next(props);
+            if (!isValidElement<DocsLayoutProps>(element)) return element;
+
+            return (
+              <AIChatLayout
+                layout={layout ?? (element.type as ElementType)}
+                trigger={trigger}
+                {...element.props}
+              />
+            );
+          });
+        };
+
+        initUI((this.data["core:docs-layout"] ??= {}), DocsLayout, true);
+        initUI(
+          (this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>,
+          NotebookLayout,
+          true,
+        );
+        initUI(
+          (this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>,
+          undefined,
+          false,
+        );
+        initUI(
+          (this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>,
+          undefined,
+          false,
+        );
       }
     },
     createPages({ createApi }) {
@@ -98,6 +112,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
         systemPrompt = [
           `You are an AI assistant for "${this.siteConfig.name}" documentation site.`,
           "Use the `search` tool to retrieve relevant docs context before answering when needed.",
+          'A user message may begin with [Client Context], the page they are reading. For questions about "this page", search its title.',
           "The `search` tool returns raw JSON results from documentation. Use those results to ground your answer and cite sources as markdown links using the document `url` field when available.",
           "If you cannot find the answer in search results, say you do not know and suggest a better search query.",
         ].join("\n"),

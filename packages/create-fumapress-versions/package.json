@@ -4,9 +4,9 @@
   "private": true,
   "dependencies": {
     "@base-ui/react": "^1.8.0",
-    "fumadocs-core": "^16.15.14",
-    "fumadocs-mdx": "^15.4.5",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.14",
+    "fumadocs-core": "^16.16.2",
+    "fumadocs-mdx": "^15.4.6",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

@@ -13,8 +13,8 @@
     "@fumapress/sanity": "workspace:*",
     "@portabletext/react": "^8.0.1",
     "@sanity/client": "^8.7.0",
-    "fumadocs-core": "^16.15.14",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.14",
+    "fumadocs-core": "^16.16.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

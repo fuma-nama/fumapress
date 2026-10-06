@@ -46,7 +46,7 @@ Finally, initialize the `src/app.css` file and add the following:
 @import "@fumapress/ai/css/preset.css";
 ```
 
-The plugin adds an "Ask AI" trigger to the docs, notebook, and glass layouts, backed by a `/api/ai` endpoint that searches your documentation to answer. The endpoint needs a server, so the plugin is not compatible with `mode: "static"`.
+The plugin adds an "Ask AI" chat, backed by a `/api/ai` endpoint that searches your documentation to answer. The endpoint needs a server, so the plugin is not compatible with `mode: "static"`.
 
 ## Options
 
@@ -84,3 +84,5 @@ Controls how pages are indexed for the model's search tool, return `null` to exc
 ### `configureUI`
 
 Whether to add the built-in chat UI to layouts, defaults to `true`. Set it to `false` to integrate the endpoint with your own UI.
+
+`AIChat` from `@fumapress/ai/components/chat` is the chat state of the `/api/ai` endpoint, use it with `AIChatPanel`, `AIChatTrigger`, and `useAIChat()` of [`@fumadocs/ai-chat`](https://www.npmjs.com/package/@fumadocs/ai-chat), which it re-exports.

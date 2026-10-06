@@ -50,6 +50,7 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
 
       await initUI((this.data["core:docs-layout"] ??= {}));
       await initUI((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
+      await initUI((this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>);
     },
   };
 }

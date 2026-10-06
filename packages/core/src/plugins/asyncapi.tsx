@@ -40,6 +40,7 @@ export function asyncapiPlugin<C extends AppShape>(options: OpenAPIOptions): Pre
       initTransformers((this.data["core:docs-layout"] ??= {}));
       initTransformers((this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>);
       initTransformers((this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>);
+      initTransformers((this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>);
 
       if (this.translationsConfig) {
         this.translationsConfig.extend(asyncapiTranslations());
