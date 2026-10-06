@@ -1,3 +1,9 @@
+## @fumapress/feedback@1.1.4
+
+### Support the Spacious layout
+
+Pages rendered with `createSpaciousLayoutPage()` of `fumapress/layouts/spacious` get the same integration as the docs and notebook layouts.
+
 ## @fumapress/feedback@1.1.3
 
 ### Swap `cnfast` for `cn`
