@@ -143,6 +143,8 @@ export default defineConfig({
 });
 ```
 
+Include the sub-path in `site.baseUrl` (e.g. `https://user.github.io/repo`), absolute URLs like `og:image`, sitemap, and RSS are joined to it.
+
 ## Environment Variables
 
 The CLI loads `.env` and `.env.local` (plus mode-specific variants like `.env.production`) before running, variables already set in the environment take priority. Read them with `process.env` in `press.config.tsx` and server code, no prefix required:

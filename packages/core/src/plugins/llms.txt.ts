@@ -5,7 +5,7 @@ import { appContext, type AppContext, type AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
 import type { MiddlewareHandler } from "hono";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 import { inheritedFrom } from "@/lib/i18n";
 import { DocsLayoutContextData } from "@/layouts/docs";
 import { renderRoute } from "fumadocs-core/server";
@@ -129,7 +129,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         if (c.res.ok && c.res.headers.get("Content-Type")?.startsWith("text/markdown")) return;
 
         const url = new URL(
-          joinPathname("_llms.txt", req.path === "/index.md" ? "" : req.path.replace(/\.md$/, "")),
+          joinPaths("/_llms.txt", req.path === "/index.md" ? "" : req.path.replace(/\.md$/, "")),
           req.url,
         );
         const res = await app.fetch(new Request(url));
@@ -217,7 +217,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           if (route.exactPath) continue;
           createApiIsomorphic({
             render: "dynamic",
-            path: joinPathname("_llms.txt", route.path),
+            path: joinPaths("/_llms.txt", route.path),
             handler: async (req, { params }) => {
               const { pathname } = new URL(req.url);
               const text = await renderMarkdown(

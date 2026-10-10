@@ -5,6 +5,7 @@ import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 import type { RouteParams } from "@/lib/routes";
 import type { FC, ReactElement } from "react";
 import { localizePath } from "@/lib/i18n";
+import { joinPaths } from "@/lib/pathname";
 
 vi.mock("waku/router/server", () => ({
   unstable_notFound() {
@@ -29,9 +30,7 @@ async function init(options: TakumiOptions, overrides: Partial<AppContext> = {})
     localizePath: (lang: string | undefined, pathname: string) =>
       localizePath(overrides.i18nConfig, lang, pathname),
     absoluteUrl: (pathname: string) =>
-      overrides.siteConfig?.baseUrl
-        ? new URL(pathname, overrides.siteConfig.baseUrl).href
-        : pathname,
+      overrides.siteConfig?.baseUrl ? joinPaths(overrides.siteConfig.baseUrl, pathname) : pathname,
     getLoader: () => ({
       getPages: () => pages,
       getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
@@ -129,7 +128,7 @@ describe("route images", () => {
       siteConfig,
       interceptPageMeta() {},
       absoluteUrl: (pathname: string) =>
-        "baseUrl" in siteConfig ? new URL(pathname, siteConfig.baseUrl as string).href : pathname,
+        "baseUrl" in siteConfig ? joinPaths(siteConfig.baseUrl as string, pathname) : pathname,
     } as unknown as AppContext;
     const plugin = takumiPlugin();
 

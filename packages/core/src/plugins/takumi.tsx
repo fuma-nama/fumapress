@@ -4,7 +4,7 @@ import type { AppContext, AppShape } from "@/app/context";
 import { unstable_notFound } from "waku/router/server";
 import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 import { inheritedFrom } from "@/lib/i18n";
 import type { RouteParams } from "@/lib/routes";
 
@@ -115,8 +115,8 @@ export function takumiPlugin<C extends AppShape = AppShape>(
 
   /** static routes get a `.webp` file next to the page, dynamic ones an image route under `/_takumi` */
   function routeImagePath(pathname: string, dynamic: boolean) {
-    if (dynamic) return joinPathname(basePath === "/" ? "/_takumi" : basePath, pathname);
-    return joinPathname(basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
+    if (dynamic) return joinPaths("/", basePath === "/" ? "/_takumi" : basePath, pathname);
+    return joinPaths("/", basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
   }
 
   function imageMeta(url: string) {
@@ -143,7 +143,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           this.absoluteUrl(
             this.localizePath(
               (origin ?? page).locale,
-              joinPathname(basePath, ...slugsToImagePath(page.slugs)),
+              joinPaths("/", basePath, ...slugsToImagePath(page.slugs)),
             ),
           ),
         );
@@ -206,7 +206,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       for (const lang of this.i18nConfig?.languages ?? [undefined]) {
         createApiIsomorphic({
           render: renderMode,
-          path: this.localizePath(lang, joinPathname(basePath, "[...slugs]")),
+          path: this.localizePath(lang, joinPaths("/", basePath, "[...slugs]")),
           staticPaths: staticPathsByLang.get(lang) ?? [],
           handler: async (_, { params }) => {
             const source = await this.getLoader();

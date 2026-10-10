@@ -3,6 +3,7 @@ import type { PressPlugin } from "@/app/plugin";
 import type { AppContext, AppShape } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
 import { inheritedFrom } from "@/lib/i18n";
+import { joinPaths } from "@/lib/pathname";
 
 /**
  * An `<item>` entry of the RSS feed.
@@ -190,7 +191,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
             rel="alternate"
             type="application/rss+xml"
             title={title ?? this.siteConfig.name}
-            href={path}
+            href={joinPaths("/", import.meta.env.BASE_URL, path)}
           />
           {next()}
         </>

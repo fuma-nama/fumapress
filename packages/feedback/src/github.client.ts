@@ -1,10 +1,10 @@
 "use client";
 
 import type { ActionResponse, BlockFeedback, PageFeedback } from "@/schema";
-import { resolveBaseUrl } from "./lib/pathname";
+import { joinPaths } from "./lib/pathname";
 
 export async function onPageFeedbackAction(feedback: PageFeedback): Promise<ActionResponse> {
-  const result = await fetch(resolveBaseUrl(import.meta.env.BASE_URL, "/api/feedback/page"), {
+  const result = await fetch(joinPaths("/", import.meta.env.BASE_URL, "/api/feedback/page"), {
     method: "POST",
     body: JSON.stringify(feedback),
   });
@@ -14,7 +14,7 @@ export async function onPageFeedbackAction(feedback: PageFeedback): Promise<Acti
 }
 
 export async function onTextFeedbackAction(feedback: BlockFeedback): Promise<ActionResponse> {
-  const result = await fetch(resolveBaseUrl(import.meta.env.BASE_URL, "/api/feedback/text"), {
+  const result = await fetch(joinPaths("/", import.meta.env.BASE_URL, "/api/feedback/text"), {
     method: "POST",
     body: JSON.stringify(feedback),
   });
