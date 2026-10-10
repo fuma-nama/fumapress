@@ -1,3 +1,11 @@
+## @fumapress/ai@1.2.1
+
+### Keep the path of `site.baseUrl` in absolute URLs
+
+Absolute URLs are now joined to `site.baseUrl` instead of resolved against it, so sites served from a sub-path (e.g. GitHub Pages project sites) keep it in `og:image`, canonical, `og:url`, `hreflang` links, sitemap entries, the robots `Sitemap` entry and RSS links. Before, `https://user.github.io/repo` produced `https://user.github.io/index.webp` instead of `https://user.github.io/repo/index.webp`.
+
+The RSS `<link rel="alternate">` now includes `basePath` too.
+
 ## @fumapress/ai@1.2.0
 
 ### Chat UI from `@fumadocs/ai-chat`

@@ -1,23 +1,14 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@fumapress/ai:\n    type: minor\n---\n\n## Chat UI from `@fumadocs/ai-chat`\n\nThe chat UI is replaced with [`@fumadocs/ai-chat`](https://www.npmjs.com/package/@fumadocs/ai-chat): questions rest at the top while answers stream below, Markdown is rendered block by block, and search calls expand to the pages they found. Questions send the page title along with its URL, so the model can answer the \"Summarize this page\" suggestion.\n\nThe chat is passed to the `aiChat` option of layouts, docked beside the page on wide viewports and floating over it on smaller ones, in the docs, notebook, glass, and the new spacious layouts. Glass and spacious layouts show the Ask AI trigger in their own header, docs and notebook layouts keep the floating trigger. It requires Fumadocs UI v16.16.0 or above, `@fumapress/ai/css/preset.css` includes the styles of the chat.\n\n### `@fumapress/ai/components/search` is removed\n\nUse `@fumapress/ai/components/chat` instead: `AIChat` connects the `@fumadocs/ai-chat` components to the `/api/ai` endpoint, and it re-exports `AIChatPanel`, `AIChatTrigger`, and `useAIChat()`.\n\nThe translation keys of `aiTranslations()` are the ones of `@fumadocs/ai-chat`, update your translations of the chat.\n\n## MCP server on MCP SDK v2\n\n`mcpPlugin()` serves requests with `createMcpHandler()` of `@modelcontextprotocol/server` v2, instead of `@modelcontextprotocol/sdk` v1. It's stateless: sessions are no longer kept in memory, so the server works across serverless instances.\n\n- `list_pages` and `get_page` are registered with `registerSourceTools()` from `fumadocs-core/mcp`, `get_page` takes the page `url` instead of `path`.\n- `list_pages` returned a pending promise instead of the index since Fumadocs v16.15.9, it returns the `llms.txt` index again.\n- The `server` given to the `tools` option is an `McpServer` of `@modelcontextprotocol/server`.\n"
-    filename: 2026-10-06-a1ch4tlp.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: minor\n---\n\n## Spacious layout\n\n`createSpaciousLayoutPage()` from `fumapress/layouts/spacious` renders pages with the Spacious layout of Fumadocs UI: a less compact docs layout, where the page sits in an inset panel beside the sidebar. It takes the same options as the other docs layouts, and the OpenAPI, AsyncAPI, and llms.txt plugins support it.\n\nIt requires the Base UI version of Fumadocs UI (`@fumadocs/base-ui`) v16.16.0 or above. Import its styles in `src/app.css`:\n\n```css\n@import \"fumadocs-ui/css/generated/spacious.css\";\n```\n\n## Look up pages with `getPageByUrl()`\n\nThe `.md` routes of the llms.txt plugin find pages with `getPageByUrl()` of the loader, the `fumadocs-core` peer dependency now requires v16.15.9 or above.\n"
-    filename: 2026-10-06-sp4c10us.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/feedback:\n    type: patch\n  npm:@fumapress/graphql:\n    type: patch\n  npm:@fumapress/mintlify:\n    type: patch\n---\n\n## Support the Spacious layout\n\nPages rendered with `createSpaciousLayoutPage()` of `fumapress/layouts/spacious` get the same integration as the docs and notebook layouts.\n"
-    filename: 2026-10-06-sp4cplug.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/language:\n    type: patch\n---\n\n## Translate the Spacious layout\n\nUpdate `@fumadocs/language` to v0.2.10, the Chinese presets include translations for the Spacious layout, and the redesigned API playground and schema UI of Fumadocs OpenAPI.\n\n## Translate the AI chat of `@fumadocs/ai-chat`\n\nThe Chinese presets translate the new AI chat of `@fumapress/ai`.\n"
-    filename: 2026-10-06-l4ngsp4c.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n---\n\n## Keep the path of `site.baseUrl` in absolute URLs\n\nAbsolute URLs are now joined to `site.baseUrl` instead of resolved against it, so sites served from a sub-path (e.g. GitHub Pages project sites) keep it in `og:image`, canonical, `og:url`, `hreflang` links, sitemap entries, the robots `Sitemap` entry and RSS links. Before, `https://user.github.io/repo` produced `https://user.github.io/index.webp` instead of `https://user.github.io/repo/index.webp`.\n\nThe RSS `<link rel=\"alternate\">` now includes `basePath` too.\n"
+    filename: 2026-10-10-b4s3p4th.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-10-06-a1ch4tlp.md
+      - 2026-10-10-b4s3p4th.md
     id: npm:@fumapress/ai
     updated: true
   - changelogIds:
-      - 2026-10-06-sp4c10us.md
+      - 2026-10-10-b4s3p4th.md
     id: npm:fumapress
     updated: true
   - id: npm:create-fumapress
@@ -25,24 +16,18 @@ core:packages:
   - id: npm:create-fumapress-versions
     updated: true
   - changelogIds:
-      - 2026-10-06-sp4cplug.md
+      - 2026-10-10-b4s3p4th.md
     id: npm:@fumapress/feedback
     updated: true
-  - changelogIds:
-      - 2026-10-06-sp4cplug.md
-    id: npm:@fumapress/graphql
-    updated: true
-  - changelogIds:
-      - 2026-10-06-l4ngsp4c.md
-    id: npm:@fumapress/language
-    updated: true
-  - changelogIds:
-      - 2026-10-06-sp4cplug.md
-    id: npm:@fumapress/mintlify
-    updated: true
-  - id: npm:@fumapress/obsidian
+  - id: npm:@fumapress/graphql
+    updated: false
+  - id: npm:@fumapress/language
+    updated: false
+  - id: npm:@fumapress/mintlify
     updated: false
   - id: npm:@fumapress/notion
+    updated: false
+  - id: npm:@fumapress/obsidian
     updated: false
   - id: npm:@fumapress/sanity
     updated: false
@@ -57,13 +42,13 @@ npm:packages:
   - id: npm:@fumapress/graphql
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
-  - id: npm:@fumapress/obsidian
   - id: npm:@fumapress/notion
+  - id: npm:@fumapress/obsidian
   - id: npm:@fumapress/sanity
   - id: npm:@fumapress/tegami
   - id: npm:docs
-  - id: npm:example-openapi
   - id: npm:example-sanity
   - id: npm:example-notion
   - id: npm:example-obsidian
+  - id: npm:example-openapi
   - id: npm:example-radix-ui
