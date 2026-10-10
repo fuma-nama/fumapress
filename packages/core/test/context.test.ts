@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { appContext, type AppContext } from "@/app/context";
@@ -19,6 +19,10 @@ function render(ctx: AppContext, node: () => ReactNode) {
 }
 
 describe("absoluteUrl", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("resolves pathnames against the base URL", async () => {
     const ctx = await createApp();
 
@@ -34,6 +38,24 @@ describe("absoluteUrl", () => {
 
     await appContext.run(ctx, () => {
       expect(ctx.absoluteUrl("/docs/basics")).toBe("/docs/basics");
+    });
+  });
+
+  it("keeps the path of baseUrl", async () => {
+    const ctx = await createApp({ site: { baseUrl: "https://example.com/repo" } });
+
+    await appContext.run(ctx, () => {
+      expect(ctx.absoluteUrl("/index.webp")).toBe("https://example.com/repo/index.webp");
+    });
+  });
+
+  it("prefixes the base path without baseUrl", async () => {
+    vi.stubEnv("BASE_URL", "/repo/");
+    const ctx = await createApp();
+    ctx.siteConfig.baseUrl = undefined;
+
+    await appContext.run(ctx, () => {
+      expect(ctx.absoluteUrl("/docs/basics")).toBe("/repo/docs/basics");
     });
   });
 });

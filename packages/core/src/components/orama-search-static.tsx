@@ -13,14 +13,14 @@ import {
 import { useDocsSearch } from "fumadocs-core/search/client";
 import { staticClient } from "fumadocs-core/search/client/orama-static";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import { resolveBaseUrl } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 
 export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n();
   const { search, setSearch, query } = useDocsSearch({
     client: staticClient({
       locale,
-      from: resolveBaseUrl(import.meta.env.BASE_URL, "/api/search"),
+      from: joinPaths("/", import.meta.env.BASE_URL, "/api/search"),
     }),
   });
 

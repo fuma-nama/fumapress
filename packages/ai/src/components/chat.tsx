@@ -12,7 +12,7 @@ import { useI18n } from "fumadocs-ui/contexts/i18n";
 import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { ElementType, ReactNode } from "react";
 import type { ChatUIMessage } from "@/chat";
-import { resolveBaseUrl } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
 
@@ -25,7 +25,7 @@ export function AIChat({ children }: { children: ReactNode }) {
     id: "search",
     throttle: 40,
     transport: new DefaultChatTransport({
-      api: resolveBaseUrl(import.meta.env.BASE_URL, "/api/ai"),
+      api: joinPaths("/", import.meta.env.BASE_URL, "/api/ai"),
     }),
   });
 

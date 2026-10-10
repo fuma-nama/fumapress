@@ -10,7 +10,7 @@ import type {
   Proxy,
 } from "fumadocs-openapi/server";
 import type { FC } from "react";
-import { isFullPathname, resolveBaseUrl } from "@/lib/pathname";
+import { isFullPathname, joinPaths } from "@/lib/pathname";
 import { openapiTranslations } from "fumadocs-openapi/i18n";
 import type { OpenAPIPageProps } from "fumadocs-openapi/ui";
 
@@ -112,7 +112,7 @@ function adapter<C extends AppShape>(options: OpenAPIOptions): Adapter<C> {
                 ...payload,
                 proxyUrl:
                   payload.proxyUrl && isFullPathname(payload.proxyUrl)
-                    ? resolveBaseUrl(import.meta.env.BASE_URL, payload.proxyUrl)
+                    ? joinPaths("/", import.meta.env.BASE_URL, payload.proxyUrl)
                     : payload.proxyUrl,
               }}
               {...props}

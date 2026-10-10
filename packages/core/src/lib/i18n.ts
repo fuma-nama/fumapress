@@ -1,6 +1,6 @@
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { LoaderConfig, LoaderOutput, Page } from "fumadocs-core/source";
-import { joinPathname } from "./pathname";
+import { joinPaths } from "./pathname";
 
 /**
  * the page this one is inherited from when the locale has no file of its own, pages shared by every language (`$`) count too
@@ -28,5 +28,5 @@ export function localizePath(
   if (!i18n || !lang || (i18n.hideLocale === "default-locale" && lang === i18n.defaultLanguage)) {
     return pathname;
   }
-  return joinPathname(lang, pathname);
+  return joinPaths(`/${lang}`, pathname);
 }

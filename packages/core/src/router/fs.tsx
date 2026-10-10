@@ -4,7 +4,7 @@
 import type { FC } from "react";
 import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
 import type { AppContext, AppShape } from "@/app/context";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
 const ValidMethods = new Set(Methods);
@@ -158,7 +158,7 @@ export function fsRouterFn<C extends AppShape>(
 
       for (const lang of langs) {
         const route = {
-          path: joinPathname("(fs)", path),
+          path: joinPaths("/(fs)", path),
           lang,
           component,
           render: renderMode,

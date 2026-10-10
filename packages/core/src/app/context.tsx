@@ -18,6 +18,7 @@ import { dynamicLoader } from "fumadocs-core/source/dynamic";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { preinitPlugins, type PressPlugin } from "./plugin";
 import { inheritedFrom, localizePath } from "@/lib/i18n";
+import { joinPaths } from "@/lib/pathname";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
@@ -105,7 +106,10 @@ export interface FumapressHooks<C extends AppShape> {
   /** translations of the page (fallback pages excluded) for `hreflang` links, empty when it has none */
   getPageAlternates: (page: C["page"]) => Promise<PageAlternate[]>;
 
-  /** Absolute URL of a pathname with `site.baseUrl`, the pathname itself when unset. */
+  /**
+   * Absolute URL of a pathname joined to `site.baseUrl`, the pathname prefixed with the base path
+   * when unset. Full URLs are returned as-is.
+   */
   absoluteUrl: (pathname: string) => string;
 }
 
@@ -316,8 +320,13 @@ function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
       return out.length > 1 ? out : [];
     },
     absoluteUrl(pathname) {
+      if (URL.canParse(pathname)) return pathname;
+
       const { baseUrl } = getPressContext().siteConfig;
-      return baseUrl ? new URL(pathname, baseUrl).href : pathname;
+      if (!baseUrl) return joinPaths("/", import.meta.env.BASE_URL, pathname);
+
+      // join to keep the path of `baseUrl`, `new URL()` percent-encodes it
+      return new URL(joinPaths(baseUrl, pathname)).href;
     },
     async getPageCreatedAt(page) {
       const ctx = getPressContext();
@@ -427,11 +436,11 @@ function getDefaultBaseUrl() {
     `[Fumapress] "site.baseUrl" is not set${platform}; sitemap and RSS will fall back to relative URLs.`,
   );
   if (import.meta.env.DEV) {
-    return "http://localhost:3000";
+    return joinPaths("http://localhost:3000", import.meta.env.BASE_URL);
   }
   const vercelUrl = import.meta.env.VERCEL_URL;
   if (vercelUrl) {
-    return `https://${vercelUrl}`;
+    return joinPaths(`https://${vercelUrl}`, import.meta.env.BASE_URL);
   }
 }
 

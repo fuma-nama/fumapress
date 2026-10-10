@@ -2,7 +2,7 @@
 import { type ClientImageProvider, ImageProvider } from "@/components/image";
 import type { ResolvedCloudflareImageConfig } from "./cloudflare.utils";
 import { type ReactNode, useMemo } from "react";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 
 export function createProvider(config: ResolvedCloudflareImageConfig): ClientImageProvider {
   return {
@@ -13,7 +13,7 @@ export function createProvider(config: ResolvedCloudflareImageConfig): ClientIma
     buildImageUrl({ src, width, quality }) {
       const parts = [`width=${width}`, `quality=${quality}`, `format=${config.format}`];
       if (config.fit) parts.push(`fit=${config.fit}`);
-      return joinPathname(config.path, parts.join(","), src);
+      return joinPaths("/", config.path, parts.join(","), src);
     },
     canOptimize(src) {
       if (import.meta.env.DEV) return false;

@@ -1,7 +1,7 @@
 import { createBlogLayout, createBlogLayoutPage } from "@/layouts/blog";
 import { createBlogIndexPage } from "@/layouts/blog.index";
 import { createBlogTagPage, createBlogTagsPage } from "@/layouts/blog.tags";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 import { AppShape, type AppContext } from "@/app/context";
 import { getAuthorIds, groupTagsI18n } from "@/lib/shared/blog";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -196,13 +196,13 @@ export function blogPlugin<C extends AppShape = AppShape>({
         createLayout({ path: "/(blog)", lang, component: Layout });
 
         if (indexPath !== false) {
-          createPage({ path: joinPathname("(blog)", indexPath), lang, component: index });
+          createPage({ path: joinPaths("/(blog)", indexPath), lang, component: index });
         }
 
         if (tags) {
-          createPage({ path: joinPathname("(blog)", tags.path), lang, component: tags.TagsPage });
+          createPage({ path: joinPaths("/(blog)", tags.path), lang, component: tags.TagsPage });
           createPage({
-            path: joinPathname("(blog)", tags.path, "[tag]"),
+            path: joinPaths("/(blog)", tags.path, "[tag]"),
             lang,
             staticPaths: Array.from(tags.grouped.get(lang ?? "")?.keys() ?? []),
             component: tags.TagPage,

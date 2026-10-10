@@ -1,7 +1,7 @@
 import { BlogGrid, LinkToHome } from "@/components/blog";
 import { T } from "@fuma-translate/react";
 import { getTags, groupTags, tagSlug } from "@/lib/shared/blog";
-import { decodePathname, joinPathname } from "@/lib/pathname";
+import { decodePathname, joinPaths } from "@/lib/pathname";
 import {
   BlogTagPage,
   BlogTagsPage,
@@ -60,7 +60,7 @@ export function createBlogTagsPage<C extends AppShape = AppShape>({
             .map(([slug, { tag, count }]) => (
               <Link
                 key={slug}
-                href={ctx.localizePath(lang, joinPathname(tagsPath, slug))}
+                href={ctx.localizePath(lang, joinPaths("/", tagsPath, slug))}
                 className="flex flex-row items-center gap-2 bg-fd-card text-fd-card-foreground border font-mono rounded-lg px-2 py-1 transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
               >
                 <TagIcon className="size-3.5 text-fd-muted-foreground" />

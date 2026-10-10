@@ -15,7 +15,7 @@ import {
   type BlogLayoutPage,
   type BlogPost,
 } from "@/plugins/blog";
-import { joinPathname } from "@/lib/pathname";
+import { joinPaths } from "@/lib/pathname";
 import { BlogDate, LinkToHome } from "@/components/blog";
 import { Image } from "@/components/image";
 import { createHomeLayout, type HomeLayoutOptions } from "./home";
@@ -96,7 +96,7 @@ export function createBlogLayoutPage<C extends AppShape = AppShape>(
                       return (
                         <Link
                           key={t}
-                          href={ctx.localizePath(lang, joinPathname(tagsPath, tagSlug(t)))}
+                          href={ctx.localizePath(lang, joinPaths("/", tagsPath, tagSlug(t)))}
                           className={shared}
                         >
                           {t}

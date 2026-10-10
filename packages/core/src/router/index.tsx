@@ -10,7 +10,7 @@ import {
 } from "../app/context";
 import { createElement, FC, Fragment, ReactNode } from "react";
 import { localizePath } from "@/lib/i18n";
-import { decodePathname, joinPathname, resolveBaseUrl } from "@/lib/pathname";
+import { decodePathname, joinPaths } from "@/lib/pathname";
 import { expandRoute } from "@/lib/routes";
 import type { ConfigUtils } from "../config";
 import { unstable_notFound, unstable_redirect } from "waku/router/server";
@@ -82,7 +82,7 @@ export async function createRouter<U extends ConfigUtils>(
           _fns.createLayout({
             ...rest,
             render,
-            path: joinPathname(getLangBasePath(lang), path),
+            path: joinPaths(getLangBasePath(lang), path),
             component: lang ? (props: object) => <Layout {...props} lang={lang} /> : Layout,
           } as never);
         },
@@ -141,7 +141,7 @@ export async function createRouter<U extends ConfigUtils>(
           routes.push(route);
           _fns.createPage({
             render,
-            path: joinPathname(getLangBasePath(lang), path),
+            path: joinPaths(getLangBasePath(lang), path),
             staticPaths,
             exactPath,
             unstable_sourceFile,
@@ -360,7 +360,7 @@ export async function createRouter<U extends ConfigUtils>(
 
 /** the site has no root layout at `/`, so the page is a document of its own */
 function RedirectDocument({ to }: { to: string }) {
-  const href = resolveBaseUrl(import.meta.env.BASE_URL, to);
+  const href = joinPaths("/", import.meta.env.BASE_URL, to);
 
   return (
     <html>

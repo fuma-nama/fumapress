@@ -2,7 +2,7 @@ import type { AppShape, PressPlugin } from "fumapress";
 import type { AppContext } from "fumapress";
 import type { FC, ReactNode } from "react";
 import { changelogContext, type ChangelogContext } from "./context.ts";
-import { joinPathname } from "./lib/pathname.ts";
+import { joinPaths } from "./lib/pathname.ts";
 import { createChangelogIndexPage, createChangelogLayout } from "./components/layouts.tsx";
 
 export { getChangelogContext } from "./context.ts";
@@ -59,7 +59,7 @@ export function changelogPlugin<C extends AppShape = AppShape>({
         createLayout({ path: "/(changelog)", lang, component: Layout });
 
         if (indexPath !== false) {
-          createPage({ path: joinPathname("(changelog)", indexPath), lang, component: index });
+          createPage({ path: joinPaths("/(changelog)", indexPath), lang, component: index });
         }
       }
     },

@@ -1,5 +1,5 @@
 import type { AppContext, AppShape, PressPlugin } from "fumapress";
-import type { PageData } from "fumadocs-core/source";
+import type { LoaderOutput, PageData } from "fumadocs-core/source";
 import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import path from "node:path";
@@ -64,7 +64,8 @@ export function obsidianPlugin<C extends AppShape = AppShape>(
       renderer.render({
         ...defaultMdxComponents,
         ...ObsidianComponents,
-        a: createRelativeLink(loader, page),
+        // the loader config of a generic app can't be inferred
+        a: createRelativeLink(loader as LoaderOutput, page),
         ...options.components,
       }),
     );
