@@ -13,7 +13,12 @@ import { localizePath } from "@/lib/i18n";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import { expandRoute } from "@/lib/routes";
 import type { ConfigUtils } from "../config";
-import { unstable_notFound, unstable_redirect } from "waku/router/server";
+import {
+  unstable_getRequest,
+  unstable_notFound,
+  unstable_parseRouterRequest,
+  unstable_redirect,
+} from "waku/router/server";
 import type { Awaitable, PressRoute, RouteFns, RouteProps } from "../lib/types";
 import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
@@ -208,18 +213,31 @@ export async function createRouter<U extends ConfigUtils>(
             path: base,
             component: ({ children }) => <Root lang={lang}>{children}</Root>,
           });
-
-          _fns.createPage({
-            render: defaultRenderMode,
-            path: `${base}/404` as "/404",
-            staticPaths: [],
-            component: () => <NotFound lang={lang} />,
-          });
         };
 
         _fns.createRoot({
           render: defaultRenderMode,
           component: Fragment,
+        });
+
+        // Waku renders `/404` for every unknown URL, in the language of its prefix: rendered on
+        // request outside static mode, the `404.html` of static sites is the default language
+        _fns.createPage({
+          render: context.mode === "static" ? "static" : "dynamic",
+          path: "/404",
+          staticPaths: [],
+          component: () => {
+            // the route of the request, RSC requests included
+            const route = unstable_parseRouterRequest(unstable_getRequest());
+            const prefix = route?.type === "route" ? route.path.split("/")[1] : undefined;
+            const lang = i18n.languages.find((lang) => lang === prefix) ?? i18n.defaultLanguage;
+
+            return (
+              <Root lang={lang}>
+                <NotFound lang={lang} />
+              </Root>
+            );
+          },
         });
 
         // pages outside of any language (e.g. `autoI18n: false`) still need a root layout
