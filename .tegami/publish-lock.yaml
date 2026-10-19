@@ -1,31 +1,35 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/feedback:\n    type: patch\n---\n\n## Keep the path of `site.baseUrl` in absolute URLs\n\nAbsolute URLs are now joined to `site.baseUrl` instead of resolved against it, so sites served from a sub-path (e.g. GitHub Pages project sites) keep it in `og:image`, canonical, `og:url`, `hreflang` links, sitemap entries, the robots `Sitemap` entry and RSS links. Before, `https://user.github.io/repo` produced `https://user.github.io/index.webp` instead of `https://user.github.io/repo/index.webp`.\n\nThe RSS `<link rel=\"alternate\">` now includes `basePath` too.\n"
-    filename: 2026-10-10-b4s3p4th.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n## Faster first page load in dev with `lucide-react`\n\nIn dev, named imports from `lucide-react` now load only the icons they import. This applies to imports in Fumadocs UI, Fumapress, and your own code. Before, importing one icon loaded all ~1,900 modules of `lucide-react`, once in each server environment and again in the browser. That slowed down the first page load after every `fumapress dev` start: by a few seconds, or over a minute on Windows.\n\n`lucide-react` is no longer pre-bundled for the browser in dev. Production builds are unchanged, they already include only the icons in use.\n"
+    filename: 2026-10-19-irzbjb88.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Site title links to the home of the current language\n\nOn i18n sites, the site title in the navbar now links to the home page of the language you are reading, like `/cn`, instead of `/`, which is the default language. Set `nav.url` in `defaultLayoutProps` to choose another link.\n"
+    filename: 2026-10-19-k3n8w2qf.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Not found page in the language of the URL\n\nOn i18n sites, unknown URLs show the not found page in the language of their prefix, like `cn` for `/cn/missing`, instead of the default language. Outside static mode, it is rendered on request. Static sites keep one `404.html` in the default language.\n\nThe pages at `/{lang}/404` are removed: Waku never served them for unknown URLs, and they now get the not found page with a 404 status like any other unknown URL.\n"
+    filename: 2026-10-19-p7d4v9mx.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-10-10-b4s3p4th.md
-    id: npm:@fumapress/ai
-    updated: true
-  - changelogIds:
-      - 2026-10-10-b4s3p4th.md
+      - 2026-10-19-irzbjb88.md
+      - 2026-10-19-k3n8w2qf.md
+      - 2026-10-19-p7d4v9mx.md
     id: npm:fumapress
     updated: true
-  - id: npm:create-fumapress
-    updated: true
+  - id: npm:@fumapress/ai
+    updated: false
+  - id: npm:@fumapress/feedback
+    updated: false
   - id: npm:create-fumapress-versions
-    updated: true
-  - changelogIds:
-      - 2026-10-10-b4s3p4th.md
-    id: npm:@fumapress/feedback
     updated: true
   - id: npm:@fumapress/graphql
     updated: false
+  - id: npm:@fumapress/notion
+    updated: false
+  - id: npm:create-fumapress
+    updated: true
   - id: npm:@fumapress/language
     updated: false
   - id: npm:@fumapress/mintlify
-    updated: false
-  - id: npm:@fumapress/notion
     updated: false
   - id: npm:@fumapress/obsidian
     updated: false
@@ -34,15 +38,15 @@ core:packages:
   - id: npm:@fumapress/tegami
     updated: false
 npm:packages:
-  - id: npm:@fumapress/ai
   - id: npm:fumapress
-  - id: npm:create-fumapress
-  - id: npm:create-fumapress-versions
+  - id: npm:@fumapress/ai
   - id: npm:@fumapress/feedback
+  - id: npm:create-fumapress-versions
   - id: npm:@fumapress/graphql
+  - id: npm:@fumapress/notion
+  - id: npm:create-fumapress
   - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
-  - id: npm:@fumapress/notion
   - id: npm:@fumapress/obsidian
   - id: npm:@fumapress/sanity
   - id: npm:@fumapress/tegami
