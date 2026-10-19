@@ -1,3 +1,21 @@
+## fumapress@1.6.2
+
+### Faster first page load in dev with `lucide-react`
+
+In dev, named imports from `lucide-react` now load only the icons they import. This applies to imports in Fumadocs UI, Fumapress, and your own code. Before, importing one icon loaded all ~1,900 modules of `lucide-react`, once in each server environment and again in the browser. That slowed down the first page load after every `fumapress dev` start: by a few seconds, or over a minute on Windows.
+
+`lucide-react` is no longer pre-bundled for the browser in dev. Production builds are unchanged, they already include only the icons in use.
+
+### Site title links to the home of the current language
+
+On i18n sites, the site title in the navbar now links to the home page of the language you are reading, like `/cn`, instead of `/`, which is the default language. Set `nav.url` in `defaultLayoutProps` to choose another link.
+
+### Not found page in the language of the URL
+
+On i18n sites, unknown URLs show the not found page in the language of their prefix, like `cn` for `/cn/missing`, instead of the default language. Outside static mode, it is rendered on request. Static sites keep one `404.html` in the default language.
+
+The pages at `/{lang}/404` are removed: Waku never served them for unknown URLs, and they now get the not found page with a 404 status like any other unknown URL.
+
 ## fumapress@1.6.1
 
 ### Keep the path of `site.baseUrl` in absolute URLs
