@@ -23,6 +23,7 @@ export function createApp(
     i18n?: I18nConfig;
     site?: SiteConfig;
     meta?: Config["meta"];
+    defaultLayoutProps?: Config["defaultLayoutProps"];
     /** @default true */
     absolutePath?: boolean;
   } = {},
@@ -41,6 +42,7 @@ export function createApp(
     i18n: options.i18n,
     site: { baseUrl: "https://example.com", ...options.site },
     meta: options.meta,
+    defaultLayoutProps: options.defaultLayoutProps,
     preset: false,
     renderPage: () => null,
     renderRoot: () => null,

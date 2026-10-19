@@ -22,6 +22,8 @@ const recorded = vi.hoisted(() => {
     routes: [] as Route[],
     pending: undefined as Promise<unknown> | undefined,
     interceptor: undefined as HandlerInterceptor | undefined,
+    /** the request being handled, for `unstable_getRequest()` */
+    request: undefined as Request | undefined,
   };
 
   return Object.assign(state, {
@@ -54,6 +56,10 @@ vi.mock("waku", () => ({
 }));
 
 vi.mock("waku/router/server", () => ({
+  unstable_getRequest: () => recorded.request,
+  unstable_parseRouterRequest(req: Request) {
+    return { type: "route", path: new URL(req.url).pathname, query: "" };
+  },
   unstable_notFound() {
     throw new Error("not found");
   },
@@ -130,14 +136,7 @@ describe("createRouter", () => {
     await routes(config(prefixed));
 
     expect(paths("layout")).toEqual(["/(default)", "/cn", "/en"]);
-    expect(paths("page")).toEqual([
-      "/",
-      "/(default)/404",
-      "/cn/404",
-      "/cn/[...slugs]",
-      "/en/404",
-      "/en/[...slugs]",
-    ]);
+    expect(paths("page")).toEqual(["/", "/404", "/cn/[...slugs]", "/en/[...slugs]"]);
     expect(route("/en/[...slugs]").staticPaths).toEqual([[], ["guide"]]);
     expect(route("/cn/[...slugs]").staticPaths).toContainEqual([]);
     expect(await content(route("/en/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
@@ -145,8 +144,6 @@ describe("createRouter", () => {
     await expect(render(route("/cn/[...slugs]"), { slugs: ["missing"] })).rejects.toThrow(
       "not found",
     );
-    const notFound = (await render(route("/cn/404"), {})) as { props: { lang: string } };
-    expect(notFound.props.lang).toBe("cn");
 
     const root = route("/");
     expect(root.render).toBe("static");
@@ -165,12 +162,7 @@ describe("createRouter", () => {
     await routes(config(hidden));
 
     expect(paths("layout")).toEqual(["/(default)", "/cn"]);
-    expect(paths("page")).toEqual([
-      "/(default)/404",
-      "/(default)/[...slugs]",
-      "/cn/404",
-      "/cn/[...slugs]",
-    ]);
+    expect(paths("page")).toEqual(["/(default)/[...slugs]", "/404", "/cn/[...slugs]"]);
     expect(route("/(default)/[...slugs]").staticPaths).toEqual([[], ["guide"]]);
     expect(await content(route("/(default)/[...slugs]"), { slugs: ["guide"] })).toBe("en:guide");
 
@@ -178,6 +170,24 @@ describe("createRouter", () => {
       props: { lang: string };
     };
     expect(layout.props.lang).toBe("en");
+  });
+
+  it("shows the not found page in the language of the URL", async () => {
+    const notFound = (url: string) => {
+      recorded.request = new Request(new URL(url, "http://localhost"));
+      return html(route("/404"), {});
+    };
+
+    await routes(config(prefixed));
+    expect(route("/404").render).toBe("static");
+    expect(await notFound("/cn/missing")).toMatch(/<html lang="cn">.*404:cn</);
+    expect(await notFound("/en/missing")).toMatch(/<html lang="en">.*404:en</);
+    expect(await notFound("/cnx/missing")).toMatch(/<html lang="en">.*404:en</);
+
+    await routes(config(hidden, "default"));
+    expect(route("/404").render).toBe("dynamic");
+    expect(await notFound("/cn")).toMatch(/<html lang="cn">.*404:cn</);
+    expect(await notFound("/missing")).toMatch(/<html lang="en">.*404:en</);
   });
 
   it("keeps sites without i18n on a single root", async () => {

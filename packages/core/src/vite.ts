@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "./lib/vitefu";
+import { lucideImports } from "./lib/lucide";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
@@ -70,6 +71,7 @@ export default function press(options?: PluginOptions): Plugin[] {
   return [
     core(options),
     wakuCompat(),
+    lucideImports(),
     // see https://github.com/wakujs/waku/issues/2092
     { name: "waku:vite-plugins:fs-router-typegen" },
     {

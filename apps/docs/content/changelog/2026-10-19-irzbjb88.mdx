@@ -1,0 +1,13 @@
+---
+title: Faster first page load in dev with `lucide-react`
+date: 2026-10-19T15:04:14.228Z
+packages:
+  fumapress:
+    version: 1.6.2
+---
+
+## Faster first page load in dev with `lucide-react`
+
+In dev, named imports from `lucide-react` now load only the icons they import. This applies to imports in Fumadocs UI, Fumapress, and your own code. Before, importing one icon loaded all ~1,900 modules of `lucide-react`, once in each server environment and again in the browser. That slowed down the first page load after every `fumapress dev` start: by a few seconds, or over a minute on Windows.
+
+`lucide-react` is no longer pre-bundled for the browser in dev. Production builds are unchanged, they already include only the icons in use.

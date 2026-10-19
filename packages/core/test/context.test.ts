@@ -60,6 +60,29 @@ describe("absoluteUrl", () => {
   });
 });
 
+describe("defaultLayoutProps", () => {
+  it("links the nav title to the home of the language", async () => {
+    const ctx = await createApp({ i18n });
+    const hidden = await createApp({ i18n: { ...i18n, hideLocale: "default-locale" } });
+    const navUrl = async (app: AppContext, lang?: string) =>
+      (await app.defaultLayoutProps({ lang })).nav?.url;
+
+    await expect(navUrl(ctx, "cn")).resolves.toBe("/cn");
+    await expect(navUrl(ctx, "en")).resolves.toBe("/en");
+    await expect(navUrl(hidden, "cn")).resolves.toBe("/cn");
+    await expect(navUrl(hidden, "en")).resolves.toBe("/");
+    await expect(navUrl(await createApp(), undefined)).resolves.toBe("/");
+  });
+
+  it("keeps the nav url of the config", async () => {
+    const ctx = await createApp({ i18n, defaultLayoutProps: { nav: { url: "/docs" } } });
+
+    await expect(ctx.defaultLayoutProps({ lang: "cn" })).resolves.toMatchObject({
+      nav: { url: "/docs" },
+    });
+  });
+});
+
 describe("getPageAlternates", () => {
   it("lists translations with their hreflang", async () => {
     const ctx = await createApp({ i18n, site: { hreflang: { cn: "zh-Hans" } } });

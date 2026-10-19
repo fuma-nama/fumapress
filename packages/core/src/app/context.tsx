@@ -191,6 +191,8 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
         nav: {
           ...base?.nav,
           title: base?.nav?.title ?? name,
+          // Fumadocs links the title to `/`, the home of the default language
+          url: base?.nav?.url ?? ctx.localizePath(opts.lang, "/"),
         },
       };
     },
