@@ -1,5 +1,6 @@
+import type { FumapressConfig } from "@/config";
 import type { Awaitable, RouteFns } from "@/lib/types";
-import { resolvePlugins, type Plugin, type PluginOption } from "@fumapress/core";
+import { resolvePlugins, type Plugin, type PluginOption, type PresetEntry } from "@fumapress/core";
 import type { BuildMode } from "fumadocs-core/framework/plugin";
 import type { Hono, MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
@@ -51,10 +52,10 @@ export interface PressPlugin<C extends AppShape = AppShape> extends Plugin<C, Ap
 export type PressPluginOption<C extends AppShape = AppShape> = PluginOption<PressPlugin<C>>;
 
 /** the plugins without the preset, leaving out the ones whose `preinit()` returns `false` */
-export async function preinitPlugins<C extends AppShape>(
+export async function preinit<C extends AppShape>(
   plugins: PressPluginOption<C>[],
 ): Promise<PressPlugin<C>[]> {
-  const original = resolvePlugins<PressPlugin<C>>(plugins, []);
+  const original = await resolvePlugins<PressPlugin<C>>(plugins, []);
   const finalized: PressPlugin<C>[] = [];
 
   for (const plugin of original) {
@@ -63,37 +64,73 @@ export async function preinitPlugins<C extends AppShape>(
   return finalized;
 }
 
-/** the plugins of the `recommended` preset, with the image plugin of the hosting platform unless `plugins` have an `image:` plugin */
-export async function recommendedPlugins(
-  mode: BuildMode,
-  plugins: readonly PressPlugin[],
-): Promise<PressPluginOption[]> {
-  const [sitemap, robots, llms, rss, flexsearch, takumi] = await Promise.all([
-    import("@/plugins/sitemap"),
-    import("@/plugins/robots"),
-    import("@/plugins/llms.txt"),
-    import("@/plugins/rss"),
-    import("@/plugins/flexsearch"),
-    import("@/plugins/takumi"),
-  ]);
-  const out: PressPluginOption[] = [
-    sitemap.sitemapPlugin(),
-    robots.robotsPlugin(),
-    llms.llmsPlugin(),
-    rss.rssPlugin(),
-    flexsearch.flexsearchPlugin(),
-    takumi.takumiPlugin(),
+/** the plugins with the ones of `preset` they don't replace, leaving out the ones whose `preinit()` returns `false` */
+export async function preinitPlugins<C extends AppShape>(
+  preset: FumapressConfig["preset"] = "recommended",
+  plugins: PressPluginOption<C>[],
+  env: { mode?: BuildMode; _debug_no_takumi?: boolean } = {},
+): Promise<PressPlugin<C>[]> {
+  const finalized = await preinit(plugins);
+  return resolvePlugins<PressPlugin<C>>(
+    finalized,
+    preset === "recommended" ? recommendedPlugins(finalized, env.mode, env._debug_no_takumi) : [],
+  );
+}
+
+/** the `recommended` preset, with the image plugin of the hosting platform unless `plugins` have an `image:` plugin */
+export function recommendedPlugins<C extends AppShape>(
+  plugins: readonly PressPlugin<C>[],
+  mode?: BuildMode,
+  noTakumi?: boolean,
+): PresetEntry<PressPlugin<C>>[] {
+  const out: PresetEntry<PressPlugin<C>>[] = [
+    {
+      name: "core:sitemap",
+      load: async () => (await import("@/plugins/sitemap")).sitemapPlugin<C>(),
+    },
+    {
+      name: "core:robots",
+      load: async () => (await import("@/plugins/robots")).robotsPlugin<C>(),
+    },
+    {
+      name: "core:llms.txt",
+      load: async () => (await import("@/plugins/llms.txt")).llmsPlugin<C>(),
+    },
+    {
+      name: "core:rss",
+      load: async () => (await import("@/plugins/rss")).rssPlugin<C>(),
+    },
+    {
+      name: "core:flexsearch",
+      provides: ["search"],
+      load: async () => (await import("@/plugins/flexsearch")).flexsearchPlugin<C>(),
+    },
   ];
+  if (!noTakumi)
+    out.push({
+      name: "core:takumi",
+      provides: ["og-image"],
+      load: async () => (await import("@/plugins/takumi")).takumiPlugin<C>(),
+    });
   if (plugins.some((plugin) => plugin.name?.startsWith("image:"))) return out;
 
   // hosting platform detected at build time, from the resolved deployment adapter
   const platform: string | undefined = import.meta.env.FUMAPRESS_PLATFORM;
   if (platform === "vercel") {
-    out.push((await import("@/plugins/image/vercel")).imagePlugin());
+    out.push({
+      name: "image:vercel",
+      load: async () => (await import("@/plugins/image/vercel")).imagePlugin<C>(),
+    });
   } else if (platform === "cloudflare") {
-    out.push((await import("@/plugins/image/cloudflare")).imagePlugin());
+    out.push({
+      name: "image:cloudflare",
+      load: async () => (await import("@/plugins/image/cloudflare")).imagePlugin<C>(),
+    });
   } else if (platform === "node" && mode !== "static" && hasSharp()) {
-    out.push((await import("@/plugins/image/self-hosted")).imagePlugin());
+    out.push({
+      name: "image:self-hosted",
+      load: async () => (await import("@/plugins/image/self-hosted")).imagePlugin<C>(),
+    });
   }
   return out;
 }

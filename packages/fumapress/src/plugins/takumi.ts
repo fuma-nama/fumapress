@@ -3,15 +3,15 @@ import type { PressPlugin } from "@/app/plugin";
 import { joinPaths } from "@/lib/pathname";
 import type { Awaitable } from "@/lib/types";
 import * as Press from "@fumapress/core/plugins/takumi";
-import type { HeadTag, RouteParams } from "fumadocs-core/framework/plugin";
+import type { RouteParams } from "fumadocs-core/framework/plugin";
 
 export { fontFromUrl, googleFonts } from "takumi-js/helpers";
-export type {
-  TakumiAPI,
-  TakumiImage,
-  TakumiImageOptions,
-  TakumiOptions,
-} from "@fumapress/core/plugins/takumi";
+export type { TakumiAPI, TakumiImage, TakumiImageOptions } from "@fumapress/core/plugins/takumi";
+
+export interface TakumiOptions<C extends AppShape = AppShape> extends Press.TakumiOptions<
+  C,
+  AppContext<C>
+> {}
 
 /** The image of a route: a `node` to draw, or `title` and `description` for the default template. */
 export interface TakumiRouteImage extends Partial<Press.TakumiImage> {
@@ -33,9 +33,9 @@ export type TakumiRouteOptions<C extends AppShape = AppShape> =
  * Pages of `createPage()` with `takumiOptions` get one too: prerendered for static pages, rendered on request for dynamic pages.
  */
 export function takumiPlugin<C extends AppShape = AppShape>(
-  options: Press.TakumiOptions<NoInfer<C>> = {},
+  options?: TakumiOptions<NoInfer<C>>,
 ): PressPlugin<C> {
-  const plugin = Press.takumiPlugin<C>(options);
+  const plugin = Press.takumiPlugin<C, AppContext<C>>(options);
   const api = plugin.api as Press.TakumiAPI;
 
   return {
@@ -55,10 +55,10 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           });
         };
         const dynamic = route.render === "dynamic";
-        // a static page gets a file, a dynamic page an image route with its params
+        // a static page gets a `.webp` file next to it, a dynamic page an image route with its params under `/_takumi`
         const imagePath = (pathname: string) =>
           dynamic
-            ? joinPaths("/", api.basePath, pathname)
+            ? joinPaths("/", api.basePath || "/_takumi", pathname)
             : joinPaths("/", api.basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
 
         if (dynamic) {
@@ -78,20 +78,9 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         }
 
         route.meta.push((props) =>
-          renderHeadTags(imageTags(this.absoluteUrl(imagePath(props.path)), api)),
+          renderHeadTags(api.tags(this.absoluteUrl(imagePath(props.path)))),
         );
       }
     },
   };
-}
-
-/** the tags of the image at `url`, like the ones of content pages */
-function imageTags(url: string, { width, height }: Press.TakumiAPI): HeadTag[] {
-  return [
-    { tag: "meta", attrs: { property: "og:image", content: url } },
-    { tag: "meta", attrs: { property: "og:image:width", content: String(width) } },
-    { tag: "meta", attrs: { property: "og:image:height", content: String(height) } },
-    { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
-    { tag: "meta", attrs: { name: "twitter:image", content: url } },
-  ];
 }

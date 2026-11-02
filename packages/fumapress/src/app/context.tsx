@@ -9,16 +9,22 @@ import type { SpaciousLayoutContextData } from "@/layouts/spacious";
 import { joinPaths } from "@/lib/pathname";
 import type { Adapter, Awaitable } from "@/lib/types";
 import createDeepmerge from "@fastify/deepmerge";
-import { createPress, type AppShape, type Context, type PageAlternate } from "@fumapress/core";
+import {
+  createPress,
+  type AppShape,
+  type Context,
+  type PageAlternate,
+  type PressRuntime,
+} from "@fumapress/core";
 import type { HeadTag } from "fumadocs-core/framework/plugin";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createElement, isValidElement, type ReactNode } from "react";
-import { preinitPlugins, recommendedPlugins, type PressPlugin } from "./plugin";
+import { preinit, recommendedPlugins, type PressPlugin } from "./plugin";
 
 export type { AppShape, PageAlternate };
 
 /** the repository of `site.git` */
-export type GitInfo = Omit<NonNullable<Context["siteConfig"]["git"]>, "rootDir">;
+export interface GitInfo extends Omit<NonNullable<Context["siteConfig"]["git"]>, "rootDir"> {}
 
 type RootMetaInterceptor = (opts: { next: () => ReactNode }) => ReactNode;
 type PageMetaInterceptor<C extends AppShape> = (opts: {
@@ -39,20 +45,20 @@ export interface FumapressHooks<C extends AppShape> extends Pick<
 > {
   interceptRootMeta: (interceptor: RootMetaInterceptor) => void;
   interceptPageMeta: (interceptor: PageMetaInterceptor<C>) => void;
-  /** the head tags of every page, then `meta.root` of the config */
+  /** the head tags of every page, then `meta.root` of the config, await it to render them in order */
   renderRootMeta: () => ReactNode;
-  /** the head tags of a content page, then `meta.page` of the config */
+  /** the head tags of a content page, then `meta.page` of the config, then the head tags of plugins */
   renderPageMeta: (page: C["page"]) => ReactNode;
 }
 
-export type FumapressLoader<C extends AppShape = AppShape> = Pick<
+export interface FumapressLoader<C extends AppShape = AppShape> extends Pick<
   Context<C>,
   "getLoader" | "revalidateLoader" | "invalidateLoader"
->;
+> {}
 
 /** the site on Waku, `this` in plugin hooks */
 export interface AppContext<S extends AppShape = AppShape> extends Context<S>, FumapressHooks<S> {
-  plugins: readonly PressPlugin[];
+  plugins: PressPlugin<S>[];
   adapters: Adapter<S>[];
 
   /** always `undefined`, easier way to infer types */
@@ -82,7 +88,10 @@ export function getPressContext<C extends AppShape = AppShape>(): AppContext<C> 
   return store as AppContext<C>;
 }
 
-export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise<AppContext<C>> {
+export async function initApp<C extends AppShape>(
+  builder: ConfigUtils,
+  getFrameworkPages?: PressRuntime["getFrameworkPages"],
+): Promise<AppContext<C>> {
   const {
     meta,
     adapters = [],
@@ -111,37 +120,45 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     interceptPageMeta(interceptor) {
       pageMetaInterceptors.push(interceptor);
     },
-    renderRootMeta() {
+    async renderRootMeta() {
+      const tags = renderHeadTags(await ctx.getHead({}));
       function next(i: number): ReactNode {
         const interceptor = rootMetaInterceptors[i];
         if (interceptor) return interceptor({ next: () => next(i + 1) });
 
         return (
           <>
-            <HeadTags />
+            {tags}
             {meta?.root?.call(ctx)}
           </>
         );
       }
 
-      return next(0);
+      return <>{next(0)}</>;
     },
     renderPageMeta(page) {
       function next(i: number): ReactNode {
         const interceptor = pageMetaInterceptors[i];
         if (interceptor) return interceptor({ page, next: () => next(i + 1) });
 
-        return (
-          <>
-            <HeadTags page={page} />
-            {meta?.page?.call(ctx, page)}
-          </>
-        );
+        return <PageMeta page={page} />;
       }
 
       return next(0);
     },
   };
+
+  // one component, so pages rendered on request stream the tags in order too
+  async function PageMeta({ page }: { page: AppShape["page"] }) {
+    const [pageHead, head] = await Promise.all([ctx.getPageHead(page), ctx.getHead({ page })]);
+    return (
+      <>
+        {renderHeadTags(pageHead)}
+        {meta?.page?.call(ctx, page)}
+        {renderHeadTags(head)}
+      </>
+    );
+  }
 
   const internal: PressPlugin = {
     name: "fumapress",
@@ -171,15 +188,19 @@ export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise
     },
   };
 
-  const resolved = await preinitPlugins(plugins);
+  const finalized = await preinit(plugins);
   await createPress(
     {
       ...config,
       mode,
       site: { ...site, baseUrl: site?.baseUrl ?? defaultBaseUrl() },
-      plugins: [internal, ...resolved],
+      plugins: [internal, ...finalized],
     },
-    { base: import.meta.env.BASE_URL, preset: () => recommendedPlugins(mode, resolved) },
+    {
+      base: import.meta.env.BASE_URL,
+      preset: () => recommendedPlugins(finalized, mode),
+      getFrameworkPages,
+    },
   );
 
   return ctx as unknown as AppContext<C>;
@@ -201,6 +222,13 @@ async function fromAdapters<T>(
 
 /** the URL of the site on the development server and on Vercel, without `site.baseUrl` */
 function defaultBaseUrl(): string | undefined {
+  const platform =
+    import.meta.env.FUMAPRESS_PLATFORM === "cloudflare"
+      ? " and Cloudflare Workers Builds does not expose the site URL"
+      : "";
+  console.warn(
+    `[Fumapress] "site.baseUrl" is not set${platform}; sitemap and RSS will fall back to relative URLs.`,
+  );
   if (import.meta.env.DEV) return joinPaths("http://localhost:3000", import.meta.env.BASE_URL);
   const vercelUrl = import.meta.env.VERCEL_URL;
   if (vercelUrl) return joinPaths(`https://${vercelUrl}`, import.meta.env.BASE_URL);
@@ -234,54 +262,6 @@ export function renderHeadTags(tags: HeadTag[]): ReactNode[] {
     out.push(createElement(tag, props));
   }
   return out;
-}
-
-/** the head tags of every page, of a content page with `page` */
-async function HeadTags({ page }: { page?: AppShape["page"] }) {
-  return renderHeadTags(await getPressContext().getHead({ page }));
-}
-
-/** `hreflang` alternate of the page at `pathname` in `locale` */
-export function pageAlternate<C extends AppShape>(
-  ctx: Context<C>,
-  locale: string,
-  pathname: string,
-): PageAlternate {
-  return {
-    locale,
-    hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
-    href: ctx.absoluteUrl(pathname),
-  };
-}
-
-/**
- * canonical and `og:url` of the page of `createPage()` at `pathname` (only with `site.baseUrl`),
- * `hreflang` links of its `alternates`
- */
-export function pageLinks<C extends AppShape>(
-  ctx: Context<C>,
-  pathname: string,
-  alternates: PageAlternate[],
-): HeadTag[] {
-  const tags: HeadTag[] = [];
-  if (ctx.siteConfig.baseUrl) {
-    const href = ctx.absoluteUrl(pathname);
-    tags.push(
-      { tag: "link", attrs: { rel: "canonical", href } },
-      { tag: "meta", attrs: { property: "og:url", content: href } },
-    );
-  }
-
-  for (const { hreflang, href } of alternates)
-    tags.push({ tag: "link", attrs: { rel: "alternate", hreflang, href } });
-  const xDefault =
-    alternates.find((item) => item.locale === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
-  if (xDefault)
-    tags.push({
-      tag: "link",
-      attrs: { rel: "alternate", hreflang: "x-default", href: xDefault.href },
-    });
-  return tags;
 }
 
 export const deepmerge = createDeepmerge({

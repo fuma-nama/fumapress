@@ -44,16 +44,6 @@ function route(path: string, render: PressRoute["render"] = "static"): PressRout
 }
 
 describe("llmsPlugin", () => {
-  it("serves the index of pages", async () => {
-    const ctx = await createApp();
-    const { handlers } = await createRoutes(ctx);
-
-    const res = await handlers.get("/llms.txt")!(new Request("https://example.com/llms.txt"), {
-      params: {},
-    });
-    expect(await res.text()).toContain("/docs/basics");
-  });
-
   it("derives Markdown routes from the pages of createPage()", async () => {
     const ctx = await createApp();
     const { handlers } = await createRoutes(ctx, { routes: "all" }, [

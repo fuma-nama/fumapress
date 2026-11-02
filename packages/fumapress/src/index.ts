@@ -15,7 +15,7 @@ export {
   type GitInfo,
   type PageAlternate,
 } from "./app/context";
-export type { PressPlugin, PressPluginOption } from "./app/plugin";
+export { preinitPlugins, type PressPlugin, type PressPluginOption } from "./app/plugin";
 export type {
   RouteConfig,
   RouteFns,

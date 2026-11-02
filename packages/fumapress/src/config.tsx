@@ -11,7 +11,7 @@ export type { SiteConfig } from "@fumapress/core";
 export interface FumapressConfig<
   I extends _Internal.AnyInput = _Internal.AnyInput,
   Lang extends string | undefined = string | undefined,
-> extends Omit<PressConfig<I, Lang>, "plugins"> {
+> extends Omit<PressConfig<I, Lang, AppContext<InferAppShape<I, Lang>>>, "plugins"> {
   meta?: {
     /** render meta tags for any pages */
     root?: (this: AppContext<InferAppShape<I, Lang>>) => ReactNode;

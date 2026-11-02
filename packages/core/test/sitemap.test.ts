@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type PressConfig } from "@/context";
+import { createPress, type FrameworkPage, type PressConfig } from "@/context";
 import { buildSitemap, sitemapPlugin, type SitemapOptions } from "@/plugins/sitemap";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
@@ -15,7 +15,11 @@ const content: PressConfig["content"] = {
   files: [page("docs/basics.mdx"), page("docs/basics.cn.mdx"), page("docs/only-en.mdx")],
 };
 
-async function generate(config: Partial<PressConfig> = {}, options?: SitemapOptions) {
+async function generate(
+  config: Partial<PressConfig> = {},
+  options?: SitemapOptions,
+  frameworkPages: FrameworkPage[] = [],
+) {
   const ctx = await createPress(
     {
       content,
@@ -30,9 +34,9 @@ async function generate(config: Partial<PressConfig> = {}, options?: SitemapOpti
         sitemapPlugin(options),
       ],
     },
-    { base: "/repo/" },
+    { base: "/repo/", getFrameworkPages: () => frameworkPages },
   );
-  const [route] = await ctx.getRoutes();
+  const [route] = await ctx.getApiRoutes();
 
   expect(route!.path).toBe("/sitemap.xml");
   const res = await route!.GET!(new Request("https://example.com/repo/sitemap.xml"), {
@@ -83,6 +87,43 @@ describe("sitemapPlugin", () => {
         "<url><loc>https://example.com/repo/blog</loc><changefreq>weekly</changefreq></url>",
     );
     expect(xml).not.toContain("only-en");
+  });
+
+  it("lists the pages of the framework after content pages, without the URLs of content pages", async () => {
+    const translations = [
+      { locale: "en", path: "/en/blog" },
+      { locale: "cn", path: "/cn/blog" },
+    ];
+    const xml = await generate(
+      { i18n, site: { baseUrl: "https://example.com/repo", hreflang: { cn: "zh-Hans" } } },
+      {
+        getEntry(page) {
+          if (page.url !== "/cn/docs/basics") return { loc: this.absoluteUrl(page.url) };
+          return { loc: this.absoluteUrl("/custom") };
+        },
+        additionalEntries: [{ loc: "https://example.com/repo/extra" }],
+      },
+      [
+        // the URLs of a fallback page, of a custom `loc` and of a content page stay out
+        { path: "/cn/docs/only-en", translations: [] },
+        { path: "/custom", translations: [] },
+        { path: "/en/docs/basics", translations: [] },
+        { path: "/about", translations: [] },
+        { path: "/cn/blog", translations },
+      ],
+    );
+
+    expect(xml).toContain(
+      "<url><loc>https://example.com/repo/en/docs/basics</loc></url>" +
+        "<url><loc>https://example.com/repo/en/docs/only-en</loc></url>" +
+        "<url><loc>https://example.com/repo/custom</loc></url>" +
+        "<url><loc>https://example.com/repo/about</loc><priority>1</priority></url>" +
+        "<url><loc>https://example.com/repo/cn/blog</loc><priority>1</priority>" +
+        '<xhtml:link rel="alternate" hreflang="en" href="https://example.com/repo/en/blog"/>' +
+        '<xhtml:link rel="alternate" hreflang="zh-Hans" href="https://example.com/repo/cn/blog"/>' +
+        "</url><url><loc>https://example.com/repo/extra</loc></url>",
+    );
+    expect(xml).not.toContain("/cn/docs/only-en");
   });
 });
 

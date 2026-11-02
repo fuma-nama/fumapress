@@ -28,8 +28,8 @@ const framework: Framework = {
     <Image
       fetchPriority={priority ? "high" : undefined}
       loading={priority ? "eager" : undefined}
-      // static imports of Next.js keep the image in `default`
-      src={typeof src === "object" && "default" in src ? src.default : src}
+      // like the default of Fumadocs, `StaticImport` is a type of Next.js
+      src={src as string}
       {...props}
     />
   ),

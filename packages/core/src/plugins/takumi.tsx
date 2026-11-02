@@ -1,21 +1,21 @@
 import type { ReactNode } from "react";
 import type { ApiRoute, HeadTag } from "fumadocs-core/framework/plugin";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
-import type { Context } from "../context";
+import { fallbackOrigin, type Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 
-/** `ImageResponseOptions` of a WebP image, the plugin sets `format` and the size itself */
+/** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T
   ? T extends { format?: "webp" }
-    ? Omit<T, "format" | "width" | "height">
+    ? Omit<T, "format">
     : never
   : never;
 
-export interface TakumiOptions<C extends AppShape = AppShape> {
+export interface TakumiOptions<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>> {
   /**
-   * The URL prefix of images, without the base path and the language.
+   * The base route for generated images.
    *
-   * @defaultValue "/og"
+   * By default, it is `/` (static mode) or `/_takumi` (dynamic mode).
    */
   basePath?: string;
   /** @defaultValue 1200 */
@@ -32,7 +32,7 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   options?: TakumiImageOptions;
 
   /** the image of a page, defaults to its title, description and the site name */
-  generate?: (this: Context<C>, page: C["page"]) => Awaitable<TakumiImage>;
+  generate?: (this: Ctx, page: C["page"]) => Awaitable<TakumiImage>;
 }
 
 export interface TakumiImage {
@@ -41,10 +41,14 @@ export interface TakumiImage {
   options?: TakumiImageOptions;
 }
 
-/** the API of the Takumi plugin, from `this.getPlugin("takumi")?.api` */
-export interface TakumiAPI extends Required<Pick<TakumiOptions, "basePath" | "width" | "height">> {
-  /** the response of an image, in the size and with the shared `options` of the plugin */
+/** the API of the Takumi plugin, from `this.getPlugin("core:takumi")?.api` */
+export interface TakumiAPI {
+  /** the base route of images without a trailing slash, empty at the root, set in `init()` */
+  basePath: string;
+  /** the response of an image, with the size and the shared `options` of the plugin */
   render: (image: TakumiImage) => ImageResponse;
+  /** the head tags of the image at `url` */
+  tags: (url: string) => HeadTag[];
 }
 
 /** the path segments of a page's image, `index.webp` for the root page */
@@ -55,12 +59,11 @@ function imageSegments(slugs: string[]): string[] {
   return out;
 }
 
-/** the slugs of a page from the segments of its image path, `undefined` for other paths */
-function pageSlugs(segments: string[]): string[] | undefined {
-  const last = segments.at(-1);
-  if (!last?.endsWith(".webp")) return;
-  const out = segments.slice(0, -1);
-  if (out.length > 0 || last !== "index.webp") out.push(last.slice(0, -".webp".length));
+/** the slugs of a page from the segments of its image path */
+function pageSlugs(segments: string[]): string[] {
+  const out = segments.slice();
+  if (out.length > 0) out[out.length - 1] = out[out.length - 1]!.replace(/\.webp$/, "");
+  if (out.length === 1 && out[0] === "index") out.pop();
   return out;
 }
 
@@ -69,51 +72,53 @@ function pageSlugs(segments: string[]): string[] | undefined {
  *
  * Every language gets an image route, fallback pages use the image of the page they fall back to.
  */
-export function takumiPlugin<C extends AppShape = AppShape>(
-  options: TakumiOptions<NoInfer<C>> = {},
-): Plugin<C> {
+export function takumiPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
+  options: TakumiOptions<NoInfer<C>, NoInfer<Ctx>> = {},
+): Plugin<C, Ctx> {
   const { width = 1200, height = 630 } = options;
   const api: TakumiAPI = {
-    basePath: (options.basePath ?? "/og").replace(/\/$/, ""),
-    width,
-    height,
+    basePath: "",
     render: (image) =>
       new ImageResponse(image.node, {
-        ...options.options,
-        ...image.options,
         width,
         height,
+        ...options.options,
+        ...image.options,
         format: "webp",
       }),
+    tags: (url) => [
+      { tag: "meta", attrs: { property: "og:image", content: url } },
+      { tag: "meta", attrs: { property: "og:image:width", content: String(width) } },
+      { tag: "meta", attrs: { property: "og:image:height", content: String(height) } },
+      { tag: "meta", attrs: { property: "twitter:card", content: "summary_large_image" } },
+    ],
   };
 
-  async function defaultImage(this: Context<C>, page: C["page"]): Promise<TakumiImage> {
-    const { title, description } = await this.getPageData(page);
+  function defaultImage(this: Ctx, page: C["page"]): TakumiImage {
+    const { title, description } = page.data;
     return { node: generate({ title, description, site: this.siteConfig.name }) };
   }
 
-  async function imageUrl(ctx: Context<C>, page: C["page"]): Promise<string> {
-    const { locale, slugs } = (await ctx.getFallbackOrigin(page)) ?? page;
-    return ctx.absoluteUrl(
-      ctx.localizePath(locale, `${api.basePath}/${imageSegments(slugs).join("/")}`),
-    );
-  }
-
   return {
-    name: "takumi",
+    name: "core:takumi",
     provides: ["og-image"],
     api,
-    async transformPage(data, page) {
-      return { ...data, image: await imageUrl(this, page) };
+    init() {
+      const basePath = options.basePath ?? (this.mode === "dynamic" ? "/_takumi" : "/");
+      api.basePath = basePath.replace(/^\/?/, "/").replace(/\/$/, "");
     },
-    // `og:image` comes from `image` of the page data
-    head({ page }) {
+    async head({ page }) {
       if (!page) return;
-      const tags: HeadTag[] = [
-        { tag: "meta", attrs: { property: "og:image:width", content: String(width) } },
-        { tag: "meta", attrs: { property: "og:image:height", content: String(height) } },
-      ];
-      return tags;
+      // fallback pages have no image of their own, point at the origin's
+      const origin = fallbackOrigin(await this.getLoader(), this.i18nConfig, page);
+      return api.tags(
+        this.absoluteUrl(
+          this.localizePath(
+            (origin ?? page).locale,
+            `${api.basePath}/${imageSegments(page.slugs).join("/")}`,
+          ),
+        ),
+      );
     },
     async routes() {
       const source = await this.getLoader();
@@ -122,17 +127,18 @@ export function takumiPlugin<C extends AppShape = AppShape>(
       for (const lang of this.i18nConfig?.languages ?? [undefined]) {
         const staticPaths: string[][] = [];
         for (const page of source.getPages(lang)) {
-          if (!(await this.getFallbackOrigin(page))) staticPaths.push(imageSegments(page.slugs));
+          if (!fallbackOrigin(source, this.i18nConfig, page))
+            staticPaths.push(imageSegments(page.slugs));
         }
 
         routes.push({
           path: this.localizePath(lang, `${api.basePath}/[...slugs]`),
           staticPaths,
           GET: async (_request, { params }) => {
-            const slugs = Array.isArray(params.slugs) ? pageSlugs(params.slugs) : undefined;
-            const page = slugs && (await this.getLoader()).getPage(slugs, lang);
-            if (!page || (await this.getFallbackOrigin(page)))
-              return new Response(null, { status: 404 });
+            const page =
+              Array.isArray(params.slugs) &&
+              (await this.getLoader()).getPage(pageSlugs(params.slugs), lang);
+            if (!page) return new Response(null, { status: 404 });
 
             return api.render(await (options.generate ?? defaultImage).call(this, page));
           },

@@ -38,7 +38,7 @@ function createSite(
 
 async function getSearchRoute(config: Partial<PressConfig>) {
   const ctx = await createSite({ ...config, plugins: [source, config.plugins] });
-  const route = (await ctx.getRoutes()).find((item) => item.path === "/api/search");
+  const route = (await ctx.getApiRoutes()).find((item) => item.path === "/api/search");
   if (!route?.GET) throw new Error("missing the search route");
   const GET = route.GET;
   return {
@@ -51,13 +51,13 @@ async function getSearchRoute(config: Partial<PressConfig>) {
 }
 
 describe.each([
-  ["flexsearch", flexsearchPlugin],
-  ["orama-search", oramaSearchPlugin],
+  ["flexsearchPlugin", flexsearchPlugin],
+  ["oramaSearchPlugin", oramaSearchPlugin],
 ])("%s", (name, searchPlugin) => {
   it("provides search", async () => {
     const ctx = await createSite({ plugins: [searchPlugin()] });
 
-    expect(ctx.getProvider("search")?.name).toBe(name);
+    expect(ctx.getProvider("search")?.provides).toEqual(["search"]);
   });
 
   it("searches on the server outside static mode", async () => {
@@ -118,11 +118,11 @@ describe.each([
 
   it("requires structured data from content sources", async () => {
     const ctx = await createSite({ plugins: [searchPlugin()] });
-    const [route] = await ctx.getRoutes();
+    const [route] = await ctx.getApiRoutes();
 
     await expect(
       route!.GET!(new Request("https://example.com/api/search?query=install"), { params: {} }),
-    ).rejects.toThrow('no content source gives the structured data of "docs/install.mdx"');
+    ).rejects.toThrow(`Please specify the \`buildIndex\` option to ${name}()`);
   });
 });
 
@@ -130,15 +130,19 @@ describe("search plugins", () => {
   it("only one provides search", async () => {
     await expect(
       createSite({ plugins: [flexsearchPlugin(), oramaSearchPlugin()] }),
-    ).rejects.toThrow('"flexsearch" and "orama-search" both provide "search"');
+    ).rejects.toThrow("only one search plugin can be added");
   });
 
   it("replace the search of the preset", async () => {
     const ctx = await createSite(
       { preset: "recommended", plugins: [flexsearchPlugin()] },
-      { preset: () => [oramaSearchPlugin()] },
+      {
+        preset: () => [
+          { name: "core:orama-search", provides: ["search"], load: oramaSearchPlugin },
+        ],
+      },
     );
 
-    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["flexsearch"]);
+    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["core:flexsearch"]);
   });
 });

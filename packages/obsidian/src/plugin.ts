@@ -1,12 +1,8 @@
-import type { ObsidianPage } from "fumadocs-obsidian";
+import type { ObsidianPage, ObsidianSource } from "fumadocs-obsidian";
 import * as Fumadocs from "fumadocs-obsidian/plugin";
-import * as ObsidianComponents from "fumadocs-obsidian/ui";
-import type { Plugin } from "fumadocs-core/framework/plugin";
 import type { PageData } from "fumadocs-core/source";
 import defaultMdxComponents from "fumadocs-ui/mdx";
-
-/** the vault of `obsidian()` */
-type Vault = Parameters<typeof Fumadocs.obsidianPlugin>[0];
+import type { AppShape, PressPlugin } from "fumapress";
 
 /** @deprecated use `ObsidianPluginOptions` of `fumadocs-obsidian/plugin` */
 export interface ObsidianPluginOptions extends Fumadocs.ObsidianPluginOptions {
@@ -35,18 +31,18 @@ export function isObsidianPageData(data: PageData): data is ObsidianPage {
 /**
  * @deprecated use `obsidianPlugin()` of `fumadocs-obsidian/plugin` with the MDX components of Fumadocs UI, and `watchWithVite()` of `fumadocs-obsidian/dev/vite`
  */
-export function obsidianPlugin(
-  vault: Vault,
+export function obsidianPlugin<C extends AppShape = AppShape>(
+  vault: ObsidianSource,
   { watch = true, components }: ObsidianPluginOptions = {},
-): Plugin {
+): PressPlugin<C> {
   if (watch && import.meta.env?.DEV) registerViteWatcher(vault);
 
   return Fumadocs.obsidianPlugin(vault, {
-    components: { ...defaultMdxComponents, ...ObsidianComponents, ...components },
+    components: { ...defaultMdxComponents, ...components },
   });
 }
 
-function registerViteWatcher(vault: Vault): void {
+function registerViteWatcher(vault: ObsidianSource): void {
   let dispose: (() => void) | undefined;
   let disposed = false;
 

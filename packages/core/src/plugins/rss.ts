@@ -1,5 +1,5 @@
 import { js2xml, type ElementCompact } from "xml-js";
-import type { Context } from "../context";
+import { fallbackOrigin, type Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 
 /**
@@ -42,9 +42,10 @@ export interface RSSChannel {
   items: RSSItem[];
 }
 
-export interface RSSOptions<C extends AppShape = AppShape> extends Partial<
-  Pick<RSSChannel, "title" | "description" | "language">
-> {
+export interface RSSOptions<
+  C extends AppShape = AppShape,
+  Ctx extends Context<C> = Context<C>,
+> extends Partial<Pick<RSSChannel, "title" | "description" | "language">> {
   /**
    * path of the feed route
    *
@@ -71,10 +72,10 @@ export interface RSSOptions<C extends AppShape = AppShape> extends Partial<
    *
    * By default, includes pages with a creation date (or modified date as fallback), resolved from content sources.
    */
-  getItem?: (this: Context<C>, page: C["page"]) => Awaitable<RSSItem | undefined>;
+  getItem?: (this: Ctx, page: C["page"]) => Awaitable<RSSItem | undefined>;
 
   /** additional items of the feed, their `link` must be a fully-qualified URL */
-  additionalItems?: RSSItem[] | ((this: Context<C>) => Awaitable<RSSItem[]>);
+  additionalItems?: RSSItem[] | ((this: Ctx) => Awaitable<RSSItem[]>);
 }
 
 function toTime(value: Date | string | undefined): number {
@@ -133,9 +134,9 @@ export function buildRSS(channel: RSSChannel): string {
  *
  * One feed covers every language: fallback pages are left out, translations link to their own URL.
  */
-export function rssPlugin<C extends AppShape = AppShape>(
-  options: RSSOptions<NoInfer<C>> = {},
-): Plugin<C> {
+export function rssPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
+  options: RSSOptions<NoInfer<C>, NoInfer<Ctx>> = {},
+): Plugin<C, Ctx> {
   const {
     path = "/rss.xml",
     limit = 20,
@@ -156,7 +157,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
   } = options;
 
   return {
-    name: "rss",
+    name: "core:rss",
     head({ page }) {
       // tags without `page` are on every page
       if (!alternateLink || page) return;
@@ -168,29 +169,30 @@ export function rssPlugin<C extends AppShape = AppShape>(
             rel: "alternate",
             type: "application/rss+xml",
             title: options.title ?? this.siteConfig.name,
-            href: this.absoluteUrl(path),
+            href: this.withBase(path),
           },
         },
       ];
     },
     routes() {
-      const pageItem = async (page: C["page"]) => {
-        if (!(await this.getFallbackOrigin(page))) return getItem.call(this, page);
-      };
-
       return [
         {
           path,
           GET: async () => {
             const source = await this.getLoader();
-            const items = [
+            const pending: Awaitable<RSSItem | undefined>[] = [];
+            for (const page of source.getPages()) {
+              if (!fallbackOrigin(source, this.i18nConfig, page))
+                pending.push(getItem.call(this, page));
+            }
+            const items: RSSItem[] = [];
+            for (const item of await Promise.all(pending)) if (item) items.push(item);
+            items.push(
               ...(typeof additionalItems === "function"
                 ? await additionalItems.call(this)
                 : additionalItems),
-            ];
-            for (const item of await Promise.all(source.getPages().map(pageItem))) {
-              if (item) items.push(item);
-            }
+            );
+            // stable: on date ties, pages come before additional items
             items.sort((a, b) => toTime(b.pubDate) - toTime(a.pubDate));
 
             const title = options.title ?? this.siteConfig.name;

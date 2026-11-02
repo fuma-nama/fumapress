@@ -57,8 +57,8 @@ function lines(name: string, values: string | string[] | undefined): string[] {
 function ruleToText(rule: RobotsRule): string {
   const out = [
     ...lines("User-agent", rule.userAgent ?? "*"),
-    ...lines("Allow", rule.allow),
-    ...lines("Disallow", rule.disallow),
+    ...lines("Allow", rule.allow || undefined),
+    ...lines("Disallow", rule.disallow || undefined),
   ];
   if (rule.crawlDelay !== undefined) out.push(`Crawl-delay: ${rule.crawlDelay}`);
   return out.join("\n");
@@ -75,14 +75,14 @@ export function robotsPlugin<C extends AppShape = AppShape>(
   } = options;
 
   return {
-    name: "robots",
+    name: "core:robots",
     routes() {
       return [
         {
           path,
           GET: () => {
             const sections = rules.map(ruleToText);
-            const api = this.getPlugin("sitemap")?.api as SitemapAPI | undefined;
+            const api = this.getPlugin("core:sitemap")?.api as SitemapAPI | undefined;
             const sitemapPath =
               typeof sitemap === "string"
                 ? sitemap

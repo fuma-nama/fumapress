@@ -4,15 +4,18 @@ import {
   type AppShape,
   initApp,
   appContext,
-  pageAlternate,
-  pageLinks,
   renderHeadTags,
-  type PageAlternate,
 } from "../app/context";
 import { createElement, FC, Fragment, ReactNode } from "react";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import { expandRoute } from "@/lib/routes";
-import { toBuildOutput } from "@/lib/build-output";
+import {
+  pageAlternate,
+  pageLinks,
+  type FrameworkPage,
+  type PageAlternate,
+  type PressBuildOutput,
+} from "@fumapress/core";
 import type { ConfigUtils } from "../config";
 import {
   unstable_getRequest,
@@ -46,7 +49,12 @@ export async function createRouter<U extends ConfigUtils>(
   userConfig: U,
 ): Promise<Router<U["$context"]>> {
   type C = U["$context"];
-  const context = await initApp<C>(userConfig);
+  let routes: PressRoute[] = [];
+  const context = await initApp<C>(userConfig, () => {
+    const out: FrameworkPage[] = [];
+    for (const route of routes) out.push(...route.pages);
+    return out;
+  });
 
   function createPages(
     base?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>,
@@ -54,7 +62,7 @@ export async function createRouter<U extends ConfigUtils>(
   ) {
     const result = base_createPages(async (_fns) => {
       const { renderPage } = context;
-      const routes: PressRoute[] = [];
+      routes = [];
       // components rather than calls: `renderNotFound` defaults to a client component
       const Root = context.renderRoot as FC<{ lang?: string; children: ReactNode }>;
       const NotFound = context.renderNotFound as FC<{ lang?: string }>;
@@ -199,7 +207,7 @@ export async function createRouter<U extends ConfigUtils>(
         await plugin.configureRoutes?.call(context, fns);
       }
 
-      for (const route of await context.getRoutes()) createApiRoute(_fns.createApi, route);
+      for (const route of await context.getApiRoutes()) createApiRoute(_fns.createApi, route);
 
       const pages = (await context.getLoader()).getPages();
 
@@ -384,8 +392,22 @@ export async function createRouter<U extends ConfigUtils>(
 
       const { build } = entry;
       entry.build = async (utils, ...args) => {
+        const links: PressBuildOutput["links"] = [];
+        // only read by the `build` of plugins, like link validation
+        if (context.plugins.some((plugin) => plugin.build)) global.LINK_SSG_CONTEXT = { links };
         await build(utils, ...args);
-        await context.build(toBuildOutput(utils.emitFile));
+        global.LINK_SSG_CONTEXT = undefined;
+
+        await context.build({
+          links,
+          fetch: (request) => entry.fetch(request),
+          emitFile: (path, content) =>
+            // a copy of bytes, the body of responses can't be a view of shared memory
+            utils.emitFile(
+              path,
+              new Response(typeof content === "string" ? content : content.slice()).body!,
+            ),
+        });
       };
 
       for (const plugin of context.plugins) {

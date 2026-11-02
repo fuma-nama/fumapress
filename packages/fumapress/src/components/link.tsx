@@ -1,7 +1,14 @@
 "use client";
+import { useRouter } from "@/client";
+import type { PressBuildOutput } from "@fumapress/core";
 import type { ComponentProps } from "react";
 import { Link as BaseLink } from "waku/router/client";
 import type { Unstable_PrefetchOptions } from "waku/router/client-core";
+
+declare global {
+  /** server always share the same `global` during build, we can use it to collect pre-rendered links */
+  var LINK_SSG_CONTEXT: Pick<PressBuildOutput, "links"> | undefined;
+}
 
 export interface LinkProps extends ComponentProps<"a"> {
   /**
@@ -23,6 +30,10 @@ export function Link({
   unstable_prefetchOnView,
   ...props
 }: LinkProps) {
+  if (typeof global !== "undefined" && global.LINK_SSG_CONTEXT) {
+    global.LINK_SSG_CONTEXT.links.push({ href, fromPathname: useRouter().path });
+  }
+
   return (
     <BaseLink
       to={href}

@@ -1,5 +1,5 @@
 import { js2xml, type ElementCompact } from "xml-js";
-import type { Context, PageAlternate } from "../context";
+import { fallbackOrigin, pageAlternate, type Context, type PageAlternate } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 
 /**
@@ -28,7 +28,7 @@ export type SitemapLastMod = Date | string;
  *
  * @see https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap
  */
-export type SitemapAlternateLink = Pick<PageAlternate, "hreflang" | "href">;
+export interface SitemapAlternateLink extends Pick<PageAlternate, "hreflang" | "href"> {}
 
 /**
  * An `image:image` entry (Google image sitemap extension).
@@ -121,7 +121,10 @@ export interface SitemapUrl {
   news?: SitemapNews;
 }
 
-export interface SitemapOptions<C extends AppShape = AppShape> {
+export interface SitemapOptions<
+  C extends AppShape = AppShape,
+  Ctx extends Context<C> = Context<C>,
+> {
   /**
    * path of the sitemap route
    *
@@ -134,13 +137,13 @@ export interface SitemapOptions<C extends AppShape = AppShape> {
    *
    * Pages shown in place of an untranslated page are left out.
    */
-  getEntry?: (this: Context<C>, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
+  getEntry?: (this: Ctx, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
 
-  /** entries of other pages, like the custom pages of a framework, their `loc` must be a fully-qualified URL */
-  additionalEntries?: SitemapUrl[] | ((this: Context<C>) => Awaitable<SitemapUrl[]>);
+  /** entries of other pages, their `loc` must be a fully-qualified URL */
+  additionalEntries?: SitemapUrl[] | ((this: Ctx) => Awaitable<SitemapUrl[]>);
 }
 
-/** the API of the sitemap plugin, from `this.getPlugin('sitemap')?.api` */
+/** the API of the sitemap plugin, from `this.getPlugin("core:sitemap")?.api` */
 export interface SitemapAPI {
   /** the path of the sitemap, without the base path */
   path: string;
@@ -269,10 +272,10 @@ export function buildSitemap(entries: SitemapUrl[]): string {
   );
 }
 
-/** a sitemap of the content pages, with their translations and last modified dates */
-export function sitemapPlugin<C extends AppShape = AppShape>(
-  options: SitemapOptions<NoInfer<C>> = {},
-): Plugin<C> {
+/** a sitemap of the content pages, with their translations and last modified dates, then of the pages of the framework */
+export function sitemapPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
+  options: SitemapOptions<NoInfer<C>, NoInfer<Ctx>> = {},
+): Plugin<C, Ctx> {
   const {
     path = "/sitemap.xml",
     getEntry = async function (page) {
@@ -286,21 +289,46 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
   } = options;
 
   return {
-    name: "sitemap",
+    name: "core:sitemap",
     api: { path } satisfies SitemapAPI,
     routes() {
-      const pageEntry = async (page: C["page"]) => {
-        if (!(await this.getFallbackOrigin(page))) return getEntry.call(this, page);
-      };
-
       return [
         {
           path,
           GET: async () => {
-            const pending: Promise<SitemapUrl | undefined>[] = [];
-            for (const page of (await this.getLoader()).getPages()) pending.push(pageEntry(page));
+            const source = await this.getLoader();
+            const pages = source.getPages();
+            const pending: Awaitable<SitemapUrl | undefined>[] = [];
+            for (const page of pages) {
+              pending.push(
+                fallbackOrigin(source, this.i18nConfig, page)
+                  ? undefined
+                  : getEntry.call(this, page),
+              );
+            }
+            const results = await Promise.all(pending);
             const entries: SitemapUrl[] = [];
-            for (const entry of await Promise.all(pending)) if (entry) entries.push(entry);
+            // content pages are listed by `getEntry` only, framework pages must not re-add excluded ones
+            const pageLocs = new Set<string>();
+            for (let i = 0; i < pages.length; i++) {
+              const entry = results[i];
+              pageLocs.add(this.absoluteUrl(pages[i]!.url));
+              if (!entry) continue;
+              pageLocs.add(entry.loc);
+              entries.push(entry);
+            }
+
+            for (const page of this.getFrameworkPages()) {
+              const loc = this.absoluteUrl(page.path);
+              if (pageLocs.has(loc)) continue;
+
+              const alternates: PageAlternate[] = [];
+              if (page.translations.length > 1) {
+                for (const { locale, path } of page.translations)
+                  alternates.push(pageAlternate(this, locale, path));
+              }
+              entries.push({ loc, priority: 1, alternates });
+            }
             entries.push(
               ...(typeof additionalEntries === "function"
                 ? await additionalEntries.call(this)

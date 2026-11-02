@@ -20,7 +20,7 @@ export type Capability = "search" | "og-image" | (string & {});
 /**
  * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, an API for other plugins and slots.
  *
- * Plugins of the framework API, like the ones of integrations, fit every site. Create plugins with generic functions, like `myPlugin<C extends AppShape = AppShape>(): Plugin<C>`, to type the pages in their options by the site.
+ * Plugins of the framework API, like the ones of integrations, fit every site. Create plugins with generic functions, like `myPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(options: MyOptions<NoInfer<C>, NoInfer<Ctx>>): Plugin<C, Ctx>`, to type the pages and the `this` of callbacks in their options by the site.
  *
  * Frameworks extending the context give it to the hooks as `Ctx`.
  */
@@ -34,8 +34,18 @@ export interface Plugin<
   /** an API for other plugins, from `this.getPlugin(name)?.api` */
   api?: unknown;
 
+  /** runs once after the site is built, not on dev or production servers; throw to fail the build */
+  build?(this: Ctx, output: PressBuildOutput): Awaitable<void>;
+
   /** UI in the slots of a content page, collected from every plugin */
   slots?(this: Ctx, env: { page: C["page"] }): Awaitable<SlotItem[] | undefined>;
+}
+
+/** the build output of a site, with the links of its prerendered pages */
+export interface PressBuildOutput extends Framework.BuildOutput {
+  links: { href: string; fromPathname: string }[];
+  /** request a page of the built site */
+  fetch: (request: Request) => Awaitable<Response>;
 }
 
 /** a plugin `P` of the `plugins` option, lists are flattened and falsy values left out */
@@ -45,6 +55,12 @@ export type PluginOption<P extends Plugin<any, any> = Plugin> =
   | undefined
   | null
   | PluginOption<P>[];
+
+/** a plugin of a preset, loaded only when no plugin replaces it by its `name` or a capability it `provides` */
+export interface PresetEntry<P extends Plugin<any, any> = Plugin> extends Pick<Plugin, "provides"> {
+  name: string;
+  load: () => Awaitable<P>;
+}
 
 const enforceOrder: Record<NonNullable<Plugin["enforce"]>, number> = { pre: -1, post: 1 };
 
@@ -56,11 +72,11 @@ function flatten<P extends Plugin<any, any>>(plugins: PluginOption<P>[], out: P[
   return out;
 }
 
-/** `plugins` with the ones of `preset` they don't replace by name or capability, sorted by `enforce` */
-export function resolvePlugins<P extends Plugin<any, any> = Plugin>(
+/** `plugins` with the entries of `preset` they don't replace, sorted by `enforce` */
+export async function resolvePlugins<P extends Plugin<any, any> = Plugin>(
   plugins: PluginOption<NoInfer<P>>[],
-  preset: PluginOption<NoInfer<P>>[],
-): P[] {
+  preset: PresetEntry<NoInfer<P>>[],
+): Promise<P[]> {
   const out = flatten(plugins);
   const names = new Set<string>();
   const capabilities = new Set<Capability>();
@@ -69,11 +85,13 @@ export function resolvePlugins<P extends Plugin<any, any> = Plugin>(
     for (const capability of plugin.provides ?? []) capabilities.add(capability);
   }
 
-  for (const plugin of flatten(preset)) {
-    if (plugin.name && names.has(plugin.name)) continue;
-    if (plugin.provides?.some((capability) => capabilities.has(capability))) continue;
-    out.push(plugin);
+  const loading: Awaitable<P>[] = [];
+  for (const entry of preset) {
+    if (names.has(entry.name)) continue;
+    if (entry.provides?.some((capability) => capabilities.has(capability))) continue;
+    loading.push(entry.load());
   }
+  out.push(...(await Promise.all(loading)));
 
   const providers = new Map<Capability, P>();
   for (const plugin of out) {
@@ -81,7 +99,7 @@ export function resolvePlugins<P extends Plugin<any, any> = Plugin>(
       const other = providers.get(capability);
       if (other)
         throw new Error(
-          `[Fumapress] "${other.name ?? "unnamed"}" and "${plugin.name ?? "unnamed"}" both provide "${capability}", only one plugin can provide it.`,
+          `[Fumapress] "${plugin.name ?? "unnamed"}" conflicts with "${other.name ?? "unnamed"}": only one ${capability} plugin can be added.`,
         );
       providers.set(capability, plugin);
     }
@@ -96,8 +114,6 @@ export function resolvePlugins<P extends Plugin<any, any> = Plugin>(
 export interface DocsPageData extends Framework.DocsPageData {
   /** the URL of its Markdown, for LLMs */
   markdownUrl?: string;
-  /** the URL of its OG image */
-  image?: string;
   /** the URL to view its source file */
   githubUrl?: string;
 }

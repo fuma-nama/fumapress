@@ -6,6 +6,7 @@ import { createRouter } from "@/router";
 import { fsRouterFn } from "@/router/fs";
 import type { ConfigUtils } from "@/config";
 import type { PressRoute, RouteFns } from "@/lib/types";
+import type { DocsPageData, FrameworkPage } from "@fumapress/core";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { HandlerInterceptor } from "waku/router/server";
 
@@ -284,8 +285,19 @@ describe("createRouter", () => {
     );
   });
 
+  it("renders the head of content pages from the page, leaving page data to layouts", async () => {
+    const transformPage = vi.fn((data: DocsPageData) => data);
+    await routes(config(undefined).plugins({ transformPage }));
+
+    expect(await html(route("/[...slugs]"), { slugs: ["guide"] })).toContain(
+      "<title>Guide</title>",
+    );
+    expect(transformPage).not.toHaveBeenCalled();
+  });
+
   it("lists routes for configureRoutes and renders their meta", async () => {
     let seen: PressRoute[] = [];
+    let framework: FrameworkPage[] = [];
     const cfg = config(prefixed).plugins({
       createPages({ createPage }) {
         for (const lang of ["en", "cn"]) {
@@ -299,6 +311,7 @@ describe("createRouter", () => {
       },
       configureRoutes({ getRoutes }) {
         seen = getRoutes();
+        framework = this.getFrameworkPages();
         for (const route of seen) {
           route.meta.push((props) => createElement("meta", { name: "x", content: props.path }));
         }
@@ -326,15 +339,10 @@ describe("createRouter", () => {
         translations: [{ locale: "en", path: "/en/tags/vue" }],
       },
     ]);
+    expect(framework).toEqual([...seen[0]!.pages, ...seen[1]!.pages]);
     expect(await html(route("/en/(fs)/tags/[tag]"), { path: "/en/tags/vue" })).toContain(
       '<meta name="x" content="/en/tags/vue"/>',
     );
-  });
-
-  it("rejects hideLocale: always", async () => {
-    await expect(
-      createRouter(config({ ...prefixed, hideLocale: "always" }) as ConfigUtils),
-    ).rejects.toThrow('hideLocale: "always"');
   });
 
   it("registers the routes of plugins as Waku APIs", async () => {

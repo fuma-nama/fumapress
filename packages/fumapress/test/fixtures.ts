@@ -5,12 +5,11 @@ import type { VirtualFile } from "fumadocs-core/source";
 
 export const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
-function page(path: string, absolutePath: boolean): VirtualFile {
+function page(path: string): VirtualFile {
   return {
     type: "page",
     path,
-    // virtual sources (OpenAPI, Notion, ...) leave it out
-    absolutePath: absolutePath ? `/content/${path}` : undefined,
+    absolutePath: `/content/${path}`,
     data: { title: path, description: `About ${path}` },
   };
 }
@@ -22,31 +21,24 @@ export function createApp(
   options: {
     i18n?: I18nConfig;
     site?: SiteConfig;
-    mode?: Config["mode"];
     meta?: Config["meta"];
-    defaultLayoutProps?: Config["defaultLayoutProps"];
     plugins?: Config["plugins"];
     adapters?: Config["adapters"];
-    /** @default true */
-    absolutePath?: boolean;
   } = {},
 ): Promise<AppContext> {
-  const { absolutePath = true } = options;
   const config: Config = {
     content: {
       files: [
-        page("index.mdx", absolutePath),
-        page("docs/basics.mdx", absolutePath),
-        page("docs/basics.cn.mdx", absolutePath),
-        page("docs/only-en.mdx", absolutePath),
-        page("docs/shared.$.mdx", absolutePath),
+        page("index.mdx"),
+        page("docs/basics.mdx"),
+        page("docs/basics.cn.mdx"),
+        page("docs/only-en.mdx"),
+        page("docs/shared.$.mdx"),
       ],
     },
     i18n: options.i18n,
-    mode: options.mode,
     site: { baseUrl: "https://example.com", ...options.site },
     meta: options.meta,
-    defaultLayoutProps: options.defaultLayoutProps,
     plugins: options.plugins,
     adapters: options.adapters,
     preset: false,

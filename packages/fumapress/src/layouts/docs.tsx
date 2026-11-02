@@ -1,8 +1,11 @@
-import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
-import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
-import { selectTreeRoot } from "@/lib/page-tree";
-import { renderSlot, wrapSlot } from "@/lib/slots";
-import type { Awaitable } from "@/lib/types";
+import type { AppShape } from "@/app/context";
+import {
+  createDocsLikeLayoutPage,
+  type DocsLikeContextData,
+  type DocsLikeInterceptor,
+  type DocsLikeLayoutOptions,
+  type DocsLikeRenderData,
+} from "@/components/docs-page";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import {
   MarkdownCopyButton,
@@ -14,178 +17,38 @@ import {
   type DocsPageProps,
   PageLastUpdate,
 } from "fumadocs-ui/layouts/docs/page";
-import type { ComponentProps, ReactNode } from "react";
 
-export interface DocsLayoutOptions<C extends AppShape = AppShape> {
-  inherit?: {
-    layoutProps?: boolean;
-  };
+export type { PageActionsProps } from "@/components/docs-page";
 
-  /** folder path to use as the root of the sidebar tree, such as the `baseDir` of a content source */
-  treeRoot?: string;
+export interface DocsLayoutOptions<C extends AppShape = AppShape> extends DocsLikeLayoutOptions<
+  C,
+  DocsLayoutProps,
+  DocsPageProps
+> {}
 
-  render?: (
-    this: AppContext<C> & { lang?: string },
-    page: C["page"],
-  ) => Awaitable<{
-    markdownUrl?: string;
-    lastModified?: Date | null;
-    body?: ReactNode;
-    layoutProps?: Partial<DocsLayoutProps>;
-    pageProps?: Partial<DocsPageProps>;
-  }>;
+export interface DocsLayoutRenderData extends DocsLikeRenderData<DocsLayoutProps, DocsPageProps> {}
 
-  /** props/renderer for `<DocsLayout />` */
-  renderLayout?: DocsInterceptor<C, DocsLayoutProps>;
+export type DocsInterceptor<S extends AppShape, T> = DocsLikeInterceptor<S, T>;
 
-  /** props/renderer for `<DocsPage />` */
-  renderPage?: DocsInterceptor<C, DocsPageProps>;
-
-  /** props/renderer for `<DocsBody />` */
-  renderBody?: DocsInterceptor<C, ComponentProps<"div">>;
-
-  /** props/renderer for the page actions, return `null` to hide them */
-  renderPageActions?: DocsInterceptor<C, PageActionsProps>;
-}
-
-export interface PageActionsProps {
-  markdownUrl?: string;
-  githubUrl?: string;
-}
-
-export interface DocsLayoutRenderData {
-  markdownUrl?: string;
-  lastModified?: Date | null;
-  body: ReactNode;
-  layoutProps: DocsLayoutProps;
-  pageProps: DocsPageProps;
-}
-
-export type DocsInterceptor<S extends AppShape, T> = Interceptor<
+export interface DocsLayoutContextData<S extends AppShape = AppShape> extends DocsLikeContextData<
   S,
-  T,
-  { lang?: string; page: S["page"] }
->;
+  DocsLayoutProps,
+  DocsPageProps
+> {}
 
-export interface DocsLayoutContextData<S extends AppShape = AppShape> {
-  transformers?: ((opts: {
-    page: S["page"];
-    data: DocsLayoutRenderData;
-  }) => Awaitable<DocsLayoutRenderData>)[];
-
-  pageInterceptors?: DocsInterceptor<S, DocsPageProps>[];
-  layoutInterceptors?: DocsInterceptor<S, DocsLayoutProps>[];
-  bodyInterceptors?: DocsInterceptor<S, ComponentProps<"div">>[];
-  actionsInterceptors?: DocsInterceptor<S, PageActionsProps>[];
-}
-
-export function createDocsLayoutPage<C extends AppShape = AppShape>({
-  render,
-  treeRoot,
-  renderLayout,
-  renderPage,
-  renderBody,
-  renderPageActions,
-  inherit: { layoutProps: inheritLayoutProps = true } = {},
-}: DocsLayoutOptions<NoInfer<C>> = {}) {
-  return async function Layout({
-    lang,
-    page,
-  }: {
-    lang?: string;
-    slugs: string[];
-    page: C["page"];
-  }) {
-    const ctx = getPressContext<C>();
-    const {
-      actionsInterceptors,
-      bodyInterceptors,
-      layoutInterceptors,
-      pageInterceptors,
-      transformers,
-    } = ctx.data["core:docs-layout"] ?? {};
-    const [source, data, slots] = await Promise.all([
-      ctx.getLoader(),
-      ctx.getPageData(page),
-      ctx.getSlots(page),
-    ]);
-
-    const _raw = await render?.call(ctx, page);
-    const layoutProps: DocsLayoutProps = {
-      tree: selectTreeRoot(source.getPageTree(lang), treeRoot),
-      ...deepmerge(
-        inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined,
-        _raw?.layoutProps,
-      ),
-    };
-
-    const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
-    if (body == null) {
-      throw new Error("[Fumapress] Please specify the `render` option in createDocsLayoutPage()");
-    }
-
-    let result: DocsLayoutRenderData = {
-      ..._raw,
-      markdownUrl: _raw?.markdownUrl ?? data.markdownUrl,
-      lastModified: _raw?.lastModified ?? data.lastModified,
-      pageProps: {
-        ..._raw?.pageProps,
-        full: _raw?.pageProps?.full ?? data.full,
-        toc: _raw?.pageProps?.toc ?? data.toc,
-      },
-      body,
-      layoutProps,
-    };
-
-    if (transformers) {
-      for (const r of transformers) {
-        result = await r({ data: result, page });
-      }
-    }
-
-    const Layout = renderWithInterceptors(
-      ctx,
-      { lang, page },
-      (props) => <DocsLayout {...props} />,
-      [...(layoutInterceptors ?? []), renderLayout],
-    );
-    const Page = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsPage {...props} />, [
-      ...(pageInterceptors ?? []),
-      renderPage,
-    ]);
-    const Body = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsBody {...props} />, [
-      ...(bodyInterceptors ?? []),
-      renderBody,
-    ]);
-
-    const Actions = renderWithInterceptors(
-      ctx,
-      { lang, page },
-      ({ markdownUrl, githubUrl }: PageActionsProps) => (
-        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-          {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
-          <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
-          {renderSlot(slots["page.actions"])}
-        </div>
-      ),
-      [...(actionsInterceptors ?? []), renderPageActions],
-    );
-
-    return Layout({
-      ...result.layoutProps,
-      children: Page({
-        ...result.pageProps,
-        children: (
-          <>
-            <DocsTitle>{data.title}</DocsTitle>
-            <DocsDescription className="mb-0">{data.description}</DocsDescription>
-            {Actions({ markdownUrl: result.markdownUrl, githubUrl: data.githubUrl })}
-            {Body({ children: wrapSlot(slots["body.wrapper"], result.body) })}
-            {result.lastModified && <PageLastUpdate date={result.lastModified} />}
-            {renderSlot(slots["page.footer"])}
-          </>
-        ),
-      }),
-    });
-  };
+export function createDocsLayoutPage<C extends AppShape = AppShape>(
+  options: DocsLayoutOptions<NoInfer<C>> = {},
+) {
+  return createDocsLikeLayoutPage<C, DocsLayoutProps, DocsPageProps>(options, {
+    name: "createDocsLayoutPage",
+    data: (ctx) => ctx.data["core:docs-layout"],
+    DocsLayout,
+    DocsPage,
+    DocsTitle,
+    DocsDescription,
+    DocsBody,
+    MarkdownCopyButton,
+    ViewOptionsPopover,
+    PageLastUpdate,
+  });
 }

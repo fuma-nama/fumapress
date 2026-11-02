@@ -5,9 +5,8 @@ import {
   type DocToPage,
 } from "@fumadocs/sanity";
 import * as Fumadocs from "@fumadocs/sanity/plugin";
-import type { Plugin } from "fumadocs-core/framework/plugin";
 import type { DynamicSource, MetaData, PageData } from "fumadocs-core/source";
-import { z } from "zod/mini";
+import type { AppShape, PressPlugin } from "fumapress";
 import { type PortableTextBlock, PortableText as DefaultPortableText } from "@portabletext/react";
 import type { SanityClient } from "@sanity/client";
 import type { ReactNode } from "react";
@@ -75,31 +74,31 @@ export type PortableTextRenderer<B extends TypedObject = PortableTextBlock> = (p
 /**
  * @deprecated use `sanityPlugin()` of `@fumadocs/sanity/plugin`, with the `components` of Portable Text in place of a `PortableText` renderer
  */
-export function sanityPlugin<Doc extends BaseDoc = BaseDoc>(
+export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc = BaseDoc>(
   integration: SanityIntegration<Doc>,
-): Plugin {
-  const plugin = Fumadocs.sanityPlugin();
-  const Renderer = integration.renderer;
-  if (Renderer === DefaultPortableText) return plugin;
-
-  const pageSchema = z.looseObject({
-    _id: z.string(),
-    _type: z.literal(integration.docType),
-    load: z.function(),
-  });
+): PressPlugin<C> {
+  const { docType, renderer: Renderer } = integration;
 
   function isSanityPage(data: PageData): data is DocToPage<
     BaseDoc & {
       body?: PortableTextBlock | PortableTextBlock[];
     }
   > {
-    return pageSchema.safeParse(data).success;
+    return (
+      "_type" in data && data._type === docType && "load" in data && typeof data.load === "function"
+    );
   }
 
   return {
-    ...plugin,
+    ...Fumadocs.sanityPlugin({ docType }),
     async getPageBody({ data }) {
       if (isSanityPage(data)) return { node: <Renderer value={(await data.load()).body} /> };
+    },
+    async getPageToc({ data }) {
+      if (!isSanityPage(data)) return;
+      return (await data.load()).renderToc({
+        render: (body) => <Renderer value={body as PortableTextBlock} />,
+      });
     },
   };
 }

@@ -46,6 +46,7 @@
     "@types/react-dom": "^19.3.0",
     "fumadocs-core": "^16.17.11",
     "fumadocs-ui": "^16.16.2",
+    "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tsdown": "0.23.0",
@@ -58,6 +59,7 @@
     "@types/react": "*",
     "fumadocs-core": "^16.17.11",
     "fumadocs-ui": "*",
+    "fumapress": "workspace:^",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -1,169 +1,55 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderToReadableStream } from "react-dom/server.edge";
-import { appContext, type AppContext } from "@/app/context";
+import { appContext } from "@/app/context";
 import { createApp, i18n } from "./fixtures";
 
-async function getPage(ctx: AppContext, slugs: string[], lang?: string) {
-  const page = (await ctx.getLoader()).getPage(slugs, lang);
-  if (!page) throw new Error(`missing page ${slugs.join("/")} (${lang})`);
-  return page;
-}
-
-function render(ctx: AppContext, node: () => ReactNode) {
-  return appContext.run(ctx, async () => {
-    const stream = await renderToReadableStream(node());
-    await stream.allReady;
-    return new Response(stream).text();
-  });
-}
-
-describe("absoluteUrl", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("resolves pathnames against the base URL", async () => {
-    const ctx = await createApp();
-
-    await appContext.run(ctx, () => {
-      expect(ctx.absoluteUrl("/docs/basics")).toBe("https://example.com/docs/basics");
-      expect(ctx.absoluteUrl("/")).toBe("https://example.com/");
-    });
-  });
-
-  it("returns the pathname without baseUrl", async () => {
-    const ctx = await createApp();
-    ctx.siteConfig.baseUrl = undefined;
-
-    await appContext.run(ctx, () => {
-      expect(ctx.absoluteUrl("/docs/basics")).toBe("/docs/basics");
-    });
-  });
-
-  it("keeps the path of baseUrl", async () => {
-    const ctx = await createApp({ site: { baseUrl: "https://example.com/repo" } });
-
-    await appContext.run(ctx, () => {
-      expect(ctx.absoluteUrl("/index.webp")).toBe("https://example.com/repo/index.webp");
-    });
-  });
-
-  it("prefixes the base path without baseUrl", async () => {
-    vi.stubEnv("BASE_URL", "/repo/");
-    const ctx = await createApp();
-    ctx.siteConfig.baseUrl = undefined;
-
-    await appContext.run(ctx, () => {
-      expect(ctx.absoluteUrl("/docs/basics")).toBe("/repo/docs/basics");
-    });
-  });
-});
-
-describe("defaultLayoutProps", () => {
-  it("links the nav title to the home of the language", async () => {
-    const ctx = await createApp({ i18n });
-    const hidden = await createApp({ i18n: { ...i18n, hideLocale: "default-locale" } });
-    const navUrl = async (app: AppContext, lang?: string) =>
-      (await app.defaultLayoutProps({ lang })).nav?.url;
-
-    await expect(navUrl(ctx, "cn")).resolves.toBe("/cn");
-    await expect(navUrl(ctx, "en")).resolves.toBe("/en");
-    await expect(navUrl(hidden, "cn")).resolves.toBe("/cn");
-    await expect(navUrl(hidden, "en")).resolves.toBe("/");
-    await expect(navUrl(await createApp(), undefined)).resolves.toBe("/");
-  });
-
-  it("keeps the nav url of the config", async () => {
-    const ctx = await createApp({ i18n, defaultLayoutProps: { nav: { url: "/docs" } } });
-
-    await expect(ctx.defaultLayoutProps({ lang: "cn" })).resolves.toMatchObject({
-      nav: { url: "/docs" },
-    });
-  });
-});
-
-describe("getPageAlternates", () => {
-  it("lists translations with their hreflang", async () => {
-    const ctx = await createApp({ i18n, site: { hreflang: { cn: "zh-Hans" } } });
-    const page = await getPage(ctx, ["docs", "basics"], "en");
-
-    await expect(appContext.run(ctx, () => ctx.getPageAlternates(page))).resolves.toEqual([
-      { locale: "en", hreflang: "en", href: "https://example.com/en/docs/basics" },
-      { locale: "cn", hreflang: "zh-Hans", href: "https://example.com/cn/docs/basics" },
-    ]);
-  });
-
-  it("is empty for pages without translations", async () => {
-    const ctx = await createApp({ i18n });
-
-    for (const lang of ["en", "cn"]) {
-      const page = await getPage(ctx, ["docs", "only-en"], lang);
-      await expect(appContext.run(ctx, () => ctx.getPageAlternates(page))).resolves.toEqual([]);
-    }
-  });
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("renderPageMeta", () => {
-  it("emits description, Open Graph, canonical and hreflang tags", async () => {
+  it("renders the head tags as React elements: page, `meta`, then plugins", async () => {
     const ctx = await createApp({
       i18n,
-      meta: { page: () => createElement("meta", { name: "custom", content: "yes" }) },
+      meta: {
+        root: () => createElement("meta", { name: "root" }),
+        page: () => createElement("meta", { name: "custom", content: "yes" }),
+      },
+      plugins: [{ head: () => [{ tag: "meta", attrs: { name: "plugin" } }] }],
     });
-    const page = await getPage(ctx, ["docs", "basics"], "en");
-    const html = await render(ctx, () => ctx.renderPageMeta(page));
+    const page = (await ctx.getLoader()).getPage(["docs", "basics"], "en")!;
+    const render = (node: ReactNode) =>
+      appContext.run(ctx, async () => {
+        const stream = await renderToReadableStream(node);
+        await stream.allReady;
+        return new Response(stream).text();
+      });
 
+    const html = await render(ctx.renderPageMeta(page));
     expect(html).toContain("<title>docs/basics.mdx</title>");
-    expect(html).toContain('<meta name="description" content="About docs/basics.mdx"/>');
-    expect(html).toContain('<meta property="og:title" content="docs/basics.mdx"/>');
-    expect(html).toContain('<meta property="og:site_name" content="Fumapress"/>');
     expect(html).toContain('<link rel="canonical" href="https://example.com/en/docs/basics"/>');
-    expect(html).toContain(
-      '<meta property="og:url" content="https://example.com/en/docs/basics"/>',
-    );
     expect(html).toContain(
       '<link rel="alternate" hrefLang="cn" href="https://example.com/cn/docs/basics"/>',
     );
-    expect(html).toContain(
-      '<link rel="alternate" hrefLang="x-default" href="https://example.com/en/docs/basics"/>',
-    );
-    expect(html).toContain('<meta name="custom" content="yes"/>');
-    expect(html).not.toContain("noindex");
-  });
-
-  it("marks fallback pages noindex with a canonical to the source page", async () => {
-    const ctx = await createApp({ i18n });
-    const page = await getPage(ctx, ["docs", "only-en"], "cn");
-    const html = await render(ctx, () => ctx.renderPageMeta(page));
-
-    expect(html).toContain('<meta name="robots" content="noindex"/>');
-    expect(html).toContain('<link rel="canonical" href="https://example.com/en/docs/only-en"/>');
-    expect(html).not.toContain("hrefLang");
-  });
-
-  it("marks fallback pages of sources without an absolute path", async () => {
-    const ctx = await createApp({ i18n, absolutePath: false });
-    const page = await getPage(ctx, ["docs", "only-en"], "cn");
-    const html = await render(ctx, () => ctx.renderPageMeta(page));
-
-    expect(html).toContain('<meta name="robots" content="noindex"/>');
-    expect(html).toContain('<link rel="canonical" href="https://example.com/en/docs/only-en"/>');
-
-    const translated = await getPage(ctx, ["docs", "basics"], "cn");
-    const translatedHtml = await render(ctx, () => ctx.renderPageMeta(translated));
-    expect(translatedHtml).not.toContain("noindex");
-    expect(translatedHtml).toContain(
-      '<link rel="canonical" href="https://example.com/cn/docs/basics"/>',
+    expect(html.indexOf("x-default")).toBeLessThan(html.indexOf('name="custom"'));
+    expect(html.indexOf('name="custom"')).toBeLessThan(html.indexOf('name="plugin"'));
+    await expect(render(await ctx.renderRootMeta())).resolves.toBe(
+      '<meta name="plugin"/><meta name="root"/>',
     );
   });
+});
 
-  it("skips canonical without baseUrl", async () => {
-    const ctx = await createApp();
-    ctx.siteConfig.baseUrl = undefined;
-    const page = await getPage(ctx, ["docs", "basics"]);
-    const html = await render(ctx, () => ctx.renderPageMeta(page));
+describe("site.baseUrl", () => {
+  it("warns when unset, and falls back to the development server", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubEnv("FUMAPRESS_PLATFORM", "cloudflare");
+    const ctx = await createApp({ site: { baseUrl: undefined } });
 
-    expect(html).not.toContain("canonical");
-    expect(html).not.toContain("og:url");
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      '[Fumapress] "site.baseUrl" is not set and Cloudflare Workers Builds does not expose the site URL; sitemap and RSS will fall back to relative URLs.',
+    );
+    expect(ctx.siteConfig.baseUrl).toBe("http://localhost:3000");
   });
 });

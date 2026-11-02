@@ -3,23 +3,20 @@ import type { AdvancedIndex, SearchAPI } from "fumadocs-core/search/server";
 import type { Context } from "./context";
 import type { AppShape } from "./plugin";
 
-/** the search index of a page, from `getPageStructuredData()` of its content source */
-export async function buildIndexDefault<C extends AppShape>(
-  this: Context<C>,
-  page: C["page"],
-): Promise<AdvancedIndex> {
-  const structuredData = await this.getPageStructuredData(page);
-  if (!structuredData)
-    throw new Error(
-      `[Fumapress] no content source gives the structured data of "${page.path}" for search, pass \`buildIndex\` to the search plugin.`,
-    );
+/** the search index of a page from `getPageStructuredData()` of its content source, `plugin` names the search plugin in errors */
+export function buildIndexDefault<C extends AppShape>(plugin: string) {
+  return async function (this: Context<C>, page: C["page"]): Promise<AdvancedIndex> {
+    const structuredData = await this.getPageStructuredData(page);
+    if (!structuredData)
+      throw new Error(`[Fumapress] Please specify the \`buildIndex\` option to ${plugin}()`);
 
-  return {
-    id: page.url,
-    url: page.url,
-    title: page.data.title ?? page.slugs.at(-1) ?? "",
-    description: page.data.description,
-    structuredData,
+    return {
+      id: page.url,
+      title: page.data.title ?? page.path,
+      description: page.data.description,
+      url: page.url,
+      structuredData,
+    };
   };
 }
 

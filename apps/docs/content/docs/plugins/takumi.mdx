@@ -22,10 +22,10 @@ export default defineConfig({
 The plugin creates a `.webp` Open Graph image for every content page with [Takumi](https://takumi.kane.tw), and adds the matching metadata:
 
 ```html
-<meta property="og:image" content="/og/docs/page.webp" />
+<meta property="og:image" content="/docs/page.webp" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta name="twitter:card" content="summary_large_image" />
+<meta property="twitter:card" content="summary_large_image" />
 ```
 
 The default image shows the page title, description, and site name.
@@ -135,7 +135,7 @@ export function getConfig() {
 }
 ```
 
-The image is prerendered as `/og/about.webp` with the default template, and the page receives the same `og:image` meta tags as a content page. Pass `node` to draw it yourself, and `options` for the image response options of this route.
+The image is prerendered as `/about.webp` with the default template, and the page receives the same `og:image` meta tags as a content page. Pass `node` to draw it yourself, and `options` for the image response options of this route.
 
 For routes with slugs, a function receives the route params, `lang` included with [i18n](/docs/internationalization), and `this` is the app context:
 
@@ -150,7 +150,7 @@ export function getConfig() {
 }
 ```
 
-A static page gets a prerendered `.webp` file under `/og`, one per entry of `staticPaths`. A dynamic page renders its image on request from an image route under `/og`.
+A static page gets a prerendered `.webp` file next to it, one per entry of `staticPaths`. A dynamic page renders its image on request from an image route under `/_takumi`.
 
 ## WebAssembly
 

@@ -37,7 +37,7 @@ function createSite(options?: RSSOptions, config: Partial<PressConfig> = {}) {
 }
 
 async function readFeed(ctx: Awaited<ReturnType<typeof createSite>>) {
-  const [route] = await ctx.getRoutes();
+  const [route] = await ctx.getApiRoutes();
   expect(route).toMatchObject({ path: "/rss.xml", render: "static" });
   const res = await route!.GET!(new Request("https://example.com/docs/rss.xml"), { params: {} });
   expect(res.headers.get("content-type")).toBe("application/rss+xml");
@@ -125,7 +125,7 @@ describe("rssPlugin", () => {
         rel: "alternate",
         type: "application/rss+xml",
         title: "Feed",
-        href: "https://example.com/docs/rss.xml",
+        href: "/docs/rss.xml",
       },
     };
     const index = (await ctx.getLoader()).getPage([]);

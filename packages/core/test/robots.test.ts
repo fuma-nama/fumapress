@@ -15,7 +15,7 @@ async function generate(options?: RobotsOptions, sitemap?: string | false) {
     },
     { base: "/repo/" },
   );
-  const route = (await ctx.getRoutes()).find(
+  const route = (await ctx.getApiRoutes()).find(
     (item) => item.path === (options?.path ?? "/robots.txt"),
   );
   const res = await route!.GET!(new Request("https://example.com/repo/robots.txt"), { params: {} });

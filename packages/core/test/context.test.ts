@@ -23,7 +23,7 @@ function page(file: string, data?: PageData & { full?: unknown }): VirtualFile {
 }
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/shared` belongs to every language */
-const content: PressConfig["content"] = {
+const content = {
   files: [
     page("index.mdx"),
     page("docs/basics.mdx"),
@@ -31,7 +31,7 @@ const content: PressConfig["content"] = {
     page("docs/only-en.mdx"),
     page("docs/shared.$.mdx"),
   ],
-};
+} satisfies PressConfig["content"];
 
 function createSite(
   config: Partial<PressConfig> = {},
@@ -110,10 +110,11 @@ describe("createPress", () => {
     expect((await getPage(ctx, ["docs", "basics"], "cn")).url).toBe("/cn/v2/docs/basics");
   });
 
-  it("adds the plugins of the preset unless it is disabled", async () => {
+  it("loads the plugins of the preset unless it is disabled", async () => {
+    const orama = vi.fn(() => ({ name: "orama-search", provides: ["search"] }));
     const preset = vi.fn(() => [
-      { name: "sitemap" },
-      { name: "orama-search", provides: ["search"] },
+      { name: "sitemap", load: () => ({ name: "sitemap" }) },
+      { name: "orama-search", provides: ["search"], load: orama },
     ]);
     const ctx = await createSite(
       { preset: "recommended", plugins: [{ name: "flexsearch", provides: ["search"] }] },
@@ -121,6 +122,7 @@ describe("createPress", () => {
     );
 
     expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["flexsearch", "sitemap"]);
+    expect(orama).not.toHaveBeenCalled();
     expect(ctx.getPlugin("sitemap")).toBe(ctx.plugins[1]);
     expect(ctx.getProvider("search")).toBe(ctx.plugins[0]);
     expect(ctx.getProvider("og-image")).toBeUndefined();
@@ -136,30 +138,15 @@ describe("createPress", () => {
     );
   });
 
-  it("derives translations from i18n, with the keys of plugins", async () => {
-    const ctx = await createSite({ i18n, plugins: [{ translations: { keys: ["Copy"] } }] });
-    const translations = ctx.translationsConfig;
-    if (!translations || !("config" in translations)) throw new Error("missing translations");
-    translations.add({ en: { Copy: "Copy", Unknown: "Unknown" } });
-
-    expect(ctx.i18nConfig).toBe(i18n);
-    expect(translations.get("en")).toEqual({ Copy: "Copy" });
-  });
-
-  it("reads the i18n config of translations", async () => {
+  it("reads the i18n config of translations, with the keys of plugins", async () => {
     const translations = defineI18n(i18n).translations();
-    const ctx = await createSite({ translations });
+    const ctx = await createSite({ translations, plugins: [{ translations: { keys: ["Copy"] } }] });
+    translations.add({ en: { Copy: "Copy", Unknown: "Unknown" } });
 
     expect(ctx.translationsConfig).toBe(translations);
     expect(ctx.i18nConfig).toBe(i18n);
-  });
-
-  it("warns without `site.baseUrl`", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    await createSite({ site: { baseUrl: undefined } });
-
-    expect(warn).toHaveBeenCalledOnce();
-    expect(warn.mock.calls[0]![0]).toContain("`site.baseUrl` is not set");
+    expect(translations.get("en")).toEqual({ Copy: "Copy" });
+    expect((await createSite({ i18n })).translationsConfig).toBeUndefined();
   });
 
   it("revalidates dynamic sources", async () => {
@@ -267,7 +254,7 @@ describe("getPageData", () => {
       plugins: [
         {
           enforce: "post",
-          transformPage: (data) => ({ ...data, image: `${data.markdownUrl}.webp` }),
+          transformPage: (data) => ({ ...data, githubUrl: `${data.markdownUrl}.txt` }),
         },
         { transformPage: (data, page) => ({ ...data, markdownUrl: `${page.url}.md` }) },
       ],
@@ -275,7 +262,7 @@ describe("getPageData", () => {
 
     await expect(ctx.getPageData(await getPage(ctx, ["docs", "basics"]))).resolves.toMatchObject({
       markdownUrl: "/docs/basics.md",
-      image: "/docs/basics.md.webp",
+      githubUrl: "/docs/basics.md.txt",
     });
   });
 });
@@ -299,16 +286,26 @@ describe("getHead", () => {
     ]);
   });
 
-  it("starts with the defaults of content pages", async () => {
-    const ctx = await createSite({ ...head, i18n, site: { hreflang: { cn: "zh-Hans" } } });
-    const page = await getPage(ctx, ["docs", "basics"], "en");
+  it("passes the page to config and plugins", async () => {
+    const ctx = await createSite(head);
 
-    await expect(ctx.getHead({ page })).resolves.toEqual([
+    await expect(ctx.getHead({ page: await getPage(ctx, ["docs", "basics"]) })).resolves.toEqual([
+      { tag: "meta", attrs: { name: "config" } },
+      { tag: "meta", attrs: { name: "plugin", content: "/docs/basics" } },
+    ]);
+  });
+});
+
+describe("getPageHead", () => {
+  it("returns the defaults of content pages", async () => {
+    const ctx = await createSite({ i18n, site: { hreflang: { cn: "zh-Hans" } } });
+
+    await expect(ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "en"))).resolves.toEqual([
       { tag: "title", children: "docs/basics.mdx" },
-      { tag: "meta", attrs: { property: "og:title", content: "docs/basics.mdx" } },
-      { tag: "meta", attrs: { property: "og:site_name", content: "Fumapress" } },
       { tag: "meta", attrs: { name: "description", content: "About docs/basics.mdx" } },
+      { tag: "meta", attrs: { property: "og:title", content: "docs/basics.mdx" } },
       { tag: "meta", attrs: { property: "og:description", content: "About docs/basics.mdx" } },
+      { tag: "meta", attrs: { property: "og:site_name", content: "Fumapress" } },
       { tag: "link", attrs: { rel: "canonical", href: "https://example.com/en/docs/basics" } },
       { tag: "meta", attrs: { property: "og:url", content: "https://example.com/en/docs/basics" } },
       {
@@ -331,8 +328,6 @@ describe("getHead", () => {
           href: "https://example.com/en/docs/basics",
         },
       },
-      { tag: "meta", attrs: { name: "config" } },
-      { tag: "meta", attrs: { name: "plugin", content: "/en/docs/basics" } },
     ]);
   });
 
@@ -343,7 +338,7 @@ describe("getHead", () => {
       ["docs", "only-en"],
       ["docs", "shared"],
     ]) {
-      const tags = await ctx.getHead({ page: await getPage(ctx, slugs, "cn") });
+      const tags = await ctx.getPageHead(await getPage(ctx, slugs, "cn"));
       expect(tags).toContainEqual({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
       expect(tags).toContainEqual({
         tag: "link",
@@ -352,17 +347,36 @@ describe("getHead", () => {
       expect(tags.some((tag) => tag.attrs?.rel === "alternate")).toBe(false);
     }
 
-    const translated = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"], "cn") });
+    const translated = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "cn"));
     expect(translated).not.toContainEqual({
       tag: "meta",
       attrs: { name: "robots", content: "noindex" },
     });
   });
 
+  it("marks fallback pages of sources without an absolute path", async () => {
+    const files: VirtualFile[] = [];
+    for (const file of content.files) files.push({ ...file, absolutePath: undefined });
+    const ctx = await createSite({ i18n, content: { files } });
+    const fallback = await ctx.getPageHead(await getPage(ctx, ["docs", "only-en"], "cn"));
+    const translated = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "cn"));
+    const noindex = { tag: "meta", attrs: { name: "robots", content: "noindex" } };
+
+    expect(fallback).toContainEqual(noindex);
+    expect(fallback).toContainEqual({
+      tag: "link",
+      attrs: { rel: "canonical", href: "https://example.com/en/docs/only-en" },
+    });
+    expect(translated).not.toContainEqual(noindex);
+    expect(translated).toContainEqual({
+      tag: "link",
+      attrs: { rel: "canonical", href: "https://example.com/cn/docs/basics" },
+    });
+  });
+
   it("skips canonical without `site.baseUrl`", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const ctx = await createSite({ site: { baseUrl: undefined } });
-    const tags = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"]) });
+    const tags = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"]));
 
     expect(
       tags.some((tag) => tag.attrs?.rel === "canonical" || tag.attrs?.property === "og:url"),
@@ -370,20 +384,7 @@ describe("getHead", () => {
   });
 });
 
-describe("getFallbackOrigin", () => {
-  it("finds the page a language falls back to", async () => {
-    const ctx = await createSite({ i18n });
-    const origin = async (slugs: string[], lang: string) =>
-      (await ctx.getFallbackOrigin(await getPage(ctx, slugs, lang)))?.url;
-
-    await expect(origin(["docs", "only-en"], "cn")).resolves.toBe("/en/docs/only-en");
-    await expect(origin(["docs", "shared"], "cn")).resolves.toBe("/en/docs/shared");
-    await expect(origin(["docs", "basics"], "cn")).resolves.toBeUndefined();
-    await expect(origin(["docs", "only-en"], "en")).resolves.toBeUndefined();
-  });
-});
-
-describe("getRoutes", () => {
+describe("getApiRoutes", () => {
   it("fills render from the mode", async () => {
     const config: Partial<PressConfig> = {
       plugins: [
@@ -396,7 +397,7 @@ describe("getRoutes", () => {
       ],
     };
     const renders = async (mode?: PressConfig["mode"]) =>
-      (await (await createSite({ ...config, mode })).getRoutes()).map((route) => route.render);
+      (await (await createSite({ ...config, mode })).getApiRoutes()).map((route) => route.render);
 
     await expect(renders()).resolves.toEqual(["static", "dynamic"]);
     await expect(renders("static")).resolves.toEqual(["static", "dynamic"]);
@@ -409,10 +410,10 @@ describe("getRoutes", () => {
     });
     const all = await createSite({ plugins: [{ routes: () => [{ path: "/api", ALL: GET }] }] });
 
-    await expect(post.getRoutes()).rejects.toThrow(
+    await expect(post.getApiRoutes()).rejects.toThrow(
       'the static route "/api" is generated from its GET handler, its POST handler needs',
     );
-    await expect(all.getRoutes()).rejects.toThrow("its ALL handler needs");
+    await expect(all.getApiRoutes()).rejects.toThrow("its ALL handler needs");
   });
 
   it("rejects static routes with params but no `staticPaths`", async () => {
@@ -423,10 +424,10 @@ describe("getRoutes", () => {
       plugins: [{ routes: () => [{ path: "/og/[...slugs]", GET, staticPaths: [["a"]] }] }],
     });
 
-    await expect(missing.getRoutes()).rejects.toThrow(
+    await expect(missing.getApiRoutes()).rejects.toThrow(
       'the static route "/og/[...slugs]" has params',
     );
-    await expect(listed.getRoutes()).resolves.toHaveLength(1);
+    await expect(listed.getApiRoutes()).resolves.toHaveLength(1);
   });
 
   it("rejects two routes handling a method of one path", async () => {
@@ -436,13 +437,13 @@ describe("getRoutes", () => {
         plugins: items.map((item) => ({ routes: () => [{ path: "/api", ...item }] })),
       });
 
-    await expect((await routes({ GET }, { GET })).getRoutes()).rejects.toThrow(
+    await expect((await routes({ GET }, { GET })).getApiRoutes()).rejects.toThrow(
       'two routes handle GET requests to "/api"',
     );
-    await expect((await routes({ GET }, { ALL: GET })).getRoutes()).rejects.toThrow(
+    await expect((await routes({ GET }, { ALL: GET })).getApiRoutes()).rejects.toThrow(
       'two routes handle GET requests to "/api"',
     );
-    await expect((await routes({ GET }, { POST: GET })).getRoutes()).resolves.toHaveLength(2);
+    await expect((await routes({ GET }, { POST: GET })).getApiRoutes()).resolves.toHaveLength(2);
   });
 });
 
@@ -519,7 +520,6 @@ describe("URLs", () => {
   });
 
   it("falls back to the base path without `site.baseUrl`", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const ctx = await createSite({ site: { baseUrl: undefined } }, { base: "/repo/" });
 
     expect(ctx.absoluteUrl("/docs/basics")).toBe("/repo/docs/basics");

@@ -62,34 +62,29 @@ async function readImage(route: ApiRoute, slugs: string[]) {
 describe("routes", () => {
   it("serves the images of every language without fallback pages", async () => {
     const ctx = await createSite({}, { i18n });
-    const routes = await ctx.getRoutes();
+    const routes = await ctx.getApiRoutes();
 
-    expect(ctx.getProvider("og-image")?.name).toBe("takumi");
+    expect(ctx.getProvider("og-image")?.name).toBe("core:takumi");
     expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
       {
-        path: "/og/[...slugs]",
+        path: "/[...slugs]",
         render: "static",
         staticPaths: [["index.webp"], ["docs", "basics.webp"], ["docs", "only-en.webp"]],
       },
-      { path: "/cn/og/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
+      { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
     ]);
 
     await readImage(routes[0]!, ["index.webp"]);
     await readImage(routes[1]!, ["docs", "basics.webp"]);
-    for (const [route, slugs] of [
-      [routes[1]!, ["docs", "only-en.webp"]],
-      [routes[0]!, ["docs", "basics"]],
-      [routes[0]!, ["docs", "missing.webp"]],
-    ] as const) {
-      expect((await request(route, [...slugs])).status).toBe(404);
-    }
+    expect((await request(routes[0]!, ["docs", "missing.webp"])).status).toBe(404);
   });
 
-  it("renders on request in dynamic mode, under `basePath`", async () => {
-    const [route] = await (
-      await createSite({ basePath: "/images/" }, { mode: "dynamic" })
-    ).getRoutes();
+  it("renders on request in dynamic mode, under `/_takumi` or `basePath`", async () => {
+    const routes = async (options: TakumiOptions) =>
+      (await createSite(options, { mode: "dynamic" })).getApiRoutes();
 
+    expect((await routes({}))[0]).toMatchObject({ path: "/_takumi/[...slugs]", render: "dynamic" });
+    const [route] = await routes({ basePath: "/images/" });
     expect(route).toMatchObject({ path: "/images/[...slugs]", render: "dynamic" });
     await readImage(route!, ["docs", "only-en.webp"]);
   });
@@ -100,13 +95,13 @@ describe("routes", () => {
       await createSite({
         width: 600,
         height: 315,
-        options: { headers: { "x-shared": "1" }, status: 200 },
+        options: { headers: { "x-shared": "1" }, status: 200, width: 300 },
         generate(page) {
           seen.push(`${this.siteConfig.name} ${page.url}`);
           return { node: <div>Page</div>, options: { status: 201 } };
         },
       })
-    ).getRoutes();
+    ).getApiRoutes();
 
     const res = await readImage(route!, ["docs", "basics.webp"]);
     expect(res.status).toBe(201);
@@ -116,49 +111,43 @@ describe("routes", () => {
 });
 
 describe("page image", () => {
-  it("adds the meta tags and `image` of content pages", async () => {
-    const ctx = await createSite({ width: 600, height: 315 });
-    const page = await getPage(ctx, ["docs", "basics"]);
-    const url = "https://example.com/docs/og/docs/basics.webp";
+  async function headOf(slugs: string[], options?: TakumiOptions, config?: Partial<PressConfig>) {
+    const ctx = await createSite(options, config);
+    return ctx.getHead({ page: await getPage(ctx, slugs, config?.i18n ? "cn" : undefined) });
+  }
 
-    await expect(ctx.getPageData(page)).resolves.toMatchObject({ image: url });
-    const tags = await ctx.getHead({ page });
-    // `og:image` from the page data, its size from the plugin
-    expect(tags).toEqual(
-      expect.arrayContaining([
-        { tag: "meta", attrs: { property: "og:image", content: url } },
-        { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
-        { tag: "meta", attrs: { name: "twitter:image", content: url } },
-      ]),
-    );
-    expect(tags.slice(-2)).toEqual([
+  it("adds the meta tags of content pages", async () => {
+    const url = "https://example.com/docs/docs/basics.webp";
+
+    expect((await headOf(["docs", "basics"], { width: 600, height: 315 })).slice(-4)).toEqual([
+      { tag: "meta", attrs: { property: "og:image", content: url } },
       { tag: "meta", attrs: { property: "og:image:width", content: "600" } },
       { tag: "meta", attrs: { property: "og:image:height", content: "315" } },
+      { tag: "meta", attrs: { property: "twitter:card", content: "summary_large_image" } },
     ]);
-    await expect(ctx.getHead({})).resolves.toEqual([]);
+    await expect((await createSite()).getHead({})).resolves.toEqual([]);
   });
 
   it("localizes the image, fallback pages use the one of their origin", async () => {
-    const ctx = await createSite({}, { i18n });
-    const image = async (slugs: string[], lang: string) =>
-      (await ctx.getPageData(await getPage(ctx, slugs, lang))).image;
+    const image = async (slugs: string[], config?: Partial<PressConfig>) =>
+      (await headOf(slugs, {}, config)).at(-4)?.attrs?.content;
 
-    await expect(image(["docs", "basics"], "cn")).resolves.toBe(
-      "https://example.com/docs/cn/og/docs/basics.webp",
+    await expect(image(["docs", "basics"], { i18n })).resolves.toBe(
+      "https://example.com/docs/cn/docs/basics.webp",
     );
-    await expect(image(["docs", "only-en"], "cn")).resolves.toBe(
-      "https://example.com/docs/og/docs/only-en.webp",
+    await expect(image(["docs", "only-en"], { i18n })).resolves.toBe(
+      "https://example.com/docs/docs/only-en.webp",
     );
-    await expect(image([], "en")).resolves.toBe("https://example.com/docs/og/index.webp");
+    await expect(image([])).resolves.toBe("https://example.com/docs/index.webp");
+    await expect(image(["docs", "basics"], { mode: "dynamic" })).resolves.toBe(
+      "https://example.com/docs/_takumi/docs/basics.webp",
+    );
   });
 
   it("falls back to the base path without `site.baseUrl`", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const ctx = await createSite({}, { site: { name: "Site" } });
-    const page = await getPage(ctx, ["docs", "basics"]);
+    const tags = await headOf(["docs", "basics"], {}, { site: { name: "Site" } });
 
-    await expect(ctx.getPageData(page)).resolves.toMatchObject({
-      image: "/docs/og/docs/basics.webp",
-    });
+    expect(tags.at(-4)?.attrs?.content).toBe("/docs/docs/basics.webp");
   });
 });

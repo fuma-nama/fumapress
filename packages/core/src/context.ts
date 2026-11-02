@@ -2,18 +2,12 @@ import {
   methods,
   type ApiRoute,
   type BuildMode,
-  type BuildOutput,
   type HeadTag,
   type PageBody,
   type PluginContext,
   type PluginLoaderOptions,
 } from "fumadocs-core/framework/plugin";
-import {
-  defineI18n,
-  type I18nConfig,
-  type SingularTranslationsAPI,
-  type TranslationsAPI,
-} from "fumadocs-core/i18n";
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type {
   _Internal,
@@ -33,6 +27,8 @@ import {
   type DocsPageData,
   type Plugin,
   type PluginOption,
+  type PresetEntry,
+  type PressBuildOutput,
   type SlotItem,
   type SlotName,
 } from "./plugin";
@@ -90,10 +86,11 @@ export interface SiteConfig {
   };
 }
 
-/** the config of a site, the same on every framework */
+/** the config of a site, the same on every framework, `this` of its callbacks is the `Ctx` of the framework */
 export interface PressConfig<
   I extends _Internal.AnyInput = _Internal.AnyInput,
   Lang extends string | undefined = string | undefined,
+  Ctx extends Context<InferAppShape<I, Lang>> = Context<InferAppShape<I, Lang>>,
 > {
   mode?: BuildMode;
   site?: SiteConfig;
@@ -109,7 +106,7 @@ export interface PressConfig<
   /** the content sources */
   content: I;
 
-  plugins?: PluginOption<Plugin<InferAppShape<I, Lang>>>[];
+  plugins?: PluginOption<Plugin<InferAppShape<I, Lang>, Ctx>>[];
 
   /** i18n config, optional when `translations` is specified */
   i18n?: InferI18nConfig<Lang>;
@@ -135,12 +132,12 @@ export interface PressConfig<
   defaultLayoutProps?:
     | Omit<BaseLayoutProps, "children">
     | ((
-        this: Context<InferAppShape<I, Lang>>,
+        this: Ctx,
         env: { lang: string | undefined },
       ) => Awaitable<Omit<BaseLayoutProps, "children">>);
 
   /** head tags of every page, without `page`, and of content pages */
-  head?: Plugin<InferAppShape<I, Lang>>["head"];
+  head?: Plugin<InferAppShape<I, Lang>, Ctx>["head"];
 }
 
 /** what a framework gives to {@link createPress} */
@@ -148,7 +145,16 @@ export interface PressRuntime<C extends AppShape = AppShape> {
   /** the base path of the site, `/` at the root */
   base: string;
   /** plugins of the `recommended` preset */
-  preset?: () => Awaitable<PluginOption<Plugin<C>>[]>;
+  preset?: () => PresetEntry<Plugin<C>>[];
+  getFrameworkPages?: () => FrameworkPage[];
+}
+
+/** a page the framework renders outside the content, like a page of `createPage()` on Waku */
+export interface FrameworkPage {
+  /** URL path, with the language prefix and without the base path */
+  path: string;
+  /** the page in every language it exists in, itself included */
+  translations: { locale: string; path: string }[];
 }
 
 export interface PageAlternate {
@@ -196,8 +202,8 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   getFileUrl(absolutePath: string): string | undefined;
   /** translations of a page for `hreflang` links, without fallback pages, empty when it has none */
   getPageAlternates(page: C["page"]): Promise<PageAlternate[]>;
-  /** the page this one is shown in place of, when its language has no file of its own */
-  getFallbackOrigin(page: C["page"]): Promise<C["page"] | undefined>;
+  /** from the framework, like the pages of `createPage()` on Waku */
+  getFrameworkPages(): FrameworkPage[];
 
   getPageBody(page: C["page"]): Promise<PageBody | undefined>;
   getPageText(page: C["page"]): Promise<string | undefined>;
@@ -208,16 +214,18 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
 
   /** the data of a docs page, from the page and `transformPage` of plugins */
   getPageData(page: C["page"]): Promise<DocsPageData>;
-  /** with the defaults (title, description, Open Graph, canonical, `hreflang`) for a content page */
+  /** title, description, Open Graph, canonical and `hreflang` of a content page, fallback pages point at their origin and are not indexed */
+  getPageHead(page: C["page"]): Promise<HeadTag[]>;
+  /** of the config and plugins, of every page and of content pages with `page` */
   getHead(env: { page?: C["page"] }): Promise<HeadTag[]>;
   /** sorted by `order` */
   getSlots(page: C["page"]): Promise<Partial<Record<SlotName, SlotItem[]>>>;
   /** with `render` filled in from `mode` */
-  getRoutes(): Promise<ApiRoute[]>;
+  getApiRoutes(): Promise<ApiRoute[]>;
   /** runs the `middleware` of plugins */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
-  build(output: BuildOutput): Promise<void>;
+  build(output: PressBuildOutput): Promise<void>;
 
   defaultLayoutProps(env: { lang: string | undefined }): Promise<Omit<BaseLayoutProps, "children">>;
 }
@@ -241,15 +249,47 @@ function joinPaths(base: string, ...paths: string[]): string {
  *
  * Translations are told apart by their file path: the loader assigns a file to a language by its `.{locale}` suffix, so two languages share a `path` only when they share the file.
  */
-function fallbackOrigin<Config extends LoaderConfig>(
+export function fallbackOrigin<Config extends LoaderConfig>(
   source: LoaderOutput<Config>,
-  i18n: I18nConfig,
+  i18n: I18nConfig | undefined,
   page: Config["page"],
 ): Config["page"] | undefined {
+  if (!i18n) return;
   const lang = i18n.fallbackLanguage ?? i18n.defaultLanguage;
   if (page.locale === lang) return;
   const origin = source.getPage(page.slugs, lang);
   if (origin?.path === page.path) return origin;
+}
+
+/** `hreflang` alternate of the page at `pathname` in `locale` */
+export function pageAlternate(ctx: Context, locale: string, pathname: string): PageAlternate {
+  return {
+    locale,
+    hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
+    href: ctx.absoluteUrl(pathname),
+  };
+}
+
+/** canonical and `og:url` of the page at `pathname` (with `site.baseUrl`), `hreflang` links of its `alternates` */
+export function pageLinks(ctx: Context, pathname: string, alternates: PageAlternate[]): HeadTag[] {
+  const tags: HeadTag[] = [];
+  if (ctx.siteConfig.baseUrl) {
+    const href = ctx.absoluteUrl(pathname);
+    tags.push(
+      { tag: "link", attrs: { rel: "canonical", href } },
+      { tag: "meta", attrs: { property: "og:url", content: href } },
+    );
+  }
+  for (const { hreflang, href } of alternates)
+    tags.push({ tag: "link", attrs: { rel: "alternate", hreflang, href } });
+  const xDefault =
+    alternates.find((item) => item.locale === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
+  if (xDefault)
+    tags.push({
+      tag: "link",
+      attrs: { rel: "alternate", hreflang: "x-default", href: xDefault.href },
+    });
+  return tags;
 }
 
 /** the items of every result in order, for collect hooks */
@@ -263,8 +303,9 @@ async function collect<T>(results: Awaitable<T[] | undefined>[]): Promise<T[]> {
 export function createPress<
   I extends _Internal.AnyInput,
   Lang extends string | undefined = undefined,
+  Ctx extends Context<InferAppShape<I, Lang>> = Context<InferAppShape<I, Lang>>,
 >(
-  config: PressConfig<I, Lang>,
+  config: PressConfig<I, Lang, Ctx>,
   runtime: PressRuntime<InferAppShape<I, Lang>>,
 ): Promise<Context<InferAppShape<I, Lang>>>;
 
@@ -272,16 +313,16 @@ export async function createPress(
   config: PressConfig,
   runtime: PressRuntime<InferAppShape>,
 ): Promise<Context<InferAppShape>> {
-  const { site, translations = config.i18n && defineI18n(config.i18n).translations() } = config;
+  const { site, translations } = config;
   const i18nConfig = translations && "config" in translations ? translations.config : config.i18n;
   if (i18nConfig?.hideLocale === "always")
     throw new Error(
       '[Fumapress] `hideLocale: "always"` is not supported, languages are told apart by their URL prefix. Use `hideLocale: "default-locale"` to drop the prefix of the default language only.',
     );
 
-  const plugins = resolvePlugins(
+  const plugins = await resolvePlugins(
     config.plugins ?? [],
-    config.preset === false ? [] : ((await runtime.preset?.()) ?? []),
+    config.preset === false ? [] : (runtime.preset?.() ?? []),
   );
   for (const plugin of plugins) {
     if (plugin.translations) translations?.extend(plugin.translations);
@@ -300,50 +341,6 @@ export async function createPress(
       const value = await hook(plugin)?.call(ctx, page);
       if (value !== undefined) return value;
     }
-  }
-
-  /** the head tags of a content page, fallback pages point at their origin and are not indexed */
-  async function getPageHead(page: InferAppShape["page"]): Promise<HeadTag[]> {
-    const [{ title, description, image }, origin, alternates] = await Promise.all([
-      ctx.getPageData(page),
-      ctx.getFallbackOrigin(page),
-      ctx.getPageAlternates(page),
-    ]);
-    const { name, baseUrl } = ctx.siteConfig;
-    const tags: HeadTag[] = [
-      { tag: "title", children: title },
-      { tag: "meta", attrs: { property: "og:title", content: title } },
-      { tag: "meta", attrs: { property: "og:site_name", content: name } },
-    ];
-    if (description)
-      tags.push(
-        { tag: "meta", attrs: { name: "description", content: description } },
-        { tag: "meta", attrs: { property: "og:description", content: description } },
-      );
-    if (image)
-      tags.push(
-        { tag: "meta", attrs: { property: "og:image", content: image } },
-        { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
-        { tag: "meta", attrs: { name: "twitter:image", content: image } },
-      );
-    if (baseUrl) {
-      const href = ctx.absoluteUrl((origin ?? page).url);
-      tags.push(
-        { tag: "link", attrs: { rel: "canonical", href } },
-        { tag: "meta", attrs: { property: "og:url", content: href } },
-      );
-    }
-    for (const { hreflang, href } of alternates)
-      tags.push({ tag: "link", attrs: { rel: "alternate", hreflang, href } });
-    const xDefault =
-      alternates.find((item) => item.locale === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
-    if (xDefault)
-      tags.push({
-        tag: "link",
-        attrs: { rel: "alternate", hreflang: "x-default", href: xDefault.href },
-      });
-    if (origin) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
-    return tags;
   }
 
   const ctx: Context<InferAppShape> = {
@@ -389,18 +386,11 @@ export async function createPress(
       for (const locale of i18n.languages) {
         const target = source.getPage(page.slugs, locale);
         if (!target || fallbackOrigin(source, i18n, target)) continue;
-        out.push({
-          locale,
-          hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
-          href: ctx.absoluteUrl(target.url),
-        });
+        out.push(pageAlternate(ctx, locale, target.url));
       }
       return out.length > 1 ? out : [];
     },
-    async getFallbackOrigin(page) {
-      const i18n = ctx.i18nConfig;
-      if (i18n) return fallbackOrigin(await ctx.getLoader(), i18n, page);
-    },
+    getFrameworkPages: () => runtime.getFrameworkPages?.() ?? [],
     getPageBody: (page) => resolve(page, (plugin) => plugin.getPageBody),
     getPageText: (page) => resolve(page, (plugin) => plugin.getPageText),
     getPageToc: (page) => resolve(page, (plugin) => plugin.getPageToc),
@@ -430,9 +420,28 @@ export async function createPress(
       }
       return out;
     },
+    async getPageHead(page) {
+      const { title, description } = page.data;
+      const [source, alternates] = await Promise.all([
+        ctx.getLoader(),
+        ctx.getPageAlternates(page),
+      ]);
+      const origin = fallbackOrigin(source, ctx.i18nConfig, page);
+      const tags: HeadTag[] = [{ tag: "title", children: title }];
+      if (description)
+        tags.push({ tag: "meta", attrs: { name: "description", content: description } });
+      tags.push({ tag: "meta", attrs: { property: "og:title", content: title ?? "" } });
+      if (description)
+        tags.push({ tag: "meta", attrs: { property: "og:description", content: description } });
+      tags.push(
+        { tag: "meta", attrs: { property: "og:site_name", content: ctx.siteConfig.name } },
+        ...pageLinks(ctx, (origin ?? page).url, alternates),
+      );
+      if (origin) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
+      return tags;
+    },
     getHead: (env) =>
       collect([
-        env.page && getPageHead(env.page),
         config.head?.call(ctx, env),
         ...plugins.map((plugin) => plugin.head?.call(ctx, env)),
       ]),
@@ -443,7 +452,7 @@ export async function createPress(
       for (const item of items) (out[item.slot] ??= []).push(item);
       return out;
     },
-    async getRoutes() {
+    async getApiRoutes() {
       const out: ApiRoute[] = [];
       // `${method} ${path}`
       const handled = new Set<string>();
@@ -528,10 +537,5 @@ export async function createPress(
   ctx.invalidateLoader = (name?: string) => loader.invalidate(name);
 
   for (const plugin of plugins) await plugin.configure?.call(ctx);
-
-  if (!ctx.siteConfig.baseUrl)
-    console.warn(
-      "[Fumapress] `site.baseUrl` is not set, URLs in sitemaps, RSS feeds and OG images fall back to relative paths.",
-    );
   return ctx;
 }

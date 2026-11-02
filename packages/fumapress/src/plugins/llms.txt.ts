@@ -1,4 +1,4 @@
-import { appContext, type AppShape } from "@/app/context";
+import { appContext, type AppContext, type AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
 import { joinPaths } from "@/lib/pathname";
 import type { PressRoute, RouteProps } from "@/lib/types";
@@ -8,7 +8,10 @@ import { renderRoute } from "fumadocs-core/server";
 import { createElement, type FC } from "react";
 import { unstable_notFound } from "waku/router/server";
 
-export interface LLMsOptions<C extends AppShape = AppShape> extends Press.LLMsOptions<C> {
+export interface LLMsOptions<C extends AppShape = AppShape> extends Press.LLMsOptions<
+  C,
+  AppContext<C>
+> {
   /**
    * Which routes get a Markdown version (`/page.md`, `/index.md` for the root):
    *
@@ -25,14 +28,6 @@ export interface LLMsOptions<C extends AppShape = AppShape> extends Press.LLMsOp
 /** the routes mirroring the dynamic pages of `createPage()`, they render their Markdown */
 const mirrorPath = "/_llms.txt";
 
-function markdownPath(url: string): string {
-  return url === "/" ? "/index.md" : `${url}.md`;
-}
-
-function markdownResponse(text: string): Response {
-  return new Response(text, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
-}
-
 /** Markdown of a page of `createPage()`, `undefined` when its component doesn't call `asMarkdown()` */
 function renderMarkdown(route: PressRoute, path: string, params: RouteParams) {
   const Page = route.component as FC<RouteProps>;
@@ -48,7 +43,7 @@ export function llmsPlugin<C extends AppShape = AppShape>({
   routes = "content",
   ...options
 }: LLMsOptions<NoInfer<C>> = {}): PressPlugin<C> {
-  const plugin = Press.llmsPlugin<C>(options);
+  const plugin = Press.llmsPlugin<C, AppContext<C>>(options);
   if (routes === "content") return plugin;
 
   /** `.md` paths of content pages and static pages of `createPage()` */
@@ -58,7 +53,7 @@ export function llmsPlugin<C extends AppShape = AppShape>({
     async configureRoutes({ createApi, createApiIsomorphic, getRoutes }) {
       // content pages take precedence when a page maps to the same `.md` path
       for (const page of (await this.getLoader()).getPages()) {
-        markdownPaths.add(markdownPath(page.url));
+        markdownPaths.add(Press.markdownPath(page.url));
       }
 
       // static pages hold their Markdown pre-rendered: a static route that 404s would fail the build,
@@ -79,14 +74,14 @@ export function llmsPlugin<C extends AppShape = AppShape>({
               );
               if (text === undefined) unstable_notFound();
 
-              return markdownResponse(text);
+              return Press.markdownResponse(text);
             },
           });
           continue;
         }
 
         for (const page of route.pages) {
-          const path = markdownPath(page.path);
+          const path = Press.markdownPath(page.path);
           if (markdownPaths.has(path)) continue;
 
           const text = await appContext.run(this, () =>
@@ -100,7 +95,7 @@ export function llmsPlugin<C extends AppShape = AppShape>({
             path,
             method: "GET",
             unstable_sourceFile: route.unstable_sourceFile,
-            handler: async () => markdownResponse(text),
+            handler: async () => Press.markdownResponse(text),
           });
         }
       }
@@ -114,10 +109,8 @@ export function llmsPlugin<C extends AppShape = AppShape>({
         if (response.ok && response.headers.get("Content-Type")?.startsWith("text/markdown"))
           return response;
 
-        const base = this.withBase("/");
-        const { pathname } = new URL(request.url);
-        const path = base === "/" ? pathname : pathname.slice(base.length);
-        if (!path.endsWith(".md")) return response;
+        const path = Press.requestPath(request, this.withBase("/"));
+        if (!path?.endsWith(".md")) return response;
 
         const mirrored = await next(
           joinPaths(mirrorPath, path === "/index.md" ? "/" : path.slice(0, -3)),

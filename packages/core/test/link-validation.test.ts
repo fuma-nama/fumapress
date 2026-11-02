@@ -1,207 +1,170 @@
-import { describe, expect, it, vi } from "vitest";
-import type { I18nConfig } from "fumadocs-core/i18n";
-import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type PressConfig } from "@/context";
-import type { Plugin } from "@/plugin";
+import { describe, expect, it } from "vitest";
+import { createPress } from "@/context";
+import type { PressBuildOutput } from "@/plugin";
 import {
   linkValidationPlugin,
   type DiagnosticsFile,
   type LinkValidationOptions,
 } from "@/plugins/link-validation";
 
-const site: Record<string, string> = {
-  "index.mdx": [
-    "# Home",
-    "[page](/docs/a) [file](./docs/a.mdx) [heading](/docs/a#intro) [self](#home)",
-    "[trailing slash][ref] [route](/api/search?query=a) [param route](/og/docs/a/image.png)",
-    "[mail](mailto:hi@example.com) [external](https://example.com/gone)",
-    "",
-    "[ref]: /docs/a/",
-  ].join("\n"),
-  "docs/a.mdx": "[home](../) [missing](/missing) [heading](/docs/a#nope) [relative](./b)",
-};
-
-/**
- * Generate the diagnostics file of a site whose pages have the Markdown of `texts` by file path.
- * Every page has one heading, `#home` on the index and `#intro` on the others.
- */
-async function validate(
-  texts: Record<string, string>,
-  options?: LinkValidationOptions,
-  config: Partial<PressConfig> = {},
-): Promise<DiagnosticsFile> {
-  const files: VirtualFile[] = [];
-  for (const path in texts) files.push({ type: "page", path, data: { title: path } });
-  const source: Plugin = {
-    getPageText: (page) => texts[page.path],
-    getPageToc: (page) => [
-      { title: "Heading", url: page.path === "index.mdx" ? "#home" : "#intro", depth: 1 },
-    ],
-    routes: () => [
-      { path: "/api/search", render: "dynamic", GET: () => Response.json([]) },
-      { path: "/og/[...slugs]", render: "dynamic", GET: () => new Response("image") },
-    ],
-  };
+/** Build a site whose prerendered pages rendered `links`, pathnames in `missing` respond 404 */
+async function runBuild(options: {
+  links: PressBuildOutput["links"];
+  missing?: string[];
+  plugin?: LinkValidationOptions;
+}) {
+  const { links, missing = [], plugin } = options;
+  const emitted = new Map<string, string | Uint8Array>();
   const ctx = await createPress(
-    {
-      content: { files },
-      preset: false,
-      site: { baseUrl: "https://example.com" },
-      ...config,
-      plugins: [source, config.plugins, linkValidationPlugin(options)],
-    },
+    { content: { files: [] }, preset: false, plugins: [linkValidationPlugin(plugin)] },
     { base: "/" },
   );
-
-  const emitted = new Map<string, string | Uint8Array>();
-  await ctx.build({
-    async emitFile(path, content) {
-      emitted.set(path, content);
-    },
-  });
-  const file = emitted.get(options?.diagnosticsPath ?? "fumapress-diagnostics.json");
-  if (typeof file !== "string") throw new Error("missing the diagnostics file");
-  return JSON.parse(file);
-}
-
-function notFound(fromPathname: string, href: string) {
-  return {
-    severity: "error",
-    rule: "link-validation/not-found",
-    message: `link "${href}" not-found`,
-    fromPathname,
-    href,
-  };
-}
-
-describe("linkValidationPlugin", () => {
-  it("fails the build and names the broken links", async () => {
-    await expect(validate(site)).rejects.toThrow(
-      [
-        "[Fumapress] broken links:",
-        'In "/docs/a": link "/missing" not-found',
-        'In "/docs/a": link "/docs/a#nope" not-found',
-        'In "/docs/a": link "./b" not-found',
-      ].join("\n"),
-    );
-  });
-
-  it('writes the diagnostics with `report: "json"`', async () => {
-    await expect(validate(site, { report: "json" })).resolves.toEqual({
-      diagnostics: [
-        notFound("/docs/a", "/missing"),
-        notFound("/docs/a", "/docs/a#nope"),
-        notFound("/docs/a", "./b"),
-      ],
-    });
-  });
-
-  it("writes an empty list when the links resolve or are ignored", async () => {
-    const ignored = new Set(["/missing", "/docs/a#nope", "./b"]);
-
-    await expect(
-      validate(site, {
-        report: "json",
-        ignored: (href) => ignored.has(href),
-        diagnosticsPath: "checks.json",
-      }),
-    ).resolves.toEqual({ diagnostics: [] });
-  });
-
-  it('writes the diagnostics, then fails with `report: "both"`', async () => {
-    const files: VirtualFile[] = [{ type: "page", path: "docs/a.mdx", data: { title: "A" } }];
-    const ctx = await createPress(
-      {
-        content: { files },
-        preset: false,
-        plugins: [
-          { getPageText: () => "[missing](/missing)" },
-          linkValidationPlugin({ report: "both" }),
-        ],
-      },
-      { base: "/" },
-    );
-    const emitted: string[] = [];
-
-    await expect(
-      ctx.build({
-        async emitFile(path) {
-          emitted.push(path);
-        },
-      }),
-    ).rejects.toThrow('In "/docs/a": link "/missing" not-found');
-    expect(emitted).toEqual(["fumapress-diagnostics.json"]);
-  });
-
-  it("validates external links with `externalLink`", async () => {
-    const externalLink = vi.fn((href: string) => (href.endsWith("/gone") ? "not-found" : null));
-    const { diagnostics } = await validate(
-      { ...site, "docs/b.mdx": "[gone](https://example.com/gone) [ok](https://example.com)" },
-      { report: "json", externalLink },
-    );
-
-    expect(diagnostics).toEqual([
-      notFound("/", "https://example.com/gone"),
-      notFound("/docs/a", "/missing"),
-      // `./b` exists here
-      notFound("/docs/a", "/docs/a#nope"),
-      notFound("/docs/b", "https://example.com/gone"),
-    ]);
-    // once per link, other schemes like `mailto:` are skipped
-    expect(externalLink.mock.calls).toEqual([
-      ["https://example.com/gone"],
-      ["https://example.com"],
-    ]);
-  });
-
-  it("matches pages with non-ASCII slugs, written encoded or not", async () => {
-    const texts = {
-      "docs/中文.mdx": "[self](#intro)",
-      "docs/a.mdx":
-        "[raw](/docs/中文#intro) [encoded](/docs/%E4%B8%AD%E6%96%87) [file](./中文.mdx)",
-    };
-
-    for (const mode of ["static", "dynamic"] as const)
-      await expect(validate(texts, { report: "json" }, { mode })).resolves.toEqual({
-        diagnostics: [],
-      });
-  });
-
-  it("validates a file shared by languages once", async () => {
-    const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
-    const { diagnostics } = await validate(
-      { "docs/shared.$.mdx": "[missing](/missing) [cn](/cn/docs/shared) [en](/docs/shared)" },
-      { report: "json" },
-      { i18n },
-    );
-
-    expect(diagnostics).toEqual([
-      notFound("/en/docs/shared", "/missing"),
-      notFound("/en/docs/shared", "/docs/shared"),
-    ]);
-  });
-
-  it("counts the redirects and rewrites of middleware outside static mode", async () => {
-    const texts = { "docs/b.mdx": "[redirect](/old) [rewrite](/alias) [missing](/missing)" };
-    const middleware: Plugin = {
-      middleware(request, next) {
+  const build = () =>
+    ctx.build({
+      links,
+      fetch(request) {
         const { pathname } = new URL(request.url);
-        if (pathname === "/old") return Promise.resolve(Response.redirect("https://example.com/"));
-        return next(pathname === "/alias" ? "/docs/b" : undefined);
+        return new Response(null, { status: missing.includes(pathname) ? 404 : 200 });
       },
-    };
+      async emitFile(path, content) {
+        emitted.set(path, content);
+      },
+    });
 
-    await expect(validate(texts, { report: "json" }, { plugins: [middleware] })).resolves.toEqual({
-      diagnostics: [notFound("/docs/b", "/missing")],
+  return { build, emitted };
+}
+
+function diagnostics(
+  emitted: Map<string, string | Uint8Array>,
+  path = "fumapress-diagnostics.json",
+) {
+  return (JSON.parse(emitted.get(path) as string) as DiagnosticsFile).diagnostics;
+}
+
+describe("report: throw (default)", () => {
+  it("fails the build and names the broken link", async () => {
+    const { build } = await runBuild({
+      links: [{ href: "/missing", fromPathname: "/docs" }],
+      missing: ["/missing"],
     });
-    await expect(
-      validate(texts, { report: "json" }, { mode: "static", plugins: [middleware] }),
-    ).resolves.toEqual({
-      diagnostics: [
-        notFound("/docs/b", "/old"),
-        notFound("/docs/b", "/alias"),
-        notFound("/docs/b", "/missing"),
+
+    await expect(build()).rejects.toThrow('\nIn "/docs": link "/missing" not-found');
+  });
+
+  it("does not write a diagnostics file", async () => {
+    const { build, emitted } = await runBuild({ links: [{ href: "/ok", fromPathname: "/docs" }] });
+
+    await build();
+
+    expect(emitted.size).toBe(0);
+  });
+});
+
+describe("report: json", () => {
+  it("writes pretty diagnostics without failing the build", async () => {
+    const { build, emitted } = await runBuild({
+      links: [
+        { href: "/missing", fromPathname: "/docs" },
+        { href: "/missing", fromPathname: "/blog" },
       ],
+      missing: ["/missing"],
+      plugin: { report: "json" },
     });
+
+    await expect(build()).resolves.not.toThrow();
+    const file: DiagnosticsFile = {
+      diagnostics: [
+        {
+          severity: "error",
+          rule: "link-validation/not-found",
+          message: 'link "/missing" not-found',
+          fromPathname: "/docs",
+          href: "/missing",
+        },
+        {
+          severity: "error",
+          rule: "link-validation/not-found",
+          message: 'link "/missing" not-found',
+          fromPathname: "/blog",
+          href: "/missing",
+        },
+      ],
+    };
+    expect(emitted.get("fumapress-diagnostics.json")).toBe(JSON.stringify(file, null, 2));
+  });
+
+  it("emits an empty list when everything resolves, so a clean run is distinguishable from no run", async () => {
+    const { build, emitted } = await runBuild({
+      links: [{ href: "/ok", fromPathname: "/docs" }],
+      plugin: { report: "json" },
+    });
+
+    await build();
+
+    expect(diagnostics(emitted)).toEqual([]);
+  });
+
+  it("honours a custom diagnostics path", async () => {
+    const { build, emitted } = await runBuild({
+      links: [],
+      plugin: { report: "json", diagnosticsPath: "checks/links.json" },
+    });
+
+    await build();
+
+    expect(emitted.has("checks/links.json")).toBe(true);
+  });
+});
+
+describe("report: both", () => {
+  it("writes diagnostics and then fails the build", async () => {
+    const { build, emitted } = await runBuild({
+      links: [{ href: "/missing", fromPathname: "/docs" }],
+      missing: ["/missing"],
+      plugin: { report: "both" },
+    });
+
+    await expect(build()).rejects.toThrow("not-found");
+    expect(diagnostics(emitted)).toHaveLength(1);
+  });
+
+  it("succeeds when no link is broken", async () => {
+    const { build, emitted } = await runBuild({
+      links: [{ href: "/ok", fromPathname: "/docs" }],
+      plugin: { report: "both" },
+    });
+
+    await expect(build()).resolves.not.toThrow();
+    expect(emitted.has("fumapress-diagnostics.json")).toBe(true);
+  });
+});
+
+describe("link filtering", () => {
+  it("skips ignored, anchor and mailto links", async () => {
+    const { build, emitted } = await runBuild({
+      links: [
+        { href: "#section", fromPathname: "/docs" },
+        { href: "mailto:hi@example.com", fromPathname: "/docs" },
+        { href: "/skip-me", fromPathname: "/docs" },
+      ],
+      missing: ["/skip-me", "/"],
+      plugin: { report: "json", ignored: (href) => href === "/skip-me" },
+    });
+
+    await build();
+
+    expect(diagnostics(emitted)).toEqual([]);
+  });
+
+  it("reports external links through the externalLink hook", async () => {
+    const { build, emitted } = await runBuild({
+      links: [{ href: "https://example.com/gone", fromPathname: "/docs" }],
+      plugin: { report: "json", externalLink: () => "not-found" },
+    });
+
+    await build();
+
+    expect(diagnostics(emitted)).toHaveLength(1);
+    expect(diagnostics(emitted)[0]?.href).toBe("https://example.com/gone");
   });
 });

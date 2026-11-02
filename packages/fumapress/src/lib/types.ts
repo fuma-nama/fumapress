@@ -1,13 +1,14 @@
 import type { AppContext, AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
 import type { TakumiRouteOptions } from "@/plugins/takumi";
+import type { Awaitable, FrameworkPage } from "@fumapress/core";
 import type { PluginLoaderOptions, RouteParams } from "fumadocs-core/framework/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { ContentStorage, LoaderOptions } from "fumadocs-core/source";
 import type { FC, ReactNode } from "react";
 import type { CreateRoot, CreateApi, CreateSlice, CreateInterceptor } from "waku/router/server";
 
-export type Awaitable<T> = T | Promise<T>;
+export type { Awaitable };
 
 /**
  * Allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually.
@@ -30,10 +31,11 @@ export interface Adapter<C extends AppShape = AppShape> {
 }
 
 /** @deprecated use `PluginLoaderOptions` of `fumadocs-core/framework/plugin` */
-export type PressLoaderOptions<
+export interface PressLoaderOptions<
   S extends ContentStorage = ContentStorage,
   I18n extends I18nConfig | undefined = I18nConfig | undefined,
-> = Omit<LoaderOptions<S, I18n>, "plugins"> & Pick<PluginLoaderOptions, "plugins">;
+>
+  extends Omit<LoaderOptions<S, I18n>, "plugins">, Pick<PluginLoaderOptions, "plugins"> {}
 
 export interface RouteFns {
   createPage: (page: PageOptions) => void;
@@ -89,13 +91,7 @@ export interface PressRoute extends Omit<PageOptions, "render"> {
   /** head tags rendered with the page, in order */
   meta: ((props: RouteProps) => ReactNode)[];
   /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
-  pages: {
-    /** URL path */
-    path: string;
-    params: RouteParams;
-    /** the page in every language it exists in, itself included */
-    translations: { locale: string; path: string }[];
-  }[];
+  pages: (FrameworkPage & { params: RouteParams })[];
 }
 
 /**

@@ -1,8 +1,11 @@
-import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
-import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
-import { selectTreeRoot } from "@/lib/page-tree";
-import { renderSlot, wrapSlot } from "@/lib/slots";
-import type { Awaitable } from "@/lib/types";
+import type { AppShape } from "@/app/context";
+import {
+  createDocsLikeLayoutPage,
+  type DocsLikeContextData,
+  type DocsLikeInterceptor,
+  type DocsLikeLayoutOptions,
+  type DocsLikeRenderData,
+} from "@/components/docs-page";
 import { GlassLayout, type GlassLayoutProps } from "fumadocs-ui/layouts/glass";
 import {
   MarkdownCopyButton,
@@ -14,176 +17,41 @@ import {
   type DocsPageProps,
   PageLastUpdate,
 } from "fumadocs-ui/layouts/glass/page";
-import type { ComponentProps, ReactNode } from "react";
 
-export interface GlassLayoutOptions<C extends AppShape = AppShape> {
-  inherit?: {
-    layoutProps?: boolean;
-  };
+export type { PageActionsProps } from "@/components/docs-page";
 
-  /** folder path to use as the root of the sidebar tree, such as the `baseDir` of a content source */
-  treeRoot?: string;
+export interface GlassLayoutOptions<C extends AppShape = AppShape> extends DocsLikeLayoutOptions<
+  C,
+  GlassLayoutProps,
+  DocsPageProps
+> {}
 
-  render?: (
-    this: AppContext<C> & { lang?: string },
-    page: C["page"],
-  ) => Awaitable<{
-    markdownUrl?: string;
-    lastModified?: Date | null;
-    body?: ReactNode;
-    layoutProps?: Partial<GlassLayoutProps>;
-    pageProps?: Partial<DocsPageProps>;
-  }>;
+export interface GlassLayoutRenderData extends DocsLikeRenderData<
+  GlassLayoutProps,
+  DocsPageProps
+> {}
 
-  /** props/renderer for `<GlassLayout />` */
-  renderLayout?: GlassInterceptor<C, GlassLayoutProps>;
+export type GlassInterceptor<S extends AppShape, T> = DocsLikeInterceptor<S, T>;
 
-  /** props/renderer for `<DocsPage />` */
-  renderPage?: GlassInterceptor<C, DocsPageProps>;
-
-  /** props/renderer for `<DocsBody />` */
-  renderBody?: GlassInterceptor<C, ComponentProps<"div">>;
-
-  /** props/renderer for the page actions, return `null` to hide them */
-  renderPageActions?: GlassInterceptor<C, PageActionsProps>;
-}
-
-export interface PageActionsProps {
-  markdownUrl?: string;
-  githubUrl?: string;
-}
-
-export interface GlassLayoutRenderData {
-  markdownUrl?: string;
-  lastModified?: Date | null;
-  body: ReactNode;
-  layoutProps: GlassLayoutProps;
-  pageProps: DocsPageProps;
-}
-
-export type GlassInterceptor<S extends AppShape, T> = Interceptor<
+export interface GlassLayoutContextData<S extends AppShape = AppShape> extends DocsLikeContextData<
   S,
-  T,
-  { lang?: string; page: S["page"] }
->;
+  GlassLayoutProps,
+  DocsPageProps
+> {}
 
-export interface GlassLayoutContextData<S extends AppShape = AppShape> {
-  transformers?: ((opts: {
-    page: S["page"];
-    data: GlassLayoutRenderData;
-  }) => Awaitable<GlassLayoutRenderData>)[];
-
-  pageInterceptors?: GlassInterceptor<S, DocsPageProps>[];
-  layoutInterceptors?: GlassInterceptor<S, GlassLayoutProps>[];
-  bodyInterceptors?: GlassInterceptor<S, ComponentProps<"div">>[];
-  actionsInterceptors?: GlassInterceptor<S, PageActionsProps>[];
-}
-
-export function createGlassLayoutPage<C extends AppShape = AppShape>({
-  render,
-  treeRoot,
-  renderLayout,
-  renderPage,
-  renderBody,
-  renderPageActions,
-  inherit: { layoutProps: inheritLayoutProps = true } = {},
-}: GlassLayoutOptions<NoInfer<C>> = {}) {
-  return async function Layout({
-    lang,
-    page,
-  }: {
-    lang?: string;
-    slugs: string[];
-    page: C["page"];
-  }) {
-    const ctx = getPressContext<C>();
-    const {
-      actionsInterceptors,
-      bodyInterceptors,
-      layoutInterceptors,
-      pageInterceptors,
-      transformers,
-    } = ctx.data["core:glass-layout"] ?? {};
-    const [source, data, slots] = await Promise.all([
-      ctx.getLoader(),
-      ctx.getPageData(page),
-      ctx.getSlots(page),
-    ]);
-
-    const _raw = await render?.call(ctx, page);
-    const inherited = inheritLayoutProps ? await ctx.defaultLayoutProps({ lang }) : undefined;
-    const layoutProps: GlassLayoutProps = {
-      tree: selectTreeRoot(source.getPageTree(lang), treeRoot),
-      ...deepmerge(inherited, _raw?.layoutProps),
-    };
-
-    const body = _raw?.body ?? (await ctx.getPageBody(page))?.node;
-    if (body == null) {
-      throw new Error("[Fumapress] Please specify the `render` option in createGlassLayoutPage()");
-    }
-
-    let result: GlassLayoutRenderData = {
-      ..._raw,
-      markdownUrl: _raw?.markdownUrl ?? data.markdownUrl,
-      lastModified: _raw?.lastModified ?? data.lastModified,
-      pageProps: {
-        ..._raw?.pageProps,
-        full: _raw?.pageProps?.full ?? data.full,
-        toc: _raw?.pageProps?.toc ?? data.toc,
-      },
-      body,
-      layoutProps,
-    };
-
-    if (transformers) {
-      for (const r of transformers) {
-        result = await r({ data: result, page });
-      }
-    }
-
-    const Layout = renderWithInterceptors(
-      ctx,
-      { lang, page },
-      (props) => <GlassLayout {...props} />,
-      [...(layoutInterceptors ?? []), renderLayout],
-    );
-    const Page = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsPage {...props} />, [
-      ...(pageInterceptors ?? []),
-      renderPage,
-    ]);
-    const Body = renderWithInterceptors(ctx, { lang, page }, (props) => <DocsBody {...props} />, [
-      ...(bodyInterceptors ?? []),
-      renderBody,
-    ]);
-
-    const Actions = renderWithInterceptors(
-      ctx,
-      { lang, page },
-      ({ markdownUrl, githubUrl }: PageActionsProps) => (
-        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-          {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
-          <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
-          {renderSlot(slots["page.actions"])}
-        </div>
-      ),
-      [...(actionsInterceptors ?? []), renderPageActions],
-    );
-
-    return Layout({
-      ...result.layoutProps,
-      children: Page({
-        ...result.pageProps,
-        children: (
-          <>
-            <DocsTitle>{data.title}</DocsTitle>
-            <DocsDescription className="mb-0">{data.description}</DocsDescription>
-            {Actions({ markdownUrl: result.markdownUrl, githubUrl: data.githubUrl })}
-            {Body({ children: wrapSlot(slots["body.wrapper"], result.body) })}
-            {result.lastModified && <PageLastUpdate date={result.lastModified} />}
-            {renderSlot(slots["page.footer"])}
-          </>
-        ),
-      }),
-    });
-  };
+export function createGlassLayoutPage<C extends AppShape = AppShape>(
+  options: GlassLayoutOptions<NoInfer<C>> = {},
+) {
+  return createDocsLikeLayoutPage<C, GlassLayoutProps, DocsPageProps>(options, {
+    name: "createGlassLayoutPage",
+    data: (ctx) => ctx.data["core:glass-layout"],
+    DocsLayout: GlassLayout,
+    DocsPage,
+    DocsTitle,
+    DocsDescription,
+    DocsBody,
+    MarkdownCopyButton,
+    ViewOptionsPopover,
+    PageLastUpdate,
+  });
 }
