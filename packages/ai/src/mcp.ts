@@ -2,11 +2,14 @@ import { createMcpHandler, type Implementation, McpServer } from "@modelcontextp
 import { registerSourceTools } from "fumadocs-core/mcp";
 import type { LoaderOutput } from "fumadocs-core/source";
 import { llms } from "fumadocs-core/source/llms";
-import type { AppContext, AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Context, Plugin } from "@fumapress/core";
 import { z } from "zod";
 import { createSearch, type SearchOptions } from "./search";
 
-export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
+export interface McpOptions<
+  C extends AppShape = AppShape,
+  Ctx extends Context<C> = Context<C>,
+> extends SearchOptions<C, Ctx> {
   /**
    * Base path for MCP routes.
    *
@@ -19,17 +22,17 @@ export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions
   /**
    * Register additional tools on the MCP server.
    */
-  tools?: (this: AppContext<C>, server: McpServer) => void | Promise<void>;
+  tools?: (this: Ctx, server: McpServer) => void | Promise<void>;
 }
 
-export function mcpPlugin<C extends AppShape = AppShape>(
-  options: McpOptions<NoInfer<C>> = {},
-): PressPlugin<C> {
+export function mcpPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
+  options: McpOptions<NoInfer<C>, NoInfer<Ctx>> = {},
+): Plugin<C, Ctx> {
   const { path = "/mcp", server: serverInfo, tools: registerTools } = options;
 
   return {
     name: "ai:mcp",
-    async createPages({ createApi }) {
+    routes() {
       if (this.mode === "static") {
         throw new Error("[Fumapress] MCP server is not compatible with static mode");
       }
@@ -87,13 +90,7 @@ export function mcpPlugin<C extends AppShape = AppShape>(
         return server;
       });
 
-      createApi({
-        render: "dynamic",
-        path,
-        handlers: {
-          all: (req: Request) => handler.fetch(req),
-        },
-      });
+      return [{ path, render: "dynamic", ALL: (request) => handler.fetch(request) }];
     },
   };
 }

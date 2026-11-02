@@ -9,7 +9,8 @@ import {
   tool,
   type UIMessage,
 } from "ai";
-import type { AppShape, PressPlugin } from "fumapress";
+import type { Awaitable } from "@fumapress/core";
+import type { AppContext, AppShape, PressPlugin } from "fumapress";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
@@ -24,9 +25,7 @@ export type ChatUIMessage = UIMessage<
   { search: InferUITool<SearchTool> }
 >;
 
-type Awaitable<T> = T | Promise<T>;
-
-export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
+export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C, AppContext<C>> {
   /** @default true */
   configureUI?: boolean;
 

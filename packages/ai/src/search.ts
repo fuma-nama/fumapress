@@ -1,5 +1,5 @@
 import { Document, type DocumentData } from "flexsearch";
-import type { AppContext, AppShape } from "fumapress";
+import type { AppShape, Awaitable, Context } from "@fumapress/core";
 
 export interface PageDocument extends DocumentData {
   url: string;
@@ -9,10 +9,8 @@ export interface PageDocument extends DocumentData {
   locale: string;
 }
 
-type Awaitable<T> = T | Promise<T>;
-
-export interface SearchOptions<C extends AppShape = AppShape> {
-  pageToIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<PageDocument | null>;
+export interface SearchOptions<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>> {
+  pageToIndex?: (this: Ctx, page: C["page"]) => Awaitable<PageDocument | null>;
 }
 
 async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
@@ -24,7 +22,10 @@ async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
   return out;
 }
 
-export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: AppContext<C>) {
+export function createSearch<C extends AppShape, Ctx extends Context<C>>(
+  options: SearchOptions<C, Ctx>,
+  ctx: Ctx,
+) {
   const { getLoader } = ctx;
   const {
     pageToIndex = async function (page): Promise<PageDocument | null> {
@@ -40,8 +41,9 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
       };
     },
   } = options;
+  const toIndex = (page: C["page"]) => pageToIndex.call(ctx, page);
 
-  type ContextLoaderOutput = Awaited<ReturnType<AppContext<C>["getLoader"]>>;
+  type ContextLoaderOutput = Awaited<ReturnType<Context<C>["getLoader"]>>;
   const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
 
   async function createSearchServer(source: ContextLoaderOutput) {
@@ -54,7 +56,7 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
       },
     });
 
-    const docs = await chunkedAll(source.getPages().map(pageToIndex.bind(ctx)));
+    const docs = await chunkedAll(source.getPages().map(toIndex));
 
     for (const doc of docs) {
       if (doc) search.add(doc);
@@ -85,5 +87,5 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
     });
   }
 
-  return { execute, pageToIndex: pageToIndex.bind(ctx) };
+  return { execute, pageToIndex: toIndex };
 }
