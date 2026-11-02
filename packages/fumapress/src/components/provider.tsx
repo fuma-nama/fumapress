@@ -24,10 +24,12 @@ const framework: Framework = {
       [router],
     );
   },
-  Image: ({ priority, ...props }) => (
+  Image: ({ priority, src, ...props }) => (
     <Image
       fetchPriority={priority ? "high" : undefined}
       loading={priority ? "eager" : undefined}
+      // static imports of Next.js keep the image in `default`
+      src={typeof src === "object" && "default" in src ? src.default : src}
       {...props}
     />
   ),

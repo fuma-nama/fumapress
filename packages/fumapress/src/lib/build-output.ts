@@ -1,23 +1,16 @@
+import type { BuildOutput } from "fumadocs-core/framework/plugin";
+
 /**
- * Helpers for plugins that emit extra files into the build output via the
- * `emitFile` util of `unstable_onServerEntry`. Paths passed to `emitFile` are
- * relative to the build output directory (e.g. `dist/`), so files written here
- * sit next to `public/` and `server/` rather than being publicly served.
+ * The build output of plugins, from the `emitFile` util of the server entry build: paths are relative
+ * to the build output directory (e.g. `dist/`), so files sit next to `public/` and `server/` rather
+ * than being publicly served.
  */
-
-export function bytesToStream(bytes: Uint8Array): ReadableStream<Uint8Array> {
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(bytes);
-      controller.close();
-    },
-  });
-}
-
-export function stringToStream(value: string): ReadableStream<Uint8Array> {
-  return bytesToStream(new TextEncoder().encode(value));
-}
-
-export function jsonToStream(value: unknown): ReadableStream<Uint8Array> {
-  return stringToStream(JSON.stringify(value, null, 2));
+export function toBuildOutput(
+  emitFile: (path: string, body: ReadableStream) => Promise<void>,
+): BuildOutput {
+  return {
+    emitFile: (path, content) =>
+      // a copy of bytes, the body of responses can't be a view of shared memory
+      emitFile(path, new Response(typeof content === "string" ? content : content.slice()).body!),
+  };
 }

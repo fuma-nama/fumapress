@@ -1,4 +1,4 @@
-export type RouteParams = Record<string, string | string[]>;
+import type { RouteParams } from "fumadocs-core/framework/plugin";
 
 /**
  * A route as Waku.js serves it: its URL pattern without route groups, and its pages with their

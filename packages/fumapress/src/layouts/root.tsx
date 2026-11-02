@@ -51,6 +51,13 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
       providerProps = await hook(providerProps);
     }
 
+    // search plugins serve `/api/search`, the search dialog is disabled without one
+    const search = ctx.getProvider("search");
+    providerProps.search ??= { enabled: search !== undefined };
+    if (search && ctx.mode === "static") {
+      providerProps.search.SearchDialog ??= await staticSearchDialog(search.name);
+    }
+
     const renderProvider = renderWithInterceptors(
       ctx,
       { lang },
@@ -70,4 +77,14 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
       </html>
     );
   };
+}
+
+/** the dialog searching the index of a search plugin in the browser, for static sites */
+async function staticSearchDialog(name: string | undefined) {
+  switch (name) {
+    case "flexsearch":
+      return (await import("@/components/flexsearch-static")).default;
+    case "orama-search":
+      return (await import("@/components/orama-search-static")).default;
+  }
 }

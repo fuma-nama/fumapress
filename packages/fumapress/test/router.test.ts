@@ -336,6 +336,107 @@ describe("createRouter", () => {
       createRouter(config({ ...prefixed, hideLocale: "always" }) as ConfigUtils),
     ).rejects.toThrow('hideLocale: "always"');
   });
+
+  it("registers the routes of plugins as Waku APIs", async () => {
+    await routes(
+      config(undefined, "default").plugins({
+        routes: () => [
+          { path: "/data.json", GET: () => Response.json({ ok: true }) },
+          {
+            path: "/api/echo",
+            render: "dynamic",
+            POST: () => new Response("post"),
+            ALL: () => new Response("all"),
+          },
+        ],
+      }),
+    );
+
+    const data = route("/data.json") as Route & { method: string; handler: ApiHandler };
+    expect(data).toMatchObject({ kind: "api", render: "static", method: "GET" });
+    expect(
+      await (await data.handler(new Request("http://localhost"), { params: {} })).json(),
+    ).toEqual({ ok: true });
+
+    const echo = route("/api/echo") as Route & { handlers: Record<string, ApiHandler> };
+    expect(echo.render).toBe("dynamic");
+    expect(Object.keys(echo.handlers)).toEqual(["POST", "all"]);
+    expect(
+      await (await echo.handlers.all!(new Request("http://localhost"), { params: {} })).text(),
+    ).toBe("all");
+  });
+});
+
+type ApiHandler = (
+  req: Request,
+  ctx: { params: Record<string, string | string[]> },
+) => Promise<Response>;
+
+describe("createMiddlewares", () => {
+  /** a Hono context of a request to `url`, `next()` responds with `next` */
+  function honoContext(url: string) {
+    const c = { req: { raw: new Request(url), url }, res: undefined as Response | undefined };
+    const next = async () => {
+      c.res = new Response("next");
+    };
+    return { c, next };
+  }
+
+  it("runs the middleware of plugins, `next(path)` serves another path of the app", async () => {
+    const router = await createRouter(
+      config(undefined, "default").plugins({
+        async middleware(request, next) {
+          const { pathname } = new URL(request.url);
+          if (pathname === "/old") return next("/new");
+          if (pathname === "/own") return new Response("own");
+          return next();
+        },
+      }) as ConfigUtils,
+    );
+    const handler = router.createMiddlewares()[1]!({
+      app: { fetch: async (req: Request) => new Response(new URL(req.url).pathname) },
+    } as never);
+
+    for (const [url, text] of [
+      ["http://localhost/old", "/new"],
+      ["http://localhost/own", "own"],
+      ["http://localhost/other", "next"],
+    ]) {
+      const { c, next } = honoContext(url!);
+      await handler(c as never, next);
+      expect(await c.res!.text()).toBe(text);
+    }
+  });
+});
+
+describe("patchAdapter", () => {
+  it("runs the build of plugins after the build of Waku", async () => {
+    const order: string[] = [];
+    const emitted = new Map<string, string>();
+    const router = await createRouter(
+      config(undefined).plugins({
+        async build({ emitFile }) {
+          await emitFile("out.txt", "hello");
+        },
+      }) as ConfigUtils,
+    );
+    const createEntry = router.patchAdapter((() => ({
+      fetch: () => new Response(),
+      async build() {
+        order.push("waku");
+      },
+    })) as never);
+
+    await createEntry({} as never).build({
+      async emitFile(path, body) {
+        order.push(path);
+        emitted.set(path, await new Response(body).text());
+      },
+      unstable_registerPrunableFile() {},
+    });
+    expect(order).toEqual(["waku", "out.txt"]);
+    expect(emitted.get("out.txt")).toBe("hello");
+  });
 });
 
 describe("fsRouterFn", () => {

@@ -1,44 +1,58 @@
-import type { FumapressConfig, BuildMode, ConfigUtils } from "@/config";
-import { getGitRootDir } from "../lib/fs";
-import {
-  defaultGitProviderUrls,
-  getFileUrl,
-  getRepoLinkItem,
-  getRepoUrl,
-  type GitInfo,
-} from "../lib/git";
-import path from "node:path";
-import type { Meta, Page, LoaderOutput } from "fumadocs-core/source";
-import type { Awaitable, Adapter, PressLoaderOptions } from "../lib/types";
-import { isValidElement, type ReactNode } from "react";
-import createDeepmerge from "@fastify/deepmerge";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import { AsyncLocalStorage } from "node:async_hooks";
-import { dynamicLoader } from "fumadocs-core/source/dynamic";
-import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
-import { preinitPlugins, type PressPlugin } from "./plugin";
-import { inheritedFrom, localizePath } from "@/lib/i18n";
-import { joinPaths } from "@/lib/pathname";
-import type { TOCItemType } from "fumadocs-core/toc";
+import type { ConfigUtils } from "@/config";
+import { fumapressTranslations } from "@/i18n";
 import type { DocsLayoutContextData } from "@/layouts/docs";
 import type { GlassLayoutContextData } from "@/layouts/glass";
 import type { HomeLayoutContextData } from "@/layouts/home";
 import type { NotebookLayoutContextData } from "@/layouts/notebook";
 import type { RootLayoutContextData } from "@/layouts/root";
 import type { SpaciousLayoutContextData } from "@/layouts/spacious";
+import { joinPaths } from "@/lib/pathname";
+import type { Adapter, Awaitable } from "@/lib/types";
+import createDeepmerge from "@fastify/deepmerge";
+import { createPress, type AppShape, type Context, type PageAlternate } from "@fumapress/core";
+import type { HeadTag } from "fumadocs-core/framework/plugin";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createElement, isValidElement, type ReactNode } from "react";
+import { preinitPlugins, recommendedPlugins, type PressPlugin } from "./plugin";
 
-export interface AppShape {
-  page: Page;
-  meta: Meta;
-  lang: string | undefined;
-  /** source names in multi-source setup */
-  source: string | undefined;
+export type { AppShape, PageAlternate };
+
+/** the repository of `site.git` */
+export type GitInfo = Omit<NonNullable<Context["siteConfig"]["git"]>, "rootDir">;
+
+type RootMetaInterceptor = (opts: { next: () => ReactNode }) => ReactNode;
+type PageMetaInterceptor<C extends AppShape> = (opts: {
+  page: C["page"];
+  next: () => ReactNode;
+}) => ReactNode;
+
+/** can extend from plugins during `init()` */
+export interface FumapressHooks<C extends AppShape> extends Pick<
+  Context<C>,
+  | "getPageToc"
+  | "getPageBody"
+  | "getPageCreatedAt"
+  | "getPageLastModified"
+  | "getFileUrl"
+  | "getPageAlternates"
+  | "absoluteUrl"
+> {
+  interceptRootMeta: (interceptor: RootMetaInterceptor) => void;
+  interceptPageMeta: (interceptor: PageMetaInterceptor<C>) => void;
+  /** the head tags of every page, then `meta.root` of the config */
+  renderRootMeta: () => ReactNode;
+  /** the head tags of a content page, then `meta.page` of the config */
+  renderPageMeta: (page: C["page"]) => ReactNode;
 }
 
-export interface AppContext<S extends AppShape = AppShape>
-  extends FumapressLoader<S>, FumapressHooks<S> {
-  mode: BuildMode;
-  plugins: PressPlugin<S>[];
+export type FumapressLoader<C extends AppShape = AppShape> = Pick<
+  Context<C>,
+  "getLoader" | "revalidateLoader" | "invalidateLoader"
+>;
+
+/** the site on Waku, `this` in plugin hooks */
+export interface AppContext<S extends AppShape = AppShape> extends Context<S>, FumapressHooks<S> {
+  plugins: readonly PressPlugin[];
   adapters: Adapter<S>[];
 
   /** always `undefined`, easier way to infer types */
@@ -48,88 +62,9 @@ export interface AppContext<S extends AppShape = AppShape>
    * custom data in app context, can be referenced from plugins/pages etc
    */
   data: AppContextData<S> & Record<string | symbol, unknown>;
-  defaultLayoutProps: (opts: {
-    lang: string | undefined;
-  }) => Awaitable<Omit<BaseLayoutProps, "children">>;
   renderPage: (opts: { slugs: string[]; lang?: string; page: S["page"] }) => ReactNode;
   renderRoot: (opts: { lang?: string; children: ReactNode }) => ReactNode;
   renderNotFound: (opts: { lang?: string }) => ReactNode;
-  /** prefix `pathname` with the language segment, unless `i18n.hideLocale` hides it */
-  localizePath: (lang: string | undefined, pathname: string) => string;
-
-  translationsConfig?:
-    | ([S["lang"]] extends [string] ? TranslationsAPI<S["lang"]> : never)
-    | SingularTranslationsAPI;
-  i18nConfig?: [S["lang"]] extends [string] ? I18nConfig<S["lang"]> : undefined;
-  siteConfig: {
-    name: string;
-    baseUrl?: string;
-    hreflang?: Record<string, string>;
-    git?: GitInfo & {
-      rootDir: string;
-    };
-  };
-}
-
-export interface PageAlternate {
-  locale: string;
-  /** from `site.hreflang`, defaults to the locale code */
-  hreflang: string;
-  href: string;
-}
-
-type RootMetaInterceptor = (opts: { next: () => ReactNode }) => ReactNode;
-type PageMetaInterceptor<C extends AppShape> = (opts: {
-  page: C["page"];
-  next: () => ReactNode;
-}) => ReactNode;
-
-/** can extend from plugins during `init()` */
-export interface FumapressHooks<C extends AppShape> {
-  interceptRootMeta: (interceptor: RootMetaInterceptor) => void;
-  interceptPageMeta: (interceptor: PageMetaInterceptor<C>) => void;
-  renderRootMeta: () => ReactNode;
-  renderPageMeta: (page: C["page"]) => ReactNode;
-  getPageToc: (page: C["page"]) => Awaitable<TOCItemType[] | undefined>;
-  getPageBody: (page: C["page"]) => Awaitable<
-    | {
-        node: ReactNode;
-      }
-    | undefined
-  >;
-  getPageCreatedAt: (page: C["page"]) => Awaitable<Date | undefined>;
-  getPageLastModified: (page: C["page"]) => Awaitable<Date | undefined>;
-
-  /** URL of a file on the configured git provider, requires `site.git` to be configured */
-  getFileUrl: (absolutePath: string) => Awaitable<string | undefined>;
-
-  /** translations of the page (fallback pages excluded) for `hreflang` links, empty when it has none */
-  getPageAlternates: (page: C["page"]) => Promise<PageAlternate[]>;
-
-  /**
-   * Absolute URL of a pathname joined to `site.baseUrl`, the pathname prefixed with the base path
-   * when unset. Full URLs are returned as-is.
-   */
-  absoluteUrl: (pathname: string) => string;
-}
-
-export interface FumapressLoader<C extends AppShape = AppShape> {
-  getLoader: () => Awaitable<
-    LoaderOutput<{
-      i18n: [C["lang"]] extends [string] ? I18nConfig<C["lang"]> : undefined;
-      meta: C["meta"];
-      page: C["page"];
-    }>
-  >;
-  /** revalidate [dynamic content sources](https://fumadocs.dev/docs/headless/source-api/source#dynamic-source) */
-  revalidateLoader:
-    | (() => Promise<void>)
-    | (C["source"] extends string ? (name: C["source"]) => Promise<void> : never);
-
-  /** invalidate [dynamic content sources](https://fumadocs.dev/docs/headless/source-api/source#dynamic-source) */
-  invalidateLoader:
-    | (() => void)
-    | (C["source"] extends string ? (name: C["source"]) => void : never);
 }
 
 export const appContext = new AsyncLocalStorage({
@@ -148,234 +83,167 @@ export function getPressContext<C extends AppShape = AppShape>(): AppContext<C> 
 }
 
 export async function initApp<C extends AppShape>(builder: ConfigUtils): Promise<AppContext<C>> {
-  const config = builder.get();
   const {
-    translations,
+    meta,
+    adapters = [],
+    plugins = [],
     site,
-    defaultLayoutProps,
     mode = "default",
     renderNotFound = (await import("fumadocs-ui/layouts/home/not-found")).DefaultNotFound,
     renderPage = (await import("@/layouts/docs")).createDocsLayoutPage(),
     renderRoot = (await import("@/layouts/root")).createRootLayout(),
-  } = config;
-  const ctx: AppContext = {
+    ...config
+  } = builder.get();
+  const rootMetaInterceptors: RootMetaInterceptor[] = [];
+  const pageMetaInterceptors: PageMetaInterceptor<AppShape>[] = [];
+  let ctx!: AppContext;
+
+  const members: Omit<AppContext, keyof Context> = {
     $context: undefined as never,
-    getLoader() {
-      throw new Error(
-        "[Fumapress] Content loader is not initialized yet, please access it after init()",
-      );
-    },
-    revalidateLoader: () => Promise.resolve(undefined),
-    invalidateLoader: () => undefined,
-    i18nConfig:
-      translations && "config" in translations
-        ? (translations.config as AppContext["i18nConfig"])
-        : config.i18n,
-    defaultLayoutProps: async (opts) => {
-      const { name, git } = ctx.siteConfig;
-      const base =
-        typeof defaultLayoutProps === "function"
-          ? await defaultLayoutProps.call(ctx, opts)
-          : defaultLayoutProps;
-
-      // Fumadocs renders `githubUrl` as a GitHub icon link, other providers need their own link item
-      const repo = git && !base?.githubUrl ? git : undefined;
-
-      return {
-        ...base,
-        githubUrl: base?.githubUrl ?? (repo?.provider === "github" ? getRepoUrl(repo) : undefined),
-        links:
-          repo && repo.provider !== "github"
-            ? [...(base?.links ?? []), getRepoLinkItem(repo)]
-            : base?.links,
-        nav: {
-          ...base?.nav,
-          title: base?.nav?.title ?? name,
-          // Fumadocs links the title to `/`, the home of the default language
-          url: base?.nav?.url ?? ctx.localizePath(opts.lang, "/"),
-        },
-      };
-    },
-    renderNotFound,
+    adapters,
+    data: {},
     renderPage,
     renderRoot,
-    localizePath: (lang, pathname) => localizePath(ctx.i18nConfig, lang, pathname),
-    plugins: await preinitPlugins(config.preset, config.plugins ?? [], { mode }),
-    adapters: config.adapters ?? [],
-    data: {},
-    translationsConfig: translations,
-    mode,
-    siteConfig: {
-      name: site?.name ?? "Fumapress",
-      baseUrl: site?.baseUrl ?? getDefaultBaseUrl(),
-      hreflang: site?.hreflang,
-      git: site?.git
-        ? {
-            ...site.git,
-            provider: site.git.provider ?? "github",
-            url: (site.git.url ?? defaultGitProviderUrls[site.git.provider ?? "github"]).replace(
-              /\/$/,
-              "",
-            ),
-            rootDir: site.git.rootDir ?? getGitRootDir() ?? process.cwd(),
-          }
-        : undefined,
-    },
-    ...hooks(config),
-  };
-
-  if ((ctx.i18nConfig as I18nConfig | undefined)?.hideLocale === "always") {
-    throw new Error(
-      '[Fumapress] `hideLocale: "always"` is not supported, languages are told apart by their URL prefix. Use `hideLocale: "default-locale"` to drop the prefix of the default language only.',
-    );
-  }
-
-  for (const plugin of ctx.plugins) {
-    await plugin.init?.call(ctx);
-  }
-
-  let loaderOptions: PressLoaderOptions = {
-    baseUrl: "/",
-    i18n: ctx.i18nConfig,
-    ...config.loaderOptions,
-  };
-
-  for (const plugin of ctx.plugins) {
-    if (!plugin.configureLoader) continue;
-    loaderOptions = await plugin.configureLoader.call(ctx, loaderOptions);
-  }
-
-  const source = dynamicLoader(config.content, loaderOptions);
-  ctx.revalidateLoader = source.revalidate.bind(source);
-  ctx.invalidateLoader = source.invalidate.bind(source);
-  ctx.getLoader = () => {
-    // only invalidate because `get()` will do the revalidation part
-    if (config.loaderOptions?.alwaysRevalidate) source.invalidate();
-    return source.get() as never;
-  };
-
-  for (const plugin of ctx.plugins) {
-    await plugin.configure?.call(ctx);
-  }
-
-  return ctx as unknown as AppContext<C>;
-}
-
-function hooks<S extends AppShape>(config: FumapressConfig): FumapressHooks<S> {
-  const rootMetaInterceptors: RootMetaInterceptor[] = [];
-  const pageMetaInterceptors: PageMetaInterceptor<S>[] = [];
-  return {
-    interceptPageMeta(interceptor) {
-      pageMetaInterceptors.push(interceptor);
-    },
+    renderNotFound,
     interceptRootMeta(interceptor) {
       rootMetaInterceptors.push(interceptor);
     },
+    interceptPageMeta(interceptor) {
+      pageMetaInterceptors.push(interceptor);
+    },
     renderRootMeta() {
-      const ctx = getPressContext();
       function next(i: number): ReactNode {
         const interceptor = rootMetaInterceptors[i];
-        if (!interceptor) return config.meta?.root?.call(ctx);
-        return interceptor({ next: () => next(i + 1) });
+        if (interceptor) return interceptor({ next: () => next(i + 1) });
+
+        return (
+          <>
+            <HeadTags />
+            {meta?.root?.call(ctx)}
+          </>
+        );
       }
 
       return next(0);
     },
     renderPageMeta(page) {
-      const context = getPressContext();
-
       function next(i: number): ReactNode {
         const interceptor = pageMetaInterceptors[i];
-        if (!interceptor) {
-          const { title, description } = page.data;
+        if (interceptor) return interceptor({ page, next: () => next(i + 1) });
 
-          return (
-            <>
-              <title>{title}</title>
-              {description && <meta name="description" content={description} />}
-              <meta property="og:title" content={title} />
-              {description && <meta property="og:description" content={description} />}
-              <meta property="og:site_name" content={context.siteConfig.name} />
-              <ContentPageLinks page={page} />
-              {config.meta?.page?.call(context, page)}
-            </>
-          );
-        }
-        return interceptor({ page, next: () => next(i + 1) });
+        return (
+          <>
+            <HeadTags page={page} />
+            {meta?.page?.call(ctx, page)}
+          </>
+        );
       }
 
       return next(0);
     },
-    async getPageAlternates(page) {
-      const ctx = getPressContext();
-      const i18n = ctx.i18nConfig as I18nConfig | undefined;
-      if (!i18n) return [];
-      const source = await ctx.getLoader();
-      const out: PageAlternate[] = [];
+  };
 
-      for (const locale of i18n.languages) {
-        const target = source.getPage(page.slugs, locale);
-        if (!target || inheritedFrom(source, i18n, target)) continue;
-        out.push(pageAlternate(ctx, locale, target.url));
-      }
-
-      return out.length > 1 ? out : [];
+  const internal: PressPlugin = {
+    name: "fumapress",
+    // the first plugin, its `init()` gives the context the members of Waku before other plugins see it
+    enforce: "pre",
+    translations: fumapressTranslations(),
+    init() {
+      ctx = Object.assign(this, members);
     },
-    absoluteUrl(pathname) {
-      if (URL.canParse(pathname)) return pathname;
-
-      const { baseUrl } = getPressContext().siteConfig;
-      if (!baseUrl) return joinPaths("/", import.meta.env.BASE_URL, pathname);
-
-      // join to keep the path of `baseUrl`, `new URL()` percent-encodes it
-      return new URL(joinPaths(baseUrl, pathname)).href;
+    getPageText(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:get-text"]);
     },
-    async getPageCreatedAt(page) {
-      const ctx = getPressContext();
-
-      for (const adapter of ctx.adapters) {
-        const date = await adapter["core:get-creation-date"]?.call(ctx, page);
-        if (date !== undefined) return date;
-      }
+    getPageStructuredData(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:get-structured-data"]);
     },
-    async getPageLastModified(page) {
-      const ctx = getPressContext();
-
-      for (const adapter of ctx.adapters) {
-        const date = await adapter["core:get-modified-date"]?.call(ctx, page);
-        if (date !== undefined) return date;
-      }
+    getPageBody(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:get-body"]);
     },
-    async getPageBody(page) {
-      const ctx = getPressContext();
-
-      for (const adapter of ctx.adapters) {
-        const body = await adapter["core:get-body"]?.call(ctx, page);
-        if (body !== undefined) return body;
-      }
+    getPageToc(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:render-toc"]);
     },
-    async getPageToc(page) {
-      const ctx = getPressContext();
-      for (const adapter of ctx.adapters) {
-        const toc = await adapter["core:render-toc"]?.call(ctx, page);
-        if (toc !== undefined) return toc;
-      }
+    getPageCreatedAt(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:get-creation-date"]);
     },
-    getFileUrl(absolutePath) {
-      const { git } = getPressContext().siteConfig;
-      if (!git) return;
-
-      const p = path.relative(git.rootDir, absolutePath).replaceAll(path.sep, "/");
-      if (p.startsWith("../")) return;
-
-      return getFileUrl(git, p);
+    getPageLastModified(page) {
+      return fromAdapters(this, page, (adapter) => adapter["core:get-modified-date"]);
     },
   };
+
+  const resolved = await preinitPlugins(plugins);
+  await createPress(
+    {
+      ...config,
+      mode,
+      site: { ...site, baseUrl: site?.baseUrl ?? defaultBaseUrl() },
+      plugins: [internal, ...resolved],
+    },
+    { base: import.meta.env.BASE_URL, preset: () => recommendedPlugins(mode, resolved) },
+  );
+
+  return ctx as unknown as AppContext<C>;
+}
+
+/** the first value of the adapters, for the page hooks of their `core:` keys */
+async function fromAdapters<T>(
+  ctx: AppContext,
+  page: AppShape["page"],
+  get: (
+    adapter: Adapter,
+  ) => ((this: AppContext, page: AppShape["page"]) => Awaitable<T | undefined>) | undefined,
+): Promise<T | undefined> {
+  for (const adapter of ctx.adapters) {
+    const value = await get(adapter)?.call(ctx, page);
+    if (value !== undefined) return value;
+  }
+}
+
+/** the URL of the site on the development server and on Vercel, without `site.baseUrl` */
+function defaultBaseUrl(): string | undefined {
+  if (import.meta.env.DEV) return joinPaths("http://localhost:3000", import.meta.env.BASE_URL);
+  const vercelUrl = import.meta.env.VERCEL_URL;
+  if (vercelUrl) return joinPaths(`https://${vercelUrl}`, import.meta.env.BASE_URL);
+}
+
+/** React props of the HTML attributes that React names differently */
+const reactProps = new Map([
+  ["charset", "charSet"],
+  ["crossorigin", "crossOrigin"],
+  ["fetchpriority", "fetchPriority"],
+  ["hreflang", "hrefLang"],
+  ["http-equiv", "httpEquiv"],
+  ["itemprop", "itemProp"],
+  ["nomodule", "noModule"],
+  ["referrerpolicy", "referrerPolicy"],
+]);
+
+/** head tags as React elements */
+export function renderHeadTags(tags: HeadTag[]): ReactNode[] {
+  const out: ReactNode[] = [];
+  for (const [key, { tag, attrs, children }] of tags.entries()) {
+    const props: Record<string, unknown> = { key };
+    for (const name in attrs) props[reactProps.get(name) ?? name] = attrs[name];
+    if (tag === "title") {
+      out.push(createElement(tag, props, children));
+      continue;
+    }
+
+    // the text of scripts and styles is not escaped
+    if (children !== undefined) props.dangerouslySetInnerHTML = { __html: children };
+    out.push(createElement(tag, props));
+  }
+  return out;
+}
+
+/** the head tags of every page, of a content page with `page` */
+async function HeadTags({ page }: { page?: AppShape["page"] }) {
+  return renderHeadTags(await getPressContext().getHead({ page }));
 }
 
 /** `hreflang` alternate of the page at `pathname` in `locale` */
 export function pageAlternate<C extends AppShape>(
-  ctx: AppContext<C>,
+  ctx: Context<C>,
   locale: string,
   pathname: string,
 ): PageAlternate {
@@ -386,64 +254,34 @@ export function pageAlternate<C extends AppShape>(
   };
 }
 
-/** links of a content page, fallback pages point at their source page and are not indexed */
-async function ContentPageLinks({ page }: { page: Page }) {
-  const ctx = getPressContext();
-  const i18n = ctx.i18nConfig as I18nConfig | undefined;
-  const origin = inheritedFrom(await ctx.getLoader(), i18n, page);
-
-  return (
-    <>
-      <PageLinks pathname={(origin ?? page).url} alternates={await ctx.getPageAlternates(page)} />
-      {origin && <meta name="robots" content="noindex" />}
-    </>
-  );
-}
-
 /**
- * canonical and `og:url` of the page at `pathname` (only with `site.baseUrl`), `hreflang` links of
- * its `alternates`
+ * canonical and `og:url` of the page of `createPage()` at `pathname` (only with `site.baseUrl`),
+ * `hreflang` links of its `alternates`
  */
-export function PageLinks({
-  pathname,
-  alternates,
-}: {
-  pathname: string;
-  alternates: PageAlternate[];
-}) {
-  const ctx = getPressContext();
-  const url = ctx.siteConfig.baseUrl ? ctx.absoluteUrl(pathname) : undefined;
-  const i18n = ctx.i18nConfig as I18nConfig | undefined;
+export function pageLinks<C extends AppShape>(
+  ctx: Context<C>,
+  pathname: string,
+  alternates: PageAlternate[],
+): HeadTag[] {
+  const tags: HeadTag[] = [];
+  if (ctx.siteConfig.baseUrl) {
+    const href = ctx.absoluteUrl(pathname);
+    tags.push(
+      { tag: "link", attrs: { rel: "canonical", href } },
+      { tag: "meta", attrs: { property: "og:url", content: href } },
+    );
+  }
+
+  for (const { hreflang, href } of alternates)
+    tags.push({ tag: "link", attrs: { rel: "alternate", hreflang, href } });
   const xDefault =
-    alternates.find((item) => item.locale === i18n?.defaultLanguage) ?? alternates[0];
-
-  return (
-    <>
-      {url && <link rel="canonical" href={url} />}
-      {url && <meta property="og:url" content={url} />}
-      {alternates.map((item) => (
-        <link key={item.locale} rel="alternate" hrefLang={item.hreflang} href={item.href} />
-      ))}
-      {xDefault && <link rel="alternate" hrefLang="x-default" href={xDefault.href} />}
-    </>
-  );
-}
-
-function getDefaultBaseUrl() {
-  const platform =
-    import.meta.env.FUMAPRESS_PLATFORM === "cloudflare"
-      ? " and Cloudflare Workers Builds does not expose the site URL"
-      : "";
-  console.warn(
-    `[Fumapress] "site.baseUrl" is not set${platform}; sitemap and RSS will fall back to relative URLs.`,
-  );
-  if (import.meta.env.DEV) {
-    return joinPaths("http://localhost:3000", import.meta.env.BASE_URL);
-  }
-  const vercelUrl = import.meta.env.VERCEL_URL;
-  if (vercelUrl) {
-    return joinPaths(`https://${vercelUrl}`, import.meta.env.BASE_URL);
-  }
+    alternates.find((item) => item.locale === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
+  if (xDefault)
+    tags.push({
+      tag: "link",
+      attrs: { rel: "alternate", hreflang: "x-default", href: xDefault.href },
+    });
+  return tags;
 }
 
 export const deepmerge = createDeepmerge({

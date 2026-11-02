@@ -1,18 +1,13 @@
-import type { Awaitable, RouteFns, PressLoaderOptions } from "@/lib/types";
+import type { Awaitable, RouteFns } from "@/lib/types";
+import { resolvePlugins, type Plugin, type PluginOption } from "@fumapress/core";
+import type { BuildMode } from "fumadocs-core/framework/plugin";
 import type { Hono, MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
 import type { AppContext, AppShape } from "./context";
-import type { PressProviderProps } from "@/components/provider";
-import { fumapressTranslations } from "@/i18n";
-import type { BuildMode, FumapressConfig } from "@/config";
 
-export interface PressPlugin<C extends AppShape = AppShape> {
-  name?: string;
-
-  /** force change the order of plugin */
-  enforce?: "pre" | "post";
-
+/** a plugin of Fumapress with the context of Waku as `this`, and the pages, rendering and server of Waku */
+export interface PressPlugin<C extends AppShape = AppShape> extends Plugin<C, AppContext<C>> {
   /**
    * Runs after plugins are resolved, before `init()`.
    *
@@ -25,12 +20,6 @@ export interface PressPlugin<C extends AppShape = AppShape> {
     /** full list of initially resolved plugins */
     original: PressPlugin<C>[];
   }) => Awaitable<void | false>;
-
-  /** initialize context */
-  init?: (this: AppContext<C>) => Awaitable<void>;
-
-  /** receive & modify context */
-  configure?: (this: AppContext<C>) => Awaitable<void>;
 
   createPages?: (this: AppContext<C>, fns: RouteFns) => Awaitable<void>;
 
@@ -48,12 +37,6 @@ export interface PressPlugin<C extends AppShape = AppShape> {
     env: { page: C["page"]; fallback: ReactNode; lang?: string; slugs: string[] },
   ) => Awaitable<ReactNode>;
 
-  /** resolve content loader options */
-  configureLoader?: (
-    this: AppContext<C>,
-    options: PressLoaderOptions,
-  ) => Awaitable<PressLoaderOptions>;
-
   /** create Hono middlewares */
   createMiddlewares?: (
     this: AppContext<C>,
@@ -65,110 +48,54 @@ export interface PressPlugin<C extends AppShape = AppShape> {
   ) => ReturnType<ReturnType<typeof unstable_createServerEntryAdapter>>;
 }
 
-export type PressPluginOption<C extends AppShape = AppShape> =
-  | PressPlugin<C>
-  | false
-  | undefined
-  | null
-  | PressPluginOption<C>[];
+export type PressPluginOption<C extends AppShape = AppShape> = PluginOption<PressPlugin<C>>;
 
-const PLUGIN_ORDER = {
-  pre: -1,
-  post: 1,
-  _: 0,
-};
+/** the plugins without the preset, leaving out the ones whose `preinit()` returns `false` */
+export async function preinitPlugins<C extends AppShape>(
+  plugins: PressPluginOption<C>[],
+): Promise<PressPlugin<C>[]> {
+  const original = resolvePlugins<PressPlugin<C>>(plugins, []);
+  const finalized: PressPlugin<C>[] = [];
 
-function flattenPlugins<C extends AppShape>(plugins: PressPluginOption<C>[]): PressPlugin<C>[] {
-  const out: PressPlugin<C>[] = [];
-  for (const plugin of plugins) {
-    if (!plugin) continue;
-    if (Array.isArray(plugin)) out.push(...flattenPlugins(plugin));
-    else out.push(plugin);
+  for (const plugin of original) {
+    if ((await plugin.preinit?.({ finalized, original })) !== false) finalized.push(plugin);
+  }
+  return finalized;
+}
+
+/** the plugins of the `recommended` preset, with the image plugin of the hosting platform unless `plugins` have an `image:` plugin */
+export async function recommendedPlugins(
+  mode: BuildMode,
+  plugins: readonly PressPlugin[],
+): Promise<PressPluginOption[]> {
+  const [sitemap, robots, llms, rss, flexsearch, takumi] = await Promise.all([
+    import("@/plugins/sitemap"),
+    import("@/plugins/robots"),
+    import("@/plugins/llms.txt"),
+    import("@/plugins/rss"),
+    import("@/plugins/flexsearch"),
+    import("@/plugins/takumi"),
+  ]);
+  const out: PressPluginOption[] = [
+    sitemap.sitemapPlugin(),
+    robots.robotsPlugin(),
+    llms.llmsPlugin(),
+    rss.rssPlugin(),
+    flexsearch.flexsearchPlugin(),
+    takumi.takumiPlugin(),
+  ];
+  if (plugins.some((plugin) => plugin.name?.startsWith("image:"))) return out;
+
+  // hosting platform detected at build time, from the resolved deployment adapter
+  const platform: string | undefined = import.meta.env.FUMAPRESS_PLATFORM;
+  if (platform === "vercel") {
+    out.push((await import("@/plugins/image/vercel")).imagePlugin());
+  } else if (platform === "cloudflare") {
+    out.push((await import("@/plugins/image/cloudflare")).imagePlugin());
+  } else if (platform === "node" && mode !== "static" && hasSharp()) {
+    out.push((await import("@/plugins/image/self-hosted")).imagePlugin());
   }
   return out;
-}
-
-function sortPlugins<C extends AppShape>(plugins: PressPlugin<C>[]): PressPlugin<C>[] {
-  return plugins.sort((a, b) => PLUGIN_ORDER[a.enforce ?? "_"] - PLUGIN_ORDER[b.enforce ?? "_"]);
-}
-
-export async function preinitPlugins<C extends AppShape>(
-  preset: FumapressConfig["preset"] = "recommended",
-  plugins: PressPluginOption<C>[],
-  env: { mode?: BuildMode; _debug_no_takumi?: boolean } = {},
-): Promise<PressPlugin<C>[]> {
-  const flattened = flattenPlugins(plugins);
-  flattened.push(
-    {
-      name: "core:i18n",
-      init() {
-        if (this.translationsConfig) {
-          this.translationsConfig.extend(fumapressTranslations());
-        }
-      },
-    },
-    {
-      name: "core:disable-search-if-needed",
-      enforce: "post",
-      init() {
-        const data = (this.data["core:provider"] ??= {});
-        const transformers = (data.transformers ??= []);
-        transformers.push((props: PressProviderProps) => {
-          // search-feature plugins must set the `search` prop, otherwise will disable search by default.
-          props.search ??= { enabled: false };
-          return props;
-        });
-      },
-    },
-  );
-
-  sortPlugins(flattened);
-  const finalized: PressPlugin<C>[] = [];
-  const finalizedNames = new Set<string>();
-
-  for (const plugin of flattened) {
-    if (plugin.preinit && (await plugin.preinit({ finalized, original: flattened })) === false) {
-      continue;
-    }
-
-    finalized.push(plugin);
-    if (plugin.name) finalizedNames.add(plugin.name);
-  }
-
-  if (preset === "recommended") {
-    if (!finalizedNames.has("core:sitemap")) {
-      finalized.push((await import("@/plugins/sitemap")).sitemapPlugin());
-    }
-    if (!finalizedNames.has("core:robots")) {
-      finalized.push((await import("@/plugins/robots")).robotsPlugin());
-    }
-    if (!finalizedNames.has("core:llms.txt")) {
-      finalized.push((await import("@/plugins/llms.txt")).llmsPlugin());
-    }
-    if (!finalizedNames.has("core:rss")) {
-      finalized.push((await import("@/plugins/rss")).rssPlugin());
-    }
-    if (!finalizedNames.has("core:flexsearch") && !finalizedNames.has("core:orama-search")) {
-      finalized.push((await import("@/plugins/flexsearch")).flexsearchPlugin());
-    }
-    if (!env._debug_no_takumi && !finalizedNames.has("core:takumi")) {
-      finalized.push((await import("@/plugins/takumi")).takumiPlugin());
-    }
-    if (!finalized.some((plugin) => plugin.name?.startsWith("image:"))) {
-      // hosting platform detected at build time, from the resolved deployment adapter
-      const platform: string | undefined = import.meta.env.FUMAPRESS_PLATFORM;
-
-      if (platform === "vercel") {
-        finalized.push((await import("@/plugins/image/vercel")).imagePlugin());
-      } else if (platform === "cloudflare") {
-        finalized.push((await import("@/plugins/image/cloudflare")).imagePlugin());
-      } else if (platform === "node" && env.mode !== "static" && hasSharp()) {
-        finalized.push((await import("@/plugins/image/self-hosted")).imagePlugin());
-      }
-    }
-  }
-
-  return sortPlugins(finalized);
 }
 
 function hasSharp(): boolean {

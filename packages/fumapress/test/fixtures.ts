@@ -15,15 +15,18 @@ function page(path: string, absolutePath: boolean): VirtualFile {
   };
 }
 
-type Config = FumapressConfig<any, string>;
+type Config = FumapressConfig;
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/shared` belongs to every language */
 export function createApp(
   options: {
     i18n?: I18nConfig;
     site?: SiteConfig;
+    mode?: Config["mode"];
     meta?: Config["meta"];
     defaultLayoutProps?: Config["defaultLayoutProps"];
+    plugins?: Config["plugins"];
+    adapters?: Config["adapters"];
     /** @default true */
     absolutePath?: boolean;
   } = {},
@@ -40,9 +43,12 @@ export function createApp(
       ],
     },
     i18n: options.i18n,
+    mode: options.mode,
     site: { baseUrl: "https://example.com", ...options.site },
     meta: options.meta,
     defaultLayoutProps: options.defaultLayoutProps,
+    plugins: options.plugins,
+    adapters: options.adapters,
     preset: false,
     renderPage: () => null,
     renderRoot: () => null,

@@ -7,44 +7,30 @@ vi.mock("waku/router/server", () => ({
   },
 }));
 
-// `LLMs.index` became async in fumadocs-core 16.15.11, the installed version may still be sync
-vi.mock("fumadocs-core/source/llms", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("fumadocs-core/source/llms")>();
-
-  return {
-    ...mod,
-    llms: (...args: Parameters<typeof mod.llms>) => {
-      const instance = mod.llms(...args);
-      return { ...instance, index: async (lang?: string) => instance.index(lang) };
-    },
-  };
-});
-
 import { appContext, type AppContext } from "@/app/context";
 import type { PressRoute, RouteFns } from "@/lib/types";
 import { llmsPlugin, type LLMsOptions } from "@/plugins/llms.txt";
 import { asMarkdown } from "@/markdown";
+import type { RouteHandler } from "fumadocs-core/framework/plugin";
 import { createApp } from "./fixtures";
 
-type ApiConfig = Parameters<RouteFns["createApiIsomorphic"]>[0];
-
+/** the handlers of the routes of the plugin, then of the ones it derives from `routes` */
 async function createRoutes(ctx: AppContext, options: LLMsOptions = {}, routes: PressRoute[] = []) {
-  const handlers = new Map<string, ApiConfig["handler"]>();
+  const handlers = new Map<string, RouteHandler>();
   const plugin = llmsPlugin(options);
-  const register = (config: ApiConfig) => {
+  for (const route of (await plugin.routes!.call(ctx)) ?? []) handlers.set(route.path, route.GET!);
+
+  const register = (config: { path: string; handler: RouteHandler }) => {
     handlers.set(config.path, config.handler);
   };
-  const fns = {
-    createApi: register,
-    createApiIsomorphic: register,
-    getRoutes: () => routes,
-  } as unknown as RouteFns;
-
   await appContext.run(ctx, async () => {
-    await plugin.createPages!.call(ctx, fns);
-    await plugin.configureRoutes!.call(ctx, fns);
+    await plugin.configureRoutes?.call(ctx, {
+      createApi: register,
+      createApiIsomorphic: register,
+      getRoutes: () => routes,
+    } as unknown as RouteFns);
   });
-  return handlers;
+  return { plugin, handlers };
 }
 
 function route(path: string, render: PressRoute["render"] = "static"): PressRoute {
@@ -58,34 +44,34 @@ function route(path: string, render: PressRoute["render"] = "static"): PressRout
 }
 
 describe("llmsPlugin", () => {
-  it("awaits the generated index", async () => {
+  it("serves the index of pages", async () => {
     const ctx = await createApp();
-    const handlers = await createRoutes(ctx);
+    const { handlers } = await createRoutes(ctx);
 
-    const res = await appContext.run(ctx, () =>
-      handlers.get("/llms.txt")!(new Request("https://example.com/llms.txt"), { params: {} }),
-    );
-    const txt = await res.text();
-
-    expect(txt).not.toContain("[object Promise]");
-    expect(txt).toContain("/docs/basics");
+    const res = await handlers.get("/llms.txt")!(new Request("https://example.com/llms.txt"), {
+      params: {},
+    });
+    expect(await res.text()).toContain("/docs/basics");
   });
 
   it("derives Markdown routes from the pages of createPage()", async () => {
     const ctx = await createApp();
-    const handlers = await createRoutes(ctx, { routes: "all" }, [
+    const { handlers } = await createRoutes(ctx, { routes: "all" }, [
       route("/about"),
       { ...route("/plain"), component: () => null },
       route("/posts/[slug]", "dynamic"),
     ]);
 
-    expect(Array.from(handlers.keys())).toEqual([
-      "/llms.txt",
-      "/llms-full.txt",
-      "/[...slugs]",
-      "/about.md",
-      "/_llms.txt/posts/[slug]",
-    ]);
+    expect(Array.from(handlers.keys())).toEqual(
+      expect.arrayContaining([
+        "/llms.txt",
+        "/llms-full.txt",
+        "/docs/basics.md",
+        "/about.md",
+        "/_llms.txt/posts/[slug]",
+      ]),
+    );
+    expect(handlers.has("/plain.md")).toBe(false);
     const about = await handlers.get("/about.md")!(new Request("https://example.com/about.md"), {
       params: {},
     });
@@ -98,5 +84,25 @@ describe("llmsPlugin", () => {
       ),
     );
     expect(await post.text()).toBe("# /posts/hello");
+  });
+
+  it("serves the Markdown of dynamic pages from their mirror route", async () => {
+    const ctx = await createApp();
+    const { plugin } = await createRoutes(ctx, { routes: "all" });
+    const requested: (string | undefined)[] = [];
+
+    const res = await plugin.middleware!.call(
+      ctx,
+      new Request("https://example.com/posts/hello.md"),
+      async (rewrite) => {
+        requested.push(rewrite);
+        return rewrite
+          ? new Response("# hello", { headers: { "Content-Type": "text/markdown" } })
+          : new Response("not found", { status: 404 });
+      },
+    );
+
+    expect(requested).toEqual([undefined, "/_llms.txt/posts/hello"]);
+    expect(await res.text()).toBe("# hello");
   });
 });

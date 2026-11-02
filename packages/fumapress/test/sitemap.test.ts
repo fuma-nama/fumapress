@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appContext, type AppContext } from "@/app/context";
+import type { AppContext } from "@/app/context";
 import type { PressRoute, RouteFns } from "@/lib/types";
 import { buildSitemap, sitemapPlugin } from "@/plugins/sitemap";
 import { createApp, i18n } from "./fixtures";
-
-type ApiConfig = Parameters<RouteFns["createApiIsomorphic"]>[0];
 
 function route(path: string, page: Partial<PressRoute["pages"][number]> = {}): PressRoute {
   return {
@@ -17,7 +15,6 @@ function route(path: string, page: Partial<PressRoute["pages"][number]> = {}): P
 }
 
 async function generate(ctx: AppContext) {
-  let handler: ApiConfig["handler"] | undefined;
   const getRoutes = () => [
     // a route at the URL of a fallback page stays excluded
     route("/cn/docs/only-en"),
@@ -29,16 +26,11 @@ async function generate(ctx: AppContext) {
       ],
     }),
   ];
-  await sitemapPlugin().createPages!.call(ctx, {
-    createApiIsomorphic(config: ApiConfig) {
-      handler = config.handler;
-    },
-    getRoutes,
-  } as unknown as RouteFns);
+  const plugin = sitemapPlugin();
+  await plugin.configureRoutes!.call(ctx, { getRoutes } as unknown as RouteFns);
+  const [sitemap] = (await plugin.routes!.call(ctx))!;
 
-  const res = await appContext.run(ctx, () =>
-    handler!(new Request("https://example.com/sitemap.xml"), { params: {} }),
-  );
+  const res = await sitemap!.GET!(new Request("https://example.com/sitemap.xml"), { params: {} });
   return res.text();
 }
 

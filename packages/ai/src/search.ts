@@ -28,21 +28,16 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
   const { getLoader } = ctx;
   const {
     pageToIndex = async function (page): Promise<PageDocument | null> {
-      for (const adapter of this.adapters) {
-        const txt = await adapter["core:get-text"]?.call(this, page);
+      const txt = await this.getPageText(page);
+      if (txt === undefined) return null;
 
-        if (txt !== undefined) {
-          return {
-            title: page.data.title ?? "",
-            description: page.data.description ?? "",
-            url: page.url,
-            content: txt,
-            locale: page.locale ?? "",
-          };
-        }
-      }
-
-      return null;
+      return {
+        title: page.data.title ?? "",
+        description: page.data.description ?? "",
+        url: page.url,
+        content: txt,
+        locale: page.locale ?? "",
+      };
     },
   } = options;
 

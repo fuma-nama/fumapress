@@ -4,14 +4,11 @@ import {
   type BaseDoc,
   type DocToPage,
 } from "@fumadocs/sanity";
+import * as Fumadocs from "@fumadocs/sanity/plugin";
+import type { Plugin } from "fumadocs-core/framework/plugin";
 import type { DynamicSource, MetaData, PageData } from "fumadocs-core/source";
-import type { AppShape, PressPlugin } from "fumapress";
 import { z } from "zod/mini";
-import {
-  type PortableTextBlock,
-  toPlainText,
-  PortableText as DefaultPortableText,
-} from "@portabletext/react";
+import { type PortableTextBlock, PortableText as DefaultPortableText } from "@portabletext/react";
 import type { SanityClient } from "@sanity/client";
 import type { ReactNode } from "react";
 
@@ -75,26 +72,19 @@ export type PortableTextRenderer<B extends TypedObject = PortableTextBlock> = (p
   value: B | B[] | null | undefined;
 }) => ReactNode;
 
-const updatedAtSchema = z.looseObject({
-  _updatedAt: z.string(),
-});
-
-const createdAtSchema = z.looseObject({
-  _createdAt: z.string(),
-});
-
-export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc = BaseDoc>(
+/**
+ * @deprecated use `sanityPlugin()` of `@fumadocs/sanity/plugin`, with the `components` of Portable Text in place of a `PortableText` renderer
+ */
+export function sanityPlugin<Doc extends BaseDoc = BaseDoc>(
   integration: SanityIntegration<Doc>,
-): PressPlugin<C> {
+): Plugin {
+  const plugin = Fumadocs.sanityPlugin();
+  const Renderer = integration.renderer;
+  if (Renderer === DefaultPortableText) return plugin;
+
   const pageSchema = z.looseObject({
     _id: z.string(),
     _type: z.literal(integration.docType),
-    slug: z.optional(
-      z.object({
-        _type: z.string(),
-        current: z.optional(z.string()),
-      }),
-    ),
     load: z.function(),
   });
 
@@ -106,65 +96,10 @@ export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc 
     return pageSchema.safeParse(data).success;
   }
 
-  const Renderer = integration.renderer;
   return {
-    init() {
-      this.adapters.push({
-        async "core:get-text"(page) {
-          if (isSanityPage(page.data)) {
-            const data = await page.data.load();
-            if (!data.body) return "";
-            return toPlainText(data.body);
-          }
-        },
-        async "core:get-body"(page) {
-          if (isSanityPage(page.data)) {
-            const data = await page.data.load();
-
-            return { node: <Renderer value={data.body} /> };
-          }
-        },
-        async "core:render-toc"(page) {
-          if (isSanityPage(page.data)) {
-            const data = await page.data.load();
-
-            return data.renderToc({
-              render: (body) => <Renderer value={body as PortableTextBlock} />,
-            });
-          }
-        },
-        async "core:get-creation-date"(page) {
-          if (isSanityPage(page.data)) {
-            const res = await integration.client.fetch<unknown>(
-              `*[_type == $docType && _id == $id][0] { _createdAt }`,
-              {
-                docType: integration.docType,
-                id: page.data._id,
-              },
-            );
-
-            const parsed = createdAtSchema.safeParse(res);
-            if (parsed.success) return new Date(parsed.data._createdAt);
-          }
-        },
-        async "core:get-modified-date"(page) {
-          if (isSanityPage(page.data)) {
-            const res = await integration.client.fetch<unknown>(
-              `*[_type == $docType && _id == $id][0] { _updatedAt }`,
-              {
-                docType: integration.docType,
-                id: page.data._id,
-              },
-            );
-
-            const parsed = updatedAtSchema.safeParse(res);
-            if (parsed.success) return new Date(parsed.data._updatedAt);
-          }
-        },
-        async "core:get-structured-data"(page) {
-          if (isSanityPage(page.data)) return page.data.structuredData();
-        },
-      });
+    ...plugin,
+    async getPageBody({ data }) {
+      if (isSanityPage(data)) return { node: <Renderer value={(await data.load()).body} /> };
     },
   };
 }

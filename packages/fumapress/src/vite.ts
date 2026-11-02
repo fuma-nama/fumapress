@@ -202,9 +202,10 @@ function core(options: PluginOptions = {}): Plugin {
           ),
         },
         resolve: {
-          // packages with React contexts must resolve to a single copy, e.g. pnpm can otherwise
-          // instantiate `fumadocs-core` twice from its optional `waku` peer dependency
-          dedupe: out?.framework,
+          // React and packages with React contexts must resolve to a single copy, e.g. pnpm can otherwise
+          // instantiate `fumadocs-core` twice from its optional `waku` peer dependency, and linked
+          // packages resolve React from their own directory
+          dedupe: ["react", "react-dom", ...(out?.framework ?? [])],
         },
         ssr: {
           noExternal: out?.framework,

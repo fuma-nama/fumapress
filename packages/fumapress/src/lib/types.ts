@@ -1,38 +1,26 @@
 import type { AppContext, AppShape } from "@/app/context";
+import type { PressPlugin } from "@/app/plugin";
 import type { TakumiRouteOptions } from "@/plugins/takumi";
+import type { PluginLoaderOptions, RouteParams } from "fumadocs-core/framework/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
-import type { StructuredData } from "fumadocs-core/mdx-plugins";
-import type { ContentStorage, LoaderOptions, LoaderPluginOption } from "fumadocs-core/source";
-import type { TOCItemType } from "fumadocs-core/toc";
+import type { ContentStorage, LoaderOptions } from "fumadocs-core/source";
 import type { FC, ReactNode } from "react";
 import type { CreateRoot, CreateApi, CreateSlice, CreateInterceptor } from "waku/router/server";
-import type { RouteParams } from "./routes";
 
 export type Awaitable<T> = T | Promise<T>;
 
-/** allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually */
+/**
+ * Allow content sources to implement interfaces for pages, instead of requiring consumers to specify manually.
+ *
+ * The `core:` keys are the page hooks of plugins, adapters come before the plugins.
+ */
 export interface Adapter<C extends AppShape = AppShape> {
-  "core:get-text"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
-  "core:get-structured-data"?: (
-    this: AppContext<C>,
-    page: C["page"],
-  ) => Awaitable<StructuredData | undefined>;
-  "core:get-body"?: (
-    this: AppContext<C>,
-    page: C["page"],
-  ) => Awaitable<
-    | {
-        node: ReactNode;
-      }
-    | undefined
-  >;
-  "core:render-toc"?: (
-    this: AppContext<C>,
-    page: C["page"],
-  ) => Awaitable<TOCItemType[] | undefined>;
-
-  "core:get-creation-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
-  "core:get-modified-date"?: (this: AppContext<C>, page: C["page"]) => Awaitable<Date | undefined>;
+  "core:get-text"?: PressPlugin<C>["getPageText"];
+  "core:get-structured-data"?: PressPlugin<C>["getPageStructuredData"];
+  "core:get-body"?: PressPlugin<C>["getPageBody"];
+  "core:render-toc"?: PressPlugin<C>["getPageToc"];
+  "core:get-creation-date"?: PressPlugin<C>["getPageCreatedAt"];
+  "core:get-modified-date"?: PressPlugin<C>["getPageLastModified"];
 
   "blog:get-tags"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string[] | undefined>;
   /** author ids of a blog post */
@@ -41,13 +29,11 @@ export interface Adapter<C extends AppShape = AppShape> {
   "blog:get-image"?: (this: AppContext<C>, page: C["page"]) => Awaitable<string | undefined>;
 }
 
-/** make plugins an array for easier modification */
-export interface PressLoaderOptions<
+/** @deprecated use `PluginLoaderOptions` of `fumadocs-core/framework/plugin` */
+export type PressLoaderOptions<
   S extends ContentStorage = ContentStorage,
   I18n extends I18nConfig | undefined = I18nConfig | undefined,
-> extends Omit<LoaderOptions<S, I18n>, "plugins"> {
-  plugins?: LoaderPluginOption[];
-}
+> = Omit<LoaderOptions<S, I18n>, "plugins"> & Pick<PluginLoaderOptions, "plugins">;
 
 export interface RouteFns {
   createPage: (page: PageOptions) => void;
@@ -134,7 +120,7 @@ export interface RouteConfig {
   /**
    * Open Graph image of the page, only read by the Takumi plugin (`fumapress/plugins/takumi`).
    *
-   * The image is prerendered next to a static page as `<path>.webp`, or rendered on request for a dynamic page, and the `og:image` meta tags are added to the page.
+   * The image is prerendered for a static page, or rendered on request for a dynamic page, and the `og:image` meta tags are added to the page.
    */
   takumiOptions?: TakumiRouteOptions;
 }

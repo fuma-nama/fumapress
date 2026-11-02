@@ -4,14 +4,15 @@ import {
   type AppShape,
   initApp,
   appContext,
-  PageLinks,
   pageAlternate,
+  pageLinks,
+  renderHeadTags,
   type PageAlternate,
 } from "../app/context";
 import { createElement, FC, Fragment, ReactNode } from "react";
-import { localizePath } from "@/lib/i18n";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import { expandRoute } from "@/lib/routes";
+import { toBuildOutput } from "@/lib/build-output";
 import type { ConfigUtils } from "../config";
 import {
   unstable_getRequest,
@@ -23,6 +24,7 @@ import type { Awaitable, PressRoute, RouteFns, RouteProps } from "../lib/types";
 import type { Hono } from "hono/tiny";
 import type { MiddlewareHandler } from "hono";
 import type { unstable_createServerEntryAdapter } from "waku/adapter-builders";
+import { methods, type ApiRoute, type RouteHandler } from "fumadocs-core/framework/plugin";
 
 type Options = Parameters<typeof base_createPages>[1];
 
@@ -60,7 +62,7 @@ export async function createRouter<U extends ConfigUtils>(
       const i18n = context.i18nConfig;
       /** the route prefix of a language, pages outside any language join the default group */
       const getLangBasePath = (lang?: string): string => {
-        const out = localizePath(i18n, lang, "/");
+        const out = context.localizePath(lang, "/");
         if (out === "/" && i18n) return DEFAULT_GROUP;
         return out;
       };
@@ -124,7 +126,7 @@ export async function createRouter<U extends ConfigUtils>(
                     alternates.push(pageAlternate(context, locale, path));
                   }
                 }
-                return <PageLinks pathname={props.path} alternates={alternates} />;
+                return renderHeadTags(pageLinks(context, props.path, alternates));
               },
             ],
             pages: [],
@@ -196,6 +198,8 @@ export async function createRouter<U extends ConfigUtils>(
       for (const plugin of context.plugins) {
         await plugin.configureRoutes?.call(context, fns);
       }
+
+      for (const route of await context.getRoutes()) createApiRoute(_fns.createApi, route);
 
       const pages = (await context.getLoader()).getPages();
 
@@ -341,6 +345,25 @@ export async function createRouter<U extends ConfigUtils>(
     };
   }
 
+  /** the `middleware` of plugins, `next(path)` serves another path of the app */
+  function pressMiddleware({ app }: { app: Hono }): MiddlewareHandler {
+    return async (c, next) => {
+      let passed: Response | undefined;
+      const response = await context.handleRequest(c.req.raw, async (rewrite) => {
+        if (rewrite !== undefined)
+          return app.fetch(new Request(new URL(context.withBase(rewrite), c.req.url), c.req.raw));
+
+        await next();
+        return (passed = c.res);
+      });
+      if (response === passed) return;
+
+      // clear first, assigning over an existing response merges its headers in Hono
+      c.res = undefined;
+      c.res = response;
+    };
+  }
+
   function patchAdapter<Options>(
     adapter: ReturnType<typeof unstable_createServerEntryAdapter<Options>>,
   ): ReturnType<typeof unstable_createServerEntryAdapter<Options>> {
@@ -359,6 +382,12 @@ export async function createRouter<U extends ConfigUtils>(
         ];
       }
 
+      const { build } = entry;
+      entry.build = async (utils, ...args) => {
+        await build(utils, ...args);
+        await context.build(toBuildOutput(utils.emitFile));
+      };
+
       for (const plugin of context.plugins) {
         if (plugin.unstable_onServerEntry) entry = plugin.unstable_onServerEntry(entry);
       }
@@ -371,9 +400,31 @@ export async function createRouter<U extends ConfigUtils>(
     createPages,
     patchAdapter,
     createMiddlewares() {
-      return [pluginsMiddleware];
+      return [pluginsMiddleware, pressMiddleware];
     },
   };
+}
+
+/** register an API route of plugins as a Waku API, static routes are generated from their `GET` handler */
+function createApiRoute(createApi: RouteFns["createApi"], route: ApiRoute) {
+  const { path, staticPaths, GET } = route;
+  if (route.render === "static") {
+    if (GET) createApi({ render: "static", path, method: "GET", staticPaths, handler: toApi(GET) });
+    return;
+  }
+
+  const handlers: Record<string, ReturnType<typeof toApi>> = {};
+  for (const method of methods) {
+    const handler = route[method];
+    if (handler) handlers[method] = toApi(handler);
+  }
+  if (route.ALL) handlers.all = toApi(route.ALL);
+  createApi({ render: "dynamic", path, handlers });
+}
+
+/** Waku handlers return a promise */
+function toApi(handler: RouteHandler) {
+  return async (...args: Parameters<RouteHandler>) => handler(...args);
 }
 
 /** the site has no root layout at `/`, so the page is a document of its own */

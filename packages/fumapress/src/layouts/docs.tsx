@@ -1,6 +1,7 @@
 import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import { selectTreeRoot } from "@/lib/page-tree";
+import { renderSlot, wrapSlot } from "@/lib/slots";
 import type { Awaitable } from "@/lib/types";
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import {
@@ -103,7 +104,11 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
       pageInterceptors,
       transformers,
     } = ctx.data["core:docs-layout"] ?? {};
-    const source = await ctx.getLoader();
+    const [source, data, slots] = await Promise.all([
+      ctx.getLoader(),
+      ctx.getPageData(page),
+      ctx.getSlots(page),
+    ]);
 
     const _raw = await render?.call(ctx, page);
     const layoutProps: DocsLayoutProps = {
@@ -121,10 +126,12 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
 
     let result: DocsLayoutRenderData = {
       ..._raw,
-      lastModified: _raw?.lastModified ?? (await ctx.getPageLastModified(page)),
+      markdownUrl: _raw?.markdownUrl ?? data.markdownUrl,
+      lastModified: _raw?.lastModified ?? data.lastModified,
       pageProps: {
         ..._raw?.pageProps,
-        toc: _raw?.pageProps?.toc ?? (await ctx.getPageToc(page)),
+        full: _raw?.pageProps?.full ?? data.full,
+        toc: _raw?.pageProps?.toc ?? data.toc,
       },
       body,
       layoutProps,
@@ -158,6 +165,7 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
         <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
           {markdownUrl && <MarkdownCopyButton markdownUrl={markdownUrl} />}
           <ViewOptionsPopover markdownUrl={markdownUrl} githubUrl={githubUrl} />
+          {renderSlot(slots["page.actions"])}
         </div>
       ),
       [...(actionsInterceptors ?? []), renderPageActions],
@@ -169,14 +177,12 @@ export function createDocsLayoutPage<C extends AppShape = AppShape>({
         ...result.pageProps,
         children: (
           <>
-            <DocsTitle>{page.data.title}</DocsTitle>
-            <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-            {Actions({
-              markdownUrl: result.markdownUrl,
-              githubUrl: page.absolutePath ? await ctx.getFileUrl(page.absolutePath) : undefined,
-            })}
-            {Body({ children: result.body })}
+            <DocsTitle>{data.title}</DocsTitle>
+            <DocsDescription className="mb-0">{data.description}</DocsDescription>
+            {Actions({ markdownUrl: result.markdownUrl, githubUrl: data.githubUrl })}
+            {Body({ children: wrapSlot(slots["body.wrapper"], result.body) })}
             {result.lastModified && <PageLastUpdate date={result.lastModified} />}
+            {renderSlot(slots["page.footer"])}
           </>
         ),
       }),

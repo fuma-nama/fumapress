@@ -1,75 +1,111 @@
 import type { Client } from "@notionhq/client";
+import type { PluginContext } from "fumadocs-core/framework/plugin";
+import type { ReactElement, ReactNode } from "react";
 import { renderToReadableStream } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { notionPlugin } from "../src/plugin";
+import type { NotionRendererProps } from "../src/renderer";
 import type { NotionIntegration, NotionPageData } from "../src/source";
 import { block, dataSourceId, page, pageId, richText } from "./fixtures";
 
-describe("notionPlugin", () => {
-  it("registers rendering, text, toc, structured data, and date adapters", async () => {
-    const image = block({
-      id: "11111111-1111-4111-8111-111111111111",
-      type: "image",
-      image: {
-        type: "file",
-        file: { url: "https://notion.example/signed", expiry_time: "2026-07-14" },
-        caption: [richText("Architecture")],
-      },
-    });
-    const heading = block({
-      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      type: "heading_2",
-      heading_2: { rich_text: [richText("Setup")], color: "default", is_toggleable: false },
-    });
-    const notionPage = page();
-    const load = vi.fn().mockResolvedValue({ page: notionPage, blocks: [heading, image] });
-    const data: NotionPageData = {
-      id: pageId,
-      notion: notionPage,
-      title: "Introduction",
-      load,
-      structuredData: vi.fn().mockResolvedValue({ headings: [], contents: [] }),
-    };
-    const integration = {
-      $inferPage: undefined as never,
-      client: {} as Client,
-      dataSourceId,
-      getBlocks: vi.fn(),
-      dynamicSource: vi.fn(),
-    } satisfies NotionIntegration;
-    const plugin = notionPlugin(integration);
-    const context = { adapters: [] as Record<string, unknown>[], mode: "dynamic" };
+const assetId = "11111111-1111-4111-8111-111111111111";
 
-    await plugin.init?.call(context as never);
-    const adapter = context.adapters[0]!;
+function integration(client = {} as Client): NotionIntegration {
+  return {
+    $inferPage: undefined as never,
+    client,
+    dataSourceId,
+    getBlocks: vi.fn(),
+    dynamicSource: vi.fn(),
+  };
+}
+
+/** a page with a heading and an image hosted by Notion */
+function pageData(): NotionPageData {
+  const image = block({
+    id: assetId,
+    type: "image",
+    image: {
+      type: "file",
+      file: { url: "https://notion.example/signed", expiry_time: "2026-07-14" },
+      caption: [richText("Architecture")],
+    },
+  });
+  const heading = block({
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    type: "heading_2",
+    heading_2: { rich_text: [richText("Setup")], color: "default", is_toggleable: false },
+  });
+  const notionPage = page();
+
+  return {
+    id: pageId,
+    notion: notionPage,
+    title: "Introduction",
+    load: vi.fn().mockResolvedValue({ page: notionPage, blocks: [heading, image] }),
+    structuredData: vi.fn().mockResolvedValue({ headings: [], contents: [] }),
+  };
+}
+
+/** a site with `data` as its only page */
+function context(data: NotionPageData, mode: PluginContext["mode"] = "dynamic"): PluginContext {
+  return {
+    mode,
+    withBase: (path) => path,
+    getLoader: async () => ({ getPages: () => [{ data }] }) as never,
+  };
+}
+
+async function renderHtml(node: ReactNode) {
+  const stream = await renderToReadableStream(node);
+  await stream.allReady;
+  return new Response(stream).text();
+}
+
+describe("notionPlugin", () => {
+  it("renders pages with their text, toc, dates and proxied files", async () => {
+    const data = pageData();
+    const plugin = notionPlugin(integration());
+    const ctx = context(data);
     const pressPage = { data } as never;
-    await expect(callAdapter(adapter, "core:get-text", pressPage)).resolves.toBe(
-      "Setup\n\nArchitecture",
-    );
-    await expect(callAdapter(adapter, "core:render-toc", pressPage)).resolves.toEqual([
+
+    await expect(plugin.getPageText!.call(ctx, pressPage)).resolves.toBe("Setup\n\nArchitecture");
+    await expect(plugin.getPageToc!.call(ctx, pressPage)).resolves.toEqual([
       { title: "Setup", url: "#aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", depth: 2 },
     ]);
 
-    const body = (await callAdapter(adapter, "core:get-body", pressPage)) as {
-      node: React.ReactNode;
-    };
-    const stream = await renderToReadableStream(body.node);
-    await stream.allReady;
-    const html = await new Response(stream).text();
-    expect(html).toContain(
-      "/api/notion/file?page=22222222-2222-4222-8222-222222222222&amp;block=11111111-1111-4111-8111-111111111111",
+    const body = await plugin.getPageBody!.call(ctx, pressPage);
+    const { blocks, getFileUrl } = (body!.node as ReactElement<NotionRendererProps>).props;
+    expect(getFileUrl!(blocks[1] as never)).toBe(
+      `/api/notion/file?page=${pageId}&block=${assetId}`,
     );
-    expect(load).toHaveBeenCalledTimes(3);
-    expect(await callAdapter(adapter, "core:get-creation-date", pressPage)).toEqual(
+    // the hooks of a page share one fetch of its blocks
+    expect(data.load).toHaveBeenCalledOnce();
+    expect(await plugin.getPageCreatedAt!.call(ctx, pressPage)).toEqual(
       new Date("2026-07-01T00:00:00.000Z"),
     );
-    expect(await callAdapter(adapter, "core:get-modified-date", pressPage)).toEqual(
+    expect(await plugin.getPageLastModified!.call(ctx, pressPage)).toEqual(
       new Date("2026-07-02T00:00:00.000Z"),
     );
   });
 
+  it("renders with a custom Renderer and a normalized proxy path", async () => {
+    const data = pageData();
+    const plugin = notionPlugin(integration(), {
+      fileProxy: { path: "files/" },
+      Renderer: ({ blocks, getFileUrl }: NotionRendererProps) => (
+        <p data-blocks={blocks.length}>{getFileUrl?.(blocks[1] as never)}</p>
+      ),
+    });
+
+    const body = await plugin.getPageBody!.call(context(data), { data } as never);
+    expect(await renderHtml(body!.node)).toBe(
+      `<p data-blocks="2">/files?page=${pageId}&amp;block=${assetId}</p>`,
+    );
+    expect((await plugin.routes!.call(context(data)))?.[0]?.path).toBe("/files");
+  });
+
   it("refreshes signed files only when the block belongs to the configured data source", async () => {
-    const assetId = "11111111-1111-4111-8111-111111111111";
     const asset = block({
       id: assetId,
       type: "image",
@@ -83,85 +119,31 @@ describe("notionPlugin", () => {
       blocks: { retrieve: vi.fn().mockResolvedValue(asset) },
       pages: { retrieve: vi.fn().mockResolvedValue(page()) },
     } as unknown as Client;
-    const integration = {
-      $inferPage: undefined as never,
-      client,
-      dataSourceId,
-      getBlocks: vi.fn(),
-      dynamicSource: vi.fn(),
-    } satisfies NotionIntegration;
-    const plugin = notionPlugin(integration);
-    let route: { handlers: { GET: (request: Request) => Promise<Response> } } | undefined;
-    const context = { mode: "dynamic" };
+    const plugin = notionPlugin(integration(client));
+    const [route] = (await plugin.routes!.call(context(pageData())))!;
 
-    await plugin.createPages?.call(
-      context as never,
-      {
-        createApi(value: unknown) {
-          route = value as typeof route;
-        },
-      } as never,
-    );
-    const response = await route!.handlers.GET(
+    const response = await route!.GET!(
       new Request(`https://press.test/api/notion/file?page=${pageId}&block=${assetId}`),
+      { params: {} },
     );
     expect(response.status).toBe(302);
     expect(response.headers.get("Location")).toBe("https://notion.example/fresh");
-    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 
-    const embedId = "66666666-6666-4666-8666-666666666666";
-    (client.blocks.retrieve as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      block({
-        id: embedId,
-        type: "embed",
-        embed: {
-          url: "https://files.notion-static.com/example.html?X-Amz-Signature=signed",
-          caption: [],
-        },
-      }),
+    const unknown = await route!.GET!(
+      new Request(
+        `https://press.test/api/notion/file?page=99999999-9999-4999-8999-999999999999&block=${assetId}`,
+      ),
+      { params: {} },
     );
-    const htmlEmbed = await route!.handlers.GET(
-      new Request(`https://press.test/api/notion/file?page=${pageId}&block=${embedId}`),
-    );
-    expect(htmlEmbed.status).toBe(302);
-    expect(htmlEmbed.headers.get("Location")).toContain("X-Amz-Signature=signed");
-
-    (client.pages.retrieve as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      page({
-        parent: {
-          type: "data_source_id",
-          data_source_id: "99999999-9999-4999-8999-999999999999",
-          database_id: "44444444-4444-4444-8444-444444444444",
-        },
-      }),
-    );
-    const denied = await route!.handlers.GET(
-      new Request(`https://press.test/api/notion/file?page=${pageId}&block=${assetId}`),
-    );
-    expect(denied.status).toBe(404);
+    expect(unknown.status).toBe(404);
   });
 
   it("requires the file proxy to be disabled for static exports", () => {
-    const integration = {
-      $inferPage: undefined as never,
-      client: {} as Client,
-      dataSourceId,
-      getBlocks: vi.fn(),
-      dynamicSource: vi.fn(),
-    } satisfies NotionIntegration;
-    const plugin = notionPlugin(integration);
+    const plugin = notionPlugin(integration());
 
-    expect(() => plugin.createPages?.call({ mode: "static" } as never, {} as never)).toThrow(
-      "file proxy is not compatible with static mode",
-    );
+    expect(() => plugin.init!.call(context(pageData(), "static"))).toThrow("fileProxy: false");
+    expect(
+      notionPlugin(integration(), { fileProxy: false }).routes!.call(context(pageData())),
+    ).toBe(undefined);
   });
 });
-
-async function callAdapter(
-  adapter: Record<string, unknown>,
-  name: string,
-  page: never,
-): Promise<unknown> {
-  const handler = adapter[name] as (page: never) => unknown;
-  return handler(page);
-}

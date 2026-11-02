@@ -1,20 +1,15 @@
-import type { AppContext, AppShape, PressPlugin } from "fumapress";
-import type { LoaderOutput, PageData } from "fumadocs-core/source";
-import defaultMdxComponents, { createRelativeLink } from "fumadocs-ui/mdx";
-import type { MDXComponents } from "mdx/types";
-import path from "node:path";
+import type { ObsidianPage } from "fumadocs-obsidian";
+import * as Fumadocs from "fumadocs-obsidian/plugin";
 import * as ObsidianComponents from "fumadocs-obsidian/ui";
-import type { ObsidianPage, ObsidianRendererResult } from "fumadocs-obsidian";
+import type { Plugin } from "fumadocs-core/framework/plugin";
+import type { PageData } from "fumadocs-core/source";
+import defaultMdxComponents from "fumadocs-ui/mdx";
 
-interface WatchableObsidianSource {
-  readonly dir: string;
-  readonly include: string[];
-  invalidateFile: (file: string) => void;
-}
+/** the vault of `obsidian()` */
+type Vault = Parameters<typeof Fumadocs.obsidianPlugin>[0];
 
-export interface ObsidianPluginOptions {
-  /** Add or override the default Fumadocs and Obsidian MDX components. */
-  components?: MDXComponents;
+/** @deprecated use `ObsidianPluginOptions` of `fumadocs-obsidian/plugin` */
+export interface ObsidianPluginOptions extends Fumadocs.ObsidianPluginOptions {
   /**
    * Watch the vault through Vite during development. Add `obsidianVitePlugin()`
    * to the Waku Vite config to receive file changes.
@@ -37,74 +32,26 @@ export function isObsidianPageData(data: PageData): data is ObsidianPage {
   );
 }
 
-export function obsidianPlugin<C extends AppShape = AppShape>(
-  source: WatchableObsidianSource,
-  options: ObsidianPluginOptions = {},
-): PressPlugin<C> {
-  const sourceDir = path.resolve(source.dir);
-  const rendered = new WeakMap<object, Promise<ObsidianRendererResult>>();
+/**
+ * @deprecated use `obsidianPlugin()` of `fumadocs-obsidian/plugin` with the MDX components of Fumadocs UI, and `watchWithVite()` of `fumadocs-obsidian/dev/vite`
+ */
+export function obsidianPlugin(
+  vault: Vault,
+  { watch = true, components }: ObsidianPluginOptions = {},
+): Plugin {
+  if (watch && import.meta.env?.DEV) registerViteWatcher(vault);
 
-  if (options.watch !== false && import.meta.env?.DEV) registerViteWatcher(source);
-
-  function matches(page: C["page"]): page is C["page"] & { data: ObsidianPage } {
-    if (!page.absolutePath || !isObsidianPageData(page.data)) return false;
-
-    const relative = path.relative(sourceDir, page.absolutePath);
-    return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-  }
-
-  function renderPage(
-    context: AppContext<C>,
-    page: C["page"] & { data: ObsidianPage },
-  ): Promise<ObsidianRendererResult> {
-    let result = rendered.get(page.data);
-    if (result) return result;
-
-    result = Promise.all([page.data.load(), context.getLoader()]).then(([renderer, loader]) =>
-      renderer.render({
-        ...defaultMdxComponents,
-        ...ObsidianComponents,
-        // the loader config of a generic app can't be inferred
-        a: createRelativeLink(loader as LoaderOutput, page),
-        ...options.components,
-      }),
-    );
-    rendered.set(page.data, result);
-    return result;
-  }
-
-  return {
-    name: "obsidian",
-    init() {
-      this.adapters.push({
-        async "core:get-text"(page) {
-          if (!matches(page)) return;
-          const { structuredData } = await page.data.load();
-          return structuredData.contents.map((item) => item.content).join("\n\n");
-        },
-        async "core:get-body"(page) {
-          if (!matches(page)) return;
-          return { node: (await renderPage(this, page)).body };
-        },
-        async "core:render-toc"(page) {
-          if (!matches(page)) return;
-          return (await renderPage(this, page)).toc;
-        },
-        async "core:get-structured-data"(page) {
-          if (!matches(page)) return;
-          return (await page.data.load()).structuredData;
-        },
-      });
-    },
-  };
+  return Fumadocs.obsidianPlugin(vault, {
+    components: { ...defaultMdxComponents, ...ObsidianComponents, ...components },
+  });
 }
 
-function registerViteWatcher(source: WatchableObsidianSource): void {
+function registerViteWatcher(vault: Vault): void {
   let dispose: (() => void) | undefined;
   let disposed = false;
 
   void import("fumadocs-obsidian/dev/vite").then(({ watchWithVite }) => {
-    dispose = watchWithVite(source);
+    dispose = watchWithVite(vault);
     if (disposed) dispose();
   });
 

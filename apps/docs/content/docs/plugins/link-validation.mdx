@@ -21,10 +21,10 @@ export default defineConfig({
   .plugins(linkValidationPlugin());
 ```
 
-During static generation, the plugin collects links rendered with `<Link />` component. After the build finishes pre-rendering, it validates each unique `href`:
+After the build, the plugin validates the links in the Markdown of each content page:
 
-- **Relative links** — fetched against your app. A `404` response fails the build.
-- **Absolute URLs** — skipped unless you provide an `externalLink` callback.
+- **Relative links**: they must point to a content page (and its heading for `#hash` links), a route of a plugin, or a page of `src/pages`. Links to files in `public/` need `ignored`.
+- **Absolute URLs**: skipped unless you provide an `externalLink` callback.
 
 If any link is broken, the build throws an error listing the source page and target URL:
 

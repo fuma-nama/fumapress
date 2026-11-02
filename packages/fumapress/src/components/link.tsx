@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "@/client";
 import type { ComponentProps } from "react";
 import { Link as BaseLink } from "waku/router/client";
 import type { Unstable_PrefetchOptions } from "waku/router/client-core";
@@ -24,10 +23,6 @@ export function Link({
   unstable_prefetchOnView,
   ...props
 }: LinkProps) {
-  if (typeof global !== "undefined" && global.LINK_SSG_CONTEXT) {
-    global.LINK_SSG_CONTEXT.links.push({ href, fromPathname: useRouter().path });
-  }
-
   return (
     <BaseLink
       to={href}
