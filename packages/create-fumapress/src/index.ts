@@ -6,7 +6,7 @@ import { cancel, confirm, intro, isCancel, log, outro, text } from "@clack/promp
 import { cac } from "cac";
 import { x } from "tinyexec";
 import * as versionsPkg from "../../create-fumapress-versions/package.json";
-import * as corePkg from "../../core/package.json";
+import * as fumapressPkg from "../../fumapress/package.json";
 
 type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
@@ -264,7 +264,7 @@ function getPackageJson(name: string) {
       start: "fumapress start",
       "types:check": "tsc --noEmit",
     },
-    dependencies: { ...versionsPkg.dependencies, fumapress: corePkg.version },
+    dependencies: { ...versionsPkg.dependencies, fumapress: fumapressPkg.version },
     devDependencies: versionsPkg.devDependencies,
   };
 }
