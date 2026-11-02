@@ -30,6 +30,8 @@ The plugin creates a `.webp` Open Graph image for every content page with [Takum
 
 The default image shows the page title, description, and site name.
 
+On [Astro](/docs/astro), import `takumiPlugin` from `@fumapress/core/plugins/takumi`. Install `takumi-js` yourself, and import `googleFonts()` and `fontFromUrl()` from `takumi-js/helpers`.
+
 <Callout type='warn'>
 
 Set `site.baseUrl` in your config to make `og:image` resolve to an absolute URL.
@@ -122,6 +124,8 @@ takumiPlugin({ width: 1600, height: 840 });
 ```
 
 ## Route Images
+
+Route images and the WebAssembly build below are Waku only.
 
 Pages outside your content, like the ones in `src/pages`, get an image from their route config:
 

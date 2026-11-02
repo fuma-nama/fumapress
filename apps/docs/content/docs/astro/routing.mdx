@@ -1,0 +1,175 @@
+---
+title: Routing
+description: The routes of Fumapress, and your own pages on Astro.
+icon: Server
+---
+
+## Overview
+
+Fumapress adds routes to your Astro app:
+
+| Route                  | Serves                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `[...fumapressPage]`   | The content pages, prerendered.                                                              |
+| `[...fumapressFile]`   | The prerendered routes of plugins, like `llms.txt`, `sitemap.xml` and Open Graph images.     |
+| `[...fumapressServer]` | With an adapter: the routes of plugins rendered on request, and the pages in `dynamic` mode. |
+| `404`                  | The not found page, unless you have a `src/pages/404.astro`.                                 |
+
+The routes of `src/pages` are yours. Routes without params take priority over the catch-all routes of Fumapress. Avoid a page and a content file at the same URL: Astro warns about the collision.
+
+With i18n and `hideLocale: "never"`, `/` redirects to the default language, unless you have a `src/pages/index.astro`.
+
+## Your Pages
+
+`HomeLayout.astro` renders your page with the navbar of [`defaultLayoutProps`](/docs/astro/layouts#layout-props), and the head tags of Fumapress:
+
+```astro title="src/pages/index.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="My Docs" description="The docs of my project.">
+  <main class="flex flex-1 flex-col items-center justify-center">
+    <h1 class="text-xl font-bold">Hello World</h1>
+    <a href="/docs">Open Docs</a>
+  </main>
+</HomeLayout>
+```
+
+It takes `title`, `description`, `lang` and `notFound`, which renders the not found page of Fumadocs UI. Content of its `head` slot goes into `<head>`.
+
+### Reading Content
+
+`getPressContext()` returns the site, like on [Waku](/docs/basics#read-content-from-code):
+
+```astro title="src/pages/all.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+
+const ctx = getPressContext();
+const source = await ctx.getLoader();
+---
+
+<HomeLayout title="All Pages">
+  <ul>
+    {
+      source.getPages().map((page) => (
+        <li>
+          <a href={ctx.withBase(page.url)}>{page.data.title}</a>
+        </li>
+      ))
+    }
+  </ul>
+</HomeLayout>
+```
+
+Page URLs don't include the `base` of Astro, `withBase()` adds it.
+
+Your pages are in the sitemap when their URL has no params. Add the others with the `additionalEntries` option of the [sitemap plugin](/docs/plugins/sitemap#additionalentries).
+
+### Rendering Content
+
+A collection of `press()` that you leave out of `content` has no docs pages. Render its entries on your pages instead, and pass `getProviderData(Astro)` to `<Content />` so it renders with links and your [MDX components](/docs/astro/content#mdx-components) like docs pages:
+
+```js tab="astro.config.mjs"
+press({
+  collections: {
+    docs: { dir: "content/docs" },
+    // [!code ++]
+    pages: { dir: "content/pages" },
+  },
+});
+```
+
+```ts tab="src/content.config.ts"
+export const collections = {
+  // ...
+  // [!code ++]
+  pages: defineCollection({ loader: pageLoader("pages") }),
+};
+```
+
+```astro tab="src/pages/changelog.astro"
+---
+import { getEntry, render } from "astro:content";
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getProviderData } from "@fumapress/astro/runtime";
+
+const entry = await getEntry("pages", "changelog.mdx");
+if (!entry) throw new Error("missing changelog");
+const { Content } = await render(entry);
+---
+
+<HomeLayout title="Changelog">
+  <Content provider={getProviderData(Astro)} />
+</HomeLayout>
+```
+
+`ReactContent.astro` renders React content, like the [React content](/docs/astro/content#react-content) of plugins:
+
+```astro title="src/pages/timeline.astro"
+---
+import { createElement } from "react";
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import ReactContent from "@fumapress/astro/components/ReactContent.astro";
+import { Timeline } from "../components/timeline";
+---
+
+<HomeLayout title="Timeline">
+  <ReactContent node={createElement(Timeline)} />
+</HomeLayout>
+```
+
+### Not Found
+
+Create `src/pages/404.astro` to replace the not found page:
+
+```astro title="src/pages/404.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="Not Found">
+  <main class="p-8 text-center">This page doesn't exist.</main>
+</HomeLayout>
+```
+
+With an adapter, the page of Fumapress renders in the language of the URL prefix. In static builds, `404.html` is in the default language.
+
+## Internationalization
+
+[i18n](/docs/internationalization) works like on Waku: content pages and the routes of plugins get the language prefixes. Your pages are not copied for each language. Create them with a `lang` param:
+
+```ts tab="src/lib/i18n.ts"
+import { defineI18n } from "fumadocs-core/i18n";
+
+export const i18n = defineI18n({
+  languages: ["cn", "en"],
+  defaultLanguage: "en",
+  hideLocale: "default-locale",
+});
+```
+
+```astro tab="src/pages/[...lang]/about.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { i18n } from "../../lib/i18n";
+
+export function getStaticPaths() {
+  return i18n.languages.map((lang) => ({
+    params: { lang: lang === i18n.defaultLanguage ? undefined : lang },
+  }));
+}
+---
+
+<HomeLayout title="About">
+  <main>About</main>
+</HomeLayout>
+```
+
+With `hideLocale: "default-locale"`, the default language has no prefix. Use the same `i18n` in your press config. `HomeLayout.astro` reads the language from the URL prefix unless you pass `lang`.
+
+## Base Path
+
+The [`base`](https://docs.astro.build/en/reference/configuration-reference/#base) and [`trailingSlash`](https://docs.astro.build/en/reference/configuration-reference/#trailingslash) of Astro apply to the routes of Fumapress, the links of layouts and content, and the full URLs of `absoluteUrl()`, like canonical URLs and the sitemap. Plugins and the loader keep their paths without them, like `page.url`.

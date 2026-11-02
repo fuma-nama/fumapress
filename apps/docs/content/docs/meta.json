@@ -10,6 +10,7 @@
     "deployment",
     "internationalization",
     "migrate",
+    "astro",
     "---Reference---",
     "routing",
     "..."

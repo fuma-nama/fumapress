@@ -29,6 +29,8 @@ The plugin creates:
 
 It also adds the markdown URL to docs pages, so layouts can show a "Copy Markdown" or markdown link when supported.
 
+On [Astro](/docs/astro), import `llmsPlugin` from `@fumapress/core/plugins/llms.txt`. Enable `includeProcessedMarkdown` of `press()` for the processed Markdown of pages, otherwise they use their source files.
+
 ## Options
 
 ### `getLLMText`
@@ -56,6 +58,8 @@ ${page.data.description ?? ""}`;
 Return `undefined` from `getLLMText` to exclude a page from `/llms-full.txt`.
 
 ### `routes`
+
+This option is Waku only.
 
 By default, only pages of your content source get a Markdown version. With `routes: "all"`, every
 page created with `createPage()` gets one too, like `src/pages/index.tsx` or blog pages:

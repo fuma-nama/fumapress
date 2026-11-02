@@ -8,6 +8,72 @@ icon: Blocks
 
 Plugins allow you to customize Fumapress and encapsulate the complexity into a plugin.
 
+The hooks of `Plugin` from `@fumapress/core` run on [Waku](/docs) and [Astro](/docs/astro):
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, Plugin } from "@fumapress/core";
+
+function Footer() {
+  return <p>Hello World</p>;
+}
+
+export function myPlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "my-plugin",
+    // API routes
+    routes() {
+      return [
+        {
+          path: "/api/hello-world",
+          render: "dynamic",
+          POST: () => new Response("I love Fumapress"),
+        },
+      ];
+    },
+    // tags in `<head>`, of content pages with `page`
+    head({ page }) {
+      if (page) return [{ tag: "meta", attrs: { name: "author", content: "Fuma" } }];
+    },
+    // UI on content pages
+    slots() {
+      return [{ slot: "page.footer", component: Footer }];
+    },
+  };
+}
+```
+
+`this` in hooks is the app context, with the content loader and the resolved config. Other hooks transform page data (`transformPage`), render the pages of a content source (`getPageBody`, `getPageText`, ...), and check the built site (`build`).
+
+On Waku, use `PressPlugin` and `AppShape` of `fumapress` in place of the `@fumapress/core` types: `PressPlugin` has these hooks too, with the [Waku hooks](#waku-hooks) on top.
+
+## Middlewares
+
+Plugins can add a `middleware()`, which runs before routes on the server. For example, redirecting legacy URLs:
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, Plugin } from "@fumapress/core";
+
+export function redirectsPlugin<C extends AppShape = AppShape>(
+  redirects: Record<string, string>,
+): Plugin<C> {
+  return {
+    name: "redirects",
+    async middleware(request, next) {
+      const to = redirects[new URL(request.url).pathname];
+      if (to) return Response.redirect(new URL(to, request.url), 308);
+
+      return next();
+    },
+  };
+}
+```
+
+Call `next(path)` to serve another path instead. Middlewares require a server, they don't apply to a static deployment.
+
+## Waku Hooks
+
+On Waku, `PressPlugin` adds hooks for its router and layouts, like `createPages()` and `createMiddlewares()` for [Hono](https://hono.dev) middlewares:
+
 ```tsx title="my-plugin.tsx"
 import type { AppShape, PressPlugin } from "fumapress";
 
@@ -45,30 +111,4 @@ export function myPlugin<C extends AppShape = AppShape>(): PressPlugin<C> {
 }
 ```
 
-## Middlewares
-
-Plugins can add [Hono](https://hono.dev) middlewares with `createMiddlewares()`, which run before routes on the server. For example, redirecting legacy URLs:
-
-```tsx title="my-plugin.tsx"
-import type { AppShape, PressPlugin } from "fumapress";
-
-export function redirectsPlugin<C extends AppShape = AppShape>(
-  redirects: Record<string, string>,
-): PressPlugin<C> {
-  return {
-    name: "redirects",
-    createMiddlewares() {
-      return [
-        async (c, next) => {
-          const to = redirects[c.req.path];
-          if (to) return c.redirect(to, 308);
-
-          return next();
-        },
-      ];
-    },
-  };
-}
-```
-
-Middlewares require a server, they don't apply to a static deployment.
+Plugins using them are Waku only.

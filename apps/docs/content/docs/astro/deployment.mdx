@@ -1,0 +1,60 @@
+---
+title: Deployment
+description: Build and deploy Fumapress on Astro.
+icon: CloudUpload
+---
+
+## Overview
+
+`astro build` writes the site to `dist/`. [Deploy](https://docs.astro.build/en/guides/deploy) it like any Astro site. The output depends on your Astro config, which sets the [render mode](/docs/astro/configuration#render-mode).
+
+## Static
+
+Without an adapter, the site is static (`mode: "static"`). Deploy `dist/` to any static host:
+
+- An HTML file per page, and a `404.html`.
+- The output of plugins, like `sitemap.xml`, `llms.txt` and Open Graph images.
+- The search index at `/api/search`, downloaded by the search dialog.
+
+Plugins that need a server fail the build with an error, like the [OpenAPI](/docs/plugins/openapi) proxy and [MCP](/docs/plugins/mcp).
+
+For a sub-path like `https://user.github.io/repo/`, set the `site` and `base` of Astro:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  site: "https://user.github.io",
+  base: "/repo",
+  integrations: [press()],
+});
+```
+
+## Adapters
+
+With an [adapter](https://docs.astro.build/en/guides/on-demand-rendering), pages are still prerendered (`mode: "default"`), and the routes of plugins that need a server render on request, like `/api/search`:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  adapter: node({ mode: "standalone" }),
+  integrations: [press()],
+});
+```
+
+Start the server with `NODE_ENV=production node dist/server/entry.mjs`. Without it, React runs its development build on the server.
+
+With `output: "server"`, pages render on request too (`mode: "dynamic"`), for content sources that change after the build, like a CMS. Requests preferring Markdown, like the ones of AI agents, get the [Markdown of pages](/docs/plugins/llms.txt#autoredirect) at the same URL.
+
+### Build Plugins
+
+Plugins with a build step, like [link validation](/docs/plugins/link-validation), read the pages prerendered by Astro in the build process. Builds that prerender elsewhere, or not at all, fail with the reason:
+
+- `mode: "dynamic"`, where nothing is prerendered.
+- `experimental.parallelPrerender`, and adapters prerendering outside of Node.js.
+
+Files they write, like the diagnostics of link validation, go to the `outDir` of Astro. On a static host, that directory is public.

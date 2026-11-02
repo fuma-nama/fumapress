@@ -42,6 +42,8 @@ export default defineConfig({
 });
 ```
 
+On [Astro](/docs/astro), import `defineConfig` from `@fumapress/astro/config` and leave out `fumapressTranslations()`, it holds the strings of the blog plugin.
+
 You can add translations to UI like:
 
 ```tsx
@@ -146,7 +148,11 @@ const i18n = defineI18n({
 | Not found page             | `/404`, in the URL's language   | `/404`, in the URL's language  |
 | `/`                        | redirects to `/en`              | the index page of `en`         |
 
+With `hideLocale: "never"` and content under a `baseDir`, like `/en/docs`, nothing is at `/en`: add your own home page for each language.
+
 ### File-based Pages
+
+On Astro, create your pages with a `lang` param, see [Internationalization](/docs/astro/routing#internationalization).
 
 Pages and layouts in `src/pages` are registered once per language, under its prefix and with a `lang` prop:
 

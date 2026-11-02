@@ -27,6 +27,21 @@ export default defineConfig({
 
 The plugin creates an MCP server at `/mcp` using the [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) transport.
 
+It works on [Astro](/docs/astro) too, in the `plugins` of `@fumapress/astro/config`. The server needs an adapter.
+
+Outside of `.plugins()`, type the plugin as `PressPlugin` of `fumapress`, so `this` in its options is the app context of Waku:
+
+```ts
+import type { PressPlugin } from "fumapress";
+import { mcpPlugin } from "@fumapress/ai";
+
+export const mcp: PressPlugin = mcpPlugin({
+  tools(server) {
+    // `this.data` is typed
+  },
+});
+```
+
 ## Connect MCP Clients
 
 Point your MCP client at the server URL. For local development, that is usually `http://localhost:3000/mcp`.

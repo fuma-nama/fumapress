@@ -23,6 +23,8 @@ Fumapress supports a special routing model on top of the file-based routing mode
 - Generating blog routes from content sources.
 - Making custom pages to be reusable (as a plugin).
 
+On Astro, your pages are Astro routes, see [Routing](/docs/astro/routing).
+
 ### With Content Files
 
 Content pages are generated from the `content` option configured in `press.config.tsx`.
@@ -169,6 +171,8 @@ Fumapress still creates the default catch-all route for content pages, so avoid 
 ### With Plugins
 
 Plugins can create pages, layouts, API routes, and slices with `createPages()`. This is useful when a feature needs routes that are derived from config or content instead of individual files.
+
+`createPages()` is Waku only, plugins for both runtimes add API routes with [`routes()`](/docs/plugins).
 
 ```tsx title="press.config.tsx"
 import { defineConfig, type AppShape, type PressPlugin } from "fumapress";

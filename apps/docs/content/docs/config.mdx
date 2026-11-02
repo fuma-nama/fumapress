@@ -8,6 +8,8 @@ icon: Cog
 
 Primary options for your app.
 
+On [Astro](/docs/astro/configuration), import `defineConfig` from `@fumapress/astro/config`, it takes these options except `meta`, `renderPage`, `renderRoot` and `renderNotFound`.
+
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 
@@ -215,6 +217,8 @@ Leave it disabled to control this yourself with `getPressContext().revalidateLoa
 
 To add meta tags, you can leverage the `meta` config.
 
+On Astro, return head tags from [`head`](/docs/astro/configuration#head) instead.
+
 ```tsx title="press.config.tsx"
 import { defineConfig } from "fumapress";
 
@@ -257,6 +261,8 @@ Create a `src/app.css` file:
 
 It will be automatically loaded, restart the dev server if there's one running.
 
+On Astro, start it from the default styles of `@fumapress/astro` instead, see [Styles](/docs/astro/configuration#styles).
+
 You can change the color theme or add custom styles, like:
 
 ```css title="src/app.css"
@@ -287,6 +293,8 @@ npm uninstall @base-ui/react
 ```
 
 ## Vite Plugin
+
+On Astro, the `press()` integration of `@fumapress/astro` takes its place, see [Integration](/docs/astro/configuration#integration).
 
 The `press()` plugin connects Fumapress to Vite:
 

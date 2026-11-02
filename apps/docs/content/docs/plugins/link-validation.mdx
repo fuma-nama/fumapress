@@ -32,6 +32,8 @@ If any link is broken, the build throws an error listing the source page and tar
 In "/docs/getting-started": link "/docs/missing-page" not-found
 ```
 
+On [Astro](/docs/astro), import `linkValidationPlugin` from `@fumapress/core/plugins/link-validation`. It validates the links of content, and requires Astro to prerender in the build process, see [Build Plugins](/docs/astro/deployment#build-plugins).
+
 ## Options
 
 ### `ignored`
@@ -97,6 +99,8 @@ export default defineConfig({
 | `both`   | yes                                 | yes             |
 
 The file is written to the build output directory, next to `public` and `server`:
+
+On Astro, it is written to `outDir`, which static hosts serve publicly.
 
 ```json title="dist/fumapress-diagnostics.json"
 {
