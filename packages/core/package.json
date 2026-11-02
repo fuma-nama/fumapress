@@ -1,0 +1,78 @@
+{
+  "name": "@fumapress/core",
+  "version": "0.0.0",
+  "description": "The framework-agnostic core of Fumapress: the engine, site config and plugins",
+  "keywords": [
+    "Docs",
+    "Fumadocs",
+    "Fumapress"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./plugins/flexsearch": "./dist/plugins/flexsearch.mjs",
+    "./plugins/link-validation": "./dist/plugins/link-validation.mjs",
+    "./plugins/llms.txt": "./dist/plugins/llms.txt.mjs",
+    "./plugins/orama-search": "./dist/plugins/orama-search.mjs",
+    "./plugins/robots": "./dist/plugins/robots.mjs",
+    "./plugins/rss": "./dist/plugins/rss.mjs",
+    "./plugins/sitemap": "./dist/plugins/sitemap.mjs",
+    "./plugins/takumi": "./dist/plugins/takumi.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
+    "test": "vitest",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "xml-js": "^1.6.11"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "flexsearch": "^0.8.212",
+    "fumadocs-core": "^16.17.11",
+    "fumadocs-openapi": "^12.5.8",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
+    "react": "^19.3.0",
+    "takumi-js": "^2.14.0",
+    "tsdown": "0.23.0",
+    "typescript": "7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "flexsearch": "*",
+    "fumadocs-core": "^16.17.11",
+    "fumadocs-ui": "^16.16.2",
+    "react": "^19.2.0",
+    "takumi-js": "^2.14.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "flexsearch": {
+      "optional": true
+    },
+    "fumadocs-ui": {
+      "optional": true
+    },
+    "takumi-js": {
+      "optional": true
+    }
+  }
+}
