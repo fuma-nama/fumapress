@@ -6,6 +6,8 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/fumapress/package.json",
+        "$TURBO_ROOT$/packages/astro/package.json",
+        "$TURBO_ROOT$/packages/core/package.json",
         "$TURBO_ROOT$/packages/create-fumapress-versions/package.json"
       ],
       "outputs": ["dist"]
