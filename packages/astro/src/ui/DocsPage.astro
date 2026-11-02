@@ -1,0 +1,19 @@
+---
+import type { Page } from "fumadocs-core/source";
+import Island from "../island/Island.astro";
+import Layout from "./Layout.astro";
+import { getDocsPage } from "./page.js";
+
+interface Props {
+  page: Page;
+}
+
+const { page } = Astro.props;
+const { provider, layout, body, Content } = await getDocsPage(Astro, page);
+---
+
+<Layout page={page}>
+  <Island {...layout} persist="docs">
+    {body ? <Island {...body} /> : <Content provider={provider} />}
+  </Island>
+</Layout>

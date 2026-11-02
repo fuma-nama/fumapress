@@ -1,0 +1,15 @@
+---
+import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
+import DocsPage from "../ui/DocsPage.astro";
+import { getPressContext } from "../runtime.js";
+import { pageStaticPaths } from "./shared.js";
+
+export const getStaticPaths = (() => pageStaticPaths(getPressContext())) satisfies GetStaticPaths;
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { page, redirect } = Astro.props;
+if (redirect) return Astro.redirect(redirect);
+---
+
+{page && <DocsPage page={page} />}

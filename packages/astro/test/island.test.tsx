@@ -1,0 +1,117 @@
+import { createElement, forwardRef, type ReactNode } from "react";
+import { renderToString } from "react-dom/server";
+import { beforeAll, describe, expect, it } from "vitest";
+import { createIsland } from "@/island/island";
+import { registerReference } from "@/island/references";
+import { AstroSlot, islandProp, serializeIsland, type IslandData } from "@/island/serialize";
+import * as client from "./fixtures/client";
+import { Box, Card, components } from "./fixtures/components";
+
+const PressIsland = createIsland(components);
+const { Counter, Star } = client;
+
+beforeAll(() => {
+  // what `plugin.ts` appends to client component modules on the server
+  registerReference("client", client);
+});
+
+/** render the island on the server, slots are placeholders */
+function render(
+  { tree, slots }: IslandData,
+  children?: ReactNode,
+  islandProps: Record<string, unknown> = {},
+): string {
+  const props: Record<string, unknown> = { ...islandProps, tree, children };
+  for (let i = 0; i < slots.length; i++)
+    props[`s${i}`] = createElement("astro-slot", { name: `s${i}` });
+  return renderToString(createElement(PressIsland, props as { tree: string }));
+}
+
+describe("press island", () => {
+  it("keeps HTML elements", async () => {
+    const island = await serializeIsland(
+      <div className="a" onClick={() => undefined}>
+        <p>hello</p>
+      </div>,
+    );
+
+    expect(island.slots).toEqual([]);
+    expect(render(island)).toBe('<div class="a"><p>hello</p></div>');
+  });
+
+  it("hydrates MDX components by name", async () => {
+    const island = await serializeIsland(<Card title="Title">body</Card>);
+
+    expect(island.tree).toContain('"Card"');
+    expect(render(island)).toBe('<section data-card=""><h3>Title</h3>body</section>');
+  });
+
+  it("refers to client components, in Suspense", async () => {
+    const island = await serializeIsland(<Counter initial={2} />);
+
+    expect(island.tree).toContain('["ref",');
+    expect(island.tree).toContain('"Counter"');
+    expect(render(island)).toBe('<!--$--><button type="button">count <!-- -->2</button><!--/$-->');
+  });
+
+  it("renders other components on the server", async () => {
+    function Server({ name }: { name: string }) {
+      return <b>{name}</b>;
+    }
+    const island = await serializeIsland(<Server name="inlined" />);
+
+    expect(island.slots).toEqual([]);
+    expect(island.tree).not.toContain("Server");
+    expect(render(island)).toBe("<b>inlined</b>");
+  });
+
+  it("renders the components it can't call into slots, like forwardRef", async () => {
+    const Italic = forwardRef<HTMLElement>((_props, ref) => <i ref={ref}>slot</i>);
+    const island = await serializeIsland(
+      <p>
+        <Italic />
+      </p>,
+    );
+
+    expect(island.slots).toEqual(["<i>slot</i>"]);
+    expect(render(island)).toBe('<p><astro-slot name="s0"></astro-slot></p>');
+  });
+
+  it("serializes elements and client components in props", async () => {
+    const island = await serializeIsland(
+      <>
+        <Card title={<b>bold</b>} />
+        <Box icon={Star} />
+      </>,
+    );
+
+    expect(render(island)).toBe(
+      '<section data-card=""><h3><b>bold</b></h3></section><div data-box=""><!--$--><span>star</span><!--/$--></div>',
+    );
+  });
+
+  it("passes the props of the island to client components", async () => {
+    const island = await serializeIsland(<Counter initial={islandProp<number>("initial")} />);
+
+    expect(island.tree).toContain('["slot",');
+    expect(render(island, undefined, { initial: 42 })).toContain("count <!-- -->42");
+  });
+
+  it("throws on functions in the props of client components", async () => {
+    await expect(serializeIsland(<Counter onClick={() => undefined} />)).rejects.toThrow(
+      "the props of the client component <Counter> must be serializable",
+    );
+  });
+
+  it("renders the children of the Astro component at `AstroSlot`", async () => {
+    const island = await serializeIsland(
+      <Card title="wrapper">
+        <AstroSlot />
+      </Card>,
+    );
+
+    expect(render(island, createElement("astro-slot", null, "content"))).toBe(
+      '<section data-card=""><h3>wrapper</h3><astro-slot>content</astro-slot></section>',
+    );
+  });
+});

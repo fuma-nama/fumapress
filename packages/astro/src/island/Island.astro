@@ -1,0 +1,18 @@
+---
+import { PressIsland } from "virtual:fumapress/island";
+import type { IslandData } from "./serialize";
+
+interface Props extends IslandData {
+  /** the name of `transition:persist`, the island is kept on navigation */
+  persist?: string;
+  /** props of the island, for the `Slot`s in its tree */
+  [prop: string]: unknown;
+}
+
+const { tree, slots, persist, ...props } = Astro.props;
+---
+
+<PressIsland client:load tree={tree} {...props} transition:persist={persist}>
+  {slots.map((html, i) => <Fragment slot={`s${i}`} set:html={html} />)}
+  <slot />
+</PressIsland>

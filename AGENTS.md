@@ -1,3 +1,17 @@
+# Astro runtime
+
+`packages/astro` (`@fumapress/astro`) runs the site of `press.config.tsx` on Astro, on top of the low-level `@fumadocs/astro` integration.
+
+- Bind the concepts of `@fumapress/core` (mode, routes, middleware, head, slots, `build`) to Astro. Never add Astro hooks to plugins: they receive the core `Context`, and a feature that needs a new hook belongs in core.
+- Overrides go through existing concepts: components by name in the MDX components module, the page and layout modules, the search hooks, and users' own Astro routes. Rejected before, don't reintroduce: per-plugin layout exports, a `searchEngine` field, `oauth`/`proxy` plugin options, plugins with their own blog or changelog UI.
+- React content of the site (page bodies of plugins, slots, layout props) renders in the press island (`src/island`). Client components (`'use client'`) and MDX components hydrate, other components render on the server. Props of hydrating components must be serializable: devalue values, elements and client components. A client component with a function prop throws, an MDX component with one renders on the server.
+- Modules reachable from compiled MDX (the components modules, `ui/content.tsx`, `ui/link.tsx`) never import the runtime or the layout module. Compiled MDX in a cycle with the source makes Astro's build superlinear.
+- Injected routes and the middleware are real files in `dist`. Modules imported only by `.astro` files or generated code are tsdown entries, otherwise unbundling drops their exports.
+- Search composes the provider hook of the search plugin (`useFlexsearchStatic`, `useStaticSearch`, `useFetchSearch`) with the dialog parts of `fumadocs-ui/components/dialog/search`. The layout module's `useSearch` or `SearchDialog` replace it, never a `SearchClient`.
+- The `build` of plugins runs on the pages of Astro's default prerenderer, in the build process. Other prerenderers fail with the reason.
+- Check changes across setups: `base` with `trailingSlash` and `build.format`, static output, an adapter (`default` mode) and `output: 'server'` (`dynamic` mode), i18n with every `hideLocale`, a custom `page` or `layout` module, custom search, own pages with `HomeLayout.astro` and `ReactContent.astro`.
+- Astro needs Node >= 22.23.4.
+
 # Release workflow
 
 This repository uses [Tegami](https://tegami.fuma-nama.dev) for versioning and publishing.

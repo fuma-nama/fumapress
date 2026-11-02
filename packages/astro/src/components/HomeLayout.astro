@@ -1,0 +1,27 @@
+---
+import Island from "../island/Island.astro";
+import Layout from "../ui/Layout.astro";
+import { getHomeLayout } from "../ui/page.js";
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** the language of the page, from its URL prefix by default */
+  lang?: string;
+  /** render the not found page of Fumadocs UI */
+  notFound?: boolean;
+}
+
+const { title, description, lang, notFound } = Astro.props;
+const home = await getHomeLayout(Astro, { lang, notFound });
+---
+
+<Layout
+  title={title}
+  description={description}
+  lang={home.lang}
+  pathname={notFound ? undefined : home.provider.pathname}
+>
+  <slot name="head" slot="head" />
+  <Island {...home.island} persist="home"><slot /></Island>
+</Layout>

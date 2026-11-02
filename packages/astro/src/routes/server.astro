@@ -1,0 +1,10 @@
+---
+import DocsPage from "../ui/DocsPage.astro";
+import { getPressContext } from "../runtime.js";
+import { serve } from "./shared.js";
+
+const page = await serve(getPressContext(), Astro.request);
+if (page instanceof Response) return page;
+---
+
+<DocsPage page={page} />

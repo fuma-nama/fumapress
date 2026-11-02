@@ -1,0 +1,35 @@
+---
+import { ClientRouter } from "astro:transitions";
+import "virtual:fumapress/css";
+import { getHeadTags, type HeadProps } from "./page.js";
+
+interface Props extends HeadProps {
+  lang?: string;
+}
+
+const { lang, ...head } = Astro.props;
+const tags = await getHeadTags(head);
+---
+
+<html lang={lang ?? head.page?.locale ?? "en"} transition:animate="none">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      tags.map(({ tag: Tag, attrs, children }) =>
+        Tag === "title" ? (
+          <title set:text={children} />
+        ) : children === undefined ? (
+          <Tag {...attrs} />
+        ) : (
+          <Tag {...attrs} set:html={children} />
+        ),
+      )
+    }
+    <slot name="head" />
+    <ClientRouter />
+  </head>
+  <body style="display: flex; flex-direction: column; min-height: 100vh">
+    <slot />
+  </body>
+</html>

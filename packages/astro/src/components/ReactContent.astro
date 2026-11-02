@@ -1,0 +1,15 @@
+---
+import type { ReactNode } from "react";
+import Island from "../island/Island.astro";
+import { getContentIsland } from "../ui/page.js";
+import { getProviderData } from "../runtime.js";
+
+interface Props {
+  /** React content, like `createElement(ChangelogTimeline, { entries })`: client components (`'use client'`) and MDX components hydrate */
+  node: ReactNode;
+}
+
+const island = await getContentIsland(getProviderData(Astro), Astro.props.node);
+---
+
+<Island {...island} />
