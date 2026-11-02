@@ -147,6 +147,8 @@ export interface PressRuntime<C extends AppShape = AppShape> {
   /** plugins of the `recommended` preset */
   preset?: () => PresetEntry<Plugin<C>>[];
   getFrameworkPages?: () => FrameworkPage[];
+  /** whether the URLs of `absoluteUrl()` end with `/`, like `trailingSlash: "always"` of the framework */
+  trailingSlash?: boolean;
 }
 
 /** a page the framework renders outside the content, like a page of `createPage()` on Waku */
@@ -196,7 +198,7 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
 
   /** prefix `pathname` with the language segment, unless `i18n.hideLocale` hides it */
   localizePath(lang: string | undefined, pathname: string): string;
-  /** a full URL from `site.baseUrl`, or `withBase(pathname)` when unset; full URLs are kept */
+  /** a full URL from `site.baseUrl`, or `withBase(pathname)` when unset; full URLs are kept. Paths without a file extension end with `/` when the framework has `trailingSlash` */
   absoluteUrl(pathname: string): string;
   /** the URL of a file on the git provider, requires `site.git` */
   getFileUrl(absolutePath: string): string | undefined;
@@ -374,7 +376,9 @@ export async function createPress(
       if (URL.canParse(pathname)) return pathname;
       const { baseUrl } = ctx.siteConfig;
       // joined to keep the path of `baseUrl`
-      return baseUrl ? new URL(joinPaths(baseUrl, pathname)).href : ctx.withBase(pathname);
+      const url = baseUrl ? new URL(joinPaths(baseUrl, pathname)).href : ctx.withBase(pathname);
+      // files keep their extension, like the URLs of Astro with `trailingSlash: "always"`
+      return runtime.trailingSlash && !/(\/|\.[^/]+)$/.test(url) ? `${url}/` : url;
     },
     getFileUrl: (absolutePath) =>
       ctx.siteConfig.git && getFileUrl(ctx.siteConfig.git, absolutePath),

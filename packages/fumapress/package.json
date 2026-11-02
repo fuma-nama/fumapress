@@ -16,8 +16,7 @@
   "files": [
     "dist",
     "css",
-    "cli.js",
-    "LICENSE.vitefu"
+    "cli.js"
   ],
   "type": "module",
   "sideEffects": false,

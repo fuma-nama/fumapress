@@ -3,6 +3,7 @@ import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { llms } from "fumadocs-core/source/llms";
 import { fallbackOrigin, type Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { stripBase } from "../routes";
 
 export interface LLMsOptions<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>> {
   /**
@@ -23,14 +24,6 @@ export interface LLMsOptions<C extends AppShape = AppShape, Ctx extends Context<
 /** the path of the Markdown of a page: `<page>.md`, `/index.md` for the root */
 export function markdownPath(url: string): string {
   return url === "/" ? "/index.md" : `${url}.md`;
-}
-
-/** the path of a request without the base path (`withBase('/')`), `undefined` outside of it */
-export function requestPath(request: Request, base: string): string | undefined {
-  const { pathname } = new URL(request.url);
-  if (base === "/") return pathname;
-  if (pathname === base) return "/";
-  if (pathname.startsWith(`${base}/`)) return pathname.slice(base.length);
 }
 
 export function markdownResponse(text: string): Response {
@@ -104,7 +97,7 @@ export function llmsPlugin<C extends AppShape = AppShape, Ctx extends Context<C>
     },
     async middleware(request, next) {
       if (this.mode === "static" || request.method !== "GET") return next();
-      const path = requestPath(request, this.withBase("/"));
+      const path = stripBase(new URL(request.url).pathname, this.withBase("/"));
       if (path === undefined) return next();
 
       if (path.endsWith(".md")) {

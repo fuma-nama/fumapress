@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { createElement, type ComponentType, type ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { Meta, Page } from "fumadocs-core/source";
 import type { Context, InferLoaderConfig } from "./context";
@@ -60,6 +60,41 @@ export type PluginOption<P extends Plugin<any, any> = Plugin> =
 export interface PresetEntry<P extends Plugin<any, any> = Plugin> extends Pick<Plugin, "provides"> {
   name: string;
   load: () => Awaitable<P>;
+}
+
+/** the `recommended` preset: sitemap, robots.txt, llms.txt, RSS, search and Open Graph images */
+export function recommendedPreset<
+  C extends AppShape = AppShape,
+  Ctx extends Context<C> = Context<C>,
+>(): PresetEntry<Plugin<C, Ctx>>[] {
+  return [
+    {
+      name: "core:sitemap",
+      load: async () => (await import("./plugins/sitemap")).sitemapPlugin<C, Ctx>(),
+    },
+    {
+      name: "core:robots",
+      load: async () => (await import("./plugins/robots")).robotsPlugin<C>(),
+    },
+    {
+      name: "core:llms.txt",
+      load: async () => (await import("./plugins/llms.txt")).llmsPlugin<C, Ctx>(),
+    },
+    {
+      name: "core:rss",
+      load: async () => (await import("./plugins/rss")).rssPlugin<C, Ctx>(),
+    },
+    {
+      name: "core:flexsearch",
+      provides: ["search"],
+      load: async () => (await import("./plugins/flexsearch")).flexsearchPlugin<C, Ctx>(),
+    },
+    {
+      name: "core:takumi",
+      provides: ["og-image"],
+      load: async () => (await import("./plugins/takumi")).takumiPlugin<C, Ctx>(),
+    },
+  ];
 }
 
 const enforceOrder: Record<NonNullable<Plugin["enforce"]>, number> = { pre: -1, post: 1 };
@@ -134,4 +169,17 @@ export interface SlotItem {
   props?: Record<string, unknown>;
   /** lower comes first, defaults to `0` */
   order?: number;
+}
+
+/** the items of a slot, in order */
+export function renderSlot(items: SlotItem[] = []): ReactNode {
+  return items.map(({ component, props }, key) => createElement(component, { key, ...props }));
+}
+
+/** `children` inside the items of a wrapper slot, the first item outermost */
+export function wrapSlot(items: SlotItem[] = [], children: ReactNode): ReactNode {
+  return items.reduceRight<ReactNode>(
+    (out, { component, props }) => createElement(component, props, out),
+    children,
+  );
 }

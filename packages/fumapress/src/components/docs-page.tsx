@@ -1,8 +1,8 @@
 import { type AppContext, type AppShape, getPressContext, deepmerge } from "@/app/context";
 import { type Interceptor, renderWithInterceptors } from "@/lib/interceptors";
 import { selectTreeRoot } from "@/lib/page-tree";
-import { renderSlot, wrapSlot } from "@/lib/slots";
 import type { Awaitable } from "@/lib/types";
+import { renderSlot, wrapSlot } from "@fumapress/core";
 import type { DocsPageProps } from "fumadocs-ui/layouts/docs/page";
 import type { ComponentProps, FC, ReactNode } from "react";
 

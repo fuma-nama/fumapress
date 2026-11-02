@@ -3,7 +3,7 @@ import type { MetaData, PageData, StaticSource } from "fumadocs-core/source";
 import { openapiPlugin } from "fumadocs-openapi/plugin";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { createPress } from "@/context";
-import { resolvePlugins, type Plugin, type PresetEntry } from "@/plugin";
+import { recommendedPreset, resolvePlugins, type Plugin, type PresetEntry } from "@/plugin";
 
 function names(plugins: Plugin[]) {
   return plugins.map((plugin) => plugin.name);
@@ -52,6 +52,22 @@ describe("resolvePlugins", () => {
     expect(names(plugins)).toEqual(["sitemap", "my-search", "takumi"]);
     expect(plugins[0]!.enforce).toBeUndefined();
     expect(orama).not.toHaveBeenCalled();
+  });
+
+  it("loads the recommended preset under the names of its plugins", async () => {
+    const plugins = await resolvePlugins(
+      [{ name: "my-search", provides: ["search"] }],
+      recommendedPreset(),
+    );
+
+    expect(names(plugins)).toEqual([
+      "my-search",
+      "core:sitemap",
+      "core:robots",
+      "core:rss",
+      "core:takumi",
+      "core:llms.txt",
+    ]);
   });
 
   it("throws when two plugins provide a capability", async () => {

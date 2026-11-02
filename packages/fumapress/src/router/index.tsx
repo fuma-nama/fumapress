@@ -8,8 +8,8 @@ import {
 } from "../app/context";
 import { createElement, FC, Fragment, ReactNode } from "react";
 import { decodePathname, joinPaths } from "@/lib/pathname";
-import { expandRoute } from "@/lib/routes";
 import {
+  expandRoute,
   pageAlternate,
   pageLinks,
   type FrameworkPage,

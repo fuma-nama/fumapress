@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
-import { crawlFrameworkPkgs } from "@/lib/vitefu";
+import { crawlFrameworkPkgs } from "@/vite";
 
 // realpath: the crawl resolves symlinks, and macOS keeps its temp dir behind one
 const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "fumapress-vitefu-")));
@@ -11,7 +11,7 @@ afterAll(() => fs.rm(root, { recursive: true, force: true }));
 afterEach(() => vi.restoreAllMocks());
 
 function crawl(dir: string) {
-  return crawlFrameworkPkgs(dir, (name) => (name.startsWith("fumadocs-") ? true : undefined));
+  return crawlFrameworkPkgs(dir, "waku");
 }
 
 async function writePkg(dir: string, pkgJson: object) {

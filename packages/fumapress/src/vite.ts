@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import { crawlFrameworkPkgs } from "./lib/vitefu";
+import { crawlFrameworkPkgs } from "@fumapress/core/vite";
 import { lucideImports } from "./lib/lucide";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
@@ -189,7 +189,7 @@ function core(options: PluginOptions = {}): Plugin {
     },
     async config(config) {
       const out = generateViteConfig
-        ? await crawlFrameworkPkgs(config.root ?? process.cwd(), isFrameworkPkg)
+        ? await crawlFrameworkPkgs(config.root ?? process.cwd(), "waku")
         : undefined;
 
       const adapter = options.adapter ?? getDefaultAdapter();
@@ -234,25 +234,6 @@ function core(options: PluginOptions = {}): Plugin {
       }
     },
   };
-}
-
-function isFrameworkPkg(name: string): boolean | undefined {
-  if (
-    name === "fumapress" ||
-    name.startsWith("@fumapress/") ||
-    name.startsWith("fumapress-") ||
-    name.startsWith("@fumadocs/") ||
-    name.startsWith("fumadocs-")
-  )
-    return true;
-
-  // no CommonJS below these, crawling them is wasted work
-  switch (name) {
-    case "vite":
-    case "waku":
-    case "shiki":
-      return false;
-  }
 }
 
 function getManagedServerEntry() {

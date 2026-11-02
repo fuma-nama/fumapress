@@ -2,6 +2,7 @@ import { appContext, type AppContext, type AppShape } from "@/app/context";
 import type { PressPlugin } from "@/app/plugin";
 import { joinPaths } from "@/lib/pathname";
 import type { PressRoute, RouteProps } from "@/lib/types";
+import { stripBase } from "@fumapress/core";
 import * as Press from "@fumapress/core/plugins/llms.txt";
 import type { RouteParams } from "fumadocs-core/framework/plugin";
 import { renderRoute } from "fumadocs-core/server";
@@ -109,7 +110,7 @@ export function llmsPlugin<C extends AppShape = AppShape>({
         if (response.ok && response.headers.get("Content-Type")?.startsWith("text/markdown"))
           return response;
 
-        const path = Press.requestPath(request, this.withBase("/"));
+        const path = stripBase(new URL(request.url).pathname, this.withBase("/"));
         if (!path?.endsWith(".md")) return response;
 
         const mirrored = await next(

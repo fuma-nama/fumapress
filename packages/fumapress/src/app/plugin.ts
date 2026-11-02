@@ -1,6 +1,12 @@
 import type { FumapressConfig } from "@/config";
 import type { Awaitable, RouteFns } from "@/lib/types";
-import { resolvePlugins, type Plugin, type PluginOption, type PresetEntry } from "@fumapress/core";
+import {
+  recommendedPreset,
+  resolvePlugins,
+  type Plugin,
+  type PluginOption,
+  type PresetEntry,
+} from "@fumapress/core";
 import type { BuildMode } from "fumadocs-core/framework/plugin";
 import type { Hono, MiddlewareHandler } from "hono";
 import type { ReactNode } from "react";
@@ -83,35 +89,17 @@ export function recommendedPlugins<C extends AppShape>(
   mode?: BuildMode,
   noTakumi?: boolean,
 ): PresetEntry<PressPlugin<C>>[] {
-  const out: PresetEntry<PressPlugin<C>>[] = [
-    {
-      name: "core:sitemap",
-      load: async () => (await import("@/plugins/sitemap")).sitemapPlugin<C>(),
-    },
-    {
-      name: "core:robots",
-      load: async () => (await import("@/plugins/robots")).robotsPlugin<C>(),
-    },
-    {
-      name: "core:llms.txt",
-      load: async () => (await import("@/plugins/llms.txt")).llmsPlugin<C>(),
-    },
-    {
-      name: "core:rss",
-      load: async () => (await import("@/plugins/rss")).rssPlugin<C>(),
-    },
-    {
-      name: "core:flexsearch",
-      provides: ["search"],
-      load: async () => (await import("@/plugins/flexsearch")).flexsearchPlugin<C>(),
-    },
-  ];
-  if (!noTakumi)
-    out.push({
-      name: "core:takumi",
-      provides: ["og-image"],
-      load: async () => (await import("@/plugins/takumi")).takumiPlugin<C>(),
-    });
+  // the plugins of Waku over their core versions
+  const own: Record<string, PresetEntry<PressPlugin<C>>["load"]> = {
+    "core:llms.txt": async () => (await import("@/plugins/llms.txt")).llmsPlugin<C>(),
+    "core:flexsearch": async () => (await import("@/plugins/flexsearch")).flexsearchPlugin<C>(),
+    "core:takumi": async () => (await import("@/plugins/takumi")).takumiPlugin<C>(),
+  };
+  const out: PresetEntry<PressPlugin<C>>[] = [];
+  for (const entry of recommendedPreset<C, AppContext<C>>()) {
+    if (noTakumi && entry.name === "core:takumi") continue;
+    out.push({ ...entry, load: own[entry.name] ?? entry.load });
+  }
   if (plugins.some((plugin) => plugin.name?.startsWith("image:"))) return out;
 
   // hosting platform detected at build time, from the resolved deployment adapter

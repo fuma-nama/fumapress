@@ -1,5 +1,8 @@
 export {
+  recommendedPreset,
+  renderSlot,
   resolvePlugins,
+  wrapSlot,
   type AppShape,
   type Awaitable,
   type Capability,
@@ -25,4 +28,5 @@ export {
   type PressRuntime,
   type SiteConfig,
 } from "./context";
+export { expandRoute, matchRoute, stripBase } from "./routes";
 export type { GitProvider } from "./git";

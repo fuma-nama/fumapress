@@ -519,6 +519,20 @@ describe("URLs", () => {
     expect((await createSite()).absoluteUrl("/")).toBe("https://example.com/");
   });
 
+  it("ends page URLs with the trailing slash of the framework", async () => {
+    const ctx = await createSite({ i18n }, { trailingSlash: true });
+    const page = await getPage(ctx, ["docs", "basics"], "en");
+
+    expect(ctx.absoluteUrl("/docs")).toBe("https://example.com/docs/");
+    expect(ctx.absoluteUrl("/")).toBe("https://example.com/");
+    expect(ctx.absoluteUrl("/sitemap.xml")).toBe("https://example.com/sitemap.xml");
+    expect((await createSite()).absoluteUrl("/docs")).toBe("https://example.com/docs");
+    expect(await ctx.getPageHead(page)).toContainEqual({
+      tag: "link",
+      attrs: { rel: "canonical", href: "https://example.com/en/docs/basics/" },
+    });
+  });
+
   it("falls back to the base path without `site.baseUrl`", async () => {
     const ctx = await createSite({ site: { baseUrl: undefined } }, { base: "/repo/" });
 

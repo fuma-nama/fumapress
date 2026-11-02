@@ -14,6 +14,7 @@ packages:
 
 - Added `@fumapress/core`: the engine, site config and plugins of Fumapress, shared by every framework. Its plugins extend the framework plugins of `fumadocs-core/framework/plugin`.
 - Plugins of integrations, like `openapiPlugin()` of `fumadocs-openapi/plugin`, work in Fumapress as-is.
+- `@fumapress/core` exports the helpers of runtimes: `recommendedPreset()`, `expandRoute()`, `matchRoute()`, `stripBase()`, `renderSlot()`, `wrapSlot()`, `crawlFrameworkPkgs()` of `@fumapress/core/vite`, and the `trailingSlash` option of runtimes.
 - Plugins can add routes, head tags, page slots and page data with the hooks of `@fumapress/core`. The Waku hooks, adapters and `this.data` keep working.
 - AI search indexes the pages of every plugin with page text, like OpenAPI pages.
 - Deprecated `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`: use the `/plugin` export of the Fumadocs integration.

@@ -1,4 +1,4 @@
-// Derived from vitefu v1.1.3 (MIT License).
+// Derived from vitefu v1.1.3 (MIT License, see LICENSE.vitefu).
 // Copyright (c) 2026 Bjorn and Dominik.
 //
 // `vitefu` stops at the first non-framework dependency, but Fumadocs has ESM dependencies that
@@ -44,16 +44,33 @@ if (process.versions.pnp) {
 
 const cache = new Map<string, { key: string; result: Promise<CrawlResult> }>();
 
-// Vite resolves the config once per build environment, and again on dev server restarts
-export async function crawlFrameworkPkgs(
-  root: string,
-  isFrameworkPkg: (name: string) => boolean | undefined,
-): Promise<CrawlResult> {
+/** the packages of Fumadocs and Fumapress, `false` for packages with no CommonJS below them */
+function isFrameworkPkg(name: string, runtime: string): boolean | undefined {
+  if (
+    name === "fumapress" ||
+    name.startsWith("@fumapress/") ||
+    name.startsWith("fumapress-") ||
+    name.startsWith("@fumadocs/") ||
+    name.startsWith("fumadocs-")
+  )
+    return true;
+
+  // no CommonJS below these, crawling them is wasted work
+  if (name === runtime || name === "vite" || name === "shiki") return false;
+}
+
+/**
+ * The packages of Fumadocs and Fumapress in the dependencies of `root`, and the CommonJS packages below them.
+ *
+ * @param runtime - the framework of the Fumapress runtime, like `waku`
+ */
+export async function crawlFrameworkPkgs(root: string, runtime: string): Promise<CrawlResult> {
+  // Vite resolves the config once per build environment, and again on dev server restarts
   const key = await getInstallKey(root);
   const cached = key && cache.get(root);
   if (cached && cached.key === key) return cached.result;
 
-  const result = crawl(root, isFrameworkPkg);
+  const result = crawl(root, runtime);
   if (key) {
     cache.set(root, { key, result });
     result.catch(() => cache.delete(root));
@@ -85,10 +102,7 @@ async function getInstallKey(root: string): Promise<string | undefined> {
  * recorded for a CommonJS package is the shortest one (ties broken by name): Vite hashes
  * `optimizeDeps.include`, the output must not depend on I/O order.
  */
-async function crawl(
-  root: string,
-  isFrameworkPkg: (name: string) => boolean | undefined,
-): Promise<CrawlResult> {
+async function crawl(root: string, runtime: string): Promise<CrawlResult> {
   const rootPkgJsonPath = await findClosestPkgJsonPath(root);
   if (!rootPkgJsonPath) return { framework: [], include: [] };
 
@@ -103,7 +117,7 @@ async function crawl(
   async function visit(parent: Node, dep: string) {
     const pkgJsonPath = await findDepPkgJsonPath(dep, parent.pkgJsonPath);
     if (!pkgJsonPath) return;
-    if (isFrameworkPkg(dep)) framework.add(dep);
+    if (isFrameworkPkg(dep, runtime)) framework.add(dep);
     if (visited.has(pkgJsonPath)) return;
 
     const chain = [...parent.chain, dep];
@@ -128,7 +142,7 @@ async function crawl(
       if (isRoot) deps.push(...Object.keys(node.pkgJson!.devDependencies ?? {}));
 
       for (const dep of deps) {
-        const flag = isFrameworkPkg(dep);
+        const flag = isFrameworkPkg(dep, runtime);
         // only what sits below a framework package is served unbundled
         if (flag === false || (isRoot && !flag)) continue;
         tasks.push(visit(node, dep));

@@ -12,7 +12,8 @@
   "author": "Fuma Nama",
   "repository": "github:fuma-nama/fumapress",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE.vitefu"
   ],
   "type": "module",
   "sideEffects": false,
@@ -26,6 +27,7 @@
     "./plugins/rss": "./dist/plugins/rss.mjs",
     "./plugins/sitemap": "./dist/plugins/sitemap.mjs",
     "./plugins/takumi": "./dist/plugins/takumi.mjs",
+    "./vite": "./dist/vite.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
