@@ -28,5 +28,5 @@ export {
   type NotionComponents,
   type NotionRendererProps,
   type NotionRichTextProps,
-} from "./renderer";
+} from "@fumadocs/notion/renderer";
 export { notionPlugin, type NotionFileProxyOptions, type NotionPluginOptions } from "./plugin";
