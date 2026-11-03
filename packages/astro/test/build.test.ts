@@ -13,7 +13,12 @@ describe("build output", async () => {
       content: {},
       preset: false,
       plugins: [
-        { routes: () => [{ path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) }] },
+        {
+          routes: () => [
+            { path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) },
+            { path: "/live/[id]", render: "dynamic", view: () => ({ node: "live" }) },
+          ],
+        },
       ],
     },
     { base: "/sub" },
@@ -40,6 +45,7 @@ describe("build output", async () => {
 
   it("answers the routes rendered on request", async () => {
     expect(await status("/sub/api/1")).toBe(200);
+    expect(await status("/sub/live/1")).toBe(200);
     expect(await status("/sub/user")).toBe(200);
   });
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 export function Counter({ initial = 0 }: { initial?: number; onClick?: () => void }) {
   const [count, setCount] = useState(initial);
@@ -12,4 +12,8 @@ export function Counter({ initial = 0 }: { initial?: number; onClick?: () => voi
 
 export function Star() {
   return <span>star</span>;
+}
+
+export function Frame({ children }: { children?: ReactNode }) {
+  return <section data-frame="">{children}</section>;
 }

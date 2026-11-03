@@ -1,8 +1,14 @@
 import type { APIContext, MiddlewareNext } from "astro";
 import { describe, expect, it, vi } from "vitest";
-import { createPress, type Context, type Plugin, type PressConfig } from "@fumapress/core";
+import {
+  createPress,
+  type Context,
+  type Plugin,
+  type PressConfig,
+  type ViewRoute,
+} from "@fumapress/core";
 import { onRequest } from "@/routes/middleware";
-import { fileStaticPaths, pageStaticPaths, serve } from "@/routes/shared";
+import { expandViews, fileStaticPaths, pageStaticPaths, serve } from "@/routes/shared";
 
 const runtime = vi.hoisted(() => ({ ctx: undefined as Context | undefined }));
 vi.mock("@/runtime", () => ({ getPressContext: () => runtime.ctx }));
@@ -45,11 +51,11 @@ describe("static routes", () => {
       {},
       { i18n: { languages: ["en", "cn"], defaultLanguage: "en" }, mode: "static" },
     );
-    const paths = await pageStaticPaths(ctx);
+    const paths = await pageStaticPaths(ctx, false);
 
     expect(paths.map((path) => path.params.fumapressPage)).toEqual(["en", "cn", undefined]);
     expect(paths[2]!.props.redirect).toBe("/en");
-    expect(await pageStaticPaths(await site({}, { mode: "dynamic" }))).toEqual([]);
+    expect(await pageStaticPaths(await site({}, { mode: "dynamic" }), true)).toEqual([]);
 
     const guide = { files: [{ type: "page" as const, path: "docs/guide.mdx", data: {} }] };
     const noHome = await site(
@@ -61,7 +67,9 @@ describe("static routes", () => {
       },
       "/sub",
     );
-    expect((await pageStaticPaths(noHome)).at(-1)!.props.redirect).toBe("/sub/en/docs/guide");
+    expect((await pageStaticPaths(noHome, false)).at(-1)!.props.redirect).toBe(
+      "/sub/en/docs/guide",
+    );
   });
 });
 
@@ -119,11 +127,93 @@ describe("server routes", async () => {
       "/sub",
     );
     const page = await serve(dynamic, new Request("http://localhost/sub/cn/"));
-    expect(page).toMatchObject({ url: "/cn" });
+    expect(page).toMatchObject({ page: { url: "/cn" } });
 
     const redirect = (await serve(dynamic, new Request("http://localhost/sub"))) as Response;
     expect(redirect.status).toBe(302);
     expect(redirect.headers.get("Location")).toBe("/sub/en");
+  });
+});
+
+describe("views", () => {
+  const i18n = { languages: ["en", "cn"], defaultLanguage: "en" };
+  const views: Plugin = {
+    routes() {
+      const routes: ViewRoute[] = [];
+      for (const lang of ["en", "cn"]) {
+        routes.push({ path: "/blog", lang, view: () => ({ node: `blog:${lang}` }) });
+        routes.push({
+          path: "/tags/[tag]",
+          lang,
+          staticPaths: lang === "en" ? ["react", "vue"] : ["react"],
+          view: ({ tag }) => ({ node: `${tag}:${lang}` }),
+        });
+      }
+      routes.push({
+        path: "/(app)/live/[id]",
+        render: "dynamic",
+        view: ({ id }) => ({ node: id }),
+      });
+      return routes;
+    },
+  };
+  const paths = async (config: Partial<PressConfig>) => {
+    const out: (string | undefined)[] = [];
+    for (const { params, props } of await pageStaticPaths(await site(views, config), true))
+      if (props.view) out.push(params.fumapressPage);
+    return out;
+  };
+
+  it("are prerendered at the path of their language, in every `hideLocale` mode", async () => {
+    expect(await paths({ i18n })).toEqual([
+      "en/blog",
+      "en/tags/react",
+      "en/tags/vue",
+      "cn/blog",
+      "cn/tags/react",
+    ]);
+    expect(await paths({ i18n: { ...i18n, hideLocale: "default-locale" } })).toEqual([
+      "blog",
+      "tags/react",
+      "tags/vue",
+      "cn/blog",
+      "cn/tags/react",
+    ]);
+    expect(await paths({})).toEqual(["blog", "tags/react", "tags/vue", "blog", "tags/react"]);
+    await expect(pageStaticPaths(await site(views), false)).rejects.toThrow(
+      'the route "/(app)/live/[id]" renders on request, add an adapter to Astro.',
+    );
+  });
+
+  it("link the pages of other languages at their path as translations", async () => {
+    const expanded = await expandViews(await site(views, { i18n }));
+    const translations = (path: string) =>
+      expanded.find((view) => view.path === path)?.translations;
+
+    expect(translations("/cn/tags/react")).toEqual([
+      { locale: "en", path: "/en/tags/react" },
+      { locale: "cn", path: "/cn/tags/react" },
+    ]);
+    expect(translations("/en/tags/vue")).toEqual([{ locale: "en", path: "/en/tags/vue" }]);
+    expect(expanded.find((view) => view.path === "/cn/tags/react")?.params).toEqual({
+      tag: "react",
+    });
+  });
+
+  it("render on request with their params, every view in `dynamic` mode", async () => {
+    const ctx = await site(views, { i18n }, "/sub");
+    const live = (await serve(ctx, new Request("http://localhost/sub/live/42"))) as {
+      view: { params: unknown; translations: unknown };
+    };
+    expect(live.view).toMatchObject({ params: { id: "42" }, translations: [] });
+    expect(await serve(ctx, new Request("http://localhost/sub/cn/blog"))).toBeInstanceOf(Response);
+
+    const dynamic = await site(views, { i18n, mode: "dynamic" });
+    const blog = (await serve(dynamic, new Request("http://localhost/cn/blog/"))) as {
+      view: { path: string; translations: unknown[] };
+    };
+    expect(blog.view.path).toBe("/cn/blog");
+    expect(blog.view.translations).toHaveLength(2);
   });
 });
 

@@ -2,9 +2,12 @@ import { createElement, type ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { components } from "virtual:fumapress/island";
 import { NoProcessedMarkdownError, type AstroPageData } from "@fumadocs/astro/source";
-import type { Context, Plugin } from "@fumapress/core";
+import { stripBase, type Context, type Plugin } from "@fumapress/core";
+import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
-import type { Page, PageData } from "fumadocs-core/source";
+import type * as PageTree from "fumadocs-core/page-tree";
+import type { LoaderOutput, Page, PageData } from "fumadocs-core/source";
+import type { SerializedPageTree } from "fumadocs-core/source/client";
 import type { TOCItemType } from "fumadocs-core/toc";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 
@@ -72,6 +75,50 @@ function render(ctx: Context, page: Page) {
   });
 }
 
+interface PageTreeFile {
+  /** without the base path, by the hash of its content: revalidated content has another URL */
+  path: string;
+  json: string;
+  serialized: SerializedPageTree;
+}
+
+const treeFiles = new WeakMap<PageTree.Root, Promise<PageTreeFile>>();
+
+/** the serialized page tree of a language, once per tree: a file fetched once by the docs island, rather than in the props of every page */
+export function getPageTreeFile(source: LoaderOutput, locale?: string): Promise<PageTreeFile> {
+  const tree = source.getPageTree(locale);
+  let file = treeFiles.get(tree);
+  if (!file) {
+    file = source.serializePageTree(tree).then(async (serialized) => {
+      const json = JSON.stringify(serialized);
+      const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json));
+      let hex = "";
+      for (const byte of new Uint8Array(hash, 0, 8)) hex += byte.toString(16).padStart(2, "0");
+      return { path: `/_fumapress/page-tree/${locale ?? "default"}.${hex}.json`, json, serialized };
+    });
+    treeFiles.set(tree, file);
+  }
+  return file;
+}
+
+/** the page tree files of every language */
+async function getPageTreeFiles(ctx: Context): Promise<PageTreeFile[]> {
+  const source = await ctx.getLoader();
+  const files: Promise<PageTreeFile>[] = [];
+  for (const locale of ctx.i18nConfig?.languages ?? [undefined])
+    files.push(getPageTreeFile(source, locale));
+  return Promise.all(files);
+}
+
+function treeResponse(json: string): Response {
+  return new Response(json, {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+}
+
 /** a valid date, devalue can't serialize an invalid one */
 function toDate(value: unknown): Date | undefined {
   if (!(value instanceof Date) && typeof value !== "string") return;
@@ -131,6 +178,22 @@ export function contentSourcePlugin(): Plugin {
     getPageLastModified({ data }) {
       // from the frontmatter, or `lastModified` of collections
       if ("lastModified" in data) return toDate(data.lastModified);
+    },
+    async routes() {
+      // the middleware serves them on request: with `trailingSlash: "always"`, Astro takes their paths for pages without the slash
+      if (this.mode === "dynamic") return [];
+      const routes: ApiRoute[] = [];
+      for (const { path, json } of await getPageTreeFiles(this))
+        routes.push({ path, GET: () => treeResponse(json) });
+      return routes;
+    },
+    async middleware(request, next) {
+      if (this.mode !== "dynamic" || request.method !== "GET") return next();
+      const path = stripBase(new URL(request.url).pathname, this.withBase("/"));
+      if (!path?.startsWith("/_fumapress/page-tree/")) return next();
+      for (const file of await getPageTreeFiles(this))
+        if (file.path === path) return treeResponse(file.json);
+      return next();
     },
   };
 }

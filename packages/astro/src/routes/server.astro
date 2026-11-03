@@ -1,10 +1,15 @@
 ---
 import DocsPage from "../ui/DocsPage.astro";
+import View from "../ui/View.astro";
 import { getPressContext } from "../runtime.js";
 import { serve } from "./shared.js";
 
-const page = await serve(getPressContext(), Astro.request);
-if (page instanceof Response) return page;
+const result = await serve(getPressContext(), Astro.request);
+if (result instanceof Response) return result;
+const { page, view } = result;
+const content = await view?.route.view(view.params);
+if (view && !content) return new Response(null, { status: 404 });
 ---
 
-<DocsPage page={page} />
+{page && <DocsPage page={page} />}
+{view && content && <View view={view} content={content} />}

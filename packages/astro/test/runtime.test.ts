@@ -22,7 +22,7 @@ async function load(config: Partial<PressConfig>, astro: Partial<AstroValues> = 
   return import("@/runtime");
 }
 
-const search: Plugin = { name: "core:flexsearch", provides: ["search"] };
+const search: Plugin = { provides: ["search"], api: { staticIndex: "flexsearch" } };
 const build: Plugin = { build() {} };
 
 afterEach(() => {
@@ -86,5 +86,18 @@ describe("provider data", () => {
     const server = await load({ plugins: [search] }, { adapter: true, mode: "default" });
     expect(server.getProviderData(astro).search).toBe("fetch");
     expect((await load({})).getProviderData(astro).search).toBeUndefined();
+    const other = await load({ plugins: [{ provides: ["search"] }] });
+    expect(other.getProviderData(astro).search).toBe("fetch");
+  });
+});
+
+describe("framework pages", () => {
+  it("are your pages, then the pages of views", async () => {
+    const { getPressContext } = await load(
+      { plugins: [{ routes: () => [{ path: "/blog", view: () => ({ node: "blog" }) }] }] },
+      { pages: [{ path: "/about", translations: [] }] },
+    );
+    const pages = await getPressContext().getFrameworkPages();
+    expect(pages.map((page) => page.path)).toEqual(["/about", "/blog"]);
   });
 });

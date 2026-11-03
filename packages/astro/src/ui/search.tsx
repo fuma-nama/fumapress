@@ -10,6 +10,7 @@ import {
   SearchDialogOverlay,
   type SharedProps,
 } from "fumadocs-ui/components/dialog/search";
+import type { SearchPluginAPI } from "@fumapress/core";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
 import { useSearch } from "virtual:fumapress/layout";
 import type { LayoutModule } from "../config";
@@ -22,7 +23,7 @@ const engines = {
     (await import("fumadocs-core/search/client/flexsearch-static")).useFlexsearchStatic,
   orama: async () => (await import("fumadocs-core/search/client/orama-static")).useStaticSearch,
   fetch: async () => (await import("fumadocs-core/search/client/fetch")).useFetchSearch,
-} satisfies Record<string, () => Promise<UseSearch>>;
+} satisfies Record<NonNullable<SearchPluginAPI["staticIndex"]> | "fetch", () => Promise<UseSearch>>;
 
 export type SearchEngine = keyof typeof engines;
 

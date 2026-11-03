@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, type CSSProperties } from "react";
+import { use, type CSSProperties } from "react";
 import { type SerializedPageTree, useFumadocsLoader } from "fumadocs-core/source/client";
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import {
@@ -13,27 +13,33 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import UserPage from "virtual:fumapress/page";
 import type { DocsPageProps } from "../config";
-import type { ProviderData } from "./content";
-import { Provider } from "./provider";
 
 export interface DocsProps extends Omit<DocsPageProps, "tree"> {
-  provider: ProviderData;
-  /** JSON of the {@link SerializedPageTree}, the same for every page of a language */
+  /** the URL of the {@link SerializedPageTree}, the same for every page of a language */
   tree: string;
+}
+
+/** the serialized page trees by URL on the server, registered with the pages */
+export const serverTrees = new Map<string, SerializedPageTree>();
+const clientTrees = new Map<string, Promise<SerializedPageTree>>();
+
+/** fetch a page tree once in the browser, the island renders in `Suspense` until it loads */
+function fetchTree(url: string): Promise<SerializedPageTree> {
+  let tree = clientTrees.get(url);
+  if (!tree) {
+    tree = fetch(url).then((res) => res.json());
+    clientTrees.set(url, tree);
+  }
+  return tree;
 }
 
 const Page = UserPage ?? DefaultPage;
 
-/** the island of docs pages, the body is the children */
-export function Docs({ provider, tree, ...props }: DocsProps) {
-  const serialized = useMemo<SerializedPageTree>(() => JSON.parse(tree), [tree]);
-  const data = useFumadocsLoader({ tree: serialized });
+/** the layout of docs pages, in the island of the provider; the body is the children */
+export function Docs({ tree, ...props }: DocsProps) {
+  const data = useFumadocsLoader({ tree: serverTrees.get(tree) ?? use(fetchTree(tree)) });
 
-  return (
-    <Provider provider={provider}>
-      <Page {...props} tree={data.tree} />
-    </Provider>
-  );
+  return <Page {...props} tree={data.tree} />;
 }
 
 // inline styles, Tailwind CSS doesn't scan this package

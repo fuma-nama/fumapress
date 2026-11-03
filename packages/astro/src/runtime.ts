@@ -11,6 +11,7 @@ import {
 } from "@fumapress/core";
 import { i18nProvider } from "fumadocs-ui/i18n";
 import { contentSourcePlugin } from "./content-source";
+import { expandViews } from "./routes/shared";
 import type { ProviderData } from "./ui/content";
 import type { SearchEngine } from "./ui/search";
 
@@ -30,7 +31,7 @@ const ctx = await createPress(
   {
     base: import.meta.env.BASE_URL,
     preset: recommendedPreset,
-    getFrameworkPages: () => pages,
+    getFrameworkPages: async (ctx) => [...pages, ...(await expandViews(ctx))],
     trailingSlash: trailingSlash === "always",
   },
 );
@@ -52,14 +53,9 @@ if (prerender) {
   }
 }
 
-/** the static search indexes of the search plugins, other search plugins serve `/api/search` */
-const staticEngines: Record<string, SearchEngine> = {
-  "core:flexsearch": "flexsearch",
-  "core:orama-search": "orama",
-};
 const searchPlugin = ctx.getProvider("search");
 const search: SearchEngine | undefined =
-  searchPlugin && ((mode === "static" && staticEngines[searchPlugin.name ?? ""]) || "fetch");
+  searchPlugin && ((mode === "static" && searchPlugin.api?.staticIndex) || "fetch");
 const base = ctx.withBase("/");
 
 /** the language of a path by its prefix, like the URLs of pages */

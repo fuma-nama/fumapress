@@ -138,6 +138,7 @@ export default withProvider(components);`;
                 virtualPlugin(files, modules),
                 // every page has one of the layouts, they load with the island
                 clientReferences(internalModule("island/references"), [
+                  internalModule("ui/provider"),
                   internalModule("ui/docs"),
                   internalModule("ui/home"),
                 ]),

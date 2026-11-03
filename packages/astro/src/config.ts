@@ -20,8 +20,8 @@ export interface DocsPageProps {
   page: DocsPageData;
   /** `defaultLayoutProps` of the config */
   layout: Omit<BaseLayoutProps, "children">;
-  /** the UI of plugins in the slots of the page, `body.wrapper` is around `children` */
-  slots: Partial<Record<Exclude<SlotName, "body.wrapper">, ReactNode>>;
+  /** the UI of plugins in the slots of the page, `body.wrapper` is around `children` and `layout.wrapper` around the page */
+  slots: Partial<Record<Exclude<SlotName, "body.wrapper" | "layout.wrapper">, ReactNode>>;
   /** the body of the page */
   children: ReactNode;
 }

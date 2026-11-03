@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { stripBase, type Context, type PressBuildOutput } from "@fumapress/core";
-import { matchApiRoute } from "./routes/shared";
+import { matchApiRoute, matchView } from "./routes/shared";
 
 export interface BuildOutputOptions {
   /** the directory of prerendered pages and public files */
@@ -46,7 +46,11 @@ export function createBuildOutput(
       if (pathname === undefined) return new Response(null, { status: 404 });
       const file = await findFile(dir, pathname);
       if (file) return new Response(await fs.readFile(file));
-      if (routes.some((route) => route.test(pathname)) || (await matchApiRoute(ctx, pathname)))
+      if (
+        routes.some((route) => route.test(pathname)) ||
+        (await matchApiRoute(ctx, pathname)) ||
+        (await matchView(ctx, pathname))
+      )
         return new Response();
       return new Response(null, { status: 404 });
     },
