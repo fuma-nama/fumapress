@@ -50,6 +50,18 @@ describe("static routes", () => {
     expect(paths.map((path) => path.params.fumapressPage)).toEqual(["en", "cn", undefined]);
     expect(paths[2]!.props.redirect).toBe("/en");
     expect(await pageStaticPaths(await site({}, { mode: "dynamic" }))).toEqual([]);
+
+    const guide = { files: [{ type: "page" as const, path: "docs/guide.mdx", data: {} }] };
+    const noHome = await site(
+      {},
+      {
+        content: { docs: guide },
+        i18n: { languages: ["en"], defaultLanguage: "en" },
+        mode: "static",
+      },
+      "/sub",
+    );
+    expect((await pageStaticPaths(noHome)).at(-1)!.props.redirect).toBe("/sub/en/docs/guide");
   });
 });
 

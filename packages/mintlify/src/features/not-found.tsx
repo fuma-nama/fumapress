@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { getHomeUrl } from "@fumapress/core";
 import { getPressContext } from "fumapress";
 import type { MintlifyErrors } from "../schema";
 import { renderInlineMarkdown } from "./markdown";
@@ -17,9 +18,8 @@ export function createMintlifyNotFound(
   const config = errors?.["404"];
 
   if (config?.redirect !== false) {
-    return function MintlifyNotFoundRedirect({ lang }) {
-      // the prefix is dropped for the language `hideLocale` hides
-      const home = getPressContext().localizePath(lang, "/");
+    return async function MintlifyNotFoundRedirect({ lang }) {
+      const home = await getHomeUrl(getPressContext(), lang);
 
       return (
         <>

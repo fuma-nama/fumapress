@@ -8,6 +8,7 @@ import type { ConfigUtils } from "@/config";
 import type { PressRoute, RouteFns } from "@/lib/types";
 import type { DocsPageData, FrameworkPage } from "@fumapress/core";
 import type { I18nConfig } from "fumadocs-core/i18n";
+import type { VirtualFile } from "fumadocs-core/source";
 import type { HandlerInterceptor } from "waku/router/server";
 
 interface Route {
@@ -108,18 +109,22 @@ function html(route: Route, props: object): Promise<string> {
 const Lang: FC<{ lang?: string }> = ({ lang }) => createElement("p", null, lang);
 const Path: FC<{ path: string }> = ({ path }) => createElement("p", null, path);
 
-function config(i18n: I18nConfig | undefined, mode: "static" | "default" = "static") {
+const files: VirtualFile[] = [
+  { type: "page", path: "index.mdx", data: { title: "Home" } },
+  { type: "page", path: "index.cn.mdx", data: { title: "首页" } },
+  { type: "page", path: "guide.mdx", data: { title: "Guide" } },
+];
+
+function config(
+  i18n: I18nConfig | undefined,
+  mode: "static" | "default" = "static",
+  content: VirtualFile[] = files,
+) {
   return defineConfig({
     mode,
     preset: false,
     site: { baseUrl: "https://example.com" },
-    content: {
-      files: [
-        { type: "page", path: "index.mdx", data: { title: "Home" } },
-        { type: "page", path: "index.cn.mdx", data: { title: "首页" } },
-        { type: "page", path: "guide.mdx", data: { title: "Guide" } },
-      ],
-    },
+    content: { files: content },
     i18n: i18n as never,
     renderRoot: ({ lang, children }) => createElement("html", { lang }, children),
     renderPage: ({ lang, slugs }) => `${lang}:${slugs.join("/")}`,
@@ -157,6 +162,22 @@ describe("createRouter", () => {
 
     expect(route("/").render).toBe("dynamic");
     await expect(render(route("/"), {})).rejects.toThrow("redirect:/en");
+  });
+
+  it("redirects the root to the first page without a home, unless you have a page there", async () => {
+    await routes(
+      config(prefixed, "static", [
+        { type: "page", path: "docs/guide.mdx", data: { title: "Guide" } },
+      ]),
+    );
+    const redirect = (await render(route("/"), {})) as { props: { to: string } };
+    expect(redirect.props.to).toBe("/en/docs/guide");
+
+    (await createRouter(config(prefixed) as ConfigUtils)).createPages(({ createPage }) => {
+      createPage({ path: "/", component: Lang });
+    });
+    await recorded.pending;
+    expect(paths("page")).toEqual(["/(default)", "/404", "/cn/[...slugs]", "/en/[...slugs]"]);
   });
 
   it("serves the hidden default language without prefix", async () => {

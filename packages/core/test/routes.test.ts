@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { expandRoute, matchRoute } from "@/routes";
+import type { I18nConfig } from "fumadocs-core/i18n";
+import type { VirtualFile } from "fumadocs-core/source";
+import { createPress, type FrameworkPage } from "@/context";
+import { expandRoute, getHomeUrl, matchRoute, rootRedirect } from "@/routes";
 
 describe("expandRoute", () => {
   it("lists a page per entry of `staticPaths`, without route groups", () => {
@@ -45,5 +48,58 @@ describe("matchRoute", () => {
   it("matches the pages of `expandRoute`", () => {
     const { pattern, pages } = expandRoute("/docs/[...slugs]", [["a", "b"], []]);
     for (const { pathname, params } of pages) expect(matchRoute(pattern, pathname)).toEqual(params);
+  });
+});
+
+describe("getHomeUrl and rootRedirect", () => {
+  const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
+  const page = (path: string): VirtualFile => ({ type: "page", path, data: { title: path } });
+  const docs: VirtualFile[] = [
+    {
+      type: "meta",
+      path: "docs/meta.json",
+      data: { pages: ["[Site](https://example.com)", "b", "a"] },
+    },
+    page("docs/a.mdx"),
+    page("docs/b.mdx"),
+    page("docs/b.cn.mdx"),
+  ];
+
+  async function create(
+    files: VirtualFile[],
+    config: I18nConfig | null = i18n,
+    frameworkPages: string[] = [],
+  ) {
+    const pages: FrameworkPage[] = [];
+    for (const path of frameworkPages) pages.push({ path, translations: [] });
+    return createPress(
+      { content: { files }, preset: false, i18n: config ?? undefined },
+      { base: "/", getFrameworkPages: () => pages },
+    );
+  }
+
+  it("finds the home of a language, or its first page", async () => {
+    const ctx = await create(docs);
+    expect(await getHomeUrl(ctx, "cn")).toBe("/cn/docs/b");
+    expect(await getHomeUrl(await create([page("index.cn.mdx"), ...docs]), "cn")).toBe("/cn");
+    expect(await getHomeUrl(await create(docs, null))).toBe("/docs/b");
+    expect(await getHomeUrl(await create([]), "en")).toBe("/en");
+  });
+
+  it("redirects to the home of the default language", async () => {
+    expect(await rootRedirect(await create([page("index.mdx"), ...docs]))).toBe("/en");
+    expect(await rootRedirect(await create(docs, i18n, ["/en"]))).toBe("/en");
+  });
+
+  it("redirects to the first page of the default language without its home", async () => {
+    expect(await rootRedirect(await create(docs))).toBe("/en/docs/b");
+  });
+
+  it("leaves `/` alone with a page there, or without a language prefix", async () => {
+    expect(await rootRedirect(await create(docs, i18n, ["/"]))).toBeUndefined();
+    expect(
+      await rootRedirect(await create(docs, { ...i18n, hideLocale: "default-locale" })),
+    ).toBeUndefined();
+    expect(await rootRedirect(await create(docs, null))).toBeUndefined();
   });
 });

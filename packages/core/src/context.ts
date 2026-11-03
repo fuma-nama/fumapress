@@ -33,6 +33,7 @@ import {
   type SlotName,
 } from "./plugin";
 import { addRepoLink, getFileUrl, resolveGit, type GitProvider } from "./git";
+import { getHomeUrl } from "./routes";
 
 export type InferAppShape<
   I extends _Internal.AnyInput = _Internal.AnyInput,
@@ -517,8 +518,7 @@ export async function createPress(
         nav: {
           ...props.nav,
           title: props.nav?.title ?? name,
-          // Fumadocs UI links the title to `/`, the home of the default language
-          url: props.nav?.url ?? ctx.localizePath(env.lang, "/"),
+          url: props.nav?.url ?? (await getHomeUrl(ctx, env.lang)),
         },
       };
     },

@@ -10,8 +10,10 @@ import { createElement, FC, Fragment, ReactNode } from "react";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import {
   expandRoute,
+  getHomeUrl,
   pageAlternate,
   pageLinks,
+  rootRedirect,
   type FrameworkPage,
   type PageAlternate,
   type PressBuildOutput,
@@ -268,9 +270,8 @@ export async function createRouter<U extends ConfigUtils>(
           });
         }
 
-        if (i18n.hideLocale !== "default-locale") {
-          const to = `/${i18n.defaultLanguage}`;
-
+        const to = await rootRedirect(context);
+        if (to !== undefined) {
           if (context.mode === "static") {
             _fns.createPage({
               render: "static",
@@ -281,7 +282,9 @@ export async function createRouter<U extends ConfigUtils>(
             _fns.createPage({
               render: "dynamic",
               path: "/",
-              component: () => unstable_redirect(to),
+              // the content can change while the server runs
+              component: async () =>
+                unstable_redirect(await getHomeUrl(context, i18n.defaultLanguage)),
             });
           }
         }

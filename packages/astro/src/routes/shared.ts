@@ -1,4 +1,4 @@
-import { expandRoute, matchRoute, stripBase, type Context } from "@fumapress/core";
+import { expandRoute, matchRoute, rootRedirect, stripBase, type Context } from "@fumapress/core";
 import {
   methods,
   type ApiRoute,
@@ -35,14 +35,6 @@ export async function isApiRoute(ctx: Context, path: string): Promise<boolean> {
   return paths.has(trimmed) || (await matchApiRoute(ctx, trimmed)) !== undefined;
 }
 
-/** the root redirects to the home of the default language when every language has a URL prefix, unless you have a page at `/` */
-function rootRedirect(ctx: Context): string | undefined {
-  const i18n = ctx.i18nConfig;
-  if (!i18n || i18n.hideLocale === "default-locale") return;
-  if (ctx.getFrameworkPages().some((page) => page.path === "/")) return;
-  return ctx.withBase(ctx.localizePath(i18n.defaultLanguage, "/"));
-}
-
 /** the static paths of `[...fumapressPage]`, no pages in `dynamic` mode */
 export async function pageStaticPaths(ctx: Context) {
   const paths: {
@@ -57,8 +49,12 @@ export async function pageStaticPaths(ctx: Context) {
       props: { page },
     });
   }
-  const redirect = rootRedirect(ctx);
-  if (redirect) paths.push({ params: { fumapressPage: undefined }, props: { redirect } });
+  const redirect = await rootRedirect(ctx);
+  if (redirect !== undefined)
+    paths.push({
+      params: { fumapressPage: undefined },
+      props: { redirect: ctx.withBase(redirect) },
+    });
   return paths;
 }
 
@@ -128,8 +124,9 @@ export async function serve(ctx: Context, request: Request): Promise<Response | 
     // like the URLs of pages
     const page = (await ctx.getLoader()).getPageByUrl(path.replace(/(.)\/$/, "$1"));
     if (page) return page;
-    const redirect = path === "/" && rootRedirect(ctx);
-    if (redirect) return new Response(null, { status: 302, headers: { Location: redirect } });
+    const redirect = path === "/" ? await rootRedirect(ctx) : undefined;
+    if (redirect !== undefined)
+      return new Response(null, { status: 302, headers: { Location: ctx.withBase(redirect) } });
   }
   // a page rather than an endpoint: its 404 without body renders the 404 page
   return new Response(null, { status: 404 });

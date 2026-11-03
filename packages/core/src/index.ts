@@ -28,5 +28,5 @@ export {
   type PressRuntime,
   type SiteConfig,
 } from "./context";
-export { expandRoute, matchRoute, stripBase } from "./routes";
+export { expandRoute, getHomeUrl, matchRoute, rootRedirect, stripBase } from "./routes";
 export type { GitProvider } from "./git";

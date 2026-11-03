@@ -1,4 +1,6 @@
 import type { RouteParams } from "fumadocs-core/framework/plugin";
+import { findPath } from "fumadocs-core/page-tree";
+import type { Context } from "./context";
 
 /** `pathname` without the base path `base` (`withBase('/')`), `undefined` outside of it */
 export function stripBase(pathname: string, base: string): string | undefined {
@@ -82,4 +84,28 @@ export function matchRoute(pattern: string, pathname: string): RouteParams | und
     else if (part !== value) return;
   }
   if (i === segments.length) return params;
+}
+
+/** the home of a language (without the base path): its `/`, or its first page when nothing is there */
+export async function getHomeUrl(ctx: Context, lang?: string): Promise<string> {
+  const home = ctx.localizePath(lang, "/");
+  const loader = await ctx.getLoader();
+  if (loader.getPageByUrl(home, lang) || ctx.getFrameworkPages().some((page) => page.path === home))
+    return home;
+  // links of meta files aren't pages
+  const path = findPath(
+    loader.getPageTree(lang).children,
+    (node) => node.type === "page" && loader.getPageByUrl(node.url, lang) !== undefined,
+    { includeSeparator: false },
+  );
+  const page = path?.at(-1);
+  return page?.type === "page" ? page.url : home;
+}
+
+/** where `/` redirects (without the base path) when every language has a URL prefix, unless you have a page there */
+export async function rootRedirect(ctx: Context): Promise<string | undefined> {
+  const i18n = ctx.i18nConfig;
+  if (!i18n || i18n.hideLocale === "default-locale") return;
+  if (ctx.getFrameworkPages().some((page) => page.path === "/")) return;
+  return getHomeUrl(ctx, i18n.defaultLanguage);
 }
