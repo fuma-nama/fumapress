@@ -73,7 +73,7 @@ describe("llmsPlugin", () => {
     const res = await fetchRoute(routes, "/cn/docs/basics.md");
     expect(res.headers.get("Content-Type")).toBe("text/markdown; charset=utf-8");
     await expect(res.text()).resolves.toBe(
-      "# Title of docs/basics.cn.mdx (/cn/docs/basics)\n\nText of docs/basics.cn.mdx",
+      "# Title of docs/basics.cn.mdx (https://example.com/cn/docs/basics)\n\nText of docs/basics.cn.mdx",
     );
     await expect((await fetchRoute(routes, "/en/docs/empty.md")).text()).resolves.toBe("");
   });
@@ -92,12 +92,30 @@ describe("llmsPlugin", () => {
     const index = await (await fetchRoute(routes, "/llms.txt")).text();
     const full = await (await fetchRoute(routes, "/llms-full.txt")).text();
 
-    expect(index).toContain("[Title of docs/basics.mdx](/en/docs/basics)");
-    expect(index).toContain("[Title of docs/basics.cn.mdx](/cn/docs/basics)");
+    expect(index).toContain("[Title of docs/basics.mdx](https://example.com/en/docs/basics)");
+    expect(index).toContain("[Title of docs/basics.cn.mdx](https://example.com/cn/docs/basics)");
     expect(full.split("\n\n# ")).toHaveLength(4);
     expect(full).toContain("Text of docs/basics.cn.mdx");
-    expect(full).not.toContain("(/cn/docs/only-en)");
+    expect(full).not.toContain("/cn/docs/only-en)");
     expect(full).not.toContain("docs/empty.mdx");
+  });
+
+  it("links pages under the base path", async () => {
+    const sites = [
+      [
+        await createSite({ site: { baseUrl: "https://example.com/repo" } }, {}, "/repo/"),
+        "https://example.com/repo",
+      ],
+      [await createSite({ site: {} }, {}, "/repo/"), "/repo"],
+    ] as const;
+    for (const [ctx, prefix] of sites) {
+      const routes = await ctx.getApiRoutes();
+      const index = await (await fetchRoute(routes, "/llms.txt")).text();
+      const full = await (await fetchRoute(routes, "/llms-full.txt")).text();
+
+      expect(index).toContain(`[Title of docs/basics.mdx](${prefix}/docs/basics)`);
+      expect(full).toContain(`# Title of docs/basics.mdx (${prefix}/docs/basics)`);
+    }
   });
 
   it("serves Markdown from the middleware in dynamic mode", async () => {

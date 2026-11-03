@@ -49,7 +49,8 @@ export function llmsPlugin<C extends AppShape = AppShape, Ctx extends Context<C>
     autoRedirect = true,
     getLLMText = async function (page) {
       const text = await this.getPageText(page);
-      if (text !== undefined) return `# ${page.data.title} (${page.url})\n\n${text}`;
+      if (text !== undefined)
+        return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${text}`;
     },
   } = options;
 
@@ -68,7 +69,12 @@ export function llmsPlugin<C extends AppShape = AppShape, Ctx extends Context<C>
       const routes: ApiRoute[] = [
         {
           path: "/llms.txt",
-          GET: async () => new Response(llms(await this.getLoader()).index()),
+          GET: async () =>
+            new Response(
+              llms(await this.getLoader(), {
+                renderUrl: (item) => this.absoluteUrl(item.url),
+              }).index(),
+            ),
         },
         {
           path: "/llms-full.txt",

@@ -47,7 +47,7 @@ export default defineConfig({
 }).plugins(
   llmsPlugin({
     getLLMText(page) {
-      return `# ${page.data.title} (${page.url})
+      return `# ${page.data.title} (${this.absoluteUrl(page.url)})
 
 ${page.data.description ?? ""}`;
     },
