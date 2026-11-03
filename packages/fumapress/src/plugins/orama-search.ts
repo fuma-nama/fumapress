@@ -10,16 +10,5 @@ export interface OramaSearchOptions<C extends AppShape = AppShape> extends Press
 export function oramaSearchPlugin<C extends AppShape = AppShape>(
   options?: OramaSearchOptions<NoInfer<C>>,
 ): PressPlugin<C> {
-  return {
-    ...Press.oramaSearchPlugin<C, AppContext<C>>(options),
-    init() {
-      if (this.mode !== "static") return;
-      ((this.data["core:provider"] ??= {}).transformers ??= []).push(async (props) => {
-        (props.search ??= { enabled: true }).SearchDialog ??= (
-          await import("@/components/orama-search-static")
-        ).default;
-        return props;
-      });
-    },
-  };
+  return Press.oramaSearchPlugin<C, AppContext<C>>(options);
 }

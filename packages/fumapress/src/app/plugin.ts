@@ -38,6 +38,8 @@ export interface PressPlugin<C extends AppShape = AppShape> extends Plugin<C, Ap
 
   /**
    * Override the page renderer, use default fallback if `undefined` is returned.
+   *
+   * `fallback` is the view of plugins from `getPageView()` in the home layout, or the `renderPage` of the config. Use `getPageView()` for pages in the home layout on every framework.
    */
   renderPage?: (
     this: AppContext<C>,
@@ -92,7 +94,6 @@ export function recommendedPlugins<C extends AppShape>(
   // the plugins of Waku over their core versions
   const own: Record<string, PresetEntry<PressPlugin<C>>["load"]> = {
     "core:llms.txt": async () => (await import("@/plugins/llms.txt")).llmsPlugin<C>(),
-    "core:flexsearch": async () => (await import("@/plugins/flexsearch")).flexsearchPlugin<C>(),
     "core:takumi": async () => (await import("@/plugins/takumi")).takumiPlugin<C>(),
   };
   const out: PresetEntry<PressPlugin<C>>[] = [];

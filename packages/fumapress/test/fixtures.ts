@@ -19,6 +19,7 @@ type Config = FumapressConfig;
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/shared` belongs to every language */
 export function createApp(
   options: {
+    mode?: Config["mode"];
     i18n?: I18nConfig;
     site?: SiteConfig;
     meta?: Config["meta"];
@@ -36,6 +37,7 @@ export function createApp(
         page("docs/shared.$.mdx"),
       ],
     },
+    mode: options.mode,
     i18n: options.i18n,
     site: { baseUrl: "https://example.com", ...options.site },
     meta: options.meta,

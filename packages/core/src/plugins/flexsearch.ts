@@ -6,7 +6,7 @@ import {
 import type { LoaderConfig } from "fumadocs-core/source";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { buildIndexDefault, searchRoute } from "../search";
+import { buildIndexDefault, searchRoute, type SearchPluginAPI } from "../search";
 
 export interface FlexsearchOptions<
   C extends AppShape = AppShape,
@@ -31,6 +31,7 @@ export function flexsearchPlugin<
   return {
     name: "core:flexsearch",
     provides: ["search"],
+    api: { staticIndex: "flexsearch" } satisfies SearchPluginAPI,
     routes() {
       const server = flexsearchFromSource(() => this.getLoader(), {
         ...options,

@@ -51,13 +51,15 @@ async function getSearchRoute(config: Partial<PressConfig>) {
 }
 
 describe.each([
-  ["flexsearchPlugin", flexsearchPlugin],
-  ["oramaSearchPlugin", oramaSearchPlugin],
-])("%s", (name, searchPlugin) => {
-  it("provides search", async () => {
+  ["flexsearchPlugin", flexsearchPlugin, "flexsearch"],
+  ["oramaSearchPlugin", oramaSearchPlugin, "orama"],
+] as const)("%s", (name, searchPlugin, staticIndex) => {
+  it("provides search, with the format of its static index", async () => {
     const ctx = await createSite({ plugins: [searchPlugin()] });
+    const provider = ctx.getProvider("search");
 
-    expect(ctx.getProvider("search")?.provides).toEqual(["search"]);
+    expect(provider?.provides).toEqual(["search"]);
+    expect(provider?.api?.staticIndex).toBe(staticIndex);
   });
 
   it("searches on the server outside static mode", async () => {

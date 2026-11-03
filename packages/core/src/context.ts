@@ -29,8 +29,10 @@ import {
   type PluginOption,
   type PresetEntry,
   type PressBuildOutput,
+  type Provider,
   type SlotItem,
   type SlotName,
+  type ViewRoute,
 } from "./plugin";
 import { addRepoLink, getFileUrl, resolveGit, type GitProvider } from "./git";
 import { getHomeUrl } from "./routes";
@@ -147,7 +149,8 @@ export interface PressRuntime<C extends AppShape = AppShape> {
   base: string;
   /** plugins of the `recommended` preset */
   preset?: () => PresetEntry<Plugin<C>>[];
-  getFrameworkPages?: () => FrameworkPage[];
+  /** your pages and the pages of view routes, see {@link Context.getFrameworkPages} */
+  getFrameworkPages?: (ctx: Context<C>) => Awaitable<FrameworkPage[]>;
   /** whether the URLs of `absoluteUrl()` end with `/`, like `trailingSlash: "always"` of the framework */
   trailingSlash?: boolean;
 }
@@ -178,8 +181,8 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
    */
   plugins: readonly Plugin[];
   getPlugin(name: string): Plugin | undefined;
-  /** the plugin providing a capability */
-  getProvider(capability: Capability): Plugin | undefined;
+  /** the plugin providing a capability, with the API of the capability */
+  getProvider<K extends Capability>(capability: K): Provider<K> | undefined;
 
   siteConfig: {
     name: string;
@@ -205,10 +208,11 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   getFileUrl(absolutePath: string): string | undefined;
   /** translations of a page for `hreflang` links, without fallback pages, empty when it has none */
   getPageAlternates(page: C["page"]): Promise<PageAlternate[]>;
-  /** from the framework, like the pages of `createPage()` on Waku */
-  getFrameworkPages(): FrameworkPage[];
+  /** from the framework: your pages, like the pages of `createPage()` on Waku, and the pages of view routes */
+  getFrameworkPages(): Promise<FrameworkPage[]>;
 
   getPageBody(page: C["page"]): Promise<PageBody | undefined>;
+  getPageView(page: C["page"]): Promise<PageBody | undefined>;
   getPageText(page: C["page"]): Promise<string | undefined>;
   getPageToc(page: C["page"]): Promise<TOCItemType[] | undefined>;
   getPageStructuredData(page: C["page"]): Promise<StructuredData | undefined>;
@@ -221,10 +225,12 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   getPageHead(page: C["page"]): Promise<HeadTag[]>;
   /** of the config and plugins, of every page and of content pages with `page` */
   getHead(env: { page?: C["page"] }): Promise<HeadTag[]>;
-  /** sorted by `order` */
-  getSlots(page: C["page"]): Promise<Partial<Record<SlotName, SlotItem[]>>>;
-  /** with `render` filled in from `mode` */
+  /** of a content page with `page`, `layout.wrapper` without it; sorted by `order` */
+  getSlots(env: { page?: C["page"] }): Promise<Partial<Record<SlotName, SlotItem[]>>>;
+  /** with `render` filled in from `mode`, once per content: plugins create their servers in `routes()`, like the index of search */
   getApiRoutes(): Promise<ApiRoute[]>;
+  /** the routes rendering a view, with `render` filled in from `mode`, once per content */
+  getViewRoutes(): Promise<ViewRoute[]>;
   /** runs the `middleware` of plugins */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
@@ -346,12 +352,61 @@ export async function createPress(
     }
   }
 
+  const routesOf = new WeakMap<object, Promise<{ api: ApiRoute[]; views: ViewRoute[] }>>();
+
+  async function collectRoutes() {
+    const api: ApiRoute[] = [];
+    const views: ViewRoute[] = [];
+    // `${method} ${path}`
+    const handled = new Set<string>();
+    for (const route of await collect(plugins.map((plugin) => plugin.routes?.call(ctx)))) {
+      const render = route.render ?? (ctx.mode === "dynamic" ? "dynamic" : "static");
+      if (render === "static" && !route.staticPaths && route.path.includes("["))
+        throw new Error(
+          `[Fumapress] the static route "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
+        );
+      if ("view" in route) {
+        views.push({ ...route, render });
+        continue;
+      }
+
+      if (render === "static") {
+        const other = route.ALL
+          ? "ALL"
+          : methods.find((method) => method !== "GET" && route[method]);
+        if (other)
+          throw new Error(
+            `[Fumapress] the static route "${route.path}" is generated from its GET handler, its ${other} handler needs \`render: 'dynamic'\` to run on the server.`,
+          );
+      }
+      for (const method of methods) {
+        if (!route[method] && !route.ALL) continue;
+        const key = `${method} ${route.path}`;
+        if (handled.has(key))
+          throw new Error(`[Fumapress] two routes handle ${method} requests to "${route.path}".`);
+        handled.add(key);
+      }
+      api.push({ ...route, render });
+    }
+    return { api, views };
+  }
+
+  async function getRoutes() {
+    const loader = await ctx.getLoader();
+    let routes = routesOf.get(loader);
+    if (!routes) routesOf.set(loader, (routes = collectRoutes()));
+    return routes;
+  }
+
   const ctx: Context<InferAppShape> = {
     mode: config.mode ?? "default",
     base: runtime.base,
     plugins,
     getPlugin: (name) => plugins.find((plugin) => plugin.name === name),
-    getProvider: (capability) => plugins.find((plugin) => plugin.provides?.includes(capability)),
+    getProvider: <K extends Capability>(capability: K) =>
+      plugins.find(
+        (plugin): plugin is Provider<K> => plugin.provides?.includes(capability) === true,
+      ),
     siteConfig: {
       ...site,
       name: site?.name ?? "Fumapress",
@@ -395,8 +450,9 @@ export async function createPress(
       }
       return out.length > 1 ? out : [];
     },
-    getFrameworkPages: () => runtime.getFrameworkPages?.() ?? [],
+    getFrameworkPages: async () => (await runtime.getFrameworkPages?.(ctx)) ?? [],
     getPageBody: (page) => resolve(page, (plugin) => plugin.getPageBody),
+    getPageView: (page) => resolve(page, (plugin) => plugin.getPageView),
     getPageText: (page) => resolve(page, (plugin) => plugin.getPageText),
     getPageToc: (page) => resolve(page, (plugin) => plugin.getPageToc),
     getPageStructuredData: (page) => resolve(page, (plugin) => plugin.getPageStructuredData),
@@ -450,44 +506,15 @@ export async function createPress(
         config.head?.call(ctx, env),
         ...plugins.map((plugin) => plugin.head?.call(ctx, env)),
       ]),
-    async getSlots(page) {
-      const items = await collect(plugins.map((plugin) => plugin.slots?.call(ctx, { page })));
+    async getSlots(env) {
+      const items = await collect(plugins.map((plugin) => plugin.slots?.call(ctx, env)));
       items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       const out: Partial<Record<SlotName, SlotItem[]>> = {};
       for (const item of items) (out[item.slot] ??= []).push(item);
       return out;
     },
-    async getApiRoutes() {
-      const out: ApiRoute[] = [];
-      // `${method} ${path}`
-      const handled = new Set<string>();
-      for (const route of await collect(plugins.map((plugin) => plugin.routes?.call(ctx)))) {
-        const render = route.render ?? (ctx.mode === "dynamic" ? "dynamic" : "static");
-        if (render === "static") {
-          const other = route.ALL
-            ? "ALL"
-            : methods.find((method) => method !== "GET" && route[method]);
-          if (other)
-            throw new Error(
-              `[Fumapress] the static route "${route.path}" is generated from its GET handler, its ${other} handler needs \`render: 'dynamic'\` to run on the server.`,
-            );
-          if (!route.staticPaths && route.path.includes("["))
-            throw new Error(
-              `[Fumapress] the static route "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
-            );
-        }
-
-        for (const method of methods) {
-          if (!route[method] && !route.ALL) continue;
-          const key = `${method} ${route.path}`;
-          if (handled.has(key))
-            throw new Error(`[Fumapress] two routes handle ${method} requests to "${route.path}".`);
-          handled.add(key);
-        }
-        out.push({ ...route, render });
-      }
-      return out;
-    },
+    getApiRoutes: async () => (await getRoutes()).api,
+    getViewRoutes: async () => (await getRoutes()).views,
     handleRequest(request, next) {
       function dispatch(i: number, request: Request, rewrite?: string): Promise<Response> {
         const plugin = plugins[i];

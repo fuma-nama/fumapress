@@ -6,7 +6,7 @@ import { createRouter } from "@/router";
 import { fsRouterFn } from "@/router/fs";
 import type { ConfigUtils } from "@/config";
 import type { PressRoute, RouteFns } from "@/lib/types";
-import type { DocsPageData, FrameworkPage } from "@fumapress/core";
+import type { DocsPageData, FrameworkPage, ViewRoute } from "@fumapress/core";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
 import type { HandlerInterceptor } from "waku/router/server";
@@ -57,17 +57,40 @@ vi.mock("waku", () => ({
   },
 }));
 
-vi.mock("waku/router/server", () => ({
-  unstable_getRequest: () => recorded.request,
-  unstable_parseRouterRequest(req: Request) {
-    return { type: "route", path: new URL(req.url).pathname, query: "" };
-  },
-  unstable_notFound() {
-    throw new Error("not found");
-  },
-  unstable_redirect(to: string) {
-    throw new Error(`redirect:${to}`);
-  },
+// like Waku: RSC requests of client navigations are like `/RSC/R/docs.txt?query=` for `/docs`, route paths are canonical
+vi.mock("waku/router/server", () => {
+  const canonical = (pathname: string) => pathname.replace(/(\/index\.html|\/)$/, "") || "/";
+  return {
+    unstable_getRequest: () => recorded.request,
+    unstable_parseRouterRequest(req: Request) {
+      const url = new URL(req.url);
+      const rsc = /^\/RSC\/R(\/.*)\.txt$/.exec(url.pathname);
+      if (rsc) return { type: "route", path: rsc[1], query: url.searchParams.get("query") ?? "" };
+      return { type: "route", path: canonical(url.pathname), query: url.searchParams.toString() };
+    },
+    unstable_formatRouterRequest(req: Request, path: string, query?: string) {
+      const url = new URL(req.url);
+      const rsc = url.pathname.startsWith("/RSC/");
+      url.pathname = rsc ? `/RSC/R${canonical(path)}.txt` : canonical(path);
+      if (query === undefined) return url;
+      if (rsc) url.searchParams.set("query", query);
+      else url.search = query;
+      return url;
+    },
+    unstable_notFound() {
+      throw new Error("not found");
+    },
+    unstable_redirect(to: string) {
+      throw new Error(`redirect:${to}`);
+    },
+  };
+});
+
+vi.mock("@/layouts/home", () => ({
+  createHomeLayout: () =>
+    function Home({ lang, children }: { lang?: string; children: ReactNode }) {
+      return createElement("main", { "data-home": lang ?? "" }, children);
+    },
 }));
 
 const prefixed: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
@@ -330,9 +353,9 @@ describe("createRouter", () => {
           });
         }
       },
-      configureRoutes({ getRoutes }) {
+      async configureRoutes({ getRoutes }) {
         seen = getRoutes();
-        framework = this.getFrameworkPages();
+        framework = await this.getFrameworkPages();
         for (const route of seen) {
           route.meta.push((props) => createElement("meta", { name: "x", content: props.path }));
         }
@@ -364,6 +387,99 @@ describe("createRouter", () => {
     expect(await html(route("/en/(fs)/tags/[tag]"), { path: "/en/tags/vue" })).toContain(
       '<meta name="x" content="/en/tags/vue"/>',
     );
+  });
+
+  it("renders the views of plugins in the home layout, at the path of their language", async () => {
+    let framework: FrameworkPage[] = [];
+    const cfg = config(prefixed).plugins({
+      routes() {
+        const routes: ViewRoute[] = [];
+        for (const lang of ["en", "cn"])
+          routes.push({
+            path: "/blog",
+            lang,
+            view: () => ({ title: `Blog ${lang}`, description: "Posts", node: `posts:${lang}` }),
+          });
+        routes.push({
+          path: "/tags/[tag]",
+          lang: "cn",
+          staticPaths: ["react", "vue"],
+          view: ({ tag }) => (tag === "react" ? { node: `tag:${tag}` } : undefined),
+        });
+        return routes;
+      },
+      async configureRoutes() {
+        framework = await this.getFrameworkPages();
+      },
+    });
+    await routes(cfg);
+
+    expect(route("/cn/blog").render).toBe("static");
+    expect(route("/cn/tags/[tag]").staticPaths).toEqual(["react", "vue"]);
+    const blog = await html(route("/cn/blog"), { path: "/cn/blog" });
+    expect(blog).toContain("<title>Blog cn</title>");
+    expect(blog).toContain('<meta name="description" content="Posts"/>');
+    expect(blog).toContain('<main data-home="cn">posts:cn</main>');
+    expect(blog).toContain(
+      '<link rel="alternate" hrefLang="en" href="https://example.com/en/blog"/>',
+    );
+    expect(await html(route("/cn/tags/[tag]"), { path: "/cn/tags/react" })).toContain(
+      '<main data-home="cn">tag:react</main>',
+    );
+    await expect(html(route("/cn/tags/[tag]"), { path: "/cn/tags/vue" })).rejects.toThrow(
+      "not found",
+    );
+    // the pages of the framework list each view once, like the sitemap
+    expect(framework.map((page) => page.path)).toEqual([
+      "/en/blog",
+      "/cn/blog",
+      "/cn/tags/react",
+      "/cn/tags/vue",
+    ]);
+  });
+
+  it("serves the views of the hidden default language without prefix", async () => {
+    await routes(
+      config(hidden).plugins({
+        routes: () => [
+          {
+            path: "/(blog)/tags/[tag]",
+            lang: "en",
+            staticPaths: ["react"],
+            view: ({ tag }) => ({ node: `en:${tag}` }),
+          },
+          {
+            path: "/tags/[tag]",
+            lang: "cn",
+            staticPaths: ["react"],
+            view: ({ tag }) => ({ node: `cn:${tag}` }),
+          },
+        ],
+      }),
+    );
+
+    const en = await html(route("/(default)/(blog)/tags/[tag]"), { path: "/tags/react" });
+    expect(en).toContain('<main data-home="en">en:react</main>');
+    expect(en).toContain(
+      '<link rel="alternate" hrefLang="cn" href="https://example.com/cn/tags/react"/>',
+    );
+    expect(await html(route("/cn/tags/[tag]"), { path: "/cn/tags/react" })).toContain(
+      '<main data-home="cn">cn:react</main>',
+    );
+  });
+
+  it("renders the view of a content page in place of `renderPage`, plugins wrap it", async () => {
+    await routes(
+      config(undefined).plugins(
+        { getPageView: (page) => (page.slugs[0] === "guide" ? { node: "post" } : undefined) },
+        { renderPage: ({ fallback }) => createElement("div", null, fallback) },
+      ),
+    );
+
+    expect(await html(route("/[...slugs]"), { slugs: ["guide"] })).toContain(
+      '<div><main data-home="">post</main></div>',
+    );
+    expect(await html(route("/[...slugs]"), { slugs: [] })).toContain("<div>undefined:</div>");
   });
 
   it("registers the routes of plugins as Waku APIs", async () => {
@@ -435,6 +551,59 @@ describe("createMiddlewares", () => {
       await handler(c as never, next);
       expect(await c.res!.text()).toBe(text);
     }
+  });
+});
+
+describe("createMiddlewares on client navigations", () => {
+  it("runs the middleware of plugins on the page, addressing redirects and rewrites like the request", async () => {
+    const seen: string[] = [];
+    const router = await createRouter(
+      config(undefined, "default").plugins({
+        async middleware(request, next) {
+          seen.push(request.url);
+          const { pathname } = new URL(request.url);
+          if (pathname === "/old") return Response.redirect(new URL("/new?a=1", request.url), 308);
+          if (pathname === "/away") return Response.redirect("https://example.org/", 307);
+          if (pathname === "/alias") return next("/guide");
+          return next();
+        },
+      }) as ConfigUtils,
+    );
+    const handler = router.createMiddlewares()[1]!({
+      app: { fetch: async (req: Request) => new Response(req.url) },
+    } as never);
+    const request = async (url: string) => {
+      const c = { req: { raw: new Request(url), url }, res: undefined as Response | undefined };
+      await handler(c as never, async () => {
+        c.res = new Response("next");
+      });
+      return c.res!;
+    };
+
+    const redirect = await request("http://localhost/RSC/R/old.txt?query=");
+    expect(redirect.status).toBe(308);
+    expect(redirect.headers.get("Location")).toBe("http://localhost/RSC/R/new.txt?query=a%3D1");
+    expect((await request("http://localhost/RSC/R/away.txt?query=")).headers.get("Location")).toBe(
+      "https://example.org/",
+    );
+    expect(await (await request("http://localhost/RSC/R/alias.txt?query=x")).text()).toBe(
+      "http://localhost/RSC/R/guide.txt?query=x",
+    );
+    expect(await (await request("http://localhost/RSC/R/guide.txt?query=")).text()).toBe("next");
+    expect(seen).toEqual([
+      "http://localhost/old",
+      "http://localhost/away",
+      "http://localhost/alias?x",
+      "http://localhost/guide",
+    ]);
+
+    // document requests are the page itself, as requested
+    expect((await request("http://localhost/old")).headers.get("Location")).toBe(
+      "http://localhost/new?a=1",
+    );
+    seen.length = 0;
+    await request("http://localhost/guide/?flag");
+    expect(seen).toEqual(["http://localhost/guide/?flag"]);
   });
 });
 

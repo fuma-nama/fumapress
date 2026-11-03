@@ -2,6 +2,7 @@ import { createElement, type ComponentType, type ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { Meta, Page } from "fumadocs-core/source";
 import type { Context, InferLoaderConfig } from "./context";
+import type { SearchPluginAPI } from "./search";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -14,11 +15,37 @@ export interface AppShape {
   source: string | undefined;
 }
 
+/** the API of the plugin providing a capability, from `this.getProvider(capability)?.api`, extend it for your capabilities */
+export interface CapabilityAPI {
+  search: SearchPluginAPI;
+  "og-image": unknown;
+}
+
 /** features only one plugin can provide, the preset fills the ones no plugin provides */
-export type Capability = "search" | "og-image" | (string & {});
+export type Capability = keyof CapabilityAPI | (string & {});
+
+/** the plugin providing the capability `K`, its `api` is the API of the capability */
+export type Provider<K extends Capability> = Plugin & {
+  api?: K extends keyof CapabilityAPI ? CapabilityAPI[K] : unknown;
+};
+
+/** content of a plugin in the home layout of the site */
+export interface View extends Framework.PageBody {
+  /** the title of the page */
+  title?: string;
+  description?: string;
+}
+
+/** a page of a plugin outside the content, it renders a view in the home layout of the site */
+export interface ViewRoute extends Pick<Framework.ApiRoute, "path" | "render" | "staticPaths"> {
+  /** the language of the page: the site prefixes `path` with it, and links the pages of other languages at the same `path` as its translations */
+  lang?: string;
+  /** the content of the page at the params of `path`, `undefined` for the 404 page */
+  view: (params: Framework.RouteParams) => Awaitable<View | undefined>;
+}
 
 /**
- * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, an API for other plugins and slots.
+ * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, an API for other plugins, views and slots.
  *
  * Plugins of the framework API, like the ones of integrations, fit every site. Create plugins with generic functions, like `myPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(options: MyOptions<NoInfer<C>, NoInfer<Ctx>>): Plugin<C, Ctx>`, to type the pages and the `this` of callbacks in their options by the site.
  *
@@ -31,14 +58,20 @@ export interface Plugin<
   /** only one plugin can provide each capability */
   provides?: readonly Capability[];
 
-  /** an API for other plugins, from `this.getPlugin(name)?.api` */
+  /** an API for other plugins, from `this.getPlugin(name)?.api`, the one of {@link CapabilityAPI} for the capabilities it provides */
   api?: unknown;
+
+  /** API routes, and pages rendering a view in the home layout of the site */
+  routes?(this: Ctx): Awaitable<(Framework.ApiRoute | ViewRoute)[] | undefined>;
+
+  /** a content page in the home layout of the site instead of the docs layout, like a blog post, with the head of the page */
+  getPageView?(this: Ctx, page: C["page"]): Awaitable<Framework.PageBody | undefined>;
 
   /** runs once after the site is built, not on dev or production servers; throw to fail the build */
   build?(this: Ctx, output: PressBuildOutput): Awaitable<void>;
 
-  /** UI in the slots of a content page, collected from every plugin */
-  slots?(this: Ctx, env: { page: C["page"] }): Awaitable<SlotItem[] | undefined>;
+  /** UI in the slots of pages, collected from every plugin: with the content page as `page`, without it for `layout.wrapper` */
+  slots?(this: Ctx, env: { page?: C["page"] }): Awaitable<SlotItem[] | undefined>;
 }
 
 /** the build output of a site, with the links of its prerendered pages */
@@ -154,13 +187,14 @@ export interface DocsPageData extends Framework.DocsPageData {
 }
 
 /**
- * Places for UI on a content page, every layout renders them:
+ * Places for UI, every layout renders them:
  *
- * - `page.actions`: beside the page actions, like copying the Markdown.
- * - `page.footer`: after the content.
- * - `body.wrapper`: around the content, the component receives it as `children`.
+ * - `page.actions`: beside the page actions of a content page, like copying the Markdown.
+ * - `page.footer`: after the content of a content page.
+ * - `body.wrapper`: around the content of a content page, the component receives it as `children`.
+ * - `layout.wrapper`: around the layout of every page, inside the root provider, like `body.wrapper`.
  */
-export type SlotName = "page.actions" | "page.footer" | "body.wrapper";
+export type SlotName = "page.actions" | "page.footer" | "body.wrapper" | "layout.wrapper";
 
 export interface SlotItem {
   slot: SlotName;

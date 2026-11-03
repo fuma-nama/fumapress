@@ -133,7 +133,7 @@ export function createDocsLikeLayoutPage<
     const [source, data, slots] = await Promise.all([
       ctx.getLoader(),
       ctx.getPageData(page),
-      ctx.getSlots(page),
+      ctx.getSlots({ page }),
     ]);
 
     const _raw = await render?.call(ctx, page);

@@ -34,7 +34,7 @@ async function generate(
         sitemapPlugin(options),
       ],
     },
-    { base: "/repo/", getFrameworkPages: () => frameworkPages },
+    { base: "/repo/", getFrameworkPages: async () => frameworkPages },
   );
   const [route] = await ctx.getApiRoutes();
 

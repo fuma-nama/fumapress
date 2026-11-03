@@ -1,6 +1,6 @@
 import type { RouteParams } from "fumadocs-core/framework/plugin";
 import { findPath } from "fumadocs-core/page-tree";
-import type { Context } from "./context";
+import type { Context, FrameworkPage } from "./context";
 
 /** `pathname` without the base path `base` (`withBase('/')`), `undefined` outside of it */
 export function stripBase(pathname: string, base: string): string | undefined {
@@ -86,11 +86,31 @@ export function matchRoute(pattern: string, pathname: string): RouteParams | und
   if (i === segments.length) return params;
 }
 
+/**
+ * Localizes the pages of routes: `pathname` (without the language prefix) in `lang`, the pages of
+ * other languages at the same pathname are its translations. Call it for every page of the routes.
+ */
+export function createLocalizer(
+  ctx: Context,
+): (lang: string | undefined, pathname: string) => FrameworkPage {
+  const translations = new Map<string, FrameworkPage["translations"]>();
+  return (lang, pathname) => {
+    let siblings = translations.get(pathname);
+    if (!siblings) translations.set(pathname, (siblings = []));
+    const path = ctx.localizePath(lang, pathname);
+    if (lang) siblings.push({ locale: lang, path });
+    return { path, translations: siblings };
+  };
+}
+
 /** the home of a language (without the base path): its `/`, or its first page when nothing is there */
 export async function getHomeUrl(ctx: Context, lang?: string): Promise<string> {
   const home = ctx.localizePath(lang, "/");
   const loader = await ctx.getLoader();
-  if (loader.getPageByUrl(home, lang) || ctx.getFrameworkPages().some((page) => page.path === home))
+  if (
+    loader.getPageByUrl(home, lang) ||
+    (await ctx.getFrameworkPages()).some((page) => page.path === home)
+  )
     return home;
   // links of meta files aren't pages
   const path = findPath(
@@ -106,6 +126,6 @@ export async function getHomeUrl(ctx: Context, lang?: string): Promise<string> {
 export async function rootRedirect(ctx: Context): Promise<string | undefined> {
   const i18n = ctx.i18nConfig;
   if (!i18n || i18n.hideLocale === "default-locale") return;
-  if (ctx.getFrameworkPages().some((page) => page.path === "/")) return;
+  if ((await ctx.getFrameworkPages()).some((page) => page.path === "/")) return;
   return getHomeUrl(ctx, i18n.defaultLanguage);
 }

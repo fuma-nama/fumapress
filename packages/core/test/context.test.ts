@@ -10,6 +10,7 @@ import {
   type PressConfig,
   type PressRuntime,
 } from "@/context";
+import type { Plugin } from "@/plugin";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
@@ -196,18 +197,46 @@ describe("page hooks", () => {
             { slot: "page.actions", component: B },
           ],
         },
-        { slots: ({ page }) => [{ slot: "page.footer", component: C, props: { url: page.url } }] },
+        { slots: ({ page }) => [{ slot: "page.footer", component: C, props: { url: page?.url } }] },
         {},
       ],
     });
 
-    await expect(ctx.getSlots(await getPage(ctx, []))).resolves.toEqual({
+    await expect(ctx.getSlots({ page: await getPage(ctx, []) })).resolves.toEqual({
       "page.footer": [
         { slot: "page.footer", component: C, props: { url: "/" } },
         { slot: "page.footer", component: A, order: 1 },
       ],
       "page.actions": [{ slot: "page.actions", component: B }],
     });
+  });
+
+  it("collect slots without a page, for the layout of every page", async () => {
+    const Banner = () => null;
+    const slots = vi.fn<NonNullable<Plugin["slots"]>>(({ page }) =>
+      page ? [] : [{ slot: "layout.wrapper", component: Banner }],
+    );
+    const ctx = await createSite({ plugins: [{ slots }] });
+
+    await expect(ctx.getSlots({})).resolves.toEqual({
+      "layout.wrapper": [{ slot: "layout.wrapper", component: Banner }],
+    });
+    expect(slots).toHaveBeenCalledWith({});
+  });
+
+  it("resolve the view of a content page to the first plugin rendering it", async () => {
+    const ctx = await createSite({
+      plugins: [
+        { getPageView: (page) => (page.path === "index.mdx" ? undefined : { node: "post" }) },
+        { getPageView: () => ({ node: "other" }) },
+      ],
+    });
+
+    await expect(ctx.getPageView(await getPage(ctx, ["docs", "basics"]))).resolves.toEqual({
+      node: "post",
+    });
+    await expect(ctx.getPageView(await getPage(ctx, []))).resolves.toEqual({ node: "other" });
+    await expect((await createSite()).getPageView(await getPage(ctx, []))).resolves.toBeUndefined();
   });
 });
 
@@ -444,6 +473,53 @@ describe("getApiRoutes", () => {
       'two routes handle GET requests to "/api"',
     );
     await expect((await routes({ GET }, { POST: GET })).getApiRoutes()).resolves.toHaveLength(2);
+  });
+});
+
+describe("getViewRoutes", () => {
+  const view = () => ({ node: "view" });
+
+  it("keeps the routes rendering a view out of the API routes", async () => {
+    const ctx = await createSite({
+      plugins: [
+        {
+          routes: () => [
+            { path: "/blog", lang: "en", view },
+            { path: "/blog/[tag]", staticPaths: ["react"], view },
+            { path: "/live", render: "dynamic", view },
+            { path: "/feed.xml", GET },
+          ],
+        },
+      ],
+    });
+
+    expect((await ctx.getApiRoutes()).map((route) => route.path)).toEqual(["/feed.xml"]);
+    await expect(ctx.getViewRoutes()).resolves.toEqual([
+      { path: "/blog", lang: "en", view, render: "static" },
+      { path: "/blog/[tag]", staticPaths: ["react"], view, render: "static" },
+      { path: "/live", render: "dynamic", view },
+    ]);
+  });
+
+  it("rejects static views with params but no `staticPaths`", async () => {
+    const ctx = await createSite({ plugins: [{ routes: () => [{ path: "/blog/[tag]", view }] }] });
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow('the static route "/blog/[tag]" has params');
+  });
+
+  it("creates the routes of plugins once per content", async () => {
+    let files = [page("index.mdx")];
+    const routes = vi.fn(() => [{ path: "/blog", view }]);
+    const ctx = await createSite({ content: { files: () => files }, plugins: [{ routes }] });
+
+    await ctx.getApiRoutes();
+    await ctx.getViewRoutes();
+    expect(routes).toHaveBeenCalledTimes(1);
+
+    files = [page("index.mdx"), page("other.mdx")];
+    await ctx.revalidateLoader();
+    await ctx.getViewRoutes();
+    expect(routes).toHaveBeenCalledTimes(2);
   });
 });
 

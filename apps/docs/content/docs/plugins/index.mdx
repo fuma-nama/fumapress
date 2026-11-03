@@ -44,7 +44,86 @@ export function myPlugin<C extends AppShape = AppShape>(): Plugin<C> {
 
 `this` in hooks is the app context, with the content loader and the resolved config. Other hooks transform page data (`transformPage`), render the pages of a content source (`getPageBody`, `getPageText`, ...), and check the built site (`build`).
 
+A plugin providing a capability, like `provides: ["search"]`, exposes its API: `this.getProvider("search")?.api` is typed by `CapabilityAPI`.
+
 On Waku, use `PressPlugin` and `AppShape` of `fumapress` in place of the `@fumapress/core` types: `PressPlugin` has these hooks too, with the [Waku hooks](#waku-hooks) on top.
+
+## Views
+
+A route with a `view` is a page in the home layout of the site, like a changelog. `view()` returns its content, with the title and description of the page:
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, Plugin, ViewRoute } from "@fumapress/core";
+
+export function changelogPlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "changelog",
+    routes() {
+      const routes: ViewRoute[] = [];
+      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        routes.push({
+          path: "/changelog",
+          lang,
+          view: () => ({ title: "Changelog", node: <p>Releases in {lang}</p> }),
+        });
+      }
+      return routes;
+    },
+  };
+}
+```
+
+The site prefixes `path` with the language of `lang`, and links the pages of other languages at the same `path` as translations. Like API routes, static pages list their params in `staticPaths`. `view()` returns `undefined` for a 404.
+
+To render a content page in the home layout, like a blog post, return it from `getPageView()`:
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, Plugin } from "@fumapress/core";
+
+function Post({ title }: { title?: string }) {
+  return <h1>{title}</h1>;
+}
+
+export function blogPlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "blog",
+    getPageView(page) {
+      if (page.type === "blog") return { node: <Post title={page.data.title} /> };
+    },
+  };
+}
+```
+
+The page keeps its head. Its view replaces the layout of docs pages, the `renderPage` of your config on Waku and your `page` module on Astro.
+
+## Slots
+
+`slots()` adds UI to the layouts: `page.actions`, `page.footer` and `body.wrapper` of content pages with `page`, and `layout.wrapper` around the layout of every page, without `page`:
+
+```tsx title="my-plugin.tsx"
+import type { AppShape, Plugin } from "@fumapress/core";
+import type { ReactNode } from "react";
+
+function Banner({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <p>We are hiring!</p>
+      {children}
+    </>
+  );
+}
+
+export function bannerPlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "banner",
+    slots({ page }) {
+      if (!page) return [{ slot: "layout.wrapper", component: Banner }];
+    },
+  };
+}
+```
+
+Wrappers receive what they wrap as `children`. On Astro, client components hydrate with their `props`, which must be serializable.
 
 ## Middlewares
 
@@ -69,6 +148,8 @@ export function redirectsPlugin<C extends AppShape = AppShape>(
 ```
 
 Call `next(path)` to serve another path instead. Middlewares require a server, they don't apply to a static deployment.
+
+On Waku, client navigations run them too, with the request of the page: their redirects and rewrites reach the client router.
 
 ## Waku Hooks
 

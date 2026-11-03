@@ -6,6 +6,7 @@ export {
   type AppShape,
   type Awaitable,
   type Capability,
+  type CapabilityAPI,
   type DocsPageData,
   type Plugin,
   type PluginOption,
@@ -13,6 +14,8 @@ export {
   type PressBuildOutput,
   type SlotItem,
   type SlotName,
+  type View,
+  type ViewRoute,
 } from "./plugin";
 export {
   createPress,
@@ -28,5 +31,13 @@ export {
   type PressRuntime,
   type SiteConfig,
 } from "./context";
-export { expandRoute, getHomeUrl, matchRoute, rootRedirect, stripBase } from "./routes";
+export {
+  createLocalizer,
+  expandRoute,
+  getHomeUrl,
+  matchRoute,
+  rootRedirect,
+  stripBase,
+} from "./routes";
+export type { SearchPluginAPI } from "./search";
 export type { GitProvider } from "./git";

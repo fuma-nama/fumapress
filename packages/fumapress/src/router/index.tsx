@@ -9,17 +9,22 @@ import {
 import { createElement, FC, Fragment, ReactNode } from "react";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import {
+  createLocalizer,
   expandRoute,
   getHomeUrl,
+  matchRoute,
   pageAlternate,
   pageLinks,
   rootRedirect,
+  stripBase,
   type FrameworkPage,
   type PageAlternate,
   type PressBuildOutput,
 } from "@fumapress/core";
 import type { ConfigUtils } from "../config";
+import { createHomeLayout } from "@/layouts/home";
 import {
+  unstable_formatRouterRequest,
   unstable_getRequest,
   unstable_notFound,
   unstable_parseRouterRequest,
@@ -35,6 +40,10 @@ type Options = Parameters<typeof base_createPages>[1];
 
 /** route group of pages without a language prefix, rendered inside the root layout of the default language */
 const DEFAULT_GROUP = "/(default)";
+const rscBase: string = import.meta.env.WAKU_CONFIG_RSC_BASE ?? "RSC";
+
+/** the layout of views, the content of plugins outside the docs layout */
+const ViewLayout = createHomeLayout();
 
 export interface Router<C extends AppShape = AppShape> {
   createPages: (
@@ -76,11 +85,7 @@ export async function createRouter<U extends ConfigUtils>(
         if (out === "/" && i18n) return DEFAULT_GROUP;
         return out;
       };
-      // the pages of the languages by path, then by pathname: they are translations
-      const translations = new Map<
-        string,
-        Map<string, PressRoute["pages"][number]["translations"]>
-      >();
+      const localize = createLocalizer(context);
 
       const fns: RouteFns = {
         ..._fns,
@@ -115,8 +120,6 @@ export async function createRouter<U extends ConfigUtils>(
         }) {
           const Page = component as FC<{ lang?: string }>;
           const { pattern, pages } = expandRoute(path, staticPaths, exactPath);
-          let siblingsOf = translations.get(path);
-          if (!siblingsOf) translations.set(path, (siblingsOf = new Map()));
           const byPath = new Map<string, PressRoute["pages"][number]>();
           const route: PressRoute = {
             ...options,
@@ -143,14 +146,7 @@ export async function createRouter<U extends ConfigUtils>(
           };
 
           for (const { pathname, params } of pages) {
-            let siblings = siblingsOf.get(pathname);
-            if (!siblings) siblingsOf.set(pathname, (siblings = []));
-            const page = {
-              path: context.localizePath(lang, pathname),
-              params,
-              translations: siblings,
-            };
-            if (lang) siblings.push({ locale: lang, path: page.path });
+            const page = { ...localize(lang, pathname), params };
             byPath.set(page.path, page);
             route.pages.push(page);
           }
@@ -178,7 +174,13 @@ export async function createRouter<U extends ConfigUtils>(
         const page = source.getPage(slugs, lang);
         if (!page) unstable_notFound();
 
-        let fallback: ReactNode = renderPage({ lang, slugs, page });
+        // the view of a plugin replaces the layout of docs pages, `renderPage` of plugins wraps either
+        const view = await context.getPageView(page);
+        let fallback: ReactNode = view ? (
+          <ViewLayout lang={lang}>{view.node}</ViewLayout>
+        ) : (
+          renderPage({ lang, slugs, page })
+        );
         for (const plugin of context.plugins) {
           const res: ReactNode = await plugin.renderPage?.call(context, {
             fallback,
@@ -203,6 +205,29 @@ export async function createRouter<U extends ConfigUtils>(
 
       for (const plugin of context.plugins) {
         await plugin.createPages?.call(context, fns);
+      }
+
+      for (const { path, lang, render, staticPaths, view } of await context.getViewRoutes()) {
+        const pattern = context.localizePath(lang, expandRoute(path, undefined).pattern);
+        fns.createPage({
+          path,
+          lang,
+          render,
+          staticPaths,
+          component: async (props: RouteProps) => {
+            const params = matchRoute(pattern, props.path);
+            const content = params && (await view(params));
+            if (!content) unstable_notFound();
+
+            return (
+              <>
+                {content.title && <title>{content.title}</title>}
+                {content.description && <meta name="description" content={content.description} />}
+                <ViewLayout lang={lang}>{content.node}</ViewLayout>
+              </>
+            );
+          },
+        });
       }
 
       for (const plugin of context.plugins) {
@@ -356,18 +381,52 @@ export async function createRouter<U extends ConfigUtils>(
     };
   }
 
-  /** the `middleware` of plugins, `next(path)` serves another path of the app */
+  /**
+   * The `middleware` of plugins, `next(path)` serves another path of the app.
+   *
+   * Client navigations request the RSC payload of a page: plugins see the request of the page, and its rewrites and redirects are addressed the way the request addressed its route.
+   */
   function pressMiddleware({ app }: { app: Hono }): MiddlewareHandler {
     return async (c, next) => {
+      const { raw } = c.req;
+      const route = unstable_parseRouterRequest(raw);
+      let request = raw;
+      // RSC requests of client navigations, the query is undefined when the router's params are in the body
+      if (
+        route?.type === "route" &&
+        route.query !== undefined &&
+        new URL(raw.url).pathname.startsWith(context.withBase(`/${rscBase}/`))
+      ) {
+        const url = new URL(context.withBase(route.path), raw.url);
+        url.search = route.query;
+        request = new Request(url, raw);
+      }
+      /** a path of the app, like the request addressed its route */
+      const address = (path: string, query?: string): URL =>
+        (request !== raw && unstable_formatRouterRequest(raw, path, query)) ||
+        new URL(context.withBase(path), raw.url);
+
       let passed: Response | undefined;
-      const response = await context.handleRequest(c.req.raw, async (rewrite) => {
-        if (rewrite !== undefined)
-          return app.fetch(new Request(new URL(context.withBase(rewrite), c.req.url), c.req.raw));
+      let response = await context.handleRequest(request, async (rewrite) => {
+        if (rewrite !== undefined) return app.fetch(new Request(address(rewrite), raw));
 
         await next();
         return (passed = c.res);
       });
       if (response === passed) return;
+
+      const location = response.headers.get("Location");
+      if (request !== raw && location && response.status >= 300 && response.status < 400) {
+        const target = new URL(location, request.url);
+        const path =
+          target.origin === new URL(raw.url).origin
+            ? stripBase(target.pathname, context.withBase("/"))
+            : undefined;
+        if (path !== undefined) {
+          response = new Response(response.body, response);
+          response.headers.set("Location", address(path, target.search.slice(1)).href);
+        }
+      }
 
       // clear first, assigning over an existing response merges its headers in Hono
       c.res = undefined;

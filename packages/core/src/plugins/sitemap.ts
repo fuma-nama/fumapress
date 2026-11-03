@@ -318,7 +318,7 @@ export function sitemapPlugin<C extends AppShape = AppShape, Ctx extends Context
               entries.push(entry);
             }
 
-            for (const page of this.getFrameworkPages()) {
+            for (const page of await this.getFrameworkPages()) {
               const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;
 

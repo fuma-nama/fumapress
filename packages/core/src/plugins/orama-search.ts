@@ -5,7 +5,7 @@ import {
 } from "fumadocs-core/search/server";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { buildIndexDefault, searchRoute } from "../search";
+import { buildIndexDefault, searchRoute, type SearchPluginAPI } from "../search";
 
 export interface OramaSearchOptions<
   C extends AppShape = AppShape,
@@ -30,6 +30,7 @@ export function oramaSearchPlugin<
   return {
     name: "core:orama-search",
     provides: ["search"],
+    api: { staticIndex: "orama" } satisfies SearchPluginAPI,
     routes() {
       const server = createFromSource(() => this.getLoader(), {
         ...options,

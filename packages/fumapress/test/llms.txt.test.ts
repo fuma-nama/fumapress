@@ -18,7 +18,8 @@ import { createApp } from "./fixtures";
 async function createRoutes(ctx: AppContext, options: LLMsOptions = {}, routes: PressRoute[] = []) {
   const handlers = new Map<string, RouteHandler>();
   const plugin = llmsPlugin(options);
-  for (const route of (await plugin.routes!.call(ctx)) ?? []) handlers.set(route.path, route.GET!);
+  for (const route of (await plugin.routes!.call(ctx)) ?? [])
+    if (!("view" in route)) handlers.set(route.path, route.GET!);
 
   const register = (config: { path: string; handler: RouteHandler }) => {
     handlers.set(config.path, config.handler);

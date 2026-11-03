@@ -1,11 +1,22 @@
 import { type AppShape, getPressContext } from "@/app/context";
+import { wrapSlot, type SearchPluginAPI } from "@fumapress/core";
+import type { SharedProps } from "fumadocs-ui/components/dialog/search";
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentType, ReactElement, ReactNode } from "react";
 import type { Awaitable } from "@/lib/types";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
 import { Interceptor, renderWithInterceptors } from "@/lib/interceptors";
+
+/** the search dialogs of static indexes, searched in the browser */
+const staticDialogs = {
+  flexsearch: () => import("@/components/flexsearch-static"),
+  orama: () => import("@/components/orama-search-static"),
+} satisfies Record<
+  NonNullable<SearchPluginAPI["staticIndex"]>,
+  () => Promise<{ default: ComponentType<SharedProps> }>
+>;
 
 export interface RootLayoutOptions {
   providerProps?: Omit<PressProviderProps, "children">;
@@ -33,9 +44,10 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
   return async function ({ lang, children }: { lang?: string; children: ReactNode }) {
     const ctx = getPressContext<C>();
     const layoutData = ctx.data["core:provider"] ?? {};
+    const slots = await ctx.getSlots({});
     let providerProps: PressProviderProps = {
       ..._options?.providerProps,
-      children,
+      children: wrapSlot(slots["layout.wrapper"], children),
     };
 
     if (ctx.translationsConfig && "config" in ctx.translationsConfig) {
@@ -54,6 +66,9 @@ export function createRootLayout<C extends AppShape = AppShape>(_options?: RootL
     // search plugins serve `/api/search`, the search dialog is disabled without one
     const search = ctx.getProvider("search");
     providerProps.search ??= { enabled: search !== undefined };
+    const staticIndex = ctx.mode === "static" ? search?.api?.staticIndex : undefined;
+    if (staticIndex)
+      providerProps.search.SearchDialog ??= (await staticDialogs[staticIndex]()).default;
 
     const renderProvider = renderWithInterceptors(
       ctx,
