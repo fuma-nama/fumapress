@@ -6,7 +6,6 @@ import { cancel, confirm, intro, isCancel, log, outro, select, text } from "@cla
 import { cac } from "cac";
 import { x } from "tinyexec";
 import * as astroPkg from "../../astro/package.json";
-import * as corePkg from "../../core/package.json";
 import * as versionsPkg from "../../create-fumapress-versions/package.json";
 import * as fumapressPkg from "../../fumapress/package.json";
 
@@ -27,7 +26,6 @@ const versions = {
   ...versionsPkg.devDependencies,
   fumapress: fumapressPkg.version,
   "@fumapress/astro": astroPkg.version,
-  "@fumapress/core": corePkg.version,
 };
 
 type Dependency = keyof typeof versions;
@@ -73,7 +71,6 @@ const frameworks = {
       "@astrojs/react",
       "@fumadocs/astro",
       "@fumapress/astro",
-      "@fumapress/core",
       "astro",
       "fumadocs-core",
       "fumadocs-ui",
@@ -308,10 +305,11 @@ export default defineConfig({
 `,
       "press.config.tsx": `import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
-import { defineConfig } from "@fumapress/astro/config";
+import { createPress } from "@fumapress/astro/config";
 
-export default defineConfig({
-  content: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+).config({
   site: {
     name: ${JSON.stringify(name)},
   },
@@ -350,8 +348,7 @@ dist
 .source
 src/pages.gen.ts
 `,
-    "press.config.tsx": `import { defineConfig } from "fumapress";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
+    "press.config.tsx": `import { createPress } from "fumapress";
 import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
 import { defineDocs } from "fumadocs-mdx/macro";
 
@@ -370,29 +367,24 @@ const docs = defineDocs({
   },
 });
 
-export default defineConfig({
-  content: docs.toFumadocsSource(),
+export default createPress(docs.toFumadocsSource()).config({
   site: {
     name: ${JSON.stringify(name)},
     // the URL where your site is deployed, needed for SEO features like sitemap:
     // baseUrl: "https://example.com",
   },
-  meta: {
-    root() {
-      return (
-        <>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
-            rel="stylesheet"
-          />
-        </>
-      );
+  head: [
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" } },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+      },
     },
-  },
-})
-  .adapters(fumadocsMdx());
+  ],
+});
 `,
     "src/app.css": `@import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
