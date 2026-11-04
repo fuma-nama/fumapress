@@ -72,15 +72,14 @@ declare module "@fumapress/core" {
 export interface WakuHooks<C extends AppShape> {
   /**
    * collect: Waku pages, layouts, slices and handler interceptors of the plugin, with Fumapress' `lang` on pages and
-   * layouts. Called once, it covers every language itself (unlike `views` and `pageRoutes`). Layouts only in route groups
-   * (`/(name)`): the site owns its pages, a plugin layout never wraps them. Not the root (`ui.renderRoot` is the site's), no
-   * `getRoutes()` (routes derived from the final list are `pageRoutes`), and no `createApi` (API routes are core
-   * `routes()`, on both runtimes). A path taken twice by pages or by layouts, or a slice id taken twice, is an error naming
-   * both; your own page or layout wins.
+   * layouts. Called once, it covers every language itself (unlike `views` and `deriveRoutes`). Layouts only in route groups
+   * (`/(name)`): the site owns its pages, a plugin layout never wraps them. Not the root (`ui.renderRoot` is the site's), and
+   * no `createApi` (API routes are core `apiRoutes()`, on both runtimes). A path taken twice by pages or by layouts, or a
+   * slice id taken twice, is an error naming both; your own page or layout wins.
    */
   createPages?: (
     this: Context<C>,
-    fns: Omit<WakuRouteFns<Press<C>>, "getRoutes" | "createRoot" | "createApi">,
+    fns: Omit<WakuRouteFns<Press<C>>, "createRoot" | "createApi">,
   ) => Awaitable<void>;
   /**
    * chain: a Hono middleware of the server (Waku's `middlewareFns`), for the Hono context (`c.env`, `c.executionCtx`);
@@ -114,13 +113,6 @@ export function setPressContext(ctx: Context) {
   current = ctx;
 }
 
-/** your own routes of a custom entry, typed by the site: `createPages<typeof app>((fns) => ...)` */
-export function createPages<A extends Press<any, any> = Press>(
-  fn: (this: Context, fns: WakuRouteFns<A>) => Awaitable<void>,
-) {
-  return fn;
-}
-
 /** the context of the site, for your own pages and routes: `getPressContext<typeof app>()` */
 export function getPressContext<A extends Press<any, any> = Press>(): PressContext<A> {
   if (!current)
@@ -131,7 +123,7 @@ export function getPressContext<A extends Press<any, any> = Press>(): PressConte
 /** the core preset, plus the image optimizer of the platform (Vercel, Cloudflare, else self-hosted with `sharp`) */
 export function recommendedPreset<C extends WakuAppShape = WakuAppShape>(): PresetEntry<
   Plugin<C, any>,
-  ReturnType<typeof core.recommendedPreset>[number]["name"] | "waku:image"
+  ReturnType<typeof core.recommendedPreset>[number]["provides"] | "image"
 >[] {
   const out: ReturnType<typeof recommendedPreset<C>> = core.recommendedPreset<C>();
   // the platform of the deployment adapter, baked in at build time
@@ -144,7 +136,7 @@ export function recommendedPreset<C extends WakuAppShape = WakuAppShape>(): Pres
   else if (platform === "node" && hasSharp())
     load = async () => (await import("./plugins/image/self-hosted")).selfHostedImage<C>();
 
-  if (load) out.push({ name: "waku:image", provides: "image", load });
+  if (load) out.push({ provides: "image", load });
   return out;
 }
 

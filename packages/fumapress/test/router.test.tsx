@@ -195,7 +195,7 @@ describe("createPages", () => {
       await recorded.pending;
     }
     const served: string[] = [];
-    for (const route of await getPressContext().getFrameworkRoutes()) served.push(route.path);
+    for (const route of await getPressContext().getRoutes()) served.push(route.path);
     expect(served).toEqual(["/b"]);
   });
 

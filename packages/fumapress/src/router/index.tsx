@@ -7,13 +7,11 @@ import {
   type AppShape,
   type Awaitable,
   type Context,
-  type FrameworkPage,
-  type FrameworkRoute,
+  type PageRoute,
   type Plugin,
   type PluginInfo,
   type Press,
   type PressBuildOutput,
-  type RoutedView,
   type RouteOptions,
 } from "@fumapress/core";
 import {
@@ -28,15 +26,11 @@ import {
   wrapSlot,
   type PressInput,
   type RenderTarget,
+  type RoutedView,
   type RuntimeRoute,
 } from "@fumapress/core/runtime";
 import { HomeShell, mergeI18n, renderDefault, siteI18n } from "@fumapress/core/runtime/ui";
-import {
-  methods,
-  type ApiRoute,
-  type RouteHandler,
-  type RouteParams,
-} from "fumadocs-core/framework/plugin";
+import { methods, type ApiRoute, type RouteHandler } from "fumadocs-core/framework/plugin";
 import type { HeadTag } from "fumadocs-core/framework/plugin";
 import { renderRoute } from "fumadocs-core/server";
 import {
@@ -51,6 +45,7 @@ import {
   type CreateSlice,
 } from "waku/router/server";
 import type { Hono } from "hono/tiny";
+import type { ApiContext } from "waku/router";
 import type { MiddlewareHandler } from "hono";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
@@ -82,15 +77,16 @@ export interface WakuRouteConfig extends RouteOptions {
 
 type LangOf<A extends Press<any, any>> = NonNullable<A["~types"]>["content"]["lang"];
 
-/** props of your own pages and layouts: `WakuRouteProps<typeof app>` */
-export interface WakuRouteProps<A extends Press<any, any> = Press> {
+/** props of your own pages and layouts: `WakuRouteProps<typeof app, "/showcase/[slug]">` types the params of the path */
+export type WakuRouteProps<A extends Press<any, any> = Press, Path extends string = string> = {
   /** the rendered path, without the base path */
   path: string;
   lang: LangOf<A>;
-  [param: string]: string | string[] | undefined;
-}
+} & (string extends Path
+  ? { [param: string]: string | string[] | undefined }
+  : ApiContext<Path>["params"]);
 
-/** your own routes and the ones of `waku.createPages`: `createPages<typeof app>(...)` types `lang` */
+/** your own routes and the ones of `waku.createPages`, `WakuPageOptions<typeof app>` types `lang` */
 export interface WakuPageOptions<A extends Press<any, any> = Press> extends Omit<
   WakuRouteConfig,
   "autoI18n"
@@ -108,16 +104,6 @@ export interface WakuPageOptions<A extends Press<any, any> = Press> extends Omit
   unstable_sourceFile?: string;
 }
 
-/** a page of `createPage()`, as the router registered it */
-export interface WakuRoute<A extends Press<any, any> = Press> extends Omit<
-  WakuPageOptions<A>,
-  "render"
-> {
-  render: "static" | "dynamic";
-  /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
-  pages: (FrameworkPage<NonNullable<A["~types"]>["content"]> & { params: RouteParams })[];
-}
-
 /** your own layouts and the ones of `waku.createPages` */
 export type WakuLayoutOptions<A extends Press<any, any> = Press> = Pick<
   WakuPageOptions<A>,
@@ -128,8 +114,6 @@ export type WakuLayoutOptions<A extends Press<any, any> = Press> = Pick<
 export interface WakuRouteFns<A extends Press<any, any> = Press> {
   createPage(page: WakuPageOptions<A>): void;
   createLayout(layout: WakuLayoutOptions<A>): void;
-  /** the pages of `createPage()` so far */
-  getRoutes(): WakuRoute<A>[];
   createRoot: CreateRoot;
   createApi: CreateApi;
   createSlice: CreateSlice;
@@ -204,7 +188,7 @@ export async function createRouter(
 
   async function Root({ lang, children }: { lang?: string; children: ReactNode }) {
     const [slots, base] = await Promise.all([ctx.getSlots({}), ctx.getProviderProps({ lang })]);
-    const client = ctx.getProvider("search")?.api?.client(ctx);
+    const client = ctx.getCapability("search")?.client(ctx);
     const props: PressProviderProps = {
       ...base,
       i18n: mergeI18n(siteI18n(ctx, { lang }), base.i18n),
@@ -413,11 +397,10 @@ export async function createRouter(
   const router: WakuRouter = {
     createPages(fsRoutes) {
       return createPages(async (waku) => {
-        const routes: WakuRoute[] = [];
         /** your own pages and the pages of plugins, core picks the ones served */
         const runtimeRoutes: RuntimeRoute<WakuAppShape>[] = [];
         /** registers the Waku page of a route, once core picked it */
-        const registers = new Map<FrameworkRoute<WakuAppShape>, () => void>();
+        const registers = new Map<PageRoute<WakuAppShape>, () => void>();
         /** layout paths and slice ids, by their owner */
         const owners = new Map<string, string>();
         const own = "your own pages";
@@ -449,21 +432,20 @@ export async function createRouter(
           } = page;
           const { pattern, pages } = expandRoute(path, staticPaths, exactPath);
           const Page = component as FC<WakuRouteProps>;
-          const route: WakuRoute = { ...page, render, pages: [] };
+          const routePages: PageRoute["pages"][number][] = [];
           for (const { pathname, params } of pages)
-            route.pages.push({ ...localize(lang, withoutGroups(pathname)), params });
-          const framework: FrameworkRoute<WakuAppShape> = {
+            routePages.push({ ...localize(lang, withoutGroups(pathname)), params });
+          const route: PageRoute<WakuAppShape> = {
             path: ctx.localizePath(lang, withoutGroups(pattern)),
             lang,
             render,
-            pages: route.pages,
+            pages: routePages,
             options,
             markdown: (path, params) =>
               renderRoute(createElement(Page, { ...params, path, lang } as WakuRouteProps)),
           };
-          routes.push(route);
-          runtimeRoutes.push({ route: framework, plugin });
-          registers.set(framework, () =>
+          runtimeRoutes.push({ route, plugin });
+          registers.set(route, () =>
             waku.createPage({
               render,
               path: joinPaths(langBase(lang), path),
@@ -473,9 +455,7 @@ export async function createRouter(
               unstable_sourceFile,
               component: (props: WakuRouteProps) => (
                 <>
-                  <Head
-                    tags={ctx.getHead({ route: framework, path: decodePathname(props.path) })}
-                  />
+                  <Head tags={ctx.getHead({ route, path: decodePathname(props.path) })} />
                   <Page {...props} lang={lang} />
                 </>
               ),
@@ -500,7 +480,6 @@ export async function createRouter(
 
         await fsRoutes.call(ctx, {
           ...waku,
-          getRoutes: () => routes,
           createPage: (page) => createPage(undefined, page),
           createLayout: (layout) => createLayout(own, layout),
           createSlice(slice) {
@@ -531,7 +510,7 @@ export async function createRouter(
 
         ctx.setRuntimeRoutes(runtimeRoutes);
         const [served, views, apiRoutes] = await Promise.all([
-          ctx.getFrameworkRoutes(),
+          ctx.getRoutes(),
           ctx.getViewRoutes(),
           ctx.getApiRoutes(),
         ]);
@@ -746,6 +725,5 @@ function RedirectDocument({ to }: { to: string }) {
   );
 }
 
-export { createPages } from "@/press";
 /** forward Waku.js router primitives */
 export { unstable_notFound as notFound, unstable_redirect as redirect } from "waku/router/server";

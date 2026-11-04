@@ -27,7 +27,6 @@
     "./client": "./dist/client.js",
     "./image": "./dist/image.js",
     "./markdown": "./dist/markdown.js",
-    "./plugins/asyncapi": "./dist/plugins/asyncapi.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/image/cloudflare": "./dist/plugins/image/cloudflare.js",
     "./plugins/image/self-hosted": "./dist/plugins/image/self-hosted.js",
@@ -35,7 +34,6 @@
     "./plugins/image/vercel.enhancer": "./dist/plugins/image/vercel.enhancer.js",
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
-    "./plugins/openapi": "./dist/plugins/openapi.js",
     "./plugins/orama-search": "./dist/plugins/orama-search.js",
     "./plugins/robots": "./dist/plugins/robots.js",
     "./plugins/rss": "./dist/plugins/rss.js",
@@ -45,6 +43,7 @@
     "./router": "./dist/router/index.js",
     "./router/deploy.enhancer": "./dist/router/deploy.enhancer.js",
     "./router/fs": "./dist/router/fs.js",
+    "./schema": "./dist/schema.js",
     "./search": "./dist/search.js",
     "./vite": "./dist/vite.js",
     "./package.json": "./package.json",
@@ -68,7 +67,6 @@
     "waku": "1.0.0-rc.1"
   },
   "devDependencies": {
-    "@fumadocs/asyncapi": "^0.5.6",
     "@types/http-cache-semantics": "^4.2.0",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.6.2",
@@ -76,7 +74,6 @@
     "@types/react-dom": "^19.3.0",
     "fumadocs-core": "^16.17.11",
     "fumadocs-mdx": "^15.4.11",
-    "fumadocs-openapi": "^12.5.9",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "hono": "^4.13.9",
     "http-cache-semantics": "^4.2.0",
@@ -88,12 +85,10 @@
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@fumadocs/asyncapi": "^0.5.6",
     "@types/mdx": "*",
     "@types/react": "*",
     "fumadocs-core": "^16.17.11",
     "fumadocs-mdx": "^15.4.11",
-    "fumadocs-openapi": "^12.5.9",
     "fumadocs-ui": "^16.16.2",
     "hono": "*",
     "react": "^19.3.0",
@@ -101,16 +96,10 @@
     "sharp": "^0.34.0"
   },
   "peerDependenciesMeta": {
-    "@fumadocs/asyncapi": {
-      "optional": true
-    },
     "sharp": {
       "optional": true
     },
     "hono": {
-      "optional": true
-    },
-    "fumadocs-openapi": {
       "optional": true
     },
     "@types/mdx": {

@@ -11,7 +11,6 @@ export {
 export type {
   WakuLayoutOptions,
   WakuPageOptions,
-  WakuRoute,
   WakuRouteConfig,
   WakuRouteFns,
   WakuRouteProps,
@@ -20,9 +19,6 @@ export type { BuildMode } from "fumadocs-core/framework/plugin";
 export type {
   AppShape,
   BaseOptions,
-  ClientHook,
-  ContentPageProps,
-  FrameworkRoute,
   GitProvider,
   PageNode,
   Plugin,
@@ -30,9 +26,6 @@ export type {
   PressContext,
   ProviderProps,
   RenderPageProps,
-  RouteOptions,
   SiteConfig,
-  SourcePage,
-  ViewPageProps,
-  ViewRoute,
+  UIOptions,
 } from "@fumapress/core";

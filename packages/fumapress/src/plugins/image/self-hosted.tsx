@@ -48,7 +48,7 @@ export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
         },
       ];
     },
-    routes() {
+    apiRoutes() {
       if (this.mode === "static") return;
       const optimizer = createImageOptimizer(
         config,
