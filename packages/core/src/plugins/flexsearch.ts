@@ -7,7 +7,7 @@ import type { LoaderConfig } from "fumadocs-core/source";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 import { buildIndexDefault, searchPlugin } from "../search";
-import { useFlexsearchIndex } from "./flexsearch.client";
+import { FlexsearchDialog } from "./flexsearch.client";
 
 export interface FlexsearchOptions<C extends AppShape = AppShape> extends Omit<
   FromSourceOptions<LoaderConfig>,
@@ -26,7 +26,7 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
   buildIndex = buildIndexDefault<C>("flexsearchPlugin"),
   ...options
 }: FlexsearchOptions<NoInfer<C>> = {}): Plugin<C, { provides: "search" }> {
-  return searchPlugin<C>("core:flexsearch", useFlexsearchIndex, (ctx) =>
+  return searchPlugin<C>("core:flexsearch", FlexsearchDialog, (ctx) =>
     flexsearchFromSource(() => ctx.getLoader(), {
       ...options,
       buildIndex: (page) => buildIndex.call(ctx, page),

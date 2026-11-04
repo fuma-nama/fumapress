@@ -20,7 +20,7 @@ packages:
 - `UIOptions<typeof app>` types `ui` callbacks in their own files.
 - The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
 - Capabilities: a plugin `provides` one, others read its `api` with `this.getCapability()`. A listed plugin replaces the preset entry of its capability, `.filter((entry) => entry.provides !== "rss")` drops one.
-- Search plugins give their client hook with `api.client(ctx)`, the runtimes compose it with the Fumadocs search dialog. The search of an i18n site searches the language of the page.
+- Search plugins give the root provider their dialog with `providerProps()`: `search: { SearchDialog, options }`, on the provider hook of the site's mode. The search of an i18n site searches the language of the page.
 - `configureLoader()` contributes loader options, the loader plugins of every plugin are combined in plugin order.
 - Hooks run in plugin order, your plugins first, then the preset and the runtime's defaults. `enforce` is not supported, TypeScript reports it.
 - `this.signal` aborts when the site reloads, `this.isClientReference()` tells exports of `'use client'` modules.

@@ -4,7 +4,6 @@ export {
   type Awaitable,
   type Capability,
   type CapabilityAPI,
-  type ClientHook,
   type DocsPageData,
   type HeadTag,
   type LangEnv,
@@ -43,7 +42,6 @@ export {
 export type { Context, PageAlternate, SiteConfig } from "./context";
 export { getHomeUrl, stripBase } from "./routes";
 export { selectTreeRoot } from "./page-tree";
-export type { SearchPluginAPI } from "./search";
 export type { SitemapAPI } from "./plugins/sitemap";
 export type { OGImageAPI } from "./plugins/takumi";
 export type { GitProvider } from "./git";

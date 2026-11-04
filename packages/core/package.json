@@ -30,7 +30,6 @@
     "./runtime": "./dist/runtime/index.mjs",
     "./runtime/ui": "./dist/runtime/ui.mjs",
     "./runtime/vite": "./dist/runtime/vite.mjs",
-    "./search.client": "./dist/search.client.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {

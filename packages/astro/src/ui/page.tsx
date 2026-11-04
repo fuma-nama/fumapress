@@ -57,13 +57,11 @@ async function getIsland(
     ctx.getSlots({}),
     ctx.getProviderProps({ lang }),
   ]);
-  const client = ctx.getCapability("search")?.client(ctx);
   provider = { ...provider, i18n: mergeI18n(provider.i18n, i18n) };
   const island = await serializeIsland(
     createElement(Provider, {
       provider,
       props,
-      search: client && { client, lang },
       children: wrapSlot(slots["layout.wrapper"], node),
     }),
   );

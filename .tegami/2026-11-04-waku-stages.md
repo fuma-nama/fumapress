@@ -17,7 +17,8 @@ packages:
 - Image optimizers are plugins: `vercelImage()`, `cloudflareImage()` and `selfHostedImage()`, replacing the `image` option of `fumapress/vite`. The preset's `image` entry picks the platform's.
 - The 404 page is your own `src/pages/404.tsx`, else a plugin view at `/404` (of the default language in languages without one), else the built-in page in the Home Layout.
 - Without a search plugin, the search toggle is hidden unless `ui.providerProps.search.SearchDialog` sets your dialog.
-- `WakuRouteProps<typeof app, "/showcase/[slug]">`, `WakuRouteConfig` and `getPressContext<typeof app>()` type your own pages and their params; `usePressSearch()` of `fumapress/search` gives the search of the site's search plugin.
+- `WakuRouteProps<typeof app, "/showcase/[slug]">`, `WakuRouteConfig` and `getPressContext<typeof app>()` type your own pages and their params.
+- A custom search dialog is `ui.providerProps.search.SearchDialog`, a client component on a Fumadocs search hook like `useFlexsearchStatic()`. It receives the search plugin's `from` or `api` and `locale`.
 - Refactored the Open Graph images: `ogImage` of route configs replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.
 - Refactored: removed `fumapress/plugins/openapi` and `fumapress/plugins/asyncapi`, use `openapiPlugin()` of `fumadocs-openapi/press` and `asyncapiPlugin()` of `@fumadocs/asyncapi/press`.
 - Deprecated `fumapress/adapters/mdx/schema`, use `fumapress/schema`.

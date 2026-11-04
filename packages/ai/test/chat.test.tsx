@@ -3,6 +3,7 @@ import type { Context } from "@fumapress/core";
 import type { LanguageModel } from "ai";
 import { aiPlugin } from "../src/chat";
 import { AIChat, AIChatAction } from "../src/components/chat";
+import { ChatDocsLayout } from "../src/components/docs-layout";
 
 const model = "test" as unknown as LanguageModel;
 const ctx = {
@@ -20,6 +21,13 @@ describe("aiPlugin", () => {
     expect(() => plugin.apiRoutes!.call({ ...ctx, mode: "static" })).toThrow(/mode: 'static'/);
   });
 
+  it("provides the chat that the built-in UI docks", () => {
+    expect(aiPlugin({ model })).toMatchObject({
+      provides: ["ai-chat"],
+      api: { DocsLayout: ChatDocsLayout },
+    });
+  });
+
   it("wraps every page in the chat of its endpoint", async () => {
     expect(await aiPlugin({ model }).slots!.call(ctx, {})).toEqual([
       { slot: "layout.wrapper", component: AIChat, props: { api: "/docs/api/ai" }, order: -1 },
@@ -34,6 +42,7 @@ describe("aiPlugin", () => {
 
   it("adds no UI without `configureUI`", async () => {
     const plugin = aiPlugin({ model, configureUI: false });
+    expect(plugin.provides).toEqual([]);
     expect(await plugin.slots!.call(ctx, {})).toBeUndefined();
     expect(await plugin.slots!.call(ctx, { page: {} as never })).toBeUndefined();
   });

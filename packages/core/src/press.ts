@@ -108,7 +108,7 @@ export type ProviderProps = Omit<RootProviderProps, "children">;
 interface UIOptionsOf<C extends AppShape, T extends PluginTypes> {
   /** Fumadocs `baseOptions(lang)`; links are written as served, `this.localizePath()` localizes them */
   baseOptions?: BaseOptions | ((this: Context<C>, env: LangEnv<C>) => Awaitable<BaseOptions>);
-  /** `<RootProvider>` props; a custom dialog is `search.SearchDialog` with `usePressSearch()` */
+  /** `<RootProvider>` props; `search.SearchDialog` replaces the dialog of the search plugin and receives its `search.options` */
   providerProps?: ProviderProps | ((this: Context<C>, env: LangEnv<C>) => Awaitable<ProviderProps>);
   translations?:
     | ([C["lang"]] extends [undefined] ? never : TranslationsAPI<NonNullable<C["lang"]>, any>)
@@ -246,14 +246,14 @@ export function renderPage<C extends AppShape>(
   ctx: Context<C>,
   press: Press<C, any>,
   target: RenderTarget<C>,
-  renderDefault: (props: DefaultPageProps) => PageNode,
+  renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
 ): Promise<PageNode>;
 
 export async function renderPage(
   ctx: Context,
   press: Press,
   target: RenderTarget,
-  renderDefault: (props: DefaultPageProps) => PageNode,
+  renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
 ): Promise<PageNode> {
   const { lang } = target;
   const [loader, baseOptions] = await Promise.all([ctx.getLoader(), ctx.getBaseOptions({ lang })]);
@@ -261,7 +261,7 @@ export async function renderPage(
     lang,
     tree: loader.getPageTree(lang),
     baseOptions,
-    renderDefault: () => renderDefault(props),
+    renderDefault: () => renderDefault.call(ctx, props),
   };
   let props: DefaultPageProps;
 
@@ -292,7 +292,7 @@ export async function renderPage(
   }
 
   const { renderPage } = press["~press"].config.ui ?? {};
-  return renderPage ? renderPage.call(ctx, props) : renderDefault(props);
+  return renderPage ? renderPage.call(ctx, props) : renderDefault.call(ctx, props);
 }
 
 /** the items of a named slot by name; `getSlots()` rejects two items of one name */

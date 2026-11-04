@@ -1,9 +1,9 @@
 import { createElement, type ComponentType, type ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
+import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { Meta, Page } from "fumadocs-core/source";
 import type { Context, InferLoaderConfig } from "./context";
 import type { BaseOptions, ProviderProps } from "./press";
-import type { SearchPluginAPI } from "./search";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -243,7 +243,9 @@ export interface RouteOptions {}
 
 /** the API of each capability, from `this.getCapability(capability)`; plugin modules add theirs by declaration merging */
 export interface CapabilityAPI {
-  search: SearchPluginAPI;
+  search: unknown;
+  /** the chat docked by the built-in UI: `DocsLayout` is a client component rendering the Docs Layout with it */
+  "ai-chat": { DocsLayout: ComponentType<DocsLayoutProps> };
   robots: unknown;
   llms: unknown;
   rss: unknown;
@@ -259,15 +261,6 @@ export type ProviderAPI<K> = [K] extends [never]
 
 /** what plugins read of each other */
 export type PluginInfo = Pick<Plugin<AppShape, { provides: Capability }>, "name" | "provides">;
-
-/**
- * a hook the runtime calls in the client, as slots pass `component`: `hook` is an export of a `"use client"` module,
- * `props` its serializable input, and the runtime adds the page's `lang`
- */
-export interface ClientHook<R, P extends Record<string, unknown> = {}> {
-  hook: (props: P & LangEnv<AppShape>) => R;
-  props: P;
-}
 
 /** a preset entry, loaded unless a listed plugin provides its capability */
 export interface PresetEntry<

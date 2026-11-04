@@ -46,7 +46,12 @@ async function site(plugin: Plugin<AppShape, any> = {}, config: Partial<TestSite
 
 /** the island tree with its references by name */
 function islandTree(tree: string): unknown {
-  return parse(tree, { ref: ([, name]: [string, string]) => name, slot: String, pageTree: String });
+  return parse(tree, {
+    ref: ([, name]: [string, string]) => name,
+    slot: String,
+    pageTree: String,
+    tree: (nodes: unknown) => nodes,
+  });
 }
 
 beforeAll(async () => {
@@ -68,23 +73,39 @@ describe("layouts", () => {
     expect(tree.indexOf('"Home"')).toBeGreaterThan(tree.indexOf('"Frame"'));
   });
 
-  it("pass `ui.providerProps` and the search plugin to the root provider", async () => {
+  it("pass `ui.providerProps` with the dialog of the search plugin to the root provider", async () => {
     const search: Plugin<AppShape, { provides: "search" }> = {
       provides: ["search"],
-      api: { client: () => ({ hook: client.useTestSearch, props: { from: "/api/search" } }) },
+      providerProps: ({ lang }) => ({
+        search: { SearchDialog: client.TestDialog, options: { api: "/api/search", locale: lang } },
+      }),
     };
     await site(search, { ui: { providerProps: { theme: { defaultTheme: "dark" } } } });
     const { tree } = (await getHomeLayout(astro, {})).island;
     const [[, , props]] = islandTree(tree) as [[unknown, unknown, object]];
 
     expect(props).toMatchObject({
-      props: { theme: { defaultTheme: "dark" } },
-      search: { client: { hook: "useTestSearch", props: { from: "/api/search" } } },
+      props: {
+        theme: { defaultTheme: "dark" },
+        search: { SearchDialog: "TestDialog", options: { api: "/api/search" } },
+      },
     });
   });
 });
 
 describe("pages", () => {
+  it("render the Docs Layout of the `ai-chat` capability in the default UI", async () => {
+    const ctx = await site({
+      provides: ["ai-chat"],
+      api: { DocsLayout: client.TestLayout },
+    } as Plugin<AppShape, { provides: "ai-chat" }>);
+    const [page] = (await ctx.getLoader()).getPages();
+    const { island } = await getPage(astro, { page: page! });
+
+    expect(island.tree).toContain('"DefaultDocs"');
+    expect(JSON.stringify(islandTree(island.tree))).toContain('"layout":"TestLayout"');
+  });
+
   it("render the default UI with the page tree as a file, preloaded", async () => {
     const ctx = await site();
     const [page] = (await ctx.getLoader()).getPages();

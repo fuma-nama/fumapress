@@ -1,39 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { SortedResult } from "fumadocs-core/search";
-import type { UseSearchReturn } from "fumadocs-core/search/client";
-import { usePressSearch, useServerSearch, type PressSearch } from "@/search.client";
-import { useFlexsearchIndex } from "@/plugins/flexsearch.client";
-import { useOramaIndex } from "@/plugins/orama-search.client";
+import { FetchSearchDialog } from "@/search.client";
+import { FlexsearchDialog } from "@/plugins/flexsearch.client";
+import { OramaSearchDialog } from "@/plugins/orama-search.client";
 import { pressContext, type TestRuntime, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { flexsearchPlugin } from "@/plugins/flexsearch";
 import { oramaSearchPlugin } from "@/plugins/orama-search";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
-
-/** the value of `PressSearchContext`, outside of rendering */
-const provided = vi.hoisted(() => ({ search: undefined as PressSearch | undefined }));
-vi.mock("react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react")>()),
-  use: () => provided.search,
-}));
-
-describe("usePressSearch", () => {
-  it("calls the hook of the search plugin in the language of the page from the server", () => {
-    const result: UseSearchReturn = { search: "", onSearchChange() {}, isLoading: false };
-    const hook = vi.fn((_props: object): UseSearchReturn => result);
-    provided.search = { client: { hook, props: { from: "/api/search" } }, lang: "cn" };
-
-    expect(usePressSearch()).toBe(result);
-    expect(hook).toHaveBeenCalledWith({ from: "/api/search", lang: "cn" });
-  });
-
-  it("throws without a search plugin", () => {
-    provided.search = undefined;
-    expect(() => usePressSearch()).toThrow("the site has none");
-  });
-});
 
 const content: TestSite["content"] = {
   files: [
@@ -75,19 +51,37 @@ async function getSearchRoute(config: Partial<TestSite>) {
 }
 
 describe.each([
-  ["flexsearchPlugin", flexsearchPlugin, useFlexsearchIndex],
-  ["oramaSearchPlugin", oramaSearchPlugin, useOramaIndex],
-] as const)("%s", (name, searchPlugin, useIndex) => {
-  it("provides search, with the client hook of its index or of the server on each site", async () => {
-    // one plugin value on two sites: its API is complete at creation, nothing writes it
+  ["flexsearchPlugin", flexsearchPlugin, FlexsearchDialog],
+  ["oramaSearchPlugin", oramaSearchPlugin, OramaSearchDialog],
+] as const)("%s", (name, searchPlugin, StaticDialog) => {
+  it("gives the root provider its dialog, of its index or of the server on each site, in each language", async () => {
     const plugin = searchPlugin();
-    const ctx = await createSite({ plugins: [plugin] }, { base: "/repo/" });
+    const ctx = await createSite({ i18n, plugins: [plugin] }, { base: "/repo/" });
     const index = await createSite({ mode: "static", plugins: [plugin] });
-    const api = ctx.getCapability("search");
 
-    expect(api).toBe(plugin.api);
-    expect(api?.client(ctx)).toEqual({ hook: useServerSearch, props: { api: "/repo/api/search" } });
-    expect(api?.client(index)).toEqual({ hook: useIndex, props: { from: "/api/search" } });
+    expect((await ctx.getProviderProps({ lang: "cn" })).search).toEqual({
+      SearchDialog: FetchSearchDialog,
+      options: { api: "/repo/api/search", locale: "cn" },
+    });
+    expect((await index.getProviderProps({ lang: undefined })).search).toEqual({
+      SearchDialog: StaticDialog,
+      options: { from: "/api/search" },
+    });
+  });
+
+  it("keeps its options under the dialog of the site", async () => {
+    function MyDialog() {
+      return null;
+    }
+    const ctx = await createSite({
+      plugins: [searchPlugin()],
+      ui: { providerProps: { search: { SearchDialog: MyDialog } } },
+    });
+
+    expect((await ctx.getProviderProps({ lang: undefined })).search).toEqual({
+      SearchDialog: MyDialog,
+      options: { api: "/api/search" },
+    });
   });
 
   it("searches on the server outside static mode", async () => {
@@ -173,4 +167,9 @@ describe("search plugins", () => {
 
     expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["core:flexsearch"]);
   });
+});
+
+it("disables the search of the root provider without a dialog", async () => {
+  const ctx = await createSite();
+  expect((await ctx.getProviderProps({ lang: undefined })).search).toEqual({ enabled: false });
 });

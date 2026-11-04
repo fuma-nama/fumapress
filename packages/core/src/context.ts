@@ -1,4 +1,3 @@
-import { isValidElement } from "react";
 import {
   methods,
   type ApiRoute,
@@ -341,7 +340,8 @@ export function mergeHead(lists: readonly (readonly HeadTag[] | undefined)[]): H
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || isValidElement(value)) return false;
+  // elements, `lazy()` and `memo()` are React objects, not options
+  if (typeof value !== "object" || value === null || "$$typeof" in value) return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
@@ -986,7 +986,10 @@ export async function createPressContext(
           : ui.providerProps,
         ...plugins.map((plugin) => plugin.providerProps?.call(this, env)),
       ]);
-      return mergeOptions<ProviderProps>([own, ...contributions]);
+      const props = mergeOptions<ProviderProps>([own, ...contributions]);
+      // the default dialog of Fumadocs searches a server the site doesn't have
+      if (!props.search?.SearchDialog) props.search = { enabled: false, ...props.search };
+      return props;
     },
   });
 

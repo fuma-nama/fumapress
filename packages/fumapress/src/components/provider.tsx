@@ -4,7 +4,6 @@ import { type RootProviderProps, RootProvider } from "fumadocs-ui/provider/base"
 import { useMemo } from "react";
 import { Image } from "./image";
 import { Link, useRouter } from "@/client";
-import { type PressSearch, PressSearchContext, searchOptions } from "@fumapress/core/search.client";
 
 const framework: Framework = {
   useParams() {
@@ -45,17 +44,9 @@ export interface PressProviderProps extends RootProviderProps {
    * Ignored when `i18n.onLocaleChange` is given, your handler owns the navigation then.
    */
   hiddenLocale?: string;
-  /** the client hook of the search plugin, for `usePressSearch()` */
-  pressSearch?: PressSearch;
 }
 
-export function PressProvider({
-  hiddenLocale,
-  pressSearch,
-  i18n,
-  search,
-  ...props
-}: PressProviderProps) {
+export function PressProvider({ hiddenLocale, i18n, ...props }: PressProviderProps) {
   const router = useRouter();
 
   if (i18n && hiddenLocale && !i18n.onLocaleChange) {
@@ -73,9 +64,7 @@ export function PressProvider({
 
   return (
     <FrameworkProvider {...framework}>
-      <PressSearchContext value={pressSearch}>
-        <RootProvider {...props} i18n={i18n} search={searchOptions(pressSearch, search)} />
-      </PressSearchContext>
+      <RootProvider {...props} i18n={i18n} />
     </FrameworkProvider>
   );
 }

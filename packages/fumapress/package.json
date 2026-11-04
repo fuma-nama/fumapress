@@ -44,7 +44,6 @@
     "./router/deploy.enhancer": "./dist/router/deploy.enhancer.js",
     "./router/fs": "./dist/router/fs.js",
     "./schema": "./dist/schema.js",
-    "./search": "./dist/search.js",
     "./vite": "./dist/vite.js",
     "./package.json": "./package.json",
     "./css/preset.css": "./css/preset.css",

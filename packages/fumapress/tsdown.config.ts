@@ -6,7 +6,7 @@ export default defineConfig({
   target: "es2023",
   format: "esm",
   entry: [
-    "src/{index,vite,cli,markdown,schema,search}.ts",
+    "src/{index,vite,cli,markdown,schema}.ts",
     "src/{client,image}.tsx",
     "src/router/index.tsx",
     "src/router/fs.tsx",

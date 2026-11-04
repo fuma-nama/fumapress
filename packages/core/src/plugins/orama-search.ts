@@ -6,7 +6,7 @@ import {
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 import { buildIndexDefault, searchPlugin } from "../search";
-import { useOramaIndex } from "./orama-search.client";
+import { OramaSearchDialog } from "./orama-search.client";
 
 export interface OramaSearchOptions<C extends AppShape = AppShape> extends Omit<
   AdvancedOptions,
@@ -25,7 +25,7 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
   buildIndex = buildIndexDefault<C>("oramaSearchPlugin"),
   ...options
 }: OramaSearchOptions<NoInfer<C>> = {}): Plugin<C, { provides: "search" }> {
-  return searchPlugin<C>("core:orama-search", useOramaIndex, (ctx) =>
+  return searchPlugin<C>("core:orama-search", OramaSearchDialog, (ctx) =>
     createFromSource(() => ctx.getLoader(), {
       ...options,
       buildIndex: (page) => buildIndex.call(ctx, page),

@@ -1,34 +1,32 @@
-import type { UseSearchReturn } from "fumadocs-core/search/client";
+import type { ComponentType } from "react";
 import type { AdvancedIndex, SearchAPI } from "fumadocs-core/search/server";
+import type { SharedProps } from "fumadocs-ui/components/dialog/search";
 import type { Context } from "./context";
-import type { AppShape, ClientHook, LangEnv, Plugin } from "./plugin";
-import { useServerSearch } from "./search.client";
-
-/** the `search` capability: the provider hook the runtime composes with the Fumadocs dialog, `usePressSearch()` returns its result */
-export interface SearchPluginAPI {
-  /** the hook on a site, which can depend on its mode and base path */
-  client: (ctx: Context) => ClientHook<UseSearchReturn, any>;
-}
+import type { AppShape, Plugin } from "./plugin";
+import { FetchSearchDialog } from "./search.client";
 
 const path = "/api/search";
 
 /**
- * Search with an engine at `/api/search`: in `static` mode, the exported index searched in the browser with `useIndex`,
- * a search server in the other modes.
+ * Search with an engine at `/api/search`, with its dialog in the root provider: in `static` mode, the exported index
+ * searched in the browser by `StaticDialog`, a search server in the other modes.
  */
 export function searchPlugin<C extends AppShape>(
   name: string,
-  useIndex: (props: { from: string } & LangEnv<AppShape>) => UseSearchReturn,
+  StaticDialog: ComponentType<SharedProps & { from?: string; locale?: string }>,
   createServer: (ctx: Context<C>) => SearchAPI,
 ): Plugin<C, { provides: "search" }> {
   return {
     name,
     provides: ["search"],
-    api: {
-      client: (ctx) =>
-        ctx.mode === "static"
-          ? { hook: useIndex, props: { from: ctx.withBase(path) } }
-          : { hook: useServerSearch, props: { api: ctx.withBase(path) } },
+    providerProps({ lang }) {
+      const url = this.withBase(path);
+      return {
+        search:
+          this.mode === "static"
+            ? { SearchDialog: StaticDialog, options: { from: url, locale: lang } }
+            : { SearchDialog: FetchSearchDialog, options: { api: url, locale: lang } },
+      };
     },
     apiRoutes() {
       const server = createServer(this);

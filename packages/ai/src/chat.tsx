@@ -14,6 +14,7 @@ import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
+import { ChatDocsLayout } from "./components/docs-layout";
 
 export type ChatUIMessage = UIMessage<
   never,
@@ -22,7 +23,7 @@ export type ChatUIMessage = UIMessage<
 >;
 
 export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
-  /** add the chat around every page and the `ai` page action @default true */
+  /** add the chat around every page, docked by the built-in UI, and the `ai` page action @default true */
   configureUI?: boolean;
 
   model: LanguageModel;
@@ -32,14 +33,16 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** AI chat: the `/api/ai` endpoint, the chat around every page, and the `ai` page action that opens it */
+/** AI chat: the `/api/ai` endpoint, the chat that the built-in UI docks, and the `ai` page action that opens it */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): Plugin<C, { actions: "ai" }> {
+): Plugin<C, { actions: "ai"; provides: "ai-chat" }> {
   const { configureUI = true } = options;
 
   return {
     name: "ai:main",
+    provides: configureUI ? ["ai-chat"] : [],
+    api: { DocsLayout: ChatDocsLayout },
     translations: aiTranslations(),
     async slots({ page }) {
       if (!configureUI) return;

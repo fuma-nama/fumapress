@@ -1,7 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UseSearchReturn } from "fumadocs-core/search/client";
 
 export function Counter({ initial = 0 }: { initial?: number; onClick?: () => void }) {
   const [count, setCount] = useState(initial);
@@ -24,6 +23,10 @@ export function TreeName({ tree }: { tree: PageTree.Root }) {
   return <span>{tree.name}</span>;
 }
 
-export function useTestSearch(_props: { from: string }): UseSearchReturn {
-  throw new Error("not called on the server");
+export function TestDialog(_props: object): null {
+  return null;
+}
+
+export function TestLayout({ children }: { children?: ReactNode }) {
+  return children;
 }

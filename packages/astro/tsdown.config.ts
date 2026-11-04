@@ -4,7 +4,7 @@ import { compilePresetCss, coreUiSource } from "../shared/compile-preset-css.ts"
 export default defineConfig({
   // with the modules of `.astro` files and the generated code, their exports are kept
   entry: [
-    "src/{index,config,runtime,search}.ts",
+    "src/{index,config,runtime}.ts",
     "src/plugins/*.ts",
     "src/routes/{context,file,middleware,shared}.ts",
     "src/ui/{page,content,default}.tsx",

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import { createElement, isValidElement, lazy, type ReactElement, type ReactNode } from "react";
 import { defineI18n, type I18nConfig } from "fumadocs-core/i18n";
 import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type Context } from "@/context";
@@ -1319,8 +1319,18 @@ it("gives the root provider `ui.providerProps` over the plugins' by language", a
 
   await expect(ctx.getProviderProps({ lang: "cn" })).resolves.toEqual({
     theme: { defaultTheme: "dark", enabled: true },
+    search: { enabled: false },
   });
-  await expect((await createSite({})).getProviderProps({ lang: undefined })).resolves.toEqual({});
+  await expect((await createSite({})).getProviderProps({ lang: undefined })).resolves.toEqual({
+    search: { enabled: false },
+  });
+});
+
+it("keeps React objects of `ui.providerProps` by reference", async () => {
+  const SearchDialog = lazy(async () => ({ default: () => null }));
+  const ctx = await createSite({ ui: { providerProps: { search: { SearchDialog } } } });
+
+  expect((await ctx.getProviderProps({ lang: undefined })).search?.SearchDialog).toBe(SearchDialog);
 });
 
 describe("renderPage", () => {

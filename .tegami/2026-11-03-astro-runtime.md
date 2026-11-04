@@ -9,7 +9,7 @@ packages:
 - Added `@fumapress/astro`: the site of `press.config.tsx` on Astro, with the plugins, layouts and search of Fumapress.
 - `@fumapress/astro/config` exports `createPress()` and the site types of Fumapress, like `RenderPageProps<typeof app>`, `@fumapress/astro/plugins/*` the core plugins.
 - `ui.renderPage` renders every page Fumapress renders, `selectTreeRoot(tree, "docs")` scopes the sidebar to a folder, `renderDefault()` is the built-in docs and home UI.
-- A custom search dialog is `ui.providerProps.search.SearchDialog` with `usePressSearch()` of `@fumapress/astro/search`. Any search plugin works.
+- A custom search dialog is `ui.providerProps.search.SearchDialog`, a client component on a Fumadocs search hook like `useFlexsearchStatic()`. It receives the search plugin's `from` or `api` and `locale`.
 - `ui.providerProps` sets the root provider of every page, like `theme`.
 - `@fumapress/astro/css/default.css` is the whole stylesheet, `@fumapress/astro/css/preset.css` only the styles of Fumapress, for your own Tailwind and Fumadocs UI setup.
 - `getProviderData<typeof app>()` types `lang` by the site, it returns `ProviderData` of `@fumapress/astro/runtime`.

@@ -1,6 +1,6 @@
-import { createElement, Fragment, type ReactNode } from "react";
+import { createElement, Fragment, type ComponentType, type ReactNode } from "react";
 import { i18nProvider } from "fumadocs-ui/i18n";
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import {
   DocsBody,
   DocsDescription,
@@ -21,6 +21,8 @@ import type { BaseOptions, DefaultPageProps, PageNode, ProviderProps } from "../
  */
 
 export interface DefaultDocsProps extends Pick<DefaultPageProps, "tree" | "baseOptions"> {
+  /** the Docs Layout, a client component of the `ai-chat` capability docks the chat */
+  layout?: ComponentType<DocsLayoutProps>;
   pageData: DocsPageData;
   /** the items of the `actions` slot */
   actions: ReactNode;
@@ -32,6 +34,7 @@ export interface DefaultDocsProps extends Pick<DefaultPageProps, "tree" | "baseO
 
 /** the Docs Layout and page of a content page */
 export function DefaultDocs({
+  layout: Layout = DocsLayout,
   tree,
   baseOptions,
   pageData,
@@ -40,7 +43,7 @@ export function DefaultDocs({
   children,
 }: DefaultDocsProps) {
   return (
-    <DocsLayout {...baseOptions} tree={tree}>
+    <Layout {...baseOptions} tree={tree}>
       <DocsPage toc={pageData.toc} full={pageData.full}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsDescription className="mb-0">{pageData.description}</DocsDescription>
@@ -53,7 +56,7 @@ export function DefaultDocs({
         {pageData.lastModified && <PageLastUpdate date={pageData.lastModified} />}
         {footer}
       </DocsPage>
-    </DocsLayout>
+    </Layout>
   );
 }
 
@@ -78,9 +81,10 @@ export function HomeShell({
 }
 
 /** the built-in UI: `DefaultDocs` for content pages, `HomeShell` around the content of plugins */
-export function renderDefault(props: DefaultPageProps): PageNode {
+export function renderDefault(this: Context, props: DefaultPageProps): PageNode {
   if (props.page && !props.children)
     return createElement(DefaultDocs, {
+      layout: this.getCapability("ai-chat")?.DocsLayout,
       tree: props.tree,
       baseOptions: props.baseOptions,
       pageData: props.pageData,

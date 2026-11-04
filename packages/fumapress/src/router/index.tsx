@@ -188,11 +188,9 @@ export async function createRouter(
 
   async function Root({ lang, children }: { lang?: string; children: ReactNode }) {
     const [slots, base] = await Promise.all([ctx.getSlots({}), ctx.getProviderProps({ lang })]);
-    const client = ctx.getCapability("search")?.client(ctx);
     const props: PressProviderProps = {
       ...base,
       i18n: mergeI18n(siteI18n(ctx, { lang }), base.i18n),
-      pressSearch: client && { client, lang },
       children: wrapSlot(slots["layout.wrapper"], children),
     };
     if (i18n?.hideLocale === "default-locale") props.hiddenLocale ??= i18n.defaultLanguage;
