@@ -1,7 +1,17 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 
+const selectors = new WeakMap<PageTree.Root, (path: string) => PageTree.Root>();
+
+/** how {@link selectTreeRoot} selects from `tree`, for runtimes that replace the page tree */
+export function setTreeSelector(tree: PageTree.Root, selector: (path: string) => PageTree.Root) {
+  selectors.set(tree, selector);
+}
+
 /** the page tree of the folder at `path`, like the `baseDir` of a collection; throws with the available folders when it is not in `tree` */
 export function selectTreeRoot(tree: PageTree.Root, path: string): PageTree.Root {
+  const selector = selectors.get(tree);
+  if (selector) return selector(path);
+
   const scoped = scope(tree, path);
   if (scoped) return scoped;
 
