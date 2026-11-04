@@ -96,7 +96,7 @@ export type CollectTypes<P extends readonly unknown[]> =
 export interface RuntimeHooks<in C extends AppShape> {}
 
 /**
- * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, views, slots, head tags and the build.
+ * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, views, slots, head tags, middleware and the build.
  *
  * Hooks are properties, so `this` and pages are checked contravariantly: a plugin for any site fits every site. A plugin is a
  * generic factory typed by the site (`myPlugin<C extends AppShape>(options: MyOptions<NoInfer<C>>): Plugin<C, MyTypes>`).
@@ -148,6 +148,16 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
     this: Context<C>,
     env: LangEnv<C>,
   ) => Awaitable<Partial<ProviderProps> | undefined>;
+  /**
+   * Runs for requests served on demand, prerendered routes skip it.
+   *
+   * Call `next()` to continue, or `next(path)` to serve another path instead, without the base path like the paths of routes.
+   */
+  middleware?: (
+    this: Context<C>,
+    request: Request,
+    next: (rewrite?: string) => Promise<Response>,
+  ) => Promise<Response>;
   /** runs once after the site is built, not on dev or production servers; throw to fail the build */
   build?: (this: Context<C>, output: PressBuildOutput) => Awaitable<void>;
 }
