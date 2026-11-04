@@ -4,7 +4,7 @@ import { takumiPlugin } from "fumapress/plugins/takumi";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import { openapiPlugin } from "fumadocs-openapi/plugin";
 import path from "node:path";
 import { defineI18n } from "fumadocs-core/i18n";
 import { zhTW } from "@fumapress/language/zh-tw";

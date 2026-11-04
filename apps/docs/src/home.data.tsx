@@ -163,7 +163,7 @@ export default createPress({
     docsHref: "/docs/plugins/openapi",
     usage: `import { createPress } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import { openapiPlugin } from "fumadocs-openapi/plugin";
 
 const openapi = createOpenAPI({
   input: ["./openapi.json"],
@@ -184,7 +184,7 @@ export default createPress({
     docsHref: "/docs/plugins/asyncapi",
     usage: `import { createPress } from "fumapress";
 import { createAsyncAPI } from "@fumadocs/asyncapi/server";
-import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+import { asyncapiPlugin } from "@fumadocs/asyncapi/plugin";
 
 const asyncapi = createAsyncAPI({
   input: ["./asyncapi.yaml"],

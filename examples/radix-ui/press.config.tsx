@@ -1,7 +1,7 @@
 import { createPress } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import { openapiPlugin } from "fumadocs-openapi/plugin";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { pageSchema, metaSchema } from "fumadocs-core/source/schema";
 

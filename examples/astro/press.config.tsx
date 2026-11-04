@@ -10,10 +10,9 @@ const openapi = createOpenAPI({
 });
 
 export const app = createPress({
-  docs: {
-    ...toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
     baseDir: "docs",
-  },
+  }),
   openapi: await openapi.staticSource({ baseDir: "docs/api" }),
 }).plugins(openapiPlugin({ server: openapi }), linkValidationPlugin());
 

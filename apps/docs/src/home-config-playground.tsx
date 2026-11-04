@@ -43,7 +43,7 @@ const features: Feature[] = [
     description: "Generates API reference pages from your OpenAPI spec.",
     imports: [
       { from: "fumadocs-openapi/server", names: ["createOpenAPI"] },
-      { from: "fumapress/plugins/openapi", names: ["openapiPlugin"] },
+      { from: "fumadocs-openapi/plugin", names: ["openapiPlugin"] },
     ],
     setup: ['const openapi = createOpenAPI({ input: ["./openapi.json"] });'],
     content: ["  openapi: await openapi.staticSource(),"],

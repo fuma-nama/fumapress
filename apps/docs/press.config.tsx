@@ -1,6 +1,6 @@
 import { createPress } from "fumapress";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+import { metaSchema, pageSchema } from "fumapress/schema";
 import { blogPlugin } from "@fumapress/blog";
 import { blogMetaSchema, blogPageSchema } from "@fumapress/blog/schema";
 import { changelogPlugin } from "@fumapress/tegami";

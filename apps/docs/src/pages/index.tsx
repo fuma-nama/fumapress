@@ -15,7 +15,7 @@ const description = "The composable site generator powered by Fumadocs";
 
 export function getConfig() {
   return {
-    takumiOptions: { title: "Fumapress", description },
+    ogImage: { title: "Fumapress", description },
   } satisfies WakuRouteConfig;
 }
 

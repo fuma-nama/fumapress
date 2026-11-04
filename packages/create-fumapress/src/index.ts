@@ -349,7 +349,7 @@ dist
 src/pages.gen.ts
 `,
     "press.config.tsx": `import { createPress } from "fumapress";
-import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+import { metaSchema, pageSchema } from "fumapress/schema";
 import { defineDocs } from "fumadocs-mdx/macro";
 
 const docs = defineDocs({
