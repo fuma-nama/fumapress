@@ -35,7 +35,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/graphql": "^0.4.3",
+    "@fumadocs/graphql": "^0.5.0",
     "@fumapress/core": "workspace:^",
     "graphql": "^17.0.2"
   },
@@ -43,7 +43,7 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "fumadocs-core": "^16.17.11",
+    "fumadocs-core": "^16.18.0",
     "fumadocs-ui": "^16.16.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

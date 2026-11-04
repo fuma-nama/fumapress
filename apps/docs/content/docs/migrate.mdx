@@ -10,7 +10,7 @@ icon: ArrowRightLeft
 npm i fumapress@latest fumadocs-core@latest fumadocs-mdx@latest
 ```
 
-`fumadocs-core` 16.17.11 and `fumadocs-mdx` 15.4.11 or later are required. If you use the blog, install it:
+`fumadocs-core` 16.18.0 and `fumadocs-mdx` 15.5.0 or later are required. If you use the blog, install it:
 
 ```npm
 npm i @fumapress/blog
@@ -356,12 +356,12 @@ The plugin contract is refactored from `PressPlugin` to `Plugin` (from `fumapres
 | Before                            | After                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `PressPlugin<C>`                  | `Plugin<C>` / `WakuPlugin<C>`                                                                                       |
-| `createPages(fns)`                | `views()` / `waku.createPages(fns)`                                                                                 |
-| `configureRoutes` + `route.meta`  | `deriveRoutes({ lang, routes })` + `head({ route })`                                                                |
+| `createPages(fns)`                | `routes({ createView })` / `waku.createPages(fns)`                                                                  |
+| `configureRoutes` + `route.meta`  | `deriveRoutes(fns, { lang, routes })` + `head({ route })`                                                           |
 | `createMiddlewares()`             | `middleware(request, next)` / `waku.honoMiddleware()`                                                               |
 | `unstable_onServerEntry(entry)`   | `waku.unstable_serverEntry(entry)`                                                                                  |
 | `renderPage` hook                 | `getPageView(page, body)`                                                                                           |
-| `createApiIsomorphic` / routes    | `apiRoutes()`                                                                                                       |
+| `createApiIsomorphic` / routes    | `routes({ createApi })`, set `render: "static"` for files generated at build time                                   |
 | `enforce`                         | list order                                                                                                          |
 | `preinit`                         | `provides` (see [Capabilities](/docs/plugins#capabilities))                                                         |
 | `this.data[...]` / transformers   | `slots()` / `transformPage()`                                                                                       |

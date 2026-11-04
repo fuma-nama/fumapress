@@ -19,8 +19,8 @@ export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, StatusT
   return {
     name: "acme:status",
     provides: ["acme:status"],
-    views: () => [
-      {
+    routes({ createApi, createView }) {
+      createView({
         path: "/status",
         render: "dynamic",
         view: () => ({
@@ -28,11 +28,9 @@ export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, StatusT
           props: { ok: true },
           node: <p>OK</p>,
         }),
-      },
-    ],
-    apiRoutes: () => [
-      { path: "/status.json", render: "dynamic", GET: () => Response.json({ ok: true }) },
-    ],
+      });
+      createApi({ path: "/status.json", GET: () => Response.json({ ok: true }) });
+    },
     head({ page, route }) {
       if (page || route) return;
       return [{ tag: "meta", attrs: { name: "generator", content: "acme" } }];
@@ -67,7 +65,7 @@ export default createPress({ docs: docs.toFumadocsSource() })
 
 ## Views
 
-`views({ lang })` registers pages rendered in the [Home Layout](https://fumadocs.dev/docs/ui/layouts/home). It is called once per language. The site prefixes `path` with the language segment and links the pages of other languages as translations. `ui.renderPage` renders each view as `props.type`.
+`createView()` in the `routes` hook registers pages rendered in the [Home Layout](https://fumadocs.dev/docs/ui/layouts/home). A view is created in every language and receives its `lang`. Set `lang` to create it in one language, like a path that differs per language. The site prefixes `path` with the language segment and links the pages of other languages as translations. `ui.renderPage` renders each view as `props.type`.
 
 ```tsx title="acme/index.tsx"
 import type { AppShape, Plugin } from "@fumapress/core";
@@ -89,8 +87,8 @@ export function showcasePlugin<C extends AppShape = AppShape>(options: {
   const path = options.path ?? "/showcase";
   return {
     name: "acme:showcase",
-    views: () => [
-      {
+    routes({ createView }) {
+      createView({
         path,
         view: () => ({
           type: "showcase.index",
@@ -104,8 +102,8 @@ export function showcasePlugin<C extends AppShape = AppShape>(options: {
           ),
           title: "Showcase",
         }),
-      },
-    ],
+      });
+    },
     // ...
   };
 }
@@ -148,8 +146,8 @@ type AccountTypes = { views: { "acme.account": { user: string } } };
 export function accountPlugin<C extends AppShape = AppShape>(): Plugin<C, AccountTypes> {
   return {
     name: "acme:account",
-    views: () => [
-      {
+    routes({ createView }) {
+      createView({
         path: "/account",
         render: "dynamic",
         view(_params, { request }) {
@@ -162,29 +160,33 @@ export function accountPlugin<C extends AppShape = AppShape>(): Plugin<C, Accoun
             title: "Account",
           };
         },
-      },
-    ],
+      });
+    },
   };
 }
 ```
 
 ## API Routes
 
-`apiRoutes()` returns routes with method handlers. Static routes list their params in `staticPaths`:
+`createApi()` in the `routes` hook creates a route with method handlers. It is handled on the server. Set `render: "static"` to generate a file from its `GET` handler at build time, listing its params in `staticPaths`:
 
 ```tsx title="acme/index.tsx"
-apiRoutes: () => [
-  {
-    path: "/status.json",
-    render: "dynamic",
-    GET: () => Response.json({ ok: true }),
-  },
-],
+routes({ createApi }) {
+  createApi({ path: "/status.json", GET: () => Response.json({ ok: true }) });
+  createApi({
+    path: "/data/[id].json",
+    render: "static",
+    staticPaths: ["a", "b"],
+    GET: (_request, { params }) => Response.json({ id: params.id }),
+  });
+},
 ```
+
+A static site can't serve routes handled on the server, and the build fails naming the route. Read `this.mode` to degrade.
 
 ## Derived Routes
 
-`deriveRoutes({ lang, routes })` creates a route per page from the final page routes of a language. Use it for print pages or per-page Markdown:
+`deriveRoutes(fns, { lang, routes })` creates a route per page from the final page routes of a language. Use it for print pages or per-page Markdown:
 
 ```tsx title="acme/index.tsx"
 import type { AppShape, Plugin } from "@fumapress/core";
@@ -194,31 +196,29 @@ type PrintTypes<P> = { views: { print: { page: P } } };
 export function printPlugin<C extends AppShape = AppShape>(): Plugin<C, PrintTypes<C["page"]>> {
   return {
     name: "acme:print",
-    async deriveRoutes({ lang }) {
+    async deriveRoutes({ createView }, { lang }) {
       const loader = await this.getLoader();
-      return [
-        {
-          path: "/print/[...slugs]",
-          staticPaths: loader.getPages(lang).map((page) => page.slugs),
-          view: async ({ slugs }) => {
-            const page = loader.getPage(slugs as string[], lang);
-            if (!page) return;
-            const body = await this.getPageBody(page);
-            return {
-              type: "print",
-              props: { page },
-              node: body?.node,
-              title: page.data.title,
-            };
-          },
+      createView({
+        path: "/print/[...slugs]",
+        staticPaths: loader.getPages(lang).map((page) => page.slugs),
+        view: async ({ slugs }) => {
+          const page = loader.getPage(slugs as string[], lang);
+          if (!page) return;
+          const body = await this.getPageBody(page);
+          return {
+            type: "print",
+            props: { page },
+            node: body?.node,
+            title: page.data.title,
+          };
         },
-      ];
+      });
     },
   };
 }
 ```
 
-The path has no language prefix; the site adds it. An entry is either an API route or a view, not both.
+The path has no language prefix; the site adds it. A view without `lang` is created in the language of the call.
 
 ## Page Views
 
@@ -397,11 +397,11 @@ export function showcasePlugin<C extends WakuAppShape = WakuAppShape>(
 ): WakuPlugin<C> {
   return {
     name: "acme:showcase",
-    apiRoutes: () => [{ path: "/acme/ping", render: "dynamic", GET: () => new Response("pong") }],
+    routes: ({ createApi }) => createApi({ path: "/acme/ping", GET: () => new Response("pong") }),
     waku: {
       createPages({ createSlice, createLayout, createPage }) {
         createSlice({ id: "acme-stars", render: "dynamic", component: Stars });
-        for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+        for (const lang of this.languages) {
           createLayout({
             path: "/(showcase)",
             lang,

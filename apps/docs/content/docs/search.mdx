@@ -101,15 +101,12 @@ export function acmeSearchPlugin<C extends AppShape = AppShape>(options: {
       const api = this.withBase("/api/acme-search");
       return { search: { SearchDialog: AcmeSearchDialog, options: { api, locale: lang } } };
     },
-    apiRoutes() {
-      return [
-        {
-          path: "/api/acme-search",
-          render: "dynamic",
-          GET: (request) =>
-            fetch(`https://search.acme.dev/${options.index}${new URL(request.url).search}`),
-        },
-      ];
+    routes({ createApi }) {
+      createApi({
+        path: "/api/acme-search",
+        GET: (request) =>
+          fetch(`https://search.acme.dev/${options.index}${new URL(request.url).search}`),
+      });
     },
   };
 }

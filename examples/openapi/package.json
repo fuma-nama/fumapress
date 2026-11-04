@@ -12,8 +12,8 @@
   "dependencies": {
     "@fumapress/language": "workspace:*",
     "fumadocs-core": "^16.16.2",
-    "fumadocs-mdx": "^15.4.11",
-    "fumadocs-openapi": "^12.3.0",
+    "fumadocs-mdx": "^15.5.0",
+    "fumadocs-openapi": "^12.6.0",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",

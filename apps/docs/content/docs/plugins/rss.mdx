@@ -99,28 +99,27 @@ import { buildRSS } from "fumapress/plugins/rss";
 
 export default createPress(content).plugins({
   name: "blog-rss",
-  apiRoutes() {
-    return [
-      {
-        path: "/blog/rss.xml",
-        GET: () =>
-          new Response(
-            buildRSS({
-              title: "My Blog",
-              link: this.absoluteUrl("/blog"),
-              description: "Posts from my blog",
-              items: [
-                {
-                  title: "Hello World",
-                  link: this.absoluteUrl("/blog/hello-world"),
-                  pubDate: new Date("2026-08-29"),
-                },
-              ],
-            }),
-            { headers: { "Content-Type": "application/rss+xml" } },
-          ),
-      },
-    ];
+  routes({ createApi }) {
+    createApi({
+      path: "/blog/rss.xml",
+      render: "static",
+      GET: () =>
+        new Response(
+          buildRSS({
+            title: "My Blog",
+            link: this.absoluteUrl("/blog"),
+            description: "Posts from my blog",
+            items: [
+              {
+                title: "Hello World",
+                link: this.absoluteUrl("/blog/hello-world"),
+                pubDate: new Date("2026-08-29"),
+              },
+            ],
+          }),
+          { headers: { "Content-Type": "application/rss+xml" } },
+        ),
+    });
   },
 });
 ```

@@ -37,7 +37,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumadocs/notion": "^0.2.5",
+    "@fumadocs/notion": "^0.3.0",
     "@fumapress/core": "workspace:^"
   },
   "devDependencies": {
@@ -45,7 +45,7 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "fumadocs-core": "^16.17.11",
+    "fumadocs-core": "^16.18.0",
     "fumadocs-ui": "^16.16.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -57,7 +57,7 @@
   "peerDependencies": {
     "@notionhq/client": "^5.23.0",
     "@types/react": "*",
-    "fumadocs-core": "^16.17.11",
+    "fumadocs-core": "^16.18.0",
     "fumadocs-ui": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
