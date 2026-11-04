@@ -424,11 +424,6 @@ export function buildPageTreeFromNavigation(
   return buildNavigationChildren(container, pageIndex, matchOptions);
 }
 
-export function getMintlifyVersions(navigation: MintlifyNavigation): MintlifyVersionNav[] {
-  const container = resolveNavigationContainer(navigation, {});
-  return container.versions ?? [];
-}
-
 /**
  * Collect every page path referenced from navigation (all languages, versions,
  * tabs, ...), normalized with {@link normalizeMintPath}.

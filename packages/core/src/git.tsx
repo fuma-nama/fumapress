@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import type { Context, SiteConfig } from "./context";
+import type { BaseOptions } from "./press";
 
 export type GitProvider = "github" | "gitlab" | "bitbucket";
 
@@ -68,10 +68,7 @@ export function getFileUrl(git: GitInfo, absolutePath: string): string | undefin
 }
 
 /** link the repository in layout props, unless they have `githubUrl` */
-export function addRepoLink(
-  props: Omit<BaseLayoutProps, "children">,
-  git: GitInfo,
-): Omit<BaseLayoutProps, "children"> {
+export function addRepoLink(props: BaseOptions, git: GitInfo): BaseOptions {
   if (props.githubUrl) return props;
   const url = getRepoUrl(git);
   // Fumadocs UI renders `githubUrl` as a GitHub icon link, other providers need a link item

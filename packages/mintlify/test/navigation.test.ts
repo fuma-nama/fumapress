@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildPageTreeFromNavigation,
   createPageIndex,
-  getMintlifyVersions,
   getNavigablePages,
   resolveNavigationContainer,
 } from "@/navigation";
@@ -143,16 +142,6 @@ describe("buildPageTreeFromNavigation", () => {
       root: true,
       defaultOpen: true,
     });
-  });
-});
-
-describe("getMintlifyVersions", () => {
-  it("returns versions from the resolved navigation container", () => {
-    const versions = getMintlifyVersions({
-      versions: [{ version: "v1", pages: ["getting-started"] }],
-    });
-
-    expect(versions).toEqual([{ version: "v1", pages: ["getting-started"] }]);
   });
 });
 

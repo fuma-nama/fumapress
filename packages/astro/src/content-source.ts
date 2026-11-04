@@ -31,7 +31,7 @@ function isPageDataOf<T extends object>(data: object, method: keyof T): data is 
 }
 
 /** pages of `toFumadocsSource()` */
-export function isCollectionPage(data: PageData): data is AstroPageData {
+function isCollectionPage(data: PageData): data is AstroPageData {
   return isPageDataOf<AstroPageData>(data, "getText");
 }
 
@@ -50,7 +50,7 @@ function once<T>(key: object, run: () => Promise<T>): Promise<T> {
 }
 
 /** `load()` of a collection page, its body and table of contents */
-export function loadOnce(data: AstroPageData) {
+function loadOnce(data: AstroPageData) {
   return once(data, () => data.load());
 }
 
@@ -134,7 +134,7 @@ function toDate(value: unknown): Date | undefined {
  */
 export function contentSourcePlugin(): Plugin {
   return {
-    name: "fumapress",
+    name: "astro:content-source",
     async getPageBody(page) {
       if (isCollectionPage(page.data))
         return {

@@ -40,11 +40,11 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
 const mirrorPath = "/_llms.txt";
 
 /** the path of the Markdown of a page: `<page>.md`, `/index.md` for the root */
-export function markdownPath(url: string): string {
+function markdownPath(url: string): string {
   return url === "/" ? "/index.md" : `${url}.md`;
 }
 
-export function markdownResponse(text: string): Response {
+function markdownResponse(text: string): Response {
   return new Response(text, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
 }
 
