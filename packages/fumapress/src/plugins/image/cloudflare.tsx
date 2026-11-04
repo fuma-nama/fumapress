@@ -1,6 +1,4 @@
-import type { PressPlugin } from "@/app/plugin";
-import type { AppShape } from "@/app/context";
-import type { PressProviderProps } from "@/components/provider";
+import type { WakuAppShape, WakuPlugin } from "@/press";
 import { CloudflareImageProvider } from "./cloudflare.client";
 import { resolveCloudflareImageConfig } from "./cloudflare.utils";
 
@@ -20,22 +18,25 @@ export interface CloudflareImageOptions {
   dangerouslyAllowSVG?: boolean;
 }
 
-export function imagePlugin<C extends AppShape = AppShape>(
+/** Cloudflare's image transformations: `<Image>`'s provider */
+export function cloudflareImage<C extends WakuAppShape = WakuAppShape>(
   options: CloudflareImageOptions = {},
-): PressPlugin<C> {
+): WakuPlugin<C, { provides: "image" }> {
   const config = resolveCloudflareImageConfig(options);
 
   return {
-    name: "image:cloudflare",
-    init() {
-      const data = (this.data["core:provider"] ??= {});
-      const transformers = (data.transformers ??= []);
-      transformers.push((props: PressProviderProps) => {
-        props.children = (
-          <CloudflareImageProvider config={config}>{props.children}</CloudflareImageProvider>
-        );
-        return props;
-      });
-    },
+    name: "cloudflare-image",
+    provides: ["image"],
+    slots: ({ page }) =>
+      page
+        ? undefined
+        : [
+            {
+              slot: "layout.wrapper",
+              component: CloudflareImageProvider,
+              props: { config },
+              order: -1,
+            },
+          ],
   };
 }

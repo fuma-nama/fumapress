@@ -1,12 +1,12 @@
 import type { Plugin } from "vite";
-import { crawlFrameworkPkgs } from "@fumapress/core/vite";
+import { crawlFrameworkPkgs } from "@fumapress/core/runtime/vite";
 import { lucideImports } from "./lib/lucide";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import * as r from "resolve.exports";
 
-export interface PluginOptions {
+export interface WakuPressOptions {
   /**
    * Auto-generate Vite config to handle CJS bundling.
    *
@@ -55,6 +55,13 @@ export interface PluginOptions {
    * Defaults to a platform-specific adapter based on environment variables (Vercel, Netlify, Cloudflare), or `waku/adapters/node`.
    */
   adapter?: string;
+
+  /**
+   * Module whose default export is the MDX components of content pages, resolved from the root.
+   *
+   * @default "fumadocs-ui/mdx"
+   */
+  components?: string;
 }
 
 export function getDefaultAdapter(): string {
@@ -67,7 +74,7 @@ export function getDefaultAdapter(): string {
         : "waku/adapters/node";
 }
 
-export default function press(options?: PluginOptions): Plugin[] {
+export default function press(options?: WakuPressOptions): Plugin[] {
   return [
     core(options),
     wakuCompat(),
@@ -170,8 +177,8 @@ function wakuCompat(): Plugin {
   };
 }
 
-function core(options: PluginOptions = {}): Plugin {
-  const { generateViteConfig = true } = options;
+function core(options: WakuPressOptions = {}): Plugin {
+  const { generateViteConfig = true, components = "fumadocs-ui/mdx" } = options;
 
   return {
     name: "fumapress:core",
@@ -219,6 +226,14 @@ function core(options: PluginOptions = {}): Plugin {
         return this.resolve("/press.config", undefined, options);
       }
 
+      if (source === "virtual:fumapress/components") {
+        return (
+          (components.startsWith(".") || components.startsWith("/")
+            ? await this.resolve(`/${components.replace(/^\.?\//, "")}`, undefined, options)
+            : null) ?? (await this.resolve(components, undefined, options))
+        );
+      }
+
       if (source.startsWith("virtual:root.css")) {
         const [_id, query = ""] = source.split("?", 2);
 
@@ -230,23 +245,36 @@ function core(options: PluginOptions = {}): Plugin {
     },
     async load(id) {
       if (id === "\0virtual:vite-rsc-waku/server-entry-inner") {
-        return getManagedServerEntry();
+        // Fumadocs MDX renders MDX content, sites without it have none
+        const mdx = Boolean(await this.resolve("fumadocs-mdx/plugin"));
+        if (!mdx && (await this.resolve("fumadocs-mdx")))
+          throw new Error(
+            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/plugin`: update `fumadocs-mdx` to 15.4.11 or later.",
+          );
+        return getManagedServerEntry(mdx);
       }
     },
   };
 }
 
-function getManagedServerEntry() {
+function getManagedServerEntry(mdx: boolean) {
   return `import _adapter from 'waku/adapters/default';
-import pressConfig from 'virtual:fumapress-core/config';
+import press from 'virtual:fumapress-core/config';
 import { createRouter } from 'fumapress/router';
 import { fsRouterFn } from 'fumapress/router/fs';
+${
+  mdx
+    ? `import components from 'virtual:fumapress/components';
+import { mdxPlugin } from 'fumadocs-mdx/plugin';`
+    : ""
+}
 
 const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
   base: '/src',
 });
 
-const router = await createRouter(pressConfig);
+const router = await createRouter(press${mdx ? ", { renderers: [mdxPlugin({ components })] }" : ""});
+import.meta.hot?.dispose(router.dispose);
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
 const adapter = router.patchAdapter(_adapter);

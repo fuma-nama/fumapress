@@ -1,6 +1,4 @@
-import type { PressPlugin } from "@/app/plugin";
-import type { AppShape } from "@/app/context";
-import type { PressProviderProps } from "@/components/provider";
+import type { WakuAppShape, WakuPlugin } from "@/press";
 import { VercelImageProvider } from "./vercel.client";
 import { resolveVercelImageConfig } from "./vercel.utils";
 
@@ -39,31 +37,38 @@ export interface VercelImageOptions {
   contentSecurityPolicy?: string;
 }
 
-export function imagePlugin<C extends AppShape = AppShape>(
+/** Vercel's image optimization: `<Image>`'s provider, and the `images` config of the build output */
+export function vercelImage<C extends WakuAppShape = WakuAppShape>(
   options: VercelImageOptions = {},
-): PressPlugin<C> {
+): WakuPlugin<C, { provides: "image" }> {
   const config = resolveVercelImageConfig(options);
 
   return {
-    name: "image:vercel",
-    init() {
-      const data = (this.data["core:provider"] ??= {});
-      const transformers = (data.transformers ??= []);
-      transformers.push((props: PressProviderProps) => {
-        props.children = (
-          <VercelImageProvider config={config}>{props.children}</VercelImageProvider>
-        );
-        return props;
-      });
-    },
-    unstable_onServerEntry(entry) {
-      if (import.meta.env.PROD) {
-        entry.buildEnhancers ??= [];
-        entry.buildOptions ??= {};
-        entry.buildOptions.FUMAPRESS_IMAGE_CONFIG = config;
-        entry.buildEnhancers.push("fumapress/plugins/image/vercel.enhancer");
-      }
-      return entry;
+    name: "vercel-image",
+    provides: ["image"],
+    slots: ({ page }) =>
+      page
+        ? undefined
+        : [
+            {
+              slot: "layout.wrapper",
+              component: VercelImageProvider,
+              props: { config },
+              order: -1,
+            },
+          ],
+    waku: {
+      unstable_serverEntry(entry) {
+        if (!import.meta.env.PROD) return entry;
+        return {
+          ...entry,
+          buildEnhancers: [
+            ...(entry.buildEnhancers ?? []),
+            "fumapress/plugins/image/vercel.enhancer",
+          ],
+          buildOptions: { ...entry.buildOptions, FUMAPRESS_IMAGE_CONFIG: config },
+        };
+      },
     },
   };
 }

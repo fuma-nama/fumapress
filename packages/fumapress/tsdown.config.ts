@@ -1,23 +1,18 @@
 import { defineConfig } from "tsdown";
-import { Scanner } from "@tailwindcss/oxide";
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { packageTranslationsPlugin } from "../shared/compile-package-translations.ts";
+import { compilePresetCss, coreUiSource } from "../shared/compile-preset-css.ts";
 
 export default defineConfig({
   target: "es2023",
   format: "esm",
-  ignoreWatch: ["src/.translations/**"],
-  plugins: [packageTranslationsPlugin()],
   entry: [
-    "src/{index,vite,i18n,cli,markdown}.ts",
+    "src/{index,vite,cli,markdown,search}.ts",
     "src/{client,image}.tsx",
     "src/router/index.tsx",
     "src/router/fs.tsx",
     "src/router/deploy.enhancer.ts",
     "src/adapters/**",
-    "src/{layouts,plugins}/*",
-    "!src/plugins/*.client.tsx",
+    "src/plugins/*",
     "src/plugins/image/{cloudflare,vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
   ],
   unbundle: true,
@@ -31,30 +26,12 @@ export default defineConfig({
     },
   },
   deps: {
-    onlyBundle: ["@fastify/deepmerge", "http-cache-semantics", "resolve.exports"],
+    onlyBundle: ["http-cache-semantics", "resolve.exports"],
     neverBundle: [/^virtual:/, /^node:/],
   },
-  async onSuccess() {
-    await compileInline();
-  },
+  onSuccess: () =>
+    compilePresetCss(
+      { base: path.resolve("src"), pattern: "components/**/*.{ts,tsx}" },
+      coreUiSource,
+    ),
 });
-
-async function compileInline() {
-  const scanner = new Scanner({
-    sources: [
-      {
-        base: path.resolve("src"),
-        pattern: "{components,layouts}/**/*.{ts,tsx}",
-        negated: false,
-      },
-    ],
-  });
-
-  await writeFile("css/generated.css", namesToFile(scanner.scan()));
-
-  console.log("generated CSS files");
-}
-
-function namesToFile(names: string[]) {
-  return `@source inline(${JSON.stringify(names.join(" "))});`;
-}

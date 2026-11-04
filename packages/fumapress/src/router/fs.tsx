@@ -2,8 +2,8 @@
  * This is a copy of https://github.com/wakujs/waku/blob/main/packages/waku/src/router/fs-router.ts
  */
 import type { FC } from "react";
-import type { Awaitable, RouteConfig, RouteFns } from "@/lib/types.js";
-import type { AppContext, AppShape } from "@/app/context";
+import type { Awaitable, Context } from "@fumapress/core";
+import type { WakuRouteConfig, WakuRouteFns } from "@/router";
 import { joinPaths } from "@/lib/pathname";
 
 const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
@@ -29,7 +29,7 @@ const SPECIAL_BASENAME = new Set(["_layout", "index", "_root"]);
 /** Ignore paths like `_components` and `_hooks` in pages dir */
 const isIgnoredPath = (paths: string[]) => paths.some((p) => IGNORED_PATH_PARTS.has(p));
 
-export function fsRouterFn<C extends AppShape>(
+export function fsRouterFn(
   /**
    * A mapping from a file path to a route module, e.g.
    *   {
@@ -43,7 +43,7 @@ export function fsRouterFn<C extends AppShape>(
    */
   modules: { [file: string]: () => Promise<unknown> },
   options: Options = {},
-): (this: AppContext<C>, fns: RouteFns) => Awaitable<void> {
+): (this: Context, fns: WakuRouteFns) => Awaitable<void> {
   return async function (fns) {
     const { createPage, createLayout, createRoot, createApi, createSlice } = fns;
     const { pagesDir = "pages", apiDir = "_api", slicesDir = "_slices" } = options;
@@ -70,7 +70,7 @@ export function fsRouterFn<C extends AppShape>(
 
       const mod = (await modules[file]!()) as {
         default?: FC;
-        getConfig?: () => Promise<RouteConfig>;
+        getConfig?: () => Promise<WakuRouteConfig>;
         GET?: (req: Request, ctx?: unknown) => Promise<Response>;
       };
       const config = await mod.getConfig?.call(this);

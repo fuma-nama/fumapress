@@ -1,6 +1,4 @@
-import type { PressPlugin } from "@/app/plugin";
-import type { AppShape } from "@/app/context";
-import type { PressProviderProps } from "@/components/provider";
+import type { WakuAppShape, WakuPlugin } from "@/press";
 import { SelfHostedImageProvider } from "./self-hosted.client";
 import { createImageOptimizer, ImageOptimizationCache } from "./self-hosted.utils";
 import { resolveImageConfig } from "./self-hosted.shared";
@@ -30,42 +28,33 @@ export interface SelfHostedImageOptions {
   maxSourceSize?: number;
 }
 
-export function imagePlugin<C extends AppShape = AppShape>(
-  _options: SelfHostedImageOptions = {},
-): PressPlugin<C> {
-  const config = resolveImageConfig(_options);
+/** an on-demand optimizer route with `sharp`; `mode: "static"` has no server, its images are served as they are */
+export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
+  options: SelfHostedImageOptions = {},
+): WakuPlugin<C, { provides: "image" }> {
+  const config = resolveImageConfig(options);
 
   return {
-    name: "image:self-hosted",
-    init() {
-      const data = (this.data["core:provider"] ??= {});
-      const transformers = (data.transformers ??= []);
-      transformers.push((props: PressProviderProps) => {
-        props.children = (
-          <SelfHostedImageProvider config={config}>{props.children}</SelfHostedImageProvider>
-        );
-        return props;
-      });
+    name: "self-hosted-image",
+    provides: ["image"],
+    slots({ page }) {
+      if (page || this.mode === "static") return;
+      return [
+        {
+          slot: "layout.wrapper",
+          component: SelfHostedImageProvider,
+          props: { config },
+          order: -1,
+        },
+      ];
     },
-    createPages({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error(
-          "[Fumapress] Image Optimization is not compatible with static mode, please disable it",
-        );
-      }
-
+    routes() {
+      if (this.mode === "static") return;
       const optimizer = createImageOptimizer(
         config,
         import.meta.env.DEV ? undefined : new ImageOptimizationCache(),
       );
-
-      createApi({
-        render: "dynamic",
-        path: config.path,
-        handlers: {
-          GET: optimizer,
-        },
-      });
+      return [{ path: config.path, render: "dynamic", GET: optimizer }];
     },
   };
 }

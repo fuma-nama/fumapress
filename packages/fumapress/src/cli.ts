@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import * as vite from "vite";
 import { unstable_combinedPlugins as combinedPlugins } from "waku/vite-plugins";
 import type { Config } from "waku/config";
-import { getDefaultAdapter, type PluginOptions } from "./vite";
+import { getDefaultAdapter, type WakuPressOptions } from "./vite";
 import { assertEsmApp } from "./lib/fs";
 
 const require = createRequire(import.meta.url);
@@ -109,10 +109,10 @@ async function loadConfig(configEnv: vite.ConfigEnv): Promise<ResolvedConfig> {
 
 async function findPressOptions(
   plugins: vite.PluginOption[] | undefined,
-): Promise<PluginOptions | undefined> {
+): Promise<WakuPressOptions | undefined> {
   for (const item of await flattenPlugins(plugins ?? [])) {
     if (item && "name" in item && item.name === "fumapress:core" && item.api?.pressOptions) {
-      return item.api.pressOptions as PluginOptions;
+      return item.api.pressOptions as WakuPressOptions;
     }
   }
 }
@@ -132,7 +132,7 @@ async function flattenPlugins(plugins: vite.PluginOption[]): Promise<vite.Plugin
 }
 
 function resolveConfig(
-  options: PluginOptions | undefined,
+  options: WakuPressOptions | undefined,
   userConfig: vite.UserConfig | undefined,
 ): ResolvedConfig {
   const config: ResolvedConfig = {
