@@ -121,10 +121,7 @@ export interface SitemapUrl {
   news?: SitemapNews;
 }
 
-export interface SitemapOptions<
-  C extends AppShape = AppShape,
-  Ctx extends Context<C> = Context<C>,
-> {
+export interface SitemapOptions<C extends AppShape = AppShape> {
   /**
    * path of the sitemap route
    *
@@ -137,13 +134,19 @@ export interface SitemapOptions<
    *
    * Pages shown in place of an untranslated page are left out.
    */
-  getEntry?: (this: Ctx, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
+  getEntry?: (this: Context<C>, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
 
   /** entries of other pages, their `loc` must be a fully-qualified URL */
-  additionalEntries?: SitemapUrl[] | ((this: Ctx) => Awaitable<SitemapUrl[]>);
+  additionalEntries?: SitemapUrl[] | ((this: Context<C>) => Awaitable<SitemapUrl[]>);
 }
 
-/** the API of the sitemap plugin, from `this.getPlugin("core:sitemap")?.api` */
+declare module "@fumapress/core" {
+  interface CapabilityAPI {
+    sitemap: SitemapAPI;
+  }
+}
+
+/** the API of the `sitemap` capability, from `this.getProvider("sitemap")?.api` */
 export interface SitemapAPI {
   /** the path of the sitemap, without the base path */
   path: string;
@@ -273,9 +276,9 @@ export function buildSitemap(entries: SitemapUrl[]): string {
 }
 
 /** a sitemap of the content pages, with their translations and last modified dates, then of the pages of the framework */
-export function sitemapPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
-  options: SitemapOptions<NoInfer<C>, NoInfer<Ctx>> = {},
-): Plugin<C, Ctx> {
+export function sitemapPlugin<C extends AppShape = AppShape>(
+  options: SitemapOptions<NoInfer<C>> = {},
+): Plugin<C, { provides: "sitemap" }> {
   const {
     path = "/sitemap.xml",
     getEntry = async function (page) {
@@ -290,7 +293,8 @@ export function sitemapPlugin<C extends AppShape = AppShape, Ctx extends Context
 
   return {
     name: "core:sitemap",
-    api: { path } satisfies SitemapAPI,
+    provides: ["sitemap"],
+    api: { path },
     routes() {
       return [
         {
@@ -318,16 +322,19 @@ export function sitemapPlugin<C extends AppShape = AppShape, Ctx extends Context
               entries.push(entry);
             }
 
-            for (const page of await this.getFrameworkPages()) {
-              const loc = this.absoluteUrl(page.path);
-              if (pageLocs.has(loc)) continue;
+            for (const route of await this.getFrameworkRoutes()) {
+              for (const page of route.pages) {
+                const loc = this.absoluteUrl(page.path);
+                if (pageLocs.has(loc)) continue;
+                pageLocs.add(loc);
 
-              const alternates: PageAlternate[] = [];
-              if (page.translations.length > 1) {
-                for (const { locale, path } of page.translations)
-                  alternates.push(pageAlternate(this, locale, path));
+                const alternates: PageAlternate[] = [];
+                if (page.translations.length > 1) {
+                  for (const { lang, path } of page.translations)
+                    if (lang) alternates.push(pageAlternate(this, lang, path));
+                }
+                entries.push({ loc, priority: 1, alternates });
               }
-              entries.push({ loc, priority: 1, alternates });
             }
             entries.push(
               ...(typeof additionalEntries === "function"

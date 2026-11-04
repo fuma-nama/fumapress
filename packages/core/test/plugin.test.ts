@@ -1,87 +1,49 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
 import type { MetaData, PageData, StaticSource } from "fumadocs-core/source";
 import { openapiPlugin } from "fumadocs-openapi/plugin";
 import { createOpenAPI } from "fumadocs-openapi/server";
-import { createPress } from "@/context";
-import { recommendedPreset, resolvePlugins, type Plugin, type PresetEntry } from "@/plugin";
+import { recommendedPreset, wrapSlot } from "@/plugin";
+import { pressContext } from "./harness";
 
-function names(plugins: Plugin[]) {
-  return plugins.map((plugin) => plugin.name);
-}
+describe("recommendedPreset", () => {
+  it("loads its entries after your plugins, a listed provider taking an entry's place", async () => {
+    const ctx = await pressContext({
+      content: { files: [] },
+      preset: recommendedPreset(),
+      plugins: [{ name: "my-search", provides: ["search"] }, { name: "mine" }],
+    });
 
-/** a preset entry loading `plugin` */
-function entry(plugin: Plugin & { name: string }): PresetEntry {
-  return { name: plugin.name, provides: plugin.provides, load: () => plugin };
-}
-
-describe("resolvePlugins", () => {
-  it("flattens nested options and skips falsy ones", async () => {
-    const plugins = await resolvePlugins(
-      [{ name: "a" }, false, [{ name: "b" }, null, [undefined, { name: "c" }]]],
-      [],
-    );
-
-    expect(names(plugins)).toEqual(["a", "b", "c"]);
-  });
-
-  it("sorts by enforce and keeps the order otherwise", async () => {
-    const plugins = await resolvePlugins(
-      [
-        { name: "a" },
-        { name: "post", enforce: "post" },
-        { name: "b" },
-        { name: "pre", enforce: "pre" },
-      ],
-      [entry({ name: "preset" }), entry({ name: "preset-pre", enforce: "pre" })],
-    );
-
-    expect(names(plugins)).toEqual(["pre", "preset-pre", "a", "b", "preset", "post"]);
-  });
-
-  it("loads only the preset plugins that no plugin replaces", async () => {
-    const orama = vi.fn(() => ({ name: "orama-search" }));
-    const plugins = await resolvePlugins(
-      [{ name: "sitemap" }, { name: "my-search", provides: ["search"] }],
-      [
-        entry({ name: "sitemap", enforce: "pre" }),
-        { name: "orama-search", provides: ["search"], load: orama },
-        entry({ name: "takumi", provides: ["og-image"] }),
-      ],
-    );
-
-    expect(names(plugins)).toEqual(["sitemap", "my-search", "takumi"]);
-    expect(plugins[0]!.enforce).toBeUndefined();
-    expect(orama).not.toHaveBeenCalled();
-  });
-
-  it("loads the recommended preset under the names of its plugins", async () => {
-    const plugins = await resolvePlugins(
-      [{ name: "my-search", provides: ["search"] }],
-      recommendedPreset(),
-    );
-
-    expect(names(plugins)).toEqual([
-      "my-search",
+    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual([
+      "mine",
       "core:sitemap",
       "core:robots",
-      "core:rss",
-      "core:takumi",
       "core:llms.txt",
+      "core:rss",
+      "my-search",
+      "core:takumi",
     ]);
+    for (const plugin of ctx.plugins)
+      if (plugin.name?.startsWith("core:")) expect(plugin.provides).toHaveLength(1);
   });
 
-  it("throws when two plugins provide a capability", async () => {
-    await expect(
-      resolvePlugins(
-        [
-          { name: "core:flexsearch", provides: ["search"] },
-          { name: "core:orama-search", provides: ["search"] },
-        ],
-        [],
-      ),
-    ).rejects.toThrow(
-      '[Fumapress] "core:orama-search" conflicts with "core:flexsearch": only one search plugin can be added.',
-    );
+  it("drops an entry with a filter", async () => {
+    const ctx = await pressContext({
+      content: { files: [] },
+      preset: recommendedPreset().filter((entry) => entry.name !== "core:rss"),
+    });
+
+    expect(ctx.getProvider("rss")).toBeUndefined();
+    expect(ctx.getProvider("sitemap")?.api?.path).toBe("/sitemap.xml");
+  });
+});
+
+describe("slots", () => {
+  it("wrap with the first item outermost", () => {
+    const a = (props: { children?: ReactNode }) => props.children;
+    expect(wrapSlot([{ slot: "layout.wrapper", component: a }], "page")).toMatchObject({
+      props: { children: "page" },
+    });
   });
 });
 
@@ -101,18 +63,19 @@ describe("plugins of the framework API", () => {
     const docs: StaticSource<{ pageData: PageData & { tags: string[] }; metaData: MetaData }> = {
       files: [{ type: "page", path: "index.mdx", data: { title: "Home", tags: ["a", "b"] } }],
     };
-    const ctx = await createPress(
-      {
-        content: { docs, openapi: await server.staticSource() },
-        preset: false,
-        site: { baseUrl: "https://example.com" },
-        plugins: [
-          openapiPlugin({ server }),
-          { getPageText: (page) => (page.type === "docs" ? page.data.tags.join(", ") : undefined) },
-        ],
-      },
-      { base: "/" },
-    );
+    const ctx = await pressContext({
+      content: { docs, openapi: await server.staticSource() },
+      site: { baseUrl: "https://example.com" },
+      plugins: [
+        openapiPlugin({ server }),
+        {
+          getPageText: (page) =>
+            "tags" in page.data && Array.isArray(page.data.tags)
+              ? page.data.tags.join(", ")
+              : undefined,
+        },
+      ],
+    });
     const pages = (await ctx.getLoader()).getPages();
     const home = pages.find((page) => page.type === "docs");
     const operation = pages.find((page) => page.type === "openapi");

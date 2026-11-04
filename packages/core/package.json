@@ -27,7 +27,10 @@
     "./plugins/rss": "./dist/plugins/rss.mjs",
     "./plugins/sitemap": "./dist/plugins/sitemap.mjs",
     "./plugins/takumi": "./dist/plugins/takumi.mjs",
-    "./vite": "./dist/vite.mjs",
+    "./runtime": "./dist/runtime/index.mjs",
+    "./runtime/ui": "./dist/runtime/ui.mjs",
+    "./runtime/vite": "./dist/runtime/vite.mjs",
+    "./search.client": "./dist/search.client.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {

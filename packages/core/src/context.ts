@@ -1,7 +1,7 @@
+import { isValidElement } from "react";
 import {
   methods,
   type ApiRoute,
-  type BuildMode,
   type HeadTag,
   type PageBody,
   type PluginContext,
@@ -9,46 +9,36 @@ import {
 } from "fumadocs-core/framework/plugin";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
-import type {
-  _Internal,
-  LoaderConfig,
-  LoaderOptions,
-  LoaderOutput,
-  SourceUnion,
-} from "fumadocs-core/source";
-import { dynamicLoader } from "fumadocs-core/source/dynamic";
+import type { _Internal, LoaderConfig, LoaderOutput } from "fumadocs-core/source";
+import { dynamicLoader, type DynamicLoader } from "fumadocs-core/source/dynamic";
 import type { TOCItemType } from "fumadocs-core/toc";
-import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import {
-  resolvePlugins,
+  recommendedPreset,
   type AppShape,
   type Awaitable,
   type Capability,
   type DocsPageData,
+  type FrameworkRoute,
+  type HeadEnv,
+  type LangEnv,
+  type PageEnv,
+  type PageView,
   type Plugin,
+  type PluginInfo,
   type PluginOption,
   type PresetEntry,
   type PressBuildOutput,
   type Provider,
+  type RoutedView,
   type SlotItem,
-  type SlotName,
   type ViewRoute,
 } from "./plugin";
+import type { BaseOptions, Press, ProviderProps } from "./press";
 import { addRepoLink, getFileUrl, resolveGit, type GitProvider } from "./git";
-import { getHomeUrl } from "./routes";
-
-export type InferAppShape<
-  I extends _Internal.AnyInput = _Internal.AnyInput,
-  Lang extends string | undefined = string | undefined,
-> = {
-  page: _Internal.GeneratePage<I>;
-  meta: _Internal.GenerateMeta<I>;
-  lang: Lang;
-  source: I extends Record<infer K, SourceUnion> ? K : undefined;
-};
+import { compareRoutes, createLocalizer, expandRoute, getHomeUrl, matchRoute } from "./routes";
 
 /** the i18n config of a site with the languages `Lang`, plugins for any site (`string | undefined`) get either */
-type InferI18nConfig<Lang extends string | undefined> = [Lang] extends [undefined]
+export type InferI18nConfig<Lang extends string | undefined> = [Lang] extends [undefined]
   ? undefined
   : [Lang] extends [string]
     ? I18nConfig<Lang>
@@ -67,7 +57,7 @@ export interface SiteConfig {
   baseUrl?: string;
 
   /**
-   * `hreflang` values by locale, for locale codes that are not BCP 47 language tags.
+   * `hreflang` values by language, for language codes that are not BCP 47 language tags.
    *
    * @example { cn: "zh-Hans" }
    */
@@ -89,111 +79,38 @@ export interface SiteConfig {
   };
 }
 
-/** the config of a site, the same on every framework, `this` of its callbacks is the `Ctx` of the framework */
-export interface PressConfig<
-  I extends _Internal.AnyInput = _Internal.AnyInput,
-  Lang extends string | undefined = string | undefined,
-  Ctx extends Context<InferAppShape<I, Lang>> = Context<InferAppShape<I, Lang>>,
-> {
-  mode?: BuildMode;
-  site?: SiteConfig;
-
-  /**
-   * - `recommended`: add the plugins of the framework, like sitemap, llms.txt and search. Plugins of the same name or capability in `plugins` replace them.
-   * - `false`: no plugins are added.
-   *
-   * @defaultValue "recommended"
-   */
-  preset?: "recommended" | false;
-
-  /** the content sources */
-  content: I;
-
-  plugins?: PluginOption<Plugin<InferAppShape<I, Lang>, Ctx>>[];
-
-  /** i18n config, optional when `translations` is specified */
-  i18n?: InferI18nConfig<Lang>;
-
-  translations?:
-    | ([Lang] extends [undefined] ? never : TranslationsAPI<NonNullable<Lang>, any>)
-    | SingularTranslationsAPI<any>;
-
-  loaderOptions?: Omit<
-    LoaderOptions<_Internal.GenerateStorage<I>, InferI18nConfig<Lang>>,
-    "baseUrl" | "i18n" | "plugins"
-  > &
-    Pick<PluginLoaderOptions, "plugins"> & {
-      /**
-       * Revalidate the dynamic content sources on each request, otherwise call `revalidateLoader()`.
-       *
-       * @defaultValue false
-       */
-      alwaysRevalidate?: boolean;
-    };
-
-  /** props of every Fumadocs UI layout */
-  defaultLayoutProps?:
-    | Omit<BaseLayoutProps, "children">
-    | ((
-        this: Ctx,
-        env: { lang: string | undefined },
-      ) => Awaitable<Omit<BaseLayoutProps, "children">>);
-
-  /** head tags of every page, without `page`, and of content pages */
-  head?: Plugin<InferAppShape<I, Lang>, Ctx>["head"];
-}
-
-/** what a framework gives to {@link createPress} */
-export interface PressRuntime<C extends AppShape = AppShape> {
-  /** the base path of the site, `/` at the root */
-  base: string;
-  /** plugins of the `recommended` preset */
-  preset?: () => PresetEntry<Plugin<C>>[];
-  /** your pages and the pages of view routes, see {@link Context.getFrameworkPages} */
-  getFrameworkPages?: (ctx: Context<C>) => Awaitable<FrameworkPage[]>;
-  /** whether the URLs of `absoluteUrl()` end with `/`, like `trailingSlash: "always"` of the framework */
-  trailingSlash?: boolean;
-}
-
-/** a page the framework renders outside the content, like a page of `createPage()` on Waku */
-export interface FrameworkPage {
-  /** URL path, with the language prefix and without the base path */
-  path: string;
-  /** the page in every language it exists in, itself included */
-  translations: { locale: string; path: string }[];
-}
-
-export interface PageAlternate {
-  locale: string;
-  /** from `site.hreflang`, defaults to the locale code */
+export interface PageAlternate<C extends AppShape = AppShape> {
+  lang: C["lang"];
+  /** from `site.hreflang`, defaults to the language code */
   hreflang: string;
   href: string;
 }
 
-/** the site, `this` in plugin hooks */
+/** the site, `this` in plugin hooks; read-only during hooks: core freezes it before the first hook */
 export interface Context<out C extends AppShape = AppShape> extends PluginContext<
   InferLoaderConfig<C>
 > {
+  readonly mode: PluginContext["mode"];
   /** the base path of the site, `/` at the root */
-  base: string;
-  /**
-   * resolved and ordered, of any site: typed by the site, a context couldn't be passed to plugins written for every site
-   */
-  plugins: readonly Plugin[];
-  getPlugin(name: string): Plugin | undefined;
+  readonly base: string;
+  /** aborted when the runtime drops this context (a reloaded press.config): `fs.watch(dir, { signal: this.signal })` */
+  readonly signal: AbortSignal;
+  /** in layer order: your plugins, the preset, the runtime's defaults */
+  readonly plugins: readonly PluginInfo[];
   /** the plugin providing a capability, with the API of the capability */
   getProvider<K extends Capability>(capability: K): Provider<K> | undefined;
-
-  siteConfig: {
-    name: string;
-    baseUrl?: string;
-    hreflang?: Record<string, string>;
-    git?: Required<Pick<NonNullable<SiteConfig["git"]>, "provider" | "url" | "rootDir">> &
-      NonNullable<SiteConfig["git"]>;
+  readonly siteConfig: Readonly<
+    Pick<SiteConfig, "baseUrl" | "hreflang"> & Required<Pick<SiteConfig, "name">>
+  > & {
+    /** `site.git` with `provider`, `url` and `rootDir` resolved */
+    readonly git?: Readonly<
+      NonNullable<SiteConfig["git"]> &
+        Required<Pick<NonNullable<SiteConfig["git"]>, "provider" | "url" | "rootDir">>
+    >;
   };
-  i18nConfig?: InferI18nConfig<C["lang"]>;
+  readonly i18nConfig?: InferI18nConfig<C["lang"]>;
   /** extended with the translations of plugins */
-  translationsConfig?: TranslationsAPI<NonNullable<C["lang"]>> | SingularTranslationsAPI;
+  readonly translationsConfig?: TranslationsAPI<NonNullable<C["lang"]>> | SingularTranslationsAPI;
 
   /** revalidate dynamic content sources, all of them without `source` */
   revalidateLoader(source?: C["source"]): Promise<void>;
@@ -201,46 +118,89 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   invalidateLoader(source?: C["source"]): void;
 
   /** prefix `pathname` with the language segment, unless `i18n.hideLocale` hides it */
-  localizePath(lang: string | undefined, pathname: string): string;
-  /** a full URL from `site.baseUrl`, or `withBase(pathname)` when unset; full URLs are kept. Paths without a file extension end with `/` when the framework has `trailingSlash` */
+  localizePath(lang: C["lang"], pathname: string): string;
+  /** a full URL from `site.baseUrl`, or `withBase(pathname)` when unset; full URLs are kept. Paths without a file extension end with `/` when the runtime has `trailingSlash` */
   absoluteUrl(pathname: string): string;
   /** the URL of a file on the git provider, requires `site.git` */
   getFileUrl(absolutePath: string): string | undefined;
+  /** whether `value` is an export of a `'use client'` module, which runs in the browser */
+  isClientReference(value: unknown): boolean;
   /** translations of a page for `hreflang` links, without fallback pages, empty when it has none */
-  getPageAlternates(page: C["page"]): Promise<PageAlternate[]>;
-  /** from the framework: your pages, like the pages of `createPage()` on Waku, and the pages of view routes */
-  getFrameworkPages(): Promise<FrameworkPage[]>;
+  getPageAlternates(page: C["page"]): Promise<PageAlternate<C>[]>;
+  /** your own pages, the views and the pages of runtime hooks; throws while the routes are created */
+  getFrameworkRoutes(): Promise<FrameworkRoute<C>[]>;
 
   getPageBody(page: C["page"]): Promise<PageBody | undefined>;
-  getPageView(page: C["page"]): Promise<PageBody | undefined>;
+  /** the page of the plugin owning `page`, `body` is its content with `body.wrapper` applied */
+  getPageView(page: C["page"], body: PageBody | undefined): Promise<PageView<any> | undefined>;
   getPageText(page: C["page"]): Promise<string | undefined>;
   getPageToc(page: C["page"]): Promise<TOCItemType[] | undefined>;
   getPageStructuredData(page: C["page"]): Promise<StructuredData | undefined>;
   getPageCreatedAt(page: C["page"]): Promise<Date | undefined>;
   getPageLastModified(page: C["page"]): Promise<Date | undefined>;
-
   /** the data of a docs page, from the page and `transformPage` of plugins */
   getPageData(page: C["page"]): Promise<DocsPageData>;
-  /** title, description, Open Graph, canonical and `hreflang` of a content page, fallback pages point at their origin and are not indexed */
-  getPageHead(page: C["page"]): Promise<HeadTag[]>;
-  /** of the config and plugins, of every page and of content pages with `page` */
-  getHead(env: { page?: C["page"] }): Promise<HeadTag[]>;
+  /**
+   * Without `page` and `route`: the tags of every page. With them: the page's whole head, its own tags (core's title, Open
+   * Graph, canonical and `hreflang` on content pages) over the tags of every page. Keyed by `title`, `meta`
+   * `name`/`property`/`http-equiv`, canonical and `hreflang`: yours win over plugins', theirs over core's.
+   */
+  getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
   /** of a content page with `page`, `layout.wrapper` without it; sorted by `order` */
-  getSlots(env: { page?: C["page"] }): Promise<Partial<Record<SlotName, SlotItem[]>>>;
-  /** with `render` filled in from `mode`, once per content: plugins create their servers in `routes()`, like the index of search */
+  getSlots(env: PageEnv<C>): Promise<Partial<Record<SlotItem["slot"], SlotItem[]>>>;
+  /** with `render` filled in from `mode` and the `pageRoutes` results, most specific path first */
   getApiRoutes(): Promise<ApiRoute[]>;
-  /** the routes rendering a view, with `render` filled in from `mode`, once per content */
-  getViewRoutes(): Promise<ViewRoute[]>;
-  /** runs the `middleware` of plugins */
+  /** the views and the views of `pageRoutes` with their page routes, without the ones your own pages replace, most specific path first */
+  getViewRoutes(): Promise<RoutedView<C>[]>;
+  /** runs the `middleware` of plugins; `next(path)` of a plugin is `next(path)` here, which re-enters the chain */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
   build(output: PressBuildOutput): Promise<void>;
+  /** `ui.baseOptions` over the plugins' contributions, over the defaults (nav title and home, the repository link) */
+  getBaseOptions(env: LangEnv<C>): Promise<BaseOptions>;
+  /** `ui.providerProps` over the plugins' contributions */
+  getProviderProps(env: LangEnv<C>): Promise<ProviderProps>;
+}
 
-  defaultLayoutProps(env: { lang: string | undefined }): Promise<Omit<BaseLayoutProps, "children">>;
+/** what a runtime gives the engine; only runtimes call {@link createPressContext} */
+export interface PressRuntime<C extends AppShape = AppShape> {
+  /** the base path of the site, `/` at the root */
+  base: string;
+  /**
+   * Like `trailingSlash: "always"` of the framework: the paths of `absoluteUrl()` without a file extension end with `/`,
+   * and so do those of `withBase()` for the routes rendered on request, which the framework serves only in that form.
+   */
+  trailingSlash?: boolean;
+  /** the preset without `preset` in `.config()` @defaultValue recommendedPreset() */
+  preset?: () => readonly PresetEntry<Plugin<C, any>>[];
+  /** the last layer, after the preset: the content renderers (MDX with the `components` module, Astro content collections) and the `translations` of the UI */
+  defaults: Plugin<C>[];
+  /** aborted when the runtime drops the context */
+  signal: AbortSignal;
+  /** whether `value` is an export of a `'use client'` module: React's client reference on Waku, the island's registry on Astro */
+  isClientReference: (value: unknown) => boolean;
+}
+
+/** a page route the runtime serves: your own page, or a page a plugin's runtime hook (`waku.createPages`) created */
+export interface RuntimeRoute<C extends AppShape = AppShape> {
+  route: FrameworkRoute<C>;
+  /** the plugin that created it, none on your own pages */
+  plugin?: PluginInfo;
+}
+
+/** the context as the runtime holds it, from {@link createPressContext} */
+export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C> {
+  /** in layer order, with the hooks the runtime runs */
+  readonly plugins: readonly Plugin<C>[];
+  /**
+   * The page routes the runtime serves, a page without `lang` belongs to the default language. Set them once the runtime
+   * created its pages and before the routes are read, reads throw until then; a new list replaces them.
+   */
+  setRuntimeRoutes(routes: readonly RuntimeRoute<C>[]): void;
 }
 
 /** join `paths` to `base` with `/`, `base` is kept as-is, like a base URL */
-function joinPaths(base: string, ...paths: string[]): string {
+export function joinPaths(base: string, ...paths: string[]): string {
   let out = base;
   for (let p of paths) {
     if (p.startsWith("/")) p = p.slice(1);
@@ -270,11 +230,11 @@ export function fallbackOrigin<Config extends LoaderConfig>(
   if (origin?.path === page.path) return origin;
 }
 
-/** `hreflang` alternate of the page at `pathname` in `locale` */
-export function pageAlternate(ctx: Context, locale: string, pathname: string): PageAlternate {
+/** `hreflang` alternate of the page at `pathname` in `lang` */
+export function pageAlternate(ctx: Context, lang: string, pathname: string): PageAlternate {
   return {
-    locale,
-    hreflang: ctx.siteConfig.hreflang?.[locale] ?? locale,
+    lang,
+    hreflang: ctx.siteConfig.hreflang?.[lang] ?? lang,
     href: ctx.absoluteUrl(pathname),
   };
 }
@@ -292,7 +252,7 @@ export function pageLinks(ctx: Context, pathname: string, alternates: PageAltern
   for (const { hreflang, href } of alternates)
     tags.push({ tag: "link", attrs: { rel: "alternate", hreflang, href } });
   const xDefault =
-    alternates.find((item) => item.locale === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
+    alternates.find((item) => item.lang === ctx.i18nConfig?.defaultLanguage) ?? alternates[0];
   if (xDefault)
     tags.push({
       tag: "link",
@@ -301,76 +261,319 @@ export function pageLinks(ctx: Context, pathname: string, alternates: PageAltern
   return tags;
 }
 
-/** the items of every result in order, for collect hooks */
-async function collect<T>(results: Awaitable<T[] | undefined>[]): Promise<T[]> {
-  const out: T[] = [];
-  for (const items of await Promise.all(results)) if (items) out.push(...items);
+/** plugin names in errors */
+function nameOf(plugin: PluginInfo): string {
+  return plugin.name ? `"${plugin.name}"` : "an unnamed plugin";
+}
+
+function isList(option: PluginOption<AnyPlugin>): option is readonly PluginOption<AnyPlugin>[] {
+  return Array.isArray(option);
+}
+
+function flatten(options: readonly PluginOption<AnyPlugin>[], out: AnyPlugin[] = []): AnyPlugin[] {
+  for (const option of options) {
+    if (isList(option)) flatten(option, out);
+    else if (option) out.push(option);
+  }
   return out;
 }
 
-/** create the site, a framework calls it once and renders its routes and layouts from the context */
-export function createPress<
-  I extends _Internal.AnyInput,
-  Lang extends string | undefined = undefined,
-  Ctx extends Context<InferAppShape<I, Lang>> = Context<InferAppShape<I, Lang>>,
->(
-  config: PressConfig<I, Lang, Ctx>,
-  runtime: PressRuntime<InferAppShape<I, Lang>>,
-): Promise<Context<InferAppShape<I, Lang>>>;
+type AnyPlugin = Plugin<AppShape, any>;
 
-export async function createPress(
-  config: PressConfig,
-  runtime: PressRuntime<InferAppShape>,
-): Promise<Context<InferAppShape>> {
-  const { site, translations } = config;
-  const i18nConfig = translations && "config" in translations ? translations.config : config.i18n;
+/** the layers in order: your plugins, the preset (where a listed plugin providing an entry's capability takes its place), the runtime's defaults */
+async function resolveLayers(
+  listed: AnyPlugin[],
+  preset: readonly PresetEntry<AnyPlugin>[],
+  defaults: AnyPlugin[],
+): Promise<AnyPlugin[][]> {
+  const placed = new Set<AnyPlugin>();
+  const loading: Awaitable<AnyPlugin>[] = [];
+  for (const entry of preset) {
+    let replaced = false;
+    for (const plugin of listed) {
+      if (!plugin.provides?.includes(entry.provides)) continue;
+      replaced = true;
+      if (placed.has(plugin)) continue;
+      placed.add(plugin);
+      loading.push(plugin);
+    }
+    if (!replaced) loading.push(entry.load());
+  }
+
+  const own: AnyPlugin[] = [];
+  for (const plugin of listed) if (!placed.has(plugin)) own.push(plugin);
+  return [own, await Promise.all(loading), defaults];
+}
+
+const dev = globalThis.process?.env.NODE_ENV !== "production";
+
+const headKeyAttrs = ["name", "property", "http-equiv"];
+
+/** the key of a tag that one value per page has, like its `title` */
+function headKey({ tag, attrs = {} }: HeadTag): string | undefined {
+  if (tag === "title") return tag;
+  if (tag === "meta") {
+    for (const name of headKeyAttrs) if (attrs[name]) return `meta ${name}=${attrs[name]}`;
+  }
+  if (tag === "link" && attrs.rel === "canonical") return "canonical";
+  if (tag === "link" && attrs.rel === "alternate" && attrs.hreflang)
+    return `alternate ${attrs.hreflang}`;
+}
+
+/** the tags of `lists`, the first list wins a key; an unkeyed tag repeating another is dropped */
+export function mergeHead(lists: readonly (readonly HeadTag[] | undefined)[]): HeadTag[] {
+  const out: HeadTag[] = [];
+  const seen = new Set<string>();
+  for (const tags of lists) {
+    for (const tag of tags ?? []) {
+      const key = headKey(tag) ?? JSON.stringify(tag);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(tag);
+    }
+  }
+  return out;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || isValidElement(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/** objects merge deeply and lists concatenate, in order; otherwise the first defined value wins */
+function mergeOptions<T extends object>(sources: readonly (Partial<T> | undefined)[]): Partial<T>;
+function mergeOptions(sources: readonly unknown[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const source of sources) {
+    if (!isPlainObject(source)) continue;
+    for (const [key, value] of Object.entries(source)) {
+      const current = out[key];
+      if (value === undefined) continue;
+      if (current === undefined) out[key] = isPlainObject(value) ? mergeOptions([value]) : value;
+      else if (Array.isArray(current) && Array.isArray(value)) out[key] = [...current, ...value];
+      else if (isPlainObject(current) && isPlainObject(value))
+        out[key] = mergeOptions([current, value]);
+    }
+  }
+  return out;
+}
+
+/** the key of a route pattern in "a path has one route", params of any name are one key */
+function patternKey(pattern: string): string {
+  const segments: string[] = [];
+  for (const seg of pattern.split("/")) {
+    if (!seg) continue;
+    if (seg.startsWith("[...")) segments.push("[...]");
+    else if (seg.startsWith("[")) segments.push("[]");
+    else segments.push(seg);
+  }
+  return `/${segments.join("/")}`;
+}
+
+/** the key of a page in "a path has one route" */
+function pageKey(path: string): string {
+  return path.replace(/(.)\/$/, "$1");
+}
+
+/** the keys of "a path has one route": the route's pattern (unless `undefined`), and its pages */
+function routeKeys(pattern: string | undefined, pages: readonly { path: string }[]): Set<string> {
+  const keys = new Set<string>();
+  if (pattern !== undefined) keys.add(patternKey(pattern));
+  for (const page of pages) keys.add(pageKey(page.path));
+  return keys;
+}
+
+interface CollectedRoutes {
+  api: ApiRoute[];
+  views: RoutedView[];
+  frameworkRoutes: FrameworkRoute[];
+}
+
+/** the routes of one content and one list of the runtime */
+interface Collection {
+  source: object;
+  served: readonly RuntimeRoute[];
+  routes: Promise<CollectedRoutes>;
+  /**
+   * The page routes `pageRoutes` derive from, while they run. Pages rendered by them (the Markdown of `llmsPlugin`) read
+   * these instead of waiting for themselves; `pageRoutes` add no pages a home or a redirect is looked up in.
+   */
+  deriving?: FrameworkRoute[];
+}
+
+/** paths that keep their form with `trailingSlash`: ending with `/`, or files with their extension, like the URLs of Astro with `trailingSlash: "always"` */
+const plainPath = /(\/|\.[^/]+)$/;
+
+/** the owner of your own pages in route conflicts */
+const ownPage = "your own page";
+
+/** the context of `getPressContext()`; not `createContext`, which is React's */
+export function createPressContext<C extends AppShape>(
+  press: Press<C, any>,
+  runtime: PressRuntime<C>,
+): Promise<RuntimeContext<C>>;
+
+export async function createPressContext(
+  press: Press,
+  runtime: PressRuntime,
+): Promise<RuntimeContext> {
+  const { content, options, plugins: listed, config } = press["~press"];
+  const ui = config.ui ?? {};
+  const translations = ui.translations;
+  const i18nConfig = options.i18n;
   if (i18nConfig?.hideLocale === "always")
     throw new Error(
       '[Fumapress] `hideLocale: "always"` is not supported, languages are told apart by their URL prefix. Use `hideLocale: "default-locale"` to drop the prefix of the default language only.',
     );
 
-  const plugins = await resolvePlugins(
-    config.plugins ?? [],
-    config.preset === false ? [] : (runtime.preset?.() ?? []),
+  const layers = await resolveLayers(
+    flatten(listed),
+    config.preset ?? runtime.preset?.() ?? recommendedPreset(),
+    runtime.defaults,
   );
-  for (const plugin of plugins) {
-    if (plugin.translations) translations?.extend(plugin.translations);
-  }
+  const plugins = layers.flat();
+  const layerOf = new Map<AnyPlugin, number>();
+  for (const [i, layer] of layers.entries()) for (const plugin of layer) layerOf.set(plugin, i);
 
-  /** the first value of a resolve hook */
-  async function resolve<T>(
-    page: InferAppShape["page"],
-    hook: (
-      plugin: Plugin<InferAppShape>,
-    ) =>
-      | ((this: Context<InferAppShape>, page: InferAppShape["page"]) => Awaitable<T | undefined>)
-      | undefined,
-  ): Promise<T | undefined> {
-    for (const plugin of plugins) {
-      const value = await hook(plugin)?.call(ctx, page);
-      if (value !== undefined) return value;
+  const providers = new Map<Capability, AnyPlugin>();
+  for (const plugin of plugins) {
+    for (const capability of plugin.provides ?? []) {
+      const other = providers.get(capability);
+      if (other)
+        throw new Error(
+          `[Fumapress] ${nameOf(other)} and ${nameOf(plugin)} both provide "${capability}": a capability has one provider.`,
+        );
+      providers.set(capability, plugin);
     }
   }
 
-  const routesOf = new WeakMap<object, Promise<{ api: ApiRoute[]; views: ViewRoute[] }>>();
+  for (const plugin of plugins) if (plugin.translations) translations?.extend(plugin.translations);
 
-  async function collectRoutes() {
-    const api: ApiRoute[] = [];
-    const views: ViewRoute[] = [];
-    // `${method} ${path}`
-    const handled = new Set<string>();
-    for (const route of await collect(plugins.map((plugin) => plugin.routes?.call(ctx)))) {
-      const render = route.render ?? (ctx.mode === "dynamic" ? "dynamic" : "static");
-      if (render === "static" && !route.staticPaths && route.path.includes("["))
+  const { site } = config;
+  const siteConfig: Context["siteConfig"] = Object.freeze({
+    ...site,
+    name: site?.name ?? "Fumapress",
+    git: site?.git && Object.freeze(resolveGit(site.git)),
+  });
+  const mode = config.mode ?? "default";
+  const { alwaysRevalidate, ...loaderOptions } = options.loaderOptions ?? {};
+  let loader: DynamicLoader<InferLoaderConfig<AppShape>>;
+
+  /** the first answer of the first layer answering; in development, a second answer of that layer is an error */
+  async function resolve<T>(
+    page: AppShape["page"],
+    hook: string,
+    call: (plugin: AnyPlugin) => Awaitable<T | undefined>,
+  ): Promise<T | undefined> {
+    let found: { plugin: AnyPlugin; value: T } | undefined;
+    for (const plugin of plugins) {
+      if (found && (!dev || layerOf.get(plugin) !== layerOf.get(found.plugin))) break;
+      const value = await call(plugin);
+      if (value === undefined) continue;
+      if (found)
         throw new Error(
-          `[Fumapress] the static route "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
+          `[Fumapress] ${nameOf(found.plugin)} and ${nameOf(plugin)} both answer \`${hook}\` for "${page.url}": a page has one renderer.`,
         );
-      if ("view" in route) {
-        views.push({ ...route, render });
-        continue;
-      }
+      found = { plugin, value };
+    }
+    return found?.value;
+  }
 
+  /**
+   * The fields that the results of transform hooks change from `base`, unless `fixed`: every plugin transforms the same
+   * base, a field has one writer.
+   */
+  function changes(
+    base: object,
+    results: readonly (object | undefined)[],
+    conflict: (key: string, first: AnyPlugin, second: AnyPlugin) => string,
+    fixed?: (key: string) => boolean,
+  ): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    const writers = new Map<string, AnyPlugin>();
+    for (const [i, result] of results.entries()) {
+      for (const [key, value] of Object.entries(result ?? {})) {
+        if (fixed?.(key) || Object.is(value, Reflect.get(base, key))) continue;
+        const other = writers.get(key);
+        if (other) throw new Error(`[Fumapress] ${conflict(key, other, plugins[i]!)}`);
+        writers.set(key, plugins[i]!);
+        out[key] = value;
+      }
+    }
+    return out;
+  }
+
+  /** `this` of the hooks creating routes, where reading the routes would wait for themselves */
+  function routeContext<T>(plugin: AnyPlugin, run: (ctx: Context) => Promise<T>): Promise<T> {
+    let creating = true;
+    const reject = () =>
+      creating
+        ? Promise.reject(
+            new Error(
+              `[Fumapress] ${nameOf(plugin)} reads the routes while plugins create them: derive routes from the final list in \`pageRoutes()\`.`,
+            ),
+          )
+        : undefined;
+    const guarded: Context = Object.freeze(
+      Object.create(ctx, {
+        getFrameworkRoutes: { value: () => reject() ?? ctx.getFrameworkRoutes() },
+        getApiRoutes: { value: () => reject() ?? ctx.getApiRoutes() },
+        getViewRoutes: { value: () => reject() ?? ctx.getViewRoutes() },
+      }),
+    );
+    return run(guarded).finally(() => {
+      creating = false;
+    });
+  }
+
+  async function collectRoutes(
+    source: LoaderOutput<InferLoaderConfig<AppShape>>,
+    runtimeRoutes: readonly RuntimeRoute[],
+    /** sets {@link Collection.deriving} */
+    derive: (routes?: FrameworkRoute[]) => void,
+  ): Promise<CollectedRoutes> {
+    const languages = ctx.i18nConfig?.languages ?? [undefined];
+    const defaultLanguage = ctx.i18nConfig?.defaultLanguage;
+    /** route key → its owner, for "a path has one route": the plugin, your own page or a content page */
+    const owners = new Map<string, PluginInfo | string>();
+    const contentUrls: string[] = [];
+    for (const page of source.getPages()) {
+      contentUrls.push(page.url);
+      owners.set(page.url, `the content page "${page.url}"`);
+    }
+    const out: CollectedRoutes = { api: [], views: [], frameworkRoutes: [] };
+    const localize = createLocalizer(ctx);
+
+    /** false when your own page takes a key of a plugin's page (yours wins), an error naming both for any other owner */
+    function claim(keys: Set<string>, owner: PluginInfo, path: string, page: boolean): boolean {
+      for (const key of keys) {
+        const other = owners.get(key);
+        if (other === undefined) continue;
+        if (page && other === ownPage) return false;
+        throw new Error(
+          `[Fumapress] ${typeof other === "string" ? other : nameOf(other)} and ${nameOf(owner)} both take the path "${path}": a path has one route.`,
+        );
+      }
+      for (const key of keys) owners.set(key, owner);
+      return true;
+    }
+
+    function checkRender(plugin: AnyPlugin, path: string, render: "static" | "dynamic") {
+      if (render === "dynamic" && mode === "static")
+        throw new Error(
+          `[Fumapress] the route "${path}" of ${nameOf(plugin)} renders on request, which \`mode: "static"\` can't serve: read \`this.mode\` to degrade.`,
+        );
+    }
+
+    function addApi(plugin: AnyPlugin, route: ApiRoute) {
+      const render = route.render ?? (mode === "dynamic" ? "dynamic" : "static");
+      checkRender(plugin, route.path, render);
       if (render === "static") {
+        if (!route.staticPaths && route.path.includes("["))
+          throw new Error(
+            `[Fumapress] the static route "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
+          );
         const other = route.ALL
           ? "ALL"
           : methods.find((method) => method !== "GET" && route[method]);
@@ -379,92 +582,310 @@ export async function createPress(
             `[Fumapress] the static route "${route.path}" is generated from its GET handler, its ${other} handler needs \`render: 'dynamic'\` to run on the server.`,
           );
       }
-      for (const method of methods) {
-        if (!route[method] && !route.ALL) continue;
-        const key = `${method} ${route.path}`;
-        if (handled.has(key))
-          throw new Error(`[Fumapress] two routes handle ${method} requests to "${route.path}".`);
-        handled.add(key);
-      }
-      api.push({ ...route, render });
+      const { pattern, pages } = expandRoute(
+        route.path,
+        render === "static" ? route.staticPaths : undefined,
+      );
+      const paths: { path: string }[] = [];
+      for (const page of pages) paths.push({ path: page.pathname });
+      // a static route serves only its listed paths, which a page pattern like your own `/[...slug]` leaves to it
+      claim(routeKeys(render === "static" ? undefined : pattern, paths), plugin, route.path, false);
+      out.api.push({ ...route, render });
     }
-    return { api, views };
-  }
 
-  async function getRoutes() {
-    const loader = await ctx.getLoader();
-    let routes = routesOf.get(loader);
-    if (!routes) routesOf.set(loader, (routes = collectRoutes()));
-    return routes;
-  }
+    function addView(plugin: AnyPlugin, route: ViewRoute, lang: string | undefined) {
+      const render = route.render === "dynamic" || mode === "dynamic" ? "dynamic" : "static";
+      checkRender(plugin, route.path, route.render ?? "static");
+      if (render === "static" && !route.staticPaths && route.path.includes("["))
+        throw new Error(
+          `[Fumapress] the static view "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
+        );
+      const expanded = expandRoute(route.path, route.staticPaths);
+      const pattern = ctx.localizePath(lang, expanded.pattern);
+      if (owners.get(patternKey(pattern)) === ownPage) return;
+      // your own page at one of its pages takes only that page
+      const pages: FrameworkRoute["pages"][number][] = [];
+      const staticPaths: string[][] = [];
+      for (const [i, { pathname, params }] of expanded.pages.entries()) {
+        if (owners.get(pageKey(ctx.localizePath(lang, pathname))) === ownPage) continue;
+        pages.push({ ...localize(lang, pathname), params });
+        const entry = route.staticPaths?.[i];
+        if (entry !== undefined) staticPaths.push(typeof entry === "string" ? [entry] : entry);
+      }
+      if (render === "static" && pages.length === 0) return;
+      claim(routeKeys(pattern, pages), plugin, pattern, true);
+      if (render === "dynamic" && route.path.includes("[")) {
+        for (const url of contentUrls) {
+          if (matchRoute(pattern, url))
+            throw new Error(
+              `[Fumapress] the content page "${url}" and ${nameOf(plugin)} both take the path "${url}": a path has one route.`,
+            );
+        }
+      }
 
-  const ctx: Context<InferAppShape> = {
-    mode: config.mode ?? "default",
-    base: runtime.base,
-    plugins,
-    getPlugin: (name) => plugins.find((plugin) => plugin.name === name),
-    getProvider: <K extends Capability>(capability: K) =>
-      plugins.find(
-        (plugin): plugin is Provider<K> => plugin.provides?.includes(capability) === true,
+      const framework: FrameworkRoute = { path: pattern, lang, render, pages, options: {} };
+      out.views.push({
+        route: framework,
+        view: pages.length === expanded.pages.length ? route : { ...route, staticPaths },
+      });
+      out.frameworkRoutes.push(framework);
+    }
+
+    // your own pages first: they win over the pages of plugins
+    for (const { route, plugin } of runtimeRoutes) {
+      if (plugin) continue;
+      for (const key of routeKeys(route.path, route.pages)) owners.set(key, ownPage);
+      out.frameworkRoutes.push(route);
+    }
+    for (const { route, plugin } of runtimeRoutes) {
+      if (plugin && claim(routeKeys(route.path, route.pages), plugin, route.path, true))
+        out.frameworkRoutes.push(route);
+    }
+
+    const [routeLists, viewLists] = await Promise.all([
+      Promise.all(
+        plugins.map((plugin) =>
+          routeContext(plugin, (ctx) => Promise.resolve(plugin.routes?.call(ctx))),
+        ),
       ),
-    siteConfig: {
-      ...site,
-      name: site?.name ?? "Fumapress",
-      git: site?.git && resolveGit(site.git),
+      Promise.all(
+        plugins.map((plugin) =>
+          routeContext(plugin, (ctx) =>
+            Promise.all(languages.map((lang) => plugin.views?.call(ctx, { lang }))),
+          ),
+        ),
+      ),
+    ]);
+
+    for (const [i, plugin] of plugins.entries()) {
+      for (const route of routeLists[i] ?? []) {
+        if ("view" in route)
+          throw new Error(
+            `[Fumapress] ${nameOf(plugin)} returns the view "${route.path}" from \`routes()\`: views go in \`views()\`.`,
+          );
+        addApi(plugin, route);
+      }
+    }
+    for (const [i, plugin] of plugins.entries()) {
+      for (const [j, lang] of languages.entries())
+        for (const route of viewLists[i]?.[j] ?? []) addView(plugin, route, lang);
+    }
+
+    const final = [...out.frameworkRoutes];
+    derive(final);
+    const derived = await Promise.all(
+      plugins.map((plugin) =>
+        routeContext(plugin, (ctx) =>
+          Promise.all(
+            languages.map((lang) => {
+              const routes: FrameworkRoute[] = [];
+              for (const route of final)
+                if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
+              return plugin.pageRoutes?.call(ctx, { lang, routes: Object.freeze(routes) });
+            }),
+          ),
+        ),
+      ),
+    ).finally(() => derive());
+    for (const [i, plugin] of plugins.entries()) {
+      for (const [j, lang] of languages.entries()) {
+        for (const route of derived[i]?.[j] ?? []) {
+          if (route.view) addView(plugin, route, lang);
+          else addApi(plugin, route);
+        }
+      }
+    }
+
+    out.api.sort((a, b) => compareRoutes(a.path, b.path));
+    out.views.sort((a, b) => compareRoutes(a.route.path, b.route.path));
+    lastRoutes = out;
+    return out;
+  }
+
+  /** the last collected routes: `withBase()` is synchronous, the runtime renders once they are collected */
+  let lastRoutes: CollectedRoutes | undefined;
+  /** whether the runtime serves `path` only with `/`: a route rendered on request without a file extension */
+  function endsWithSlash(path: string): boolean {
+    if (!runtime.trailingSlash || !lastRoutes || plainPath.test(path)) return false;
+    for (const route of lastRoutes.api)
+      if (route.render === "dynamic" && matchRoute(route.path, path)) return true;
+    for (const { route } of lastRoutes.views)
+      if (route.render === "dynamic" && matchRoute(route.path, path)) return true;
+    return false;
+  }
+
+  /** the page routes the runtime serves, from `setRuntimeRoutes()` */
+  let served: readonly RuntimeRoute[] | undefined;
+  /** the routes of one content and one list of the runtime, collected on the first read */
+  let collected: Collection | undefined;
+  async function getCollection(): Promise<Collection> {
+    const current = served;
+    if (!current)
+      throw new Error(
+        "[Fumapress] the routes are read before they are created: read them in handlers, views and `head`, or derive routes from them in `pageRoutes()`.",
+      );
+    const source = await ctx.getLoader();
+    if (collected?.source !== source || collected.served !== current) {
+      const collection: Collection = {
+        source,
+        served: current,
+        routes: collectRoutes(source, current, (routes) => {
+          collection.deriving = routes;
+        }),
+      };
+      collected = collection;
+    }
+    return collected;
+  }
+  async function getRoutes(): Promise<CollectedRoutes> {
+    return (await getCollection()).routes;
+  }
+
+  /** the tags of one call of `head`, the site's first and core's last */
+  async function headOf(env: HeadEnv<AppShape>): Promise<HeadTag[]> {
+    const own =
+      typeof config.head === "function"
+        ? config.head.call(ctx, env)
+        : env.page || env.route
+          ? undefined
+          : config.head;
+    const lists = await Promise.all([
+      own,
+      ...plugins.map((plugin) => plugin.head?.call(ctx, env)),
+      coreHead(env),
+    ]);
+    return mergeHead(lists);
+  }
+
+  /** core's tags of a page: title, description and Open Graph of content pages, the title and description of views, canonical and `hreflang` of every page */
+  async function coreHead({
+    page,
+    route,
+    path,
+    view,
+  }: HeadEnv<AppShape>): Promise<HeadTag[] | undefined> {
+    if (route && path !== undefined) {
+      const tags: HeadTag[] = [];
+      if (view?.title) tags.push({ tag: "title", children: view.title });
+      if (view?.description)
+        tags.push({ tag: "meta", attrs: { name: "description", content: view.description } });
+      const alternates: PageAlternate[] = [];
+      const current = route.pages.find((item) => item.path === path);
+      if (current && current.translations.length > 1) {
+        for (const item of current.translations)
+          if (item.lang) alternates.push(pageAlternate(ctx, item.lang, item.path));
+      }
+      tags.push(...pageLinks(ctx, path, alternates));
+      return tags;
+    }
+    if (!page) return;
+
+    const { title, description } = page.data;
+    const [source, alternates] = await Promise.all([ctx.getLoader(), ctx.getPageAlternates(page)]);
+    const origin = fallbackOrigin(source, ctx.i18nConfig, page);
+    const tags: HeadTag[] = [{ tag: "title", children: title }];
+    if (description)
+      tags.push({ tag: "meta", attrs: { name: "description", content: description } });
+    tags.push({ tag: "meta", attrs: { property: "og:title", content: title ?? "" } });
+    if (description)
+      tags.push({ tag: "meta", attrs: { property: "og:description", content: description } });
+    tags.push(
+      { tag: "meta", attrs: { property: "og:site_name", content: ctx.siteConfig.name } },
+      ...pageLinks(ctx, (origin ?? page).url, alternates),
+    );
+    if (origin) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
+    return tags;
+  }
+
+  const middleware: AnyPlugin[] = [];
+  for (const plugin of plugins) if (plugin.middleware) middleware.push(plugin);
+
+  const ctx: RuntimeContext = Object.freeze({
+    mode,
+    base: runtime.base,
+    signal: runtime.signal,
+    plugins: Object.freeze(plugins),
+    setRuntimeRoutes(routes: readonly RuntimeRoute[]) {
+      served = routes;
     },
+    getProvider: (capability: Capability) => providers.get(capability),
+    siteConfig,
     i18nConfig,
     translationsConfig: translations,
     getLoader() {
-      throw new Error(
-        "[Fumapress] the content loader is created after `configureLoader()`, use it from `configure()` on.",
-      );
+      if (!loader)
+        throw new Error(
+          "[Fumapress] the content loader is created after `configureLoader()`, use it from `configure()` on.",
+        );
+      // `get()` revalidates the invalidated sources
+      if (alwaysRevalidate) loader.invalidate();
+      return loader.get();
     },
-    async revalidateLoader() {},
-    invalidateLoader() {},
-    localizePath(lang, pathname) {
+    async revalidateLoader(name?: string) {
+      await loader?.revalidate(name);
+    },
+    invalidateLoader(name?: string) {
+      loader?.invalidate(name);
+    },
+    localizePath(lang: string | undefined, pathname: string) {
       const i18n = ctx.i18nConfig;
       if (!i18n || !lang || (i18n.hideLocale === "default-locale" && lang === i18n.defaultLanguage))
         return pathname;
       return joinPaths(`/${lang}`, pathname);
     },
-    withBase: (pathname) => joinPaths("/", ctx.base, pathname),
-    absoluteUrl(pathname) {
+    withBase(pathname: string) {
+      const url = joinPaths("/", ctx.base, pathname);
+      return endsWithSlash(pathname) ? `${url}/` : url;
+    },
+    absoluteUrl(pathname: string) {
       if (URL.canParse(pathname)) return pathname;
       const { baseUrl } = ctx.siteConfig;
       // joined to keep the path of `baseUrl`
       const url = baseUrl ? new URL(joinPaths(baseUrl, pathname)).href : ctx.withBase(pathname);
-      // files keep their extension, like the URLs of Astro with `trailingSlash: "always"`
-      return runtime.trailingSlash && !/(\/|\.[^/]+)$/.test(url) ? `${url}/` : url;
+      return runtime.trailingSlash && !plainPath.test(url) ? `${url}/` : url;
     },
-    getFileUrl: (absolutePath) =>
+    getFileUrl: (absolutePath: string) =>
       ctx.siteConfig.git && getFileUrl(ctx.siteConfig.git, absolutePath),
-    async getPageAlternates(page) {
+    isClientReference: runtime.isClientReference,
+    async getPageAlternates(page: AppShape["page"]) {
       const i18n = ctx.i18nConfig;
       if (!i18n) return [];
       const source = await ctx.getLoader();
       const out: PageAlternate[] = [];
-      for (const locale of i18n.languages) {
-        const target = source.getPage(page.slugs, locale);
+      for (const lang of i18n.languages) {
+        const target = source.getPage(page.slugs, lang);
         if (!target || fallbackOrigin(source, i18n, target)) continue;
-        out.push(pageAlternate(ctx, locale, target.url));
+        out.push(pageAlternate(ctx, lang, target.url));
       }
       return out.length > 1 ? out : [];
     },
-    getFrameworkPages: async () => (await runtime.getFrameworkPages?.(ctx)) ?? [],
-    getPageBody: (page) => resolve(page, (plugin) => plugin.getPageBody),
-    getPageView: (page) => resolve(page, (plugin) => plugin.getPageView),
-    getPageText: (page) => resolve(page, (plugin) => plugin.getPageText),
-    getPageToc: (page) => resolve(page, (plugin) => plugin.getPageToc),
-    getPageStructuredData: (page) => resolve(page, (plugin) => plugin.getPageStructuredData),
-    getPageCreatedAt: (page) => resolve(page, (plugin) => plugin.getPageCreatedAt),
-    getPageLastModified: (page) => resolve(page, (plugin) => plugin.getPageLastModified),
-    async getPageData(page) {
+    async getFrameworkRoutes() {
+      const { deriving, routes } = await getCollection();
+      return deriving ?? (await routes).frameworkRoutes;
+    },
+    getPageBody: (page: AppShape["page"]) =>
+      resolve(page, "getPageBody", (plugin) => plugin.getPageBody?.call(ctx, page)),
+    getPageView: (page: AppShape["page"], body: PageBody | undefined) =>
+      resolve(page, "getPageView", (plugin) => plugin.getPageView?.call(ctx, page, body)),
+    getPageText: (page: AppShape["page"]) =>
+      resolve(page, "getPageText", (plugin) => plugin.getPageText?.call(ctx, page)),
+    getPageToc: (page: AppShape["page"]) =>
+      resolve(page, "getPageToc", (plugin) => plugin.getPageToc?.call(ctx, page)),
+    getPageStructuredData: (page: AppShape["page"]) =>
+      resolve(page, "getPageStructuredData", (plugin) =>
+        plugin.getPageStructuredData?.call(ctx, page),
+      ),
+    getPageCreatedAt: (page: AppShape["page"]) =>
+      resolve(page, "getPageCreatedAt", (plugin) => plugin.getPageCreatedAt?.call(ctx, page)),
+    getPageLastModified: (page: AppShape["page"]) =>
+      resolve(page, "getPageLastModified", (plugin) => plugin.getPageLastModified?.call(ctx, page)),
+    async getPageData(page: AppShape["page"]) {
       const { data } = page;
       const [toc = [], lastModified] = await Promise.all([
         ctx.getPageToc(page),
         ctx.getPageLastModified(page),
       ]);
-      let out: DocsPageData = {
+      const base: DocsPageData = Object.freeze({
         title: data.title ?? page.slugs.at(-1) ?? "",
         description: data.description,
         url: page.url,
@@ -475,97 +896,120 @@ export async function createPress(
         full: "full" in data && typeof data.full === "boolean" ? data.full : undefined,
         lastModified,
         githubUrl: page.absolutePath ? ctx.getFileUrl(page.absolutePath) : undefined,
-      };
-      for (const plugin of plugins) {
-        if (plugin.transformPage) out = await plugin.transformPage.call(ctx, out, page);
-      }
-      return out;
-    },
-    async getPageHead(page) {
-      const { title, description } = page.data;
-      const [source, alternates] = await Promise.all([
-        ctx.getLoader(),
-        ctx.getPageAlternates(page),
-      ]);
-      const origin = fallbackOrigin(source, ctx.i18nConfig, page);
-      const tags: HeadTag[] = [{ tag: "title", children: title }];
-      if (description)
-        tags.push({ tag: "meta", attrs: { name: "description", content: description } });
-      tags.push({ tag: "meta", attrs: { property: "og:title", content: title ?? "" } });
-      if (description)
-        tags.push({ tag: "meta", attrs: { property: "og:description", content: description } });
-      tags.push(
-        { tag: "meta", attrs: { property: "og:site_name", content: ctx.siteConfig.name } },
-        ...pageLinks(ctx, (origin ?? page).url, alternates),
+      });
+      const results = await Promise.all(
+        plugins.map((plugin) => plugin.transformPage?.call(ctx, base, page)),
       );
-      if (origin) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
-      return tags;
+      return {
+        ...base,
+        ...changes(
+          base,
+          results,
+          (key, a, b) =>
+            `${nameOf(a)} and ${nameOf(b)} both set \`${key}\` of the page "${page.url}": a field of the page data has one \`transformPage\`.`,
+        ),
+      };
     },
-    getHead: (env) =>
-      collect([
-        config.head?.call(ctx, env),
-        ...plugins.map((plugin) => plugin.head?.call(ctx, env)),
-      ]),
-    async getSlots(env) {
-      const items = await collect(plugins.map((plugin) => plugin.slots?.call(ctx, env)));
+    async getHead(env: HeadEnv<AppShape>) {
+      if (!env.page && !env.route) return headOf({});
+      // a page's own value wins over the one of every page
+      const [own, every] = await Promise.all([headOf(env), headOf({})]);
+      return mergeHead([own, every]);
+    },
+    async getSlots(env: PageEnv<AppShape>) {
+      const results = await Promise.all(plugins.map((plugin) => plugin.slots?.call(ctx, env)));
+      const items: SlotItem[] = [];
+      const names = new Map<string, AnyPlugin>();
+      for (const [i, result] of results.entries()) {
+        for (const item of result ?? []) {
+          if ("name" in item) {
+            const key = `${item.slot} ${item.name}`;
+            const other = names.get(key);
+            if (other)
+              throw new Error(
+                `[Fumapress] ${nameOf(other)} and ${nameOf(plugins[i]!)} both add the "${item.slot}" item "${item.name}": a name has one item.`,
+              );
+            names.set(key, plugins[i]!);
+          }
+          items.push(item);
+        }
+      }
+      // stable: equal orders keep the layer and list order
       items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      const out: Partial<Record<SlotName, SlotItem[]>> = {};
+      const out: Partial<Record<SlotItem["slot"], SlotItem[]>> = {};
       for (const item of items) (out[item.slot] ??= []).push(item);
       return out;
     },
     getApiRoutes: async () => (await getRoutes()).api,
     getViewRoutes: async () => (await getRoutes()).views,
-    handleRequest(request, next) {
-      function dispatch(i: number, request: Request, rewrite?: string): Promise<Response> {
-        const plugin = plugins[i];
-        if (!plugin) return next(rewrite);
-        if (!plugin.middleware) return dispatch(i + 1, request, rewrite);
-
-        return plugin.middleware.call(ctx, request, (path) =>
-          path === undefined
-            ? dispatch(i + 1, request, rewrite)
-            : dispatch(i + 1, new Request(new URL(ctx.withBase(path), request.url), request), path),
+    handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>) {
+      function dispatch(i: number): Promise<Response> {
+        const plugin = middleware[i];
+        if (!plugin) return next();
+        return plugin.middleware!.call(ctx, request, (rewrite) =>
+          rewrite === undefined ? dispatch(i + 1) : next(rewrite),
         );
       }
-
-      return dispatch(0, request);
+      return dispatch(0);
     },
-    async build(output) {
+    async build(output: PressBuildOutput) {
       for (const plugin of plugins) await plugin.build?.call(ctx, output);
     },
-    async defaultLayoutProps(env) {
-      const props =
-        typeof config.defaultLayoutProps === "function"
-          ? await config.defaultLayoutProps.call(ctx, env)
-          : (config.defaultLayoutProps ?? {});
+    // `this`: the context of the caller, which hooks creating routes guard
+    async getBaseOptions(this: Context, env: LangEnv<AppShape>) {
+      const [own, ...contributions] = await Promise.all([
+        typeof ui.baseOptions === "function" ? ui.baseOptions.call(this, env) : ui.baseOptions,
+        ...plugins.map((plugin) => plugin.baseOptions?.call(this, env)),
+      ]);
+      const props = mergeOptions<BaseOptions>([own, ...contributions]);
       const { name, git } = ctx.siteConfig;
-
-      return {
-        ...(git ? addRepoLink(props, git) : props),
+      // the defaults, the last layer
+      const out: BaseOptions = {
+        ...props,
         nav: {
           ...props.nav,
           title: props.nav?.title ?? name,
-          url: props.nav?.url ?? (await getHomeUrl(ctx, env.lang)),
+          url: props.nav?.url ?? (await getHomeUrl(this, env.lang)),
         },
       };
+      return git ? addRepoLink(out, git) : out;
     },
-  };
+    async getProviderProps(this: Context, env: LangEnv<AppShape>) {
+      const [own, ...contributions] = await Promise.all([
+        typeof ui.providerProps === "function"
+          ? ui.providerProps.call(this, env)
+          : ui.providerProps,
+        ...plugins.map((plugin) => plugin.providerProps?.call(this, env)),
+      ]);
+      return mergeOptions<ProviderProps>([own, ...contributions]);
+    },
+  });
 
   for (const plugin of plugins) await plugin.init?.call(ctx);
 
-  const { alwaysRevalidate, ...loaderOptions } = config.loaderOptions ?? {};
-  let options: PluginLoaderOptions = { baseUrl: "/", i18n: ctx.i18nConfig, ...loaderOptions };
-  for (const plugin of plugins) {
-    if (plugin.configureLoader) options = await plugin.configureLoader.call(ctx, options);
-  }
-  const loader = dynamicLoader<_Internal.AnyInput, I18nConfig | undefined>(config.content, options);
-  ctx.getLoader = () => {
-    // `get()` revalidates the invalidated sources
-    if (alwaysRevalidate) loader.invalidate();
-    return loader.get();
-  };
-  ctx.revalidateLoader = (name?: string) => loader.revalidate(name);
-  ctx.invalidateLoader = (name?: string) => loader.invalidate(name);
+  // every plugin gets the site's options: `plugins` are collected, other options have one writer
+  const input: PluginLoaderOptions = Object.freeze({
+    baseUrl: "/",
+    i18n: i18nConfig,
+    ...loaderOptions,
+  });
+  const results = await Promise.all(
+    plugins.map((plugin) => plugin.configureLoader?.call(ctx, input)),
+  );
+  const loaderPlugins = [...(input.plugins ?? [])];
+  for (const result of results) loaderPlugins.push(...(result?.plugins ?? []));
+  loader = dynamicLoader<_Internal.AnyInput, I18nConfig | undefined>(content, {
+    ...input,
+    ...changes(
+      input,
+      results,
+      (key, a, b) =>
+        `${nameOf(a)} and ${nameOf(b)} both set the loader option \`${key}\`: an option has one writer, set it in \`loaderOptions\` to choose.`,
+      // the site's options win
+      (key) => key === "plugins" || key === "baseUrl" || key === "i18n" || key in loaderOptions,
+    ),
+    plugins: loaderPlugins,
+  });
 
   for (const plugin of plugins) await plugin.configure?.call(ctx);
   return ctx;

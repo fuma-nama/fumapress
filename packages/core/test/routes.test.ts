@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type FrameworkPage } from "@/context";
-import { expandRoute, getHomeUrl, matchRoute, rootRedirect } from "@/routes";
+import { pressContext } from "./harness";
+import type { RuntimeRoute } from "@/context";
+import { compareRoutes, expandRoute, getHomeUrl, matchRoute, rootRedirect } from "@/routes";
 
 describe("expandRoute", () => {
   it("lists a page per entry of `staticPaths`, without route groups", () => {
@@ -70,19 +71,24 @@ describe("getHomeUrl and rootRedirect", () => {
     config: I18nConfig | null = i18n,
     frameworkPages: string[] = [],
   ) {
-    const pages: FrameworkPage[] = [];
-    for (const path of frameworkPages) pages.push({ path, translations: [] });
-    return createPress(
-      { content: { files }, preset: false, i18n: config ?? undefined },
-      { base: "/", getFrameworkPages: () => pages },
-    );
+    const routes: RuntimeRoute[] = [];
+    for (const path of frameworkPages)
+      routes.push({
+        route: {
+          path,
+          render: "static",
+          pages: [{ path, translations: [], params: {} }],
+          options: {},
+        },
+      });
+    return pressContext({ content: { files }, preset: [], i18n: config ?? undefined }, { routes });
   }
 
   it("finds the home of a language, or its first page", async () => {
     const ctx = await create(docs);
     expect(await getHomeUrl(ctx, "cn")).toBe("/cn/docs/b");
     expect(await getHomeUrl(await create([page("index.cn.mdx"), ...docs]), "cn")).toBe("/cn");
-    expect(await getHomeUrl(await create(docs, null))).toBe("/docs/b");
+    expect(await getHomeUrl(await create(docs, null), undefined)).toBe("/docs/b");
     expect(await getHomeUrl(await create([]), "en")).toBe("/en");
   });
 
@@ -101,5 +107,26 @@ describe("getHomeUrl and rootRedirect", () => {
       await rootRedirect(await create(docs, { ...i18n, hideLocale: "default-locale" })),
     ).toBeUndefined();
     expect(await rootRedirect(await create(docs, null))).toBeUndefined();
+  });
+});
+
+describe("compareRoutes", () => {
+  it("sorts static segments, then params, then rest params", () => {
+    const paths = [
+      "/[...slugs]",
+      "/blog/[slug]",
+      "/blog/tags",
+      "/blog/[...rest]",
+      "/blog",
+      "/[lang]/x",
+    ];
+    expect(paths.sort(compareRoutes)).toEqual([
+      "/blog/tags",
+      "/blog",
+      "/blog/[slug]",
+      "/blog/[...rest]",
+      "/[lang]/x",
+      "/[...slugs]",
+    ]);
   });
 });

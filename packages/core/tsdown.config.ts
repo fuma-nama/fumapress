@@ -1,7 +1,14 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: ["src/{index,vite}.ts", "src/plugins/*.{ts,tsx}"],
+  entry: [
+    "src/index.ts",
+    "src/search.client.tsx",
+    "src/runtime/{index,vite}.ts",
+    "src/runtime/ui.tsx",
+    "src/plugins/*.{ts,tsx}",
+    "!src/plugins/*.client.ts",
+  ],
   target: "es2023",
   format: "esm",
   dts: {

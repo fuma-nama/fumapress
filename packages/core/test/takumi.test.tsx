@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type PressConfig } from "@/context";
+import type { FrameworkRoute } from "@/plugin";
+import { pressContext, type TestSite } from "./harness";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 
 function page(file: string): VirtualFile {
@@ -16,8 +17,8 @@ const i18n: I18nConfig = {
 };
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn` */
-function createSite(options?: TakumiOptions, config: Partial<PressConfig> = {}) {
-  return createPress(
+function createSite(options?: TakumiOptions, config: Partial<TestSite> = {}) {
+  return pressContext(
     {
       content: {
         files: [
@@ -27,7 +28,7 @@ function createSite(options?: TakumiOptions, config: Partial<PressConfig> = {}) 
           page("docs/only-en.mdx"),
         ],
       },
-      preset: false,
+      preset: [],
       site: { name: "Site", baseUrl: "https://example.com/docs" },
       plugins: [takumiPlugin(options)],
       ...config,
@@ -65,18 +66,19 @@ describe("routes", () => {
     const routes = await ctx.getApiRoutes();
 
     expect(ctx.getProvider("og-image")?.name).toBe("core:takumi");
+    // the most specific first
     expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
+      { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
       {
         path: "/[...slugs]",
         render: "static",
         staticPaths: [["index.webp"], ["docs", "basics.webp"], ["docs", "only-en.webp"]],
       },
-      { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
     ]);
 
-    await readImage(routes[0]!, ["index.webp"]);
-    await readImage(routes[1]!, ["docs", "basics.webp"]);
-    expect((await request(routes[0]!, ["docs", "missing.webp"])).status).toBe(404);
+    await readImage(routes[1]!, ["index.webp"]);
+    await readImage(routes[0]!, ["docs", "basics.webp"]);
+    expect((await request(routes[1]!, ["docs", "missing.webp"])).status).toBe(404);
   });
 
   it("renders on request in dynamic mode, under `/_takumi` or `basePath`", async () => {
@@ -111,7 +113,7 @@ describe("routes", () => {
 });
 
 describe("page image", () => {
-  async function headOf(slugs: string[], options?: TakumiOptions, config?: Partial<PressConfig>) {
+  async function headOf(slugs: string[], options?: TakumiOptions, config?: Partial<TestSite>) {
     const ctx = await createSite(options, config);
     return ctx.getHead({ page: await getPage(ctx, slugs, config?.i18n ? "cn" : undefined) });
   }
@@ -119,7 +121,10 @@ describe("page image", () => {
   it("adds the meta tags of content pages", async () => {
     const url = "https://example.com/docs/docs/basics.webp";
 
-    expect((await headOf(["docs", "basics"], { width: 600, height: 315 })).slice(-4)).toEqual([
+    const tags = await headOf(["docs", "basics"], { width: 600, height: 315 });
+    expect(
+      tags.filter((tag) => /^(og:image|twitter:card)/.test(tag.attrs?.property ?? "")),
+    ).toEqual([
       { tag: "meta", attrs: { property: "og:image", content: url } },
       { tag: "meta", attrs: { property: "og:image:width", content: "600" } },
       { tag: "meta", attrs: { property: "og:image:height", content: "315" } },
@@ -129,8 +134,9 @@ describe("page image", () => {
   });
 
   it("localizes the image, fallback pages use the one of their origin", async () => {
-    const image = async (slugs: string[], config?: Partial<PressConfig>) =>
-      (await headOf(slugs, {}, config)).at(-4)?.attrs?.content;
+    const image = async (slugs: string[], config?: Partial<TestSite>) =>
+      (await headOf(slugs, {}, config)).find((tag) => tag.attrs?.property === "og:image")?.attrs
+        ?.content;
 
     await expect(image(["docs", "basics"], { i18n })).resolves.toBe(
       "https://example.com/docs/cn/docs/basics.webp",
@@ -148,6 +154,34 @@ describe("page image", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const tags = await headOf(["docs", "basics"], {}, { site: { name: "Site" } });
 
-    expect(tags.at(-4)?.attrs?.content).toBe("/docs/docs/basics.webp");
+    expect(tags.find((tag) => tag.attrs?.property === "og:image")?.attrs?.content).toBe(
+      "/docs/docs/basics.webp",
+    );
+  });
+});
+
+describe("route images", () => {
+  it("draws the `takumiOptions` of page routes, with their head tags", async () => {
+    const route: FrameworkRoute = {
+      path: "/about",
+      render: "static",
+      options: { takumiOptions: { title: "About" } },
+      pages: [{ path: "/about", translations: [], params: {} }],
+    };
+    const ctx = await pressContext(
+      {
+        content: { files: [] },
+        site: { baseUrl: "https://example.com/docs" },
+        plugins: [takumiPlugin()],
+      },
+      { base: "/docs/", routes: [{ route }] },
+    );
+    const image = (await ctx.getApiRoutes()).find((item) => item.path === "/about.webp");
+
+    expect(image?.render).toBe("static");
+    expect(await ctx.getHead({ route, path: "/about" })).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:image", content: "https://example.com/docs/about.webp" },
+    });
   });
 });

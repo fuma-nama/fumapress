@@ -1,14 +1,41 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { SortedResult } from "fumadocs-core/search";
-import { createPress, type InferAppShape, type PressConfig, type PressRuntime } from "@/context";
+import type { UseSearchReturn } from "fumadocs-core/search/client";
+import { usePressSearch, useServerSearch, type PressSearch } from "@/search.client";
+import { useFlexsearchIndex } from "@/plugins/flexsearch.client";
+import { useOramaIndex } from "@/plugins/orama-search.client";
+import { pressContext, type TestRuntime, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { flexsearchPlugin } from "@/plugins/flexsearch";
 import { oramaSearchPlugin } from "@/plugins/orama-search";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
-const content: PressConfig["content"] = {
+/** the value of `PressSearchContext`, outside of rendering */
+const provided = vi.hoisted(() => ({ search: undefined as PressSearch | undefined }));
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  use: () => provided.search,
+}));
+
+describe("usePressSearch", () => {
+  it("calls the hook of the search plugin in the language of the page from the server", () => {
+    const result: UseSearchReturn = { search: "", onSearchChange() {}, isLoading: false };
+    const hook = vi.fn((_props: object): UseSearchReturn => result);
+    provided.search = { client: { hook, props: { from: "/api/search" } }, lang: "cn" };
+
+    expect(usePressSearch()).toBe(result);
+    expect(hook).toHaveBeenCalledWith({ from: "/api/search", lang: "cn" });
+  });
+
+  it("throws without a search plugin", () => {
+    provided.search = undefined;
+    expect(() => usePressSearch()).toThrow("the site has none");
+  });
+});
+
+const content: TestSite["content"] = {
   files: [
     { type: "page", path: "docs/install.mdx", data: { title: "Install" } },
     { type: "page", path: "docs/theme.mdx", data: { title: "Theme" } },
@@ -26,17 +53,14 @@ const source: Plugin = {
   }),
 };
 
-function createSite(
-  config: Partial<PressConfig> = {},
-  runtime: Partial<PressRuntime<InferAppShape>> = {},
-) {
-  return createPress(
-    { content, preset: false, site: { baseUrl: "https://example.com" }, ...config },
-    { base: "/", ...runtime },
+function createSite(config: Partial<TestSite> = {}, runtime: TestRuntime = {}) {
+  return pressContext(
+    { content, preset: [], site: { baseUrl: "https://example.com" }, ...config },
+    runtime,
   );
 }
 
-async function getSearchRoute(config: Partial<PressConfig>) {
+async function getSearchRoute(config: Partial<TestSite>) {
   const ctx = await createSite({ ...config, plugins: [source, config.plugins] });
   const route = (await ctx.getApiRoutes()).find((item) => item.path === "/api/search");
   if (!route?.GET) throw new Error("missing the search route");
@@ -51,15 +75,19 @@ async function getSearchRoute(config: Partial<PressConfig>) {
 }
 
 describe.each([
-  ["flexsearchPlugin", flexsearchPlugin, "flexsearch"],
-  ["oramaSearchPlugin", oramaSearchPlugin, "orama"],
-] as const)("%s", (name, searchPlugin, staticIndex) => {
-  it("provides search, with the format of its static index", async () => {
-    const ctx = await createSite({ plugins: [searchPlugin()] });
-    const provider = ctx.getProvider("search");
+  ["flexsearchPlugin", flexsearchPlugin, useFlexsearchIndex],
+  ["oramaSearchPlugin", oramaSearchPlugin, useOramaIndex],
+] as const)("%s", (name, searchPlugin, useIndex) => {
+  it("provides search, with the client hook of its index or of the server on each site", async () => {
+    // one plugin value on two sites: its API is complete at creation, nothing writes it
+    const plugin = searchPlugin();
+    const ctx = await createSite({ plugins: [plugin] }, { base: "/repo/" });
+    const index = await createSite({ mode: "static", plugins: [plugin] });
+    const api = ctx.getProvider("search")?.api;
 
-    expect(provider?.provides).toEqual(["search"]);
-    expect(provider?.api?.staticIndex).toBe(staticIndex);
+    expect(ctx.getProvider("search")?.provides).toEqual(["search"]);
+    expect(api?.client(ctx)).toEqual({ hook: useServerSearch, props: { api: "/repo/api/search" } });
+    expect(api?.client(index)).toEqual({ hook: useIndex, props: { from: "/api/search" } });
   });
 
   it("searches on the server outside static mode", async () => {
@@ -132,16 +160,14 @@ describe("search plugins", () => {
   it("only one provides search", async () => {
     await expect(
       createSite({ plugins: [flexsearchPlugin(), oramaSearchPlugin()] }),
-    ).rejects.toThrow("only one search plugin can be added");
+    ).rejects.toThrow('"core:flexsearch" and "core:orama-search" both provide "search"');
   });
 
   it("replace the search of the preset", async () => {
     const ctx = await createSite(
-      { preset: "recommended", plugins: [flexsearchPlugin()] },
+      { preset: undefined, plugins: [flexsearchPlugin()] },
       {
-        preset: () => [
-          { name: "core:orama-search", provides: ["search"], load: oramaSearchPlugin },
-        ],
+        preset: () => [{ name: "core:orama-search", provides: "search", load: oramaSearchPlugin }],
       },
     );
 

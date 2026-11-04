@@ -1,5 +1,4 @@
 import type { AppShape, Plugin } from "../plugin";
-import type { SitemapAPI } from "./sitemap";
 
 /**
  * A group of rules in `robots.txt`.
@@ -36,10 +35,10 @@ export interface RobotsOptions {
    * Reference the sitemap:
    *
    * - `string`: URL (or path relative to `site.baseUrl`) of the sitemap.
-   * - `true`: the sitemap of the sitemap plugin, `/sitemap.xml` without the plugin.
+   * - `true`: the sitemap of the `sitemap` capability, `/sitemap.xml` without a provider.
    * - `false`: don't reference a sitemap.
    *
-   * By default, references the sitemap of the sitemap plugin when it is added.
+   * By default, references the sitemap of the `sitemap` capability when a plugin provides it.
    */
   sitemap?: string | boolean;
 
@@ -66,7 +65,7 @@ function ruleToText(rule: RobotsRule): string {
 
 export function robotsPlugin<C extends AppShape = AppShape>(
   options: RobotsOptions = {},
-): Plugin<C> {
+): Plugin<C, { provides: "robots" }> {
   const {
     path = "/robots.txt",
     rules = [{ userAgent: "*", allow: "/" }],
@@ -76,13 +75,14 @@ export function robotsPlugin<C extends AppShape = AppShape>(
 
   return {
     name: "core:robots",
+    provides: ["robots"],
     routes() {
       return [
         {
           path,
           GET: () => {
             const sections = rules.map(ruleToText);
-            const api = this.getPlugin("core:sitemap")?.api as SitemapAPI | undefined;
+            const api = this.getProvider("sitemap")?.api;
             const sitemapPath =
               typeof sitemap === "string"
                 ? sitemap

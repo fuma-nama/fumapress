@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import type { ApiRoute, HeadTag } from "fumadocs-core/framework/plugin";
+import type { ApiRoute, HeadTag, RouteParams } from "fumadocs-core/framework/plugin";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
-import { fallbackOrigin, type Context } from "../context";
-import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { fallbackOrigin, joinPaths, type Context } from "../context";
+import type { AppShape, Awaitable, FrameworkRoute, Plugin } from "../plugin";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T
@@ -11,7 +11,7 @@ export type TakumiImageOptions = ImageResponseOptions extends infer T
     : never
   : never;
 
-export interface TakumiOptions<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>> {
+export interface TakumiOptions<C extends AppShape = AppShape> {
   /**
    * The base route for generated images.
    *
@@ -31,8 +31,8 @@ export interface TakumiOptions<C extends AppShape = AppShape, Ctx extends Contex
    */
   options?: TakumiImageOptions;
 
-  /** the image of a page, defaults to its title, description and the site name */
-  generate?: (this: Ctx, page: C["page"]) => Awaitable<TakumiImage>;
+  /** the image of a content page, defaults to its title, description and the site name */
+  generate?: (this: Context<C>, page: C["page"]) => Awaitable<TakumiImage>;
 }
 
 export interface TakumiImage {
@@ -41,7 +41,26 @@ export interface TakumiImage {
   options?: TakumiImageOptions;
 }
 
-/** the API of the Takumi plugin, from `this.getPlugin("core:takumi")?.api` */
+/** the image of a page route (`takumiOptions` of its options): a `node` to draw, or `title` and `description` for the default template */
+export interface TakumiRouteImage extends Partial<TakumiImage> {
+  title?: string;
+  description?: string;
+}
+
+declare module "@fumapress/core" {
+  interface CapabilityAPI {
+    "og-image": TakumiAPI;
+  }
+
+  interface RouteOptions {
+    /** the Open Graph image of the route, drawn by the `og-image` plugin of the preset; a function gets the params of the rendered path */
+    takumiOptions?:
+      | TakumiRouteImage
+      | ((this: Context, params: RouteParams) => Awaitable<TakumiRouteImage>);
+  }
+}
+
+/** the API of the `og-image` capability, from `this.getProvider("og-image")?.api` */
 export interface TakumiAPI {
   /** the base route of images without a trailing slash, empty at the root, set in `init()` */
   basePath: string;
@@ -70,11 +89,12 @@ function pageSlugs(segments: string[]): string[] {
 /**
  * Open Graph images of content pages with Takumi, requires `takumi-js`.
  *
- * Every language gets an image route, fallback pages use the image of the page they fall back to.
+ * Every language gets an image route, fallback pages use the image of the page they fall back to. Page routes with
+ * `takumiOptions` get one too: prerendered for static routes, rendered on request for dynamic ones.
  */
-export function takumiPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
-  options: TakumiOptions<NoInfer<C>, NoInfer<Ctx>> = {},
-): Plugin<C, Ctx> {
+export function takumiPlugin<C extends AppShape = AppShape>(
+  options: TakumiOptions<NoInfer<C>> = {},
+): Plugin<C, { provides: "og-image" }> {
   const { width = 1200, height = 630 } = options;
   const api: TakumiAPI = {
     basePath: "",
@@ -94,9 +114,15 @@ export function takumiPlugin<C extends AppShape = AppShape, Ctx extends Context<
     ],
   };
 
-  function defaultImage(this: Ctx, page: C["page"]): TakumiImage {
+  function defaultImage(this: Context<C>, page: C["page"]): TakumiImage {
     const { title, description } = page.data;
     return { node: generate({ title, description, site: this.siteConfig.name }) };
+  }
+
+  /** a static page gets a `.webp` file next to it, a dynamic page an image route with its params under `/_takumi` */
+  function routeImagePath(route: FrameworkRoute<C>, pathname: string): string {
+    if (route.render === "dynamic") return joinPaths("/", api.basePath || "/_takumi", pathname);
+    return joinPaths("/", api.basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
   }
 
   return {
@@ -107,7 +133,9 @@ export function takumiPlugin<C extends AppShape = AppShape, Ctx extends Context<
       const basePath = options.basePath ?? (this.mode === "dynamic" ? "/_takumi" : "/");
       api.basePath = basePath.replace(/^\/?/, "/").replace(/\/$/, "");
     },
-    async head({ page }) {
+    async head({ page, route, path }) {
+      if (route?.options.takumiOptions && path !== undefined)
+        return api.tags(this.absoluteUrl(routeImagePath(route, path)));
       if (!page) return;
       // fallback pages have no image of their own, point at the origin's
       const origin = fallbackOrigin(await this.getLoader(), this.i18nConfig, page);
@@ -146,6 +174,37 @@ export function takumiPlugin<C extends AppShape = AppShape, Ctx extends Context<
       }
 
       return routes;
+    },
+    pageRoutes({ routes }) {
+      const out: ApiRoute[] = [];
+      for (const route of routes) {
+        const image = route.options.takumiOptions;
+        if (!image) continue;
+
+        const render = async (params: RouteParams) => {
+          const { node, title, description, options } =
+            typeof image === "function" ? await image.call(this, params) : image;
+          return api.render({
+            node: node ?? generate({ title, description, site: this.siteConfig.name }),
+            options,
+          });
+        };
+        if (route.render === "dynamic") {
+          out.push({
+            path: routeImagePath(route, route.path),
+            render: "dynamic",
+            GET: (_, { params }) => render(params),
+          });
+          continue;
+        }
+        for (const { path, params } of route.pages)
+          out.push({
+            path: routeImagePath(route, path),
+            render: "static",
+            GET: () => render(params),
+          });
+      }
+      return out;
     },
   };
 }

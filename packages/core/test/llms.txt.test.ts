@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type PressConfig } from "@/context";
+import { pressContext, type TestSite } from "./harness";
 import { llmsPlugin, type LLMsOptions } from "@/plugins/llms.txt";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
@@ -12,7 +12,7 @@ function page(path: string): VirtualFile {
 }
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/empty` has no text */
-const content: PressConfig["content"] = {
+const content: TestSite["content"] = {
   files: [
     page("index.mdx"),
     page("docs/basics.mdx"),
@@ -22,11 +22,11 @@ const content: PressConfig["content"] = {
   ],
 };
 
-function createSite(config: Partial<PressConfig> = {}, options?: LLMsOptions, base = "/") {
-  return createPress(
+function createSite(config: Partial<TestSite> = {}, options?: LLMsOptions, base = "/") {
+  return pressContext(
     {
       content,
-      preset: false,
+      preset: [],
       site: { baseUrl: "https://example.com" },
       ...config,
       plugins: [
@@ -232,5 +232,77 @@ describe("llmsPlugin", () => {
       "custom /docs/empty",
     );
     await expect((await fetchRoute(routes, "/index.md")).text()).resolves.toBe("");
+  });
+});
+
+describe('routes: "all"', () => {
+  it("serves the Markdown of page routes: prerendered for static ones, mirrored for dynamic ones", async () => {
+    const markdown = vi.fn(async (path: string) => (path === "/blank" ? undefined : `# ${path}`));
+    const own = (path: string, render: "static" | "dynamic") => ({
+      path,
+      render,
+      options: {},
+      pages: render === "static" ? [{ path, translations: [], params: {} }] : [],
+      markdown,
+    });
+    const ctx = await pressContext(
+      {
+        content,
+        mode: "default",
+        plugins: [llmsPlugin({ routes: "all" })],
+      },
+      {
+        routes: [
+          { route: own("/about", "static") },
+          { route: own("/blank", "static") },
+          { route: own("/status", "dynamic") },
+        ],
+      },
+    );
+    const routes = await ctx.getApiRoutes();
+
+    await expect((await fetchRoute(routes, "/about.md")).text()).resolves.toBe("# /about");
+    expect(routes.some((route) => route.path === "/blank.md")).toBe(false);
+    expect(routes.find((route) => route.path === "/_llms.txt/status")?.render).toBe("dynamic");
+
+    // `/status.md` misses its static route, the mirror renders it
+    const next = vi.fn(async (rewrite?: string) =>
+      rewrite === "/_llms.txt/status"
+        ? new Response("# /status", { headers: { "Content-Type": "text/markdown" } })
+        : new Response(null, { status: 404 }),
+    );
+    const response = await ctx.handleRequest(new Request("https://example.com/status.md"), next);
+    await expect(response.text()).resolves.toBe("# /status");
+  });
+
+  it("serves the mirrors only through the `<page>.md` URLs, a rewrite re-enters the middleware", async () => {
+    const ctx = await pressContext(
+      { content, mode: "default", plugins: [llmsPlugin({ routes: "all" })] },
+      {
+        routes: [
+          {
+            route: {
+              path: "/admin/[x]",
+              render: "dynamic",
+              options: {},
+              pages: [],
+              markdown: async () => "secret",
+            },
+          },
+        ],
+      },
+    );
+    const serve = async (url: string): Promise<Response> =>
+      ctx.handleRequest(new Request(`https://example.com${url}`), async (rewrite) =>
+        rewrite === undefined
+          ? url.startsWith("/_llms.txt/")
+            ? new Response("secret", { headers: { "Content-Type": "text/markdown" } })
+            : new Response(null, { status: 404 })
+          : serve(rewrite),
+      );
+
+    expect((await serve("/_llms.txt/admin/s")).status).toBe(404);
+    await expect((await serve("/admin/s.md")).text()).resolves.toBe("secret");
+    expect((await serve("/_llms.txt/admin/s")).status).toBe(404);
   });
 });

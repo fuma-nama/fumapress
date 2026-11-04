@@ -1,16 +1,21 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { defineI18n, type I18nConfig } from "fumadocs-core/i18n";
-import type { PageData, VirtualFile } from "fumadocs-core/source";
+import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
+import { createPressContext, type Context } from "@/context";
+import type { HeadTag } from "fumadocs-core/framework/plugin";
+import type { AppShape, FrameworkRoute, Plugin, PresetEntry } from "@/plugin";
 import {
   createPress,
-  type Context,
-  type InferAppShape,
+  renderPage,
+  type DefaultPageProps,
   type PressConfig,
-  type PressRuntime,
-} from "@/context";
-import type { Plugin } from "@/plugin";
+  type RenderTarget,
+} from "@/press";
+import { takumiPlugin } from "@/plugins/takumi";
+import { pressContext, testPress, type TestRuntime, type TestSite } from "./harness";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
@@ -24,32 +29,26 @@ function page(file: string, data?: PageData & { full?: unknown }): VirtualFile {
 }
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/shared` belongs to every language */
-const content = {
-  files: [
-    page("index.mdx"),
-    page("docs/basics.mdx"),
-    page("docs/basics.cn.mdx"),
-    page("docs/only-en.mdx"),
-    page("docs/shared.$.mdx"),
-  ],
-} satisfies PressConfig["content"];
+const files = [
+  page("index.mdx"),
+  page("docs/basics.mdx"),
+  page("docs/basics.cn.mdx"),
+  page("docs/only-en.mdx"),
+  page("docs/shared.$.mdx"),
+];
 
-function createSite(
-  config: Partial<PressConfig> = {},
-  runtime: Partial<PressRuntime<InferAppShape>> = {},
-) {
-  return createPress(
+function createSite(config: Partial<TestSite> = {}, runtime: TestRuntime = {}) {
+  return pressContext(
     {
-      content,
-      preset: false,
+      content: { files },
       ...config,
       site: { baseUrl: "https://example.com", ...config.site },
     },
-    { base: "/", ...runtime },
+    runtime,
   );
 }
 
-async function getPage(ctx: Context<InferAppShape>, slugs: string[], lang?: string) {
+async function getPage(ctx: Context, slugs: string[], lang?: string) {
   const page = (await ctx.getLoader()).getPage(slugs, lang);
   if (!page) throw new Error(`missing page ${slugs.join("/")} (${lang})`);
   return page;
@@ -59,78 +58,59 @@ function GET() {
   return new Response("ok");
 }
 
+/** an own page of the runtime at `path` */
+function ownRoute(path: string, lang?: string): FrameworkRoute {
+  return {
+    path,
+    lang,
+    render: "static",
+    pages: [{ path, translations: [], params: {} }],
+    options: {},
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("createPress", () => {
-  it("runs init, configureLoader and configure in order", async () => {
+describe("createPressContext", () => {
+  it("runs init, configureLoader and configure in order, on a frozen context", async () => {
     const calls: string[] = [];
-    const ctx = await createSite({
-      i18n,
-      plugins: [
-        {
-          init() {
-            calls.push("a:init");
-            expect(() => this.getLoader()).toThrow("the content loader is created after");
-          },
-          configureLoader(options) {
-            calls.push("a:configureLoader");
-            expect(options).toMatchObject({ baseUrl: "/", i18n });
-            return { ...options, url: (slugs, locale) => `/${locale}/v2/${slugs.join("/")}` };
-          },
-          configure() {
-            calls.push("a:configure");
-          },
-        },
-        {
-          init() {
-            calls.push("b:init");
-          },
-          configureLoader(options) {
-            calls.push("b:configureLoader");
-            expect(options.url).toBeDefined();
-            return options;
-          },
-          async configure() {
-            calls.push("b:configure");
-            expect((await this.getLoader()).getPages("en")).toHaveLength(4);
-          },
-        },
-      ],
-    });
-
-    expect(calls).toEqual([
-      "a:init",
-      "b:init",
-      "a:configureLoader",
-      "b:configureLoader",
-      "a:configure",
-      "b:configure",
-    ]);
-    expect((await getPage(ctx, ["docs", "basics"], "cn")).url).toBe("/cn/v2/docs/basics");
-  });
-
-  it("loads the plugins of the preset unless it is disabled", async () => {
-    const orama = vi.fn(() => ({ name: "orama-search", provides: ["search"] }));
-    const preset = vi.fn(() => [
-      { name: "sitemap", load: () => ({ name: "sitemap" }) },
-      { name: "orama-search", provides: ["search"], load: orama },
-    ]);
+    const signal = new AbortController().signal;
     const ctx = await createSite(
-      { preset: "recommended", plugins: [{ name: "flexsearch", provides: ["search"] }] },
-      { preset },
+      {
+        i18n,
+        plugins: [
+          {
+            init() {
+              calls.push("a:init");
+              expect(() => this.getLoader()).toThrow("the content loader is created after");
+              expect(() => Object.assign(this, { mode: "static" })).toThrow();
+              expect(this.signal).toBe(signal);
+            },
+            configureLoader(options) {
+              calls.push("a:configureLoader");
+              expect(options).toMatchObject({ baseUrl: "/", i18n });
+              return { url: (slugs, locale) => `/${locale}/v2/${slugs.join("/")}` };
+            },
+            configure() {
+              calls.push("a:configure");
+            },
+          },
+          {
+            init: () => void calls.push("b:init"),
+            configure: () => void calls.push("b:configure"),
+          },
+        ],
+      },
+      { signal },
     );
 
-    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["flexsearch", "sitemap"]);
-    expect(orama).not.toHaveBeenCalled();
-    expect(ctx.getPlugin("sitemap")).toBe(ctx.plugins[1]);
-    expect(ctx.getProvider("search")).toBe(ctx.plugins[0]);
-    expect(ctx.getProvider("og-image")).toBeUndefined();
-
-    preset.mockClear();
-    await createSite({}, { preset });
-    expect(preset).not.toHaveBeenCalled();
+    expect(calls).toEqual(["a:init", "b:init", "a:configureLoader", "a:configure", "b:configure"]);
+    expect((await getPage(ctx, ["docs", "basics"], "cn")).url).toBe("/cn/v2/docs/basics");
+    expect(
+      Object.isFrozen(ctx) && Object.isFrozen(ctx.siteConfig) && Object.isFrozen(ctx.plugins),
+    ).toBe(true);
   });
 
   it('rejects `hideLocale: "always"`', async () => {
@@ -139,197 +119,343 @@ describe("createPress", () => {
     );
   });
 
-  it("reads the i18n config of translations, with the keys of plugins", async () => {
+  it("extends the translations with the keys of plugins and runtime defaults", async () => {
     const translations = defineI18n(i18n).translations();
-    const ctx = await createSite({ translations, plugins: [{ translations: { keys: ["Copy"] } }] });
-    translations.add({ en: { Copy: "Copy", Unknown: "Unknown" } });
+    const ctx = await createSite(
+      { i18n, ui: { translations }, plugins: [{ translations: { keys: ["Copy"] } }] },
+      { defaults: [{ translations: { keys: ["Search"] } }] },
+    );
+    translations.add({ en: { Copy: "Copy", Search: "Search", Unknown: "Unknown" } });
 
     expect(ctx.translationsConfig).toBe(translations);
     expect(ctx.i18nConfig).toBe(i18n);
-    expect(translations.get("en")).toEqual({ Copy: "Copy" });
+    expect(translations.get("en")).toEqual({ Copy: "Copy", Search: "Search" });
     expect((await createSite({ i18n })).translationsConfig).toBeUndefined();
   });
 
   it("revalidates dynamic sources", async () => {
-    let files = [page("index.mdx")];
-    const ctx = await createSite({ content: { files: () => files } });
+    let list = [page("index.mdx")];
+    const ctx = await createSite({ content: { files: () => list } });
     const always = await createSite({
-      content: { files: () => files },
+      content: { files: () => list },
       loaderOptions: { alwaysRevalidate: true },
     });
     expect((await ctx.getLoader()).getPages()).toHaveLength(1);
     expect((await always.getLoader()).getPages()).toHaveLength(1);
-    files = [page("index.mdx"), page("other.mdx")];
+    list = [page("index.mdx"), page("other.mdx")];
 
     expect((await ctx.getLoader()).getPages()).toHaveLength(1);
     await ctx.revalidateLoader();
     expect((await ctx.getLoader()).getPages()).toHaveLength(2);
     expect((await always.getLoader()).getPages()).toHaveLength(2);
   });
+
+  it("gives plugins the runtime's check for client references", async () => {
+    const action = () => {};
+    const ctx = await createSite({}, { isClientReference: (value) => value === action });
+
+    expect(ctx.isClientReference(action)).toBe(true);
+    expect(ctx.isClientReference(() => {})).toBe(false);
+  });
+
+  it("hands the runtime the plugins with their hooks", async () => {
+    const routes = () => [];
+    const ctx = await createSite({ plugins: [{ name: "a", routes }] });
+
+    expect(ctx.plugins[0]?.routes).toBe(routes);
+  });
+
+  it("names `enforce` as an unknown plugin key: plugins run in layer order", () => {
+    const press = createPress<_Internal.AnyInput, undefined, AppShape, {}>({ files });
+    // @ts-expect-error -- "unknown plugin keys": "enforce"
+    expect(press.plugins({ name: "late", enforce: "post" })).toHaveProperty("config");
+  });
+});
+
+describe("layers", () => {
+  const entry = (name: string, provides: string): PresetEntry<Plugin<AppShape, any>> => ({
+    name,
+    provides,
+    load: vi.fn(() => ({ name, provides: [provides] })),
+  });
+
+  it("orders your plugins, the preset, then the runtime's defaults", async () => {
+    const preset = [entry("core:a", "a"), entry("core:b", "b")];
+    const ctx = await createSite(
+      { preset, plugins: [{ name: "one" }, [{ name: "two" }, false, null], undefined] },
+      { defaults: [{ name: "mdx" }] },
+    );
+
+    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual([
+      "one",
+      "two",
+      "core:a",
+      "core:b",
+      "mdx",
+    ]);
+  });
+
+  it("puts a listed plugin providing an entry's capability in the entry's place", async () => {
+    const preset = [entry("core:a", "a"), entry("core:b", "b"), entry("core:c", "c")];
+    const ctx = await createSite({
+      preset,
+      plugins: [{ name: "my-b", provides: ["b"] }, { name: "one" }],
+    });
+
+    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["one", "core:a", "my-b", "core:c"]);
+    expect(preset[1]!.load).not.toHaveBeenCalled();
+    expect(ctx.getProvider("b")?.name).toBe("my-b");
+  });
+
+  it("uses the runtime's preset without `preset`, none with `[]`", async () => {
+    const preset = vi.fn(() => [entry("waku:image", "image")]);
+    expect((await createSite({ preset: undefined }, { preset })).plugins).toHaveLength(1);
+    expect((await createSite({}, { preset })).plugins).toHaveLength(0);
+  });
+
+  it("gives a capability one provider, naming both", async () => {
+    await expect(
+      createSite({
+        plugins: [
+          { name: "x", provides: ["search"] },
+          { name: "y", provides: ["search"] },
+        ],
+      }),
+    ).rejects.toThrow('"x" and "y" both provide "search": a capability has one provider.');
+  });
 });
 
 describe("page hooks", () => {
-  it("resolve to the first value of plugins", async () => {
-    const ctx = await createSite({
-      plugins: [
-        { getPageText: () => undefined },
-        {
-          getPageText(page) {
-            return `${page.path} of ${this.siteConfig.name}`;
-          },
-        },
-        { getPageText: () => "last" },
-      ],
-    });
-    const page = await getPage(ctx, []);
-
-    await expect(ctx.getPageText(page)).resolves.toBe("index.mdx of Fumapress");
-    await expect(ctx.getPageBody(page)).resolves.toBeUndefined();
-  });
-
-  it("collect slots by name, sorted by order", async () => {
-    const [A, B, C] = [() => null, () => null, () => null];
-    const ctx = await createSite({
-      plugins: [
-        {
-          slots: () => [
-            { slot: "page.footer", component: A, order: 1 },
-            { slot: "page.actions", component: B },
-          ],
-        },
-        { slots: ({ page }) => [{ slot: "page.footer", component: C, props: { url: page?.url } }] },
-        {},
-      ],
-    });
-
-    await expect(ctx.getSlots({ page: await getPage(ctx, []) })).resolves.toEqual({
-      "page.footer": [
-        { slot: "page.footer", component: C, props: { url: "/" } },
-        { slot: "page.footer", component: A, order: 1 },
-      ],
-      "page.actions": [{ slot: "page.actions", component: B }],
-    });
-  });
-
-  it("collect slots without a page, for the layout of every page", async () => {
-    const Banner = () => null;
-    const slots = vi.fn<NonNullable<Plugin["slots"]>>(({ page }) =>
-      page ? [] : [{ slot: "layout.wrapper", component: Banner }],
+  it("resolve to the first answer, an earlier layer winning", async () => {
+    const ctx = await createSite(
+      { plugins: [{ getPageText: (page) => (page.url === "/" ? undefined : "plugin") }] },
+      { defaults: [{ getPageText: () => "default" }] },
     );
-    const ctx = await createSite({ plugins: [{ slots }] });
 
-    await expect(ctx.getSlots({})).resolves.toEqual({
-      "layout.wrapper": [{ slot: "layout.wrapper", component: Banner }],
-    });
-    expect(slots).toHaveBeenCalledWith({});
+    await expect(ctx.getPageText(await getPage(ctx, ["docs", "basics"]))).resolves.toBe("plugin");
+    await expect(ctx.getPageText(await getPage(ctx, []))).resolves.toBe("default");
   });
 
-  it("resolve the view of a content page to the first plugin rendering it", async () => {
+  it("reject two answers for one page in one layer, naming both", async () => {
     const ctx = await createSite({
       plugins: [
-        { getPageView: (page) => (page.path === "index.mdx" ? undefined : { node: "post" }) },
-        { getPageView: () => ({ node: "other" }) },
+        { name: "blog", getPageView: () => ({ props: {}, node: null }) },
+        { name: "notes", getPageView: () => ({ props: {}, node: null }) },
       ],
     });
 
-    await expect(ctx.getPageView(await getPage(ctx, ["docs", "basics"]))).resolves.toEqual({
-      node: "post",
-    });
-    await expect(ctx.getPageView(await getPage(ctx, []))).resolves.toEqual({ node: "other" });
-    await expect((await createSite()).getPageView(await getPage(ctx, []))).resolves.toBeUndefined();
+    await expect(ctx.getPageView(await getPage(ctx, []), undefined)).rejects.toThrow(
+      '"blog" and "notes" both answer `getPageView` for "/": a page has one renderer.',
+    );
   });
 });
 
 describe("getPageData", () => {
   it("fills the data from the page and plugins", async () => {
-    const toc = [{ title: "Intro", url: "#intro", depth: 2 }];
-    const lastModified = new Date("2026-01-01");
     const ctx = await createSite({
-      site: { git: { user: "fuma-nama", repo: "fumapress", branch: "main", rootDir: "/repo" } },
-      plugins: [{ getPageToc: () => toc, getPageLastModified: () => lastModified }],
+      i18n,
+      site: { git: { user: "fuma-nama", repo: "fumapress", branch: "dev", rootDir: "/repo" } },
+      plugins: [{ getPageToc: () => [{ title: "Intro", url: "#intro", depth: 2 }] }],
     });
 
-    await expect(ctx.getPageData(await getPage(ctx, ["docs", "basics"]))).resolves.toEqual({
-      title: "docs/basics.mdx",
-      description: "About docs/basics.mdx",
-      url: "/docs/basics",
-      path: "docs/basics.mdx",
-      toc,
-      lastModified,
-      githubUrl: "https://github.com/fuma-nama/fumapress/blob/main/content/docs/basics.mdx",
+    await expect(ctx.getPageData(await getPage(ctx, ["docs", "basics"], "cn"))).resolves.toEqual({
+      title: "docs/basics.cn.mdx",
+      description: "About docs/basics.cn.mdx",
+      url: "/cn/docs/basics",
+      path: "docs/basics.cn.mdx",
+      locale: "cn",
+      toc: [{ title: "Intro", url: "#intro", depth: 2 }],
+      full: undefined,
+      lastModified: undefined,
+      githubUrl: "https://github.com/fuma-nama/fumapress/blob/dev/content/docs/basics.cn.mdx",
     });
   });
 
-  it("falls back to the last slug and reads a boolean `full`", async () => {
-    const ctx = await createSite({
-      content: {
-        files: [
-          page("docs/intro.mdx", { title: undefined, full: true }),
-          page("docs/other.mdx", { full: "yes" }),
-        ],
-      },
-    });
-
-    await expect(ctx.getPageData(await getPage(ctx, ["docs", "intro"]))).resolves.toMatchObject({
-      title: "intro",
-      full: true,
-      toc: [],
-    });
-    expect((await ctx.getPageData(await getPage(ctx, ["docs", "other"]))).full).toBeUndefined();
-  });
-
-  it("transforms the data in plugin order", async () => {
+  it("gives every `transformPage` the base data and merges the fields each one changes", async () => {
+    const seen: string[] = [];
     const ctx = await createSite({
       plugins: [
         {
-          enforce: "post",
-          transformPage: (data) => ({ ...data, githubUrl: `${data.markdownUrl}.txt` }),
+          transformPage(data) {
+            seen.push(data.title);
+            expect(Object.isFrozen(data)).toBe(true);
+            return { ...data, title: "A" };
+          },
         },
-        { transformPage: (data, page) => ({ ...data, markdownUrl: `${page.url}.md` }) },
+        {
+          transformPage(data) {
+            seen.push(data.title);
+            return { ...data, full: true };
+          },
+        },
       ],
     });
 
-    await expect(ctx.getPageData(await getPage(ctx, ["docs", "basics"]))).resolves.toMatchObject({
-      markdownUrl: "/docs/basics.md",
-      githubUrl: "/docs/basics.md.txt",
+    await expect(ctx.getPageData(await getPage(ctx, []))).resolves.toMatchObject({
+      title: "A",
+      full: true,
     });
+    expect(seen).toEqual(["index.mdx", "index.mdx"]);
+  });
+
+  it("gives a field one `transformPage`, naming both", async () => {
+    const ctx = await createSite({
+      plugins: [
+        { name: "acme:md", transformPage: (data) => ({ ...data, markdownUrl: "/a.md" }) },
+        { name: "core:llms.txt", transformPage: (data) => ({ ...data, markdownUrl: "/b.md" }) },
+      ],
+    });
+
+    await expect(ctx.getPageData(await getPage(ctx, []))).rejects.toThrow(
+      '"acme:md" and "core:llms.txt" both set `markdownUrl` of the page "/"',
+    );
+  });
+});
+
+describe("configureLoader", () => {
+  it("collects loader plugins in layer order, after the site's", async () => {
+    const ran: string[] = [];
+    const plugin = (name: string) => ({ name, transformStorage: () => void ran.push(name) });
+    const own = plugin("own");
+    const given: unknown[] = [];
+    const ctx = await createSite({
+      loaderOptions: { plugins: [own] },
+      plugins: [
+        {
+          configureLoader(options) {
+            given.push(...(options.plugins ?? []));
+            return { plugins: [plugin("a")] };
+          },
+        },
+        { configureLoader: () => ({ plugins: [plugin("b")] }) },
+      ],
+    });
+    await ctx.getLoader();
+
+    expect(given).toEqual([own]);
+    expect(ran).toEqual(["own", "a", "b"]);
+  });
+
+  it("gives another option one writer, the site's winning", async () => {
+    const url = () => "/x";
+    const write = (name: string) => ({ name, configureLoader: () => ({ url }) });
+
+    await expect(createSite({ plugins: [write("a"), write("b")] })).rejects.toThrow(
+      '"a" and "b" both set the loader option `url`',
+    );
+    const ctx = await createSite({
+      loaderOptions: { url: () => "/site" },
+      plugins: [write("a"), write("b")],
+    });
+    expect((await getPage(ctx, ["docs", "basics"])).url).toBe("/site");
   });
 });
 
 describe("getHead", () => {
-  const head: Partial<PressConfig> = {
-    head: () => [{ tag: "meta", attrs: { name: "config" } }],
-    plugins: [
-      {
-        head: ({ page }) => [{ tag: "meta", attrs: { name: "plugin", content: page?.url ?? "" } }],
-      },
-    ],
-  };
+  it("keys tags: yours over plugins', theirs over core's, a page's over every page's", async () => {
+    const ctx = await createSite({
+      head: ({ page }): HeadTag[] =>
+        page
+          ? [{ tag: "meta", attrs: { name: "description", content: "site" } }]
+          : [
+              { tag: "meta", attrs: { property: "og:image", content: "/default.png" } },
+              { tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } },
+            ],
+      plugins: [
+        {
+          head: ({ page }): HeadTag[] => [
+            { tag: "title", children: "plugin" },
+            { tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } },
+            ...(page
+              ? [{ tag: "meta" as const, attrs: { property: "og:image", content: "/page.png" } }]
+              : []),
+          ],
+        },
+        { head: () => [{ tag: "title", children: "second" }] },
+      ],
+    });
+    const tags = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"]) });
 
-  it("returns the tags of config and plugins without page", async () => {
-    const ctx = await createSite(head);
-
+    expect(tags.filter((tag) => tag.tag === "title")).toEqual([
+      { tag: "title", children: "plugin" },
+    ]);
+    expect(tags).toContainEqual({ tag: "meta", attrs: { name: "description", content: "site" } });
+    expect(tags).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:image", content: "/page.png" },
+    });
+    expect(tags.filter((tag) => tag.attrs?.rel === "icon")).toHaveLength(1);
+    expect(tags).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:title", content: "docs/basics.mdx" },
+    });
     await expect(ctx.getHead({})).resolves.toEqual([
-      { tag: "meta", attrs: { name: "config" } },
-      { tag: "meta", attrs: { name: "plugin", content: "" } },
+      { tag: "meta", attrs: { property: "og:image", content: "/default.png" } },
+      { tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } },
+      { tag: "title", children: "plugin" },
     ]);
   });
 
-  it("passes the page to config and plugins", async () => {
-    const ctx = await createSite(head);
+  it("keys the title and description of views over the ones of every page", async () => {
+    const ctx = await createSite({
+      head: [
+        { tag: "title", children: "Site" },
+        { tag: "meta", attrs: { name: "description", content: "A site" } },
+      ],
+    });
+    const route = ownRoute("/blog");
+    const head = await ctx.getHead({
+      route,
+      path: "/blog",
+      view: { type: "blog.index", props: {}, node: null, title: "Blog", description: "Posts" },
+    });
 
-    await expect(ctx.getHead({ page: await getPage(ctx, ["docs", "basics"]) })).resolves.toEqual([
-      { tag: "meta", attrs: { name: "config" } },
-      { tag: "meta", attrs: { name: "plugin", content: "/docs/basics" } },
+    expect(head.filter((tag) => tag.tag === "title")).toEqual([{ tag: "title", children: "Blog" }]);
+    expect(head.filter((tag) => tag.attrs?.name === "description")).toEqual([
+      { tag: "meta", attrs: { name: "description", content: "Posts" } },
+    ]);
+  });
+
+  it("links the translations of framework pages", async () => {
+    const ctx = await createSite({ i18n });
+    const translations = [
+      { lang: "en", path: "/en/about" },
+      { lang: "cn", path: "/cn/about" },
+    ];
+    const route: FrameworkRoute = {
+      path: "/cn/about",
+      lang: "cn",
+      render: "static",
+      options: {},
+      pages: [{ path: "/cn/about", translations, params: {} }],
+    };
+
+    await expect(ctx.getHead({ route, path: "/cn/about" })).resolves.toEqual([
+      { tag: "link", attrs: { rel: "canonical", href: "https://example.com/cn/about" } },
+      { tag: "meta", attrs: { property: "og:url", content: "https://example.com/cn/about" } },
+      {
+        tag: "link",
+        attrs: { rel: "alternate", hreflang: "en", href: "https://example.com/en/about" },
+      },
+      {
+        tag: "link",
+        attrs: { rel: "alternate", hreflang: "cn", href: "https://example.com/cn/about" },
+      },
+      {
+        tag: "link",
+        attrs: { rel: "alternate", hreflang: "x-default", href: "https://example.com/en/about" },
+      },
     ]);
   });
 });
 
-describe("getPageHead", () => {
+describe("getHead of content pages", () => {
   it("returns the defaults of content pages", async () => {
     const ctx = await createSite({ i18n, site: { hreflang: { cn: "zh-Hans" } } });
 
-    await expect(ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "en"))).resolves.toEqual([
+    await expect(
+      ctx.getHead({ page: await getPage(ctx, ["docs", "basics"], "en") }),
+    ).resolves.toEqual([
       { tag: "title", children: "docs/basics.mdx" },
       { tag: "meta", attrs: { name: "description", content: "About docs/basics.mdx" } },
       { tag: "meta", attrs: { property: "og:title", content: "docs/basics.mdx" } },
@@ -367,7 +493,7 @@ describe("getPageHead", () => {
       ["docs", "only-en"],
       ["docs", "shared"],
     ]) {
-      const tags = await ctx.getPageHead(await getPage(ctx, slugs, "cn"));
+      const tags = await ctx.getHead({ page: await getPage(ctx, slugs, "cn") });
       expect(tags).toContainEqual({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
       expect(tags).toContainEqual({
         tag: "link",
@@ -376,7 +502,7 @@ describe("getPageHead", () => {
       expect(tags.some((tag) => tag.attrs?.rel === "alternate")).toBe(false);
     }
 
-    const translated = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "cn"));
+    const translated = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"], "cn") });
     expect(translated).not.toContainEqual({
       tag: "meta",
       attrs: { name: "robots", content: "noindex" },
@@ -384,11 +510,11 @@ describe("getPageHead", () => {
   });
 
   it("marks fallback pages of sources without an absolute path", async () => {
-    const files: VirtualFile[] = [];
-    for (const file of content.files) files.push({ ...file, absolutePath: undefined });
-    const ctx = await createSite({ i18n, content: { files } });
-    const fallback = await ctx.getPageHead(await getPage(ctx, ["docs", "only-en"], "cn"));
-    const translated = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"], "cn"));
+    const relative: VirtualFile[] = [];
+    for (const file of files) relative.push({ ...file, absolutePath: undefined });
+    const ctx = await createSite({ i18n, content: { files: relative } });
+    const fallback = await ctx.getHead({ page: await getPage(ctx, ["docs", "only-en"], "cn") });
+    const translated = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"], "cn") });
     const noindex = { tag: "meta", attrs: { name: "robots", content: "noindex" } };
 
     expect(fallback).toContainEqual(noindex);
@@ -405,7 +531,7 @@ describe("getPageHead", () => {
 
   it("skips canonical without `site.baseUrl`", async () => {
     const ctx = await createSite({ site: { baseUrl: undefined } });
-    const tags = await ctx.getPageHead(await getPage(ctx, ["docs", "basics"]));
+    const tags = await ctx.getHead({ page: await getPage(ctx, ["docs", "basics"]) });
 
     expect(
       tags.some((tag) => tag.attrs?.rel === "canonical" || tag.attrs?.property === "og:url"),
@@ -413,9 +539,44 @@ describe("getPageHead", () => {
   });
 });
 
+describe("getSlots", () => {
+  it("sorts by order, then by layer and list order", async () => {
+    const item = (id: string, order?: number) => ({
+      slot: "layout.wrapper" as const,
+      component: () => null,
+      props: { id },
+      order,
+    });
+    const ctx = await createSite(
+      {
+        plugins: [
+          { slots: () => [item("a", 1), item("b")] },
+          { slots: () => [item("c"), item("provider", -1)] },
+        ],
+      },
+      { defaults: [{ slots: () => [item("d")] }] },
+    );
+    const items = (await ctx.getSlots({}))["layout.wrapper"] ?? [];
+
+    expect(items.map((item) => item.props?.id)).toEqual(["provider", "b", "c", "d", "a"]);
+  });
+
+  it("gives a named item one writer, naming both", async () => {
+    const action = (name: string) => ({
+      name,
+      slots: () => [{ slot: "page.actions" as const, name: "share", component: () => null }],
+    });
+    const ctx = await createSite({ plugins: [action("a"), action("b")] });
+
+    await expect(ctx.getSlots({ page: await getPage(ctx, []) })).rejects.toThrow(
+      '"a" and "b" both add the "page.actions" item "share"',
+    );
+  });
+});
+
 describe("getApiRoutes", () => {
   it("fills render from the mode", async () => {
-    const config: Partial<PressConfig> = {
+    const config: Partial<TestSite> = {
       plugins: [
         {
           routes: () => [
@@ -425,12 +586,15 @@ describe("getApiRoutes", () => {
         },
       ],
     };
-    const renders = async (mode?: PressConfig["mode"]) =>
+    const renders = async (mode?: TestSite["mode"]) =>
       (await (await createSite({ ...config, mode })).getApiRoutes()).map((route) => route.render);
 
     await expect(renders()).resolves.toEqual(["static", "dynamic"]);
-    await expect(renders("static")).resolves.toEqual(["static", "dynamic"]);
     await expect(renders("dynamic")).resolves.toEqual(["dynamic", "dynamic"]);
+    // a plugin degrades by reading `this.mode`
+    await expect(renders("static")).rejects.toThrow(
+      'the route "/b" of an unnamed plugin renders on request, which `mode: "static"` can\'t serve',
+    );
   });
 
   it("rejects static routes with handlers other than GET", async () => {
@@ -459,119 +623,479 @@ describe("getApiRoutes", () => {
     await expect(listed.getApiRoutes()).resolves.toHaveLength(1);
   });
 
-  it("rejects two routes handling a method of one path", async () => {
-    const routes = (...items: { POST?: typeof GET; GET?: typeof GET; ALL?: typeof GET }[]) =>
+  it("gives a path one route, naming both owners", async () => {
+    const routes = (...items: { name: string; POST?: typeof GET; GET?: typeof GET }[]) =>
       createSite({
         mode: "dynamic",
-        plugins: items.map((item) => ({ routes: () => [{ path: "/api", ...item }] })),
+        plugins: items.map(({ name, ...item }) => ({
+          name,
+          routes: () => [{ path: "/api", ...item }],
+        })),
       });
 
-    await expect((await routes({ GET }, { GET })).getApiRoutes()).rejects.toThrow(
-      'two routes handle GET requests to "/api"',
-    );
-    await expect((await routes({ GET }, { ALL: GET })).getApiRoutes()).rejects.toThrow(
-      'two routes handle GET requests to "/api"',
-    );
-    await expect((await routes({ GET }, { POST: GET })).getApiRoutes()).resolves.toHaveLength(2);
+    await expect(
+      (await routes({ name: "a", GET }, { name: "b", POST: GET })).getApiRoutes(),
+    ).rejects.toThrow('"a" and "b" both take the path "/api": a path has one route.');
+    await expect(
+      (
+        await createSite({
+          plugins: [{ name: "md", routes: () => [{ path: "/docs/basics", GET }] }],
+        })
+      ).getApiRoutes(),
+    ).rejects.toThrow('the content page "/docs/basics" and "md" both take the path "/docs/basics"');
   });
-});
 
-describe("getViewRoutes", () => {
-  const view = () => ({ node: "view" });
+  it("gives a path one route whatever the names of its owners", async () => {
+    const named = await createSite({
+      plugins: [
+        { name: "x", routes: () => [{ path: "/a.txt", GET }] },
+        { name: "x", routes: () => [{ path: "/a.txt", GET }] },
+      ],
+    });
+    const unnamed = await createSite({
+      plugins: [
+        { routes: () => [{ path: "/a.txt", GET }] },
+        { routes: () => [{ path: "/a.txt", GET }] },
+      ],
+    });
 
-  it("keeps the routes rendering a view out of the API routes", async () => {
+    await expect(named.getApiRoutes()).rejects.toThrow('"x" and "x" both take the path "/a.txt"');
+    await expect(unnamed.getApiRoutes()).rejects.toThrow(
+      "an unnamed plugin and an unnamed plugin both take the path",
+    );
+  });
+
+  it("leaves the pages of a page pattern to static routes, which serve their listed paths only", async () => {
+    const catchAll = (path: string, lang?: string): FrameworkRoute => ({
+      path,
+      lang,
+      render: "static",
+      pages: [],
+      options: {},
+    });
+    const plain = await createSite(
+      { plugins: [takumiPlugin()] },
+      { routes: [{ route: catchAll("/[...slug]") }] },
+    );
+    const localized = await createSite(
+      { i18n, plugins: [takumiPlugin()] },
+      {
+        routes: [
+          { route: catchAll("/en/[...slug]", "en") },
+          { route: catchAll("/cn/[...slug]", "cn") },
+        ],
+      },
+    );
+    const onRequest = await createSite(
+      { mode: "dynamic", plugins: [{ name: "x", routes: () => [{ path: "/[...slugs]", GET }] }] },
+      { routes: [{ route: catchAll("/[...slug]") }] },
+    );
+
+    expect((await plain.getApiRoutes()).map((route) => route.path)).toEqual(["/[...slugs]"]);
+    expect((await localized.getApiRoutes()).map((route) => route.path)).toEqual([
+      "/en/[...slugs]",
+      "/cn/[...slugs]",
+    ]);
+    await expect(onRequest.getApiRoutes()).rejects.toThrow(
+      'your own page and "x" both take the path "/[...slugs]"',
+    );
+  });
+
+  it("rejects views returned from `routes()`", async () => {
     const ctx = await createSite({
+      plugins: [{ name: "x", routes: () => [{ path: "/v", view: () => undefined } as never] }],
+    });
+    await expect(ctx.getApiRoutes()).rejects.toThrow('"x" returns the view "/v" from `routes()`');
+  });
+
+  it("sorts routes by specificity", async () => {
+    const ctx = await createSite({
+      mode: "dynamic",
       plugins: [
         {
           routes: () => [
-            { path: "/blog", lang: "en", view },
-            { path: "/blog/[tag]", staticPaths: ["react"], view },
-            { path: "/live", render: "dynamic", view },
-            { path: "/feed.xml", GET },
+            { path: "/api/[...rest]", GET },
+            { path: "/api/[id]", GET },
+            { path: "/api/list", GET },
           ],
         },
       ],
     });
+    expect((await ctx.getApiRoutes()).map((route) => route.path)).toEqual([
+      "/api/list",
+      "/api/[id]",
+      "/api/[...rest]",
+    ]);
+  });
+});
 
-    expect((await ctx.getApiRoutes()).map((route) => route.path)).toEqual(["/feed.xml"]);
-    await expect(ctx.getViewRoutes()).resolves.toEqual([
-      { path: "/blog", lang: "en", view, render: "static" },
-      { path: "/blog/[tag]", staticPaths: ["react"], view, render: "static" },
-      { path: "/live", render: "dynamic", view },
+describe("views", () => {
+  const view = (path: string, type = "x.view") => ({
+    path,
+    view: () => ({ type, props: { path }, node: path }),
+  });
+
+  it("are created once per language, prefixed and linked by `path`", async () => {
+    const langs: (string | undefined)[] = [];
+    const ctx = await createSite({
+      i18n,
+      plugins: [
+        {
+          name: "x",
+          views({ lang }) {
+            langs.push(lang);
+            return [view("/blog")];
+          },
+        },
+      ],
+    });
+    const routes = await ctx.getFrameworkRoutes();
+
+    expect(langs).toEqual(["en", "cn"]);
+    expect((await ctx.getViewRoutes()).map(({ route, view }) => [route.lang, view.path])).toEqual([
+      ["en", "/blog"],
+      ["cn", "/blog"],
+    ]);
+    expect(routes.map((route) => route.path)).toEqual(["/en/blog", "/cn/blog"]);
+    expect(routes[0]!.pages[0]!.translations).toEqual([
+      { lang: "en", path: "/en/blog" },
+      { lang: "cn", path: "/cn/blog" },
     ]);
   });
 
-  it("rejects static views with params but no `staticPaths`", async () => {
-    const ctx = await createSite({ plugins: [{ routes: () => [{ path: "/blog/[tag]", view }] }] });
+  it("give way to your own pages", async () => {
+    const ctx = await createSite(
+      { plugins: [{ name: "x", views: () => [view("/about"), view("/blog")] }] },
+      { routes: [{ route: ownRoute("/about") }] },
+    );
 
-    await expect(ctx.getViewRoutes()).rejects.toThrow('the static route "/blog/[tag]" has params');
+    expect((await ctx.getViewRoutes()).map(({ route }) => route.path)).toEqual(["/blog"]);
+    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual([
+      "/about",
+      "/blog",
+    ]);
   });
 
-  it("creates the routes of plugins once per content", async () => {
-    let files = [page("index.mdx")];
-    const routes = vi.fn(() => [{ path: "/blog", view }]);
-    const ctx = await createSite({ content: { files: () => files }, plugins: [{ routes }] });
+  it("give one of their pages to your own page there, keeping the others", async () => {
+    const tags = { ...view("/tags/[tag]"), staticPaths: ["a", "b"] };
+    const ctx = await createSite(
+      { plugins: [{ name: "tags", views: () => [tags] }] },
+      { routes: [{ route: ownRoute("/tags/a") }] },
+    );
+    const every = await createSite(
+      { plugins: [{ name: "tags", views: () => [{ ...tags, staticPaths: ["a"] }] }] },
+      { routes: [{ route: ownRoute("/tags/a") }] },
+    );
+    const [entry] = await ctx.getViewRoutes();
+
+    expect(entry?.route.pages.map((page) => page.path)).toEqual(["/tags/b"]);
+    // runtimes register the view with its remaining pages
+    expect(entry?.view.staticPaths).toEqual([["b"]]);
+    await expect(every.getViewRoutes()).resolves.toEqual([]);
+  });
+
+  it("give a path one route, also for one plugin or plugins without names", async () => {
+    const unnamed = await createSite({
+      plugins: [{ views: () => [view("/v")] }, { views: () => [view("/v")] }],
+    });
+    const plugin: Plugin<AppShape, any> = { name: "acme", views: () => [view("/showcase")] };
+    const twice = await createSite(
+      { plugins: [plugin] },
+      { routes: [{ route: ownRoute("/showcase"), plugin }] },
+    );
+
+    await expect(unnamed.getViewRoutes()).rejects.toThrow(
+      'an unnamed plugin and an unnamed plugin both take the path "/v"',
+    );
+    await expect(twice.getViewRoutes()).rejects.toThrow(
+      '"acme" and "acme" both take the path "/showcase"',
+    );
+  });
+
+  it("give a path one route, naming both", async () => {
+    const twice = await createSite({
+      plugins: [
+        { name: "mintlify", views: () => [view("/404")] },
+        { name: "site:404", views: () => [view("/404")] },
+      ],
+    });
+    const content = await createSite({
+      plugins: [{ name: "print", views: () => [view("/docs/basics")] }],
+    });
+
+    await expect(twice.getViewRoutes()).rejects.toThrow(
+      '"mintlify" and "site:404" both take the path "/404"',
+    );
+    await expect(content.getViewRoutes()).rejects.toThrow(
+      'the content page "/docs/basics" and "print" both take the path "/docs/basics"',
+    );
+  });
+
+  it("reject rendering on request in static mode, naming the plugin", async () => {
+    const ctx = await createSite({
+      mode: "static",
+      plugins: [
+        {
+          name: "status",
+          views: () => [{ path: "/status", render: "dynamic", view: () => undefined }],
+        },
+      ],
+    });
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow(
+      'the route "/status" of "status" renders on request',
+    );
+  });
+
+  it("are listed with their page routes, the ones of `getFrameworkRoutes()`", async () => {
+    const ctx = await createSite({ plugins: [{ name: "x", views: () => [view("/blog")] }] });
+    const [entry] = await ctx.getViewRoutes();
+
+    expect(entry?.view.path).toBe("/blog");
+    expect(await ctx.getFrameworkRoutes()).toContain(entry?.route);
+  });
+
+  it("can't read the routes while plugins create them", async () => {
+    const ctx = await createSite({
+      plugins: [
+        {
+          name: "eager",
+          async views() {
+            await this.getFrameworkRoutes();
+            return [];
+          },
+        },
+      ],
+    });
+
+    await expect(ctx.getFrameworkRoutes()).rejects.toThrow(
+      '"eager" reads the routes while plugins create them',
+    );
+  });
+
+  it("can't read the routes through the base options while plugins create them", async () => {
+    // no home page: the home is looked up in the routes
+    const ctx = await pressContext({
+      content: { files: [page("docs/basics.mdx")] },
+      plugins: [
+        {
+          name: "nav",
+          async views() {
+            await this.getBaseOptions({ lang: undefined });
+            return [];
+          },
+        },
+      ],
+    });
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow(
+      '"nav" reads the routes while plugins create them',
+    );
+  });
+});
+
+describe("runtime routes", () => {
+  const view = (path: string) => ({ path, view: () => ({ type: "x", props: {}, node: path }) });
+
+  it("are read once the runtime sets them, a new list replaces them", async () => {
+    const ctx = await createPressContext(testPress({ content: { files } }), {
+      base: "/",
+      defaults: [],
+      signal: new AbortController().signal,
+      isClientReference: () => false,
+    });
+
+    await expect(ctx.getFrameworkRoutes()).rejects.toThrow(
+      "the routes are read before they are created",
+    );
+    ctx.setRuntimeRoutes([{ route: ownRoute("/a") }]);
+    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/a"]);
+    // a rerun of the runtime's routing
+    ctx.setRuntimeRoutes([{ route: ownRoute("/b") }]);
+    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/b"]);
+  });
+
+  it("can't be read during setup", async () => {
+    await expect(
+      createSite({
+        plugins: [
+          {
+            async configure() {
+              await this.getFrameworkRoutes();
+            },
+          },
+        ],
+      }),
+    ).rejects.toThrow("the routes are read before they are created");
+  });
+
+  it("of runtime hooks belong to their plugin: a view on their path is an error naming both", async () => {
+    const ctx = await createSite(
+      { plugins: [{ name: "x", views: () => [view("/showcase")] }] },
+      { routes: [{ route: ownRoute("/showcase"), plugin: { name: "acme" } }] },
+    );
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow(
+      '"acme" and "x" both take the path "/showcase"',
+    );
+  });
+
+  it("of your own win over the pages of runtime hooks", async () => {
+    const ctx = await createSite(
+      {},
+      {
+        routes: [
+          { route: ownRoute("/a") },
+          { route: ownRoute("/a"), plugin: { name: "acme" } },
+          { route: ownRoute("/b"), plugin: { name: "acme" } },
+        ],
+      },
+    );
+
+    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/a", "/b"]);
+  });
+
+  it("of your own and API routes take a path once, naming both", async () => {
+    const ctx = await createSite(
+      { plugins: [{ name: "x", routes: () => [{ path: "/about", GET }] }] },
+      { routes: [{ route: ownRoute("/about") }] },
+    );
+
+    await expect(ctx.getApiRoutes()).rejects.toThrow(
+      'your own page and "x" both take the path "/about"',
+    );
+  });
+});
+
+describe("pageRoutes", () => {
+  it("derives routes from the final page routes of each language", async () => {
+    const seen: string[] = [];
+    const ctx = await createSite(
+      {
+        i18n,
+        plugins: [
+          {
+            name: "blog",
+            views: ({ lang }) => [
+              { path: "/blog", view: () => ({ type: "blog", props: {}, node: lang }) },
+            ],
+          },
+          {
+            name: "print",
+            pageRoutes({ lang, routes }) {
+              seen.push(`${lang}: ${routes.map((route) => route.path).join(", ")}`);
+              const out = [];
+              for (const route of routes)
+                out.push({
+                  path: `${route.path.replace(`/${lang}`, "")}/print`,
+                  view: () => undefined,
+                });
+              out.push({ path: `/${lang}/api/routes.json`, GET });
+              return out;
+            },
+          },
+          { name: "late", pageRoutes: ({ routes }) => void seen.push(`late: ${routes.length}`) },
+        ],
+      },
+      // an own page without a language belongs to the default one
+      { routes: [{ route: ownRoute("/") }, { route: ownRoute("/cn/about", "cn") }] },
+    );
+
+    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual([
+      "/",
+      "/cn/about",
+      "/en/blog",
+      "/cn/blog",
+      "/en/print",
+      "/en/blog/print",
+      "/cn/about/print",
+      "/cn/blog/print",
+    ]);
+    expect(seen).toEqual(["en: /, /en/blog", "cn: /cn/about, /cn/blog", "late: 2", "late: 2"]);
+    expect((await ctx.getApiRoutes()).map((route) => route.path)).toEqual([
+      "/en/api/routes.json",
+      "/cn/api/routes.json",
+    ]);
+  });
+
+  it("serve the page routes they derive from to pages they render, like the home of base options", async () => {
+    let site: Context | undefined;
+    const rendered: unknown[] = [];
+    const ctx = await pressContext(
+      {
+        content: { files: [page("docs/basics.mdx")] },
+        plugins: [
+          {
+            name: "md",
+            // like the Markdown of your own pages, which read the site outside of plugin hooks
+            async pageRoutes() {
+              rendered.push(
+                await site!.getBaseOptions({ lang: undefined }),
+                (await site!.getFrameworkRoutes()).map((route) => route.path),
+              );
+              return [];
+            },
+          },
+        ],
+      },
+      { routes: [{ route: ownRoute("/about") }] },
+    );
+    site = ctx;
 
     await ctx.getApiRoutes();
-    await ctx.getViewRoutes();
-    expect(routes).toHaveBeenCalledTimes(1);
+    expect(rendered).toEqual([{ nav: { title: "Fumapress", url: "/docs/basics" } }, ["/about"]]);
+  });
 
-    files = [page("index.mdx"), page("other.mdx")];
-    await ctx.revalidateLoader();
-    await ctx.getViewRoutes();
-    expect(routes).toHaveBeenCalledTimes(2);
+  it("rejects a derived view on a content page, naming both", async () => {
+    const ctx = await createSite({
+      plugins: [
+        { name: "print", pageRoutes: () => [{ path: "/docs/basics", view: () => undefined }] },
+      ],
+    });
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow(
+      'the content page "/docs/basics" and "print" both take',
+    );
   });
 });
 
 describe("handleRequest", () => {
-  it("runs middleware in order and passes rewrites on", async () => {
-    const seen: string[] = [];
+  it("runs middleware in layer order, the first plugin outermost", async () => {
+    const calls: string[] = [];
     const ctx = await createSite(
       {
         plugins: [
           {
-            middleware(request, next) {
-              seen.push(new URL(request.url).pathname);
-              return next("/docs.md");
-            },
-          },
-          {},
-          {
-            async middleware(request, next) {
-              seen.push(`${new URL(request.url).pathname} ${request.headers.get("accept")}`);
+            async middleware(_request, next) {
+              calls.push("a");
               const response = await next();
-              response.headers.set("x-plugin", "yes");
+              calls.push("a:after");
               return response;
             },
           },
         ],
       },
-      { base: "/repo/" },
-    );
-    const next = vi.fn(async (rewrite?: string) => new Response(rewrite));
-    const response = await ctx.handleRequest(
-      new Request("https://example.com/repo/docs", { headers: { accept: "text/markdown" } }),
-      next,
+      { defaults: [{ middleware: (_request, next) => (calls.push("default"), next()) }] },
     );
 
-    expect(seen).toEqual(["/repo/docs", "/repo/docs.md text/markdown"]);
-    expect(next).toHaveBeenCalledExactlyOnceWith("/docs.md");
-    await expect(response.text()).resolves.toBe("/docs.md");
-    expect(response.headers.get("x-plugin")).toBe("yes");
+    await ctx.handleRequest(new Request("https://example.com/"), async () => {
+      calls.push("runtime");
+      return new Response("ok");
+    });
+    expect(calls).toEqual(["a", "default", "runtime", "a:after"]);
   });
 
-  it("returns the response of a middleware without the next ones", async () => {
+  it("hands a rewrite to the runtime, which re-enters the chain", async () => {
+    const later = vi.fn((_request: Request, next: () => Promise<Response>) => next());
     const ctx = await createSite({
-      plugins: [
-        { middleware: async () => new Response("plugin") },
-        { middleware: async () => GET() },
-      ],
+      plugins: [{ middleware: (_request, next) => next("/other") }, { middleware: later }],
     });
-    const next = vi.fn(async () => GET());
-    const response = await ctx.handleRequest(new Request("https://example.com/"), next);
+    const next = vi.fn(async (rewrite?: string) => new Response(rewrite));
 
-    await expect(response.text()).resolves.toBe("plugin");
-    expect(next).not.toHaveBeenCalled();
+    const response = await ctx.handleRequest(new Request("https://example.com/"), next);
+    await expect(response.text()).resolves.toBe("/other");
+    expect(next).toHaveBeenCalledWith("/other");
+    expect(later).not.toHaveBeenCalled();
   });
 });
 
@@ -603,10 +1127,50 @@ describe("URLs", () => {
     expect(ctx.absoluteUrl("/")).toBe("https://example.com/");
     expect(ctx.absoluteUrl("/sitemap.xml")).toBe("https://example.com/sitemap.xml");
     expect((await createSite()).absoluteUrl("/docs")).toBe("https://example.com/docs");
-    expect(await ctx.getPageHead(page)).toContainEqual({
+    expect(await ctx.getHead({ page })).toContainEqual({
       tag: "link",
       attrs: { rel: "canonical", href: "https://example.com/en/docs/basics/" },
     });
+  });
+
+  it("ends the URLs of routes rendered on request with the trailing slash, once the routes are collected", async () => {
+    const GET = () => new Response();
+    const ctx = await createSite(
+      {
+        site: { baseUrl: undefined },
+        plugins: [
+          {
+            routes: () => [
+              { path: "/api/ai", render: "dynamic", POST: GET },
+              { path: "/api/feedback/[name]", render: "dynamic", POST: GET },
+              { path: "/robots.txt", render: "dynamic", GET },
+              { path: "/api/search", render: "static", GET },
+            ],
+            views: () => [
+              { path: "/live/[id]", render: "dynamic", view: () => undefined },
+              { path: "/blog", view: () => undefined },
+            ],
+          },
+        ],
+      },
+      { base: "/repo/", trailingSlash: true },
+    );
+
+    expect(ctx.withBase("/api/ai")).toBe("/repo/api/ai");
+    await ctx.getFrameworkRoutes();
+    expect(ctx.withBase("/api/ai")).toBe("/repo/api/ai/");
+    expect(ctx.withBase("/api/feedback/page")).toBe("/repo/api/feedback/page/");
+    expect(ctx.withBase("/live/1")).toBe("/repo/live/1/");
+    expect(ctx.absoluteUrl("/api/ai")).toBe("/repo/api/ai/");
+    // files, static routes and pages keep their path
+    for (const path of ["/robots.txt", "/api/search", "/blog", "/docs", "/"])
+      expect(ctx.withBase(path)).toBe(path === "/" ? "/repo" : `/repo${path}`);
+
+    const plain = await createSite({
+      plugins: [{ routes: () => [{ path: "/api/ai", render: "dynamic", POST: GET }] }],
+    });
+    await plain.getFrameworkRoutes();
+    expect(plain.withBase("/api/ai")).toBe("/api/ai");
   });
 
   it("falls back to the base path without `site.baseUrl`", async () => {
@@ -640,7 +1204,7 @@ describe("URLs", () => {
 
   it("links files on the git provider", async () => {
     const git = { user: "fuma-nama", repo: "fumapress", branch: "dev", rootDir: "/repo" };
-    const fileUrl = async (site: PressConfig["site"], file = "/repo/content/index.mdx") =>
+    const fileUrl = async (site: TestSite["site"], file = "/repo/content/index.mdx") =>
       (await createSite({ site })).getFileUrl(file);
 
     await expect(fileUrl({ git })).resolves.toBe(
@@ -657,23 +1221,52 @@ describe("URLs", () => {
   });
 });
 
-describe("defaultLayoutProps", () => {
+describe("getBaseOptions", () => {
   it("links the nav title to the home of the language", async () => {
     const ctx = await createSite({ i18n, site: { name: "Docs" } });
     const hidden = await createSite({ i18n: { ...i18n, hideLocale: "default-locale" } });
     const custom = await createSite({
       i18n,
-      defaultLayoutProps: () => ({ nav: { url: "/docs" } }),
+      ui: { baseOptions: () => ({ nav: { url: "/docs" } }) },
     });
 
-    await expect(ctx.defaultLayoutProps({ lang: "cn" })).resolves.toEqual({
+    await expect(ctx.getBaseOptions({ lang: "cn" })).resolves.toEqual({
       nav: { title: "Docs", url: "/cn" },
     });
-    await expect(hidden.defaultLayoutProps({ lang: "en" })).resolves.toMatchObject({
+    await expect(hidden.getBaseOptions({ lang: "en" })).resolves.toMatchObject({
       nav: { url: "/" },
     });
-    await expect(custom.defaultLayoutProps({ lang: "cn" })).resolves.toMatchObject({
+    await expect(custom.getBaseOptions({ lang: "cn" })).resolves.toMatchObject({
       nav: { url: "/docs" },
+    });
+  });
+
+  it("merges the site's options over the plugins' contributions", async () => {
+    const ctx = await createSite({
+      ui: { baseOptions: { nav: { title: "Acme" }, links: [{ text: "Docs", url: "/docs" }] } },
+      plugins: [
+        {
+          baseOptions: () => ({
+            nav: { title: "Mintlify", transparentMode: "top" },
+            links: [{ text: "Blog", url: "/blog" }],
+          }),
+        },
+        {
+          baseOptions: () => ({
+            nav: { transparentMode: "always" },
+            links: [{ text: "API", url: "/api" }],
+          }),
+        },
+      ],
+    });
+
+    await expect(ctx.getBaseOptions({ lang: undefined })).resolves.toEqual({
+      nav: { title: "Acme", transparentMode: "top", url: "/" },
+      links: [
+        { text: "Docs", url: "/docs" },
+        { text: "Blog", url: "/blog" },
+        { text: "API", url: "/api" },
+      ],
     });
   });
 
@@ -682,17 +1275,17 @@ describe("defaultLayoutProps", () => {
     const github = await createSite({ site: { git } });
     const gitlab = await createSite({
       site: { git: { ...git, provider: "gitlab" } },
-      defaultLayoutProps: { links: [{ text: "Blog", url: "/blog" }] },
+      ui: { baseOptions: { links: [{ text: "Blog", url: "/blog" }] } },
     });
     const custom = await createSite({
       site: { git: { ...git, provider: "gitlab" } },
-      defaultLayoutProps: { githubUrl: "https://github.com/fuma-nama/fumadocs" },
+      ui: { baseOptions: { githubUrl: "https://github.com/fuma-nama/fumadocs" } },
     });
 
-    await expect(github.defaultLayoutProps({ lang: undefined })).resolves.toMatchObject({
+    await expect(github.getBaseOptions({ lang: undefined })).resolves.toMatchObject({
       githubUrl: "https://github.com/fuma-nama/fumapress",
     });
-    const { links } = await gitlab.defaultLayoutProps({ lang: undefined });
+    const { links } = await gitlab.getBaseOptions({ lang: undefined });
     expect(links).toMatchObject([
       { text: "Blog", url: "/blog" },
       {
@@ -702,8 +1295,121 @@ describe("defaultLayoutProps", () => {
         external: true,
       },
     ]);
-    await expect(custom.defaultLayoutProps({ lang: undefined })).resolves.not.toHaveProperty(
-      "links",
+    await expect(custom.getBaseOptions({ lang: undefined })).resolves.not.toHaveProperty("links");
+  });
+});
+
+it("gives the root provider `ui.providerProps` over the plugins' by language", async () => {
+  const ctx = await createSite({
+    i18n,
+    ui: {
+      providerProps: ({ lang }) => ({ theme: { defaultTheme: lang === "cn" ? "dark" : "light" } }),
+    },
+    plugins: [{ providerProps: () => ({ theme: { defaultTheme: "system", enabled: true } }) }],
+  });
+
+  await expect(ctx.getProviderProps({ lang: "cn" })).resolves.toEqual({
+    theme: { defaultTheme: "dark", enabled: true },
+  });
+  await expect((await createSite({})).getProviderProps({ lang: undefined })).resolves.toEqual({});
+});
+
+describe("renderPage", () => {
+  const renderDefault = (props: DefaultPageProps) =>
+    createElement("main", null, props.type ?? "default");
+
+  async function render(site: Partial<TestSite>, target: (ctx: Context) => Promise<RenderTarget>) {
+    const press = testPress({ content: { files }, ...site });
+    const ctx = await pressContext({ content: { files }, ...site });
+    return renderPage(ctx, press, await target(ctx), renderDefault);
+  }
+
+  it("builds the props of content pages: data, body, named slots and the props of the owner", async () => {
+    let props: DefaultPageProps | undefined;
+    const node = await render(
+      {
+        plugins: [
+          {
+            getPageBody: () => ({ node: "body" }),
+            getPageView: () => ({ props: { post: { title: "Post" } }, node: "post" }),
+            slots: ({ page }) =>
+              page && [
+                { slot: "page.actions", name: "share", component: () => "share" },
+                {
+                  slot: "body.wrapper",
+                  component: ({ children }: { children: string }) => children,
+                },
+              ],
+          },
+        ],
+        ui: {
+          renderPage(input: DefaultPageProps) {
+            props = input;
+            return input.renderDefault();
+          },
+        } satisfies PressConfig<AppShape, any>["ui"],
+      },
+      async (ctx) => ({ lang: undefined, page: await getPage(ctx, ["docs", "basics"]) }),
     );
+
+    expect(node).toEqual(createElement("main", null, "default"));
+    expect(props).toMatchObject({
+      type: undefined,
+      slugs: ["docs", "basics"],
+      pageData: { title: "docs/basics.mdx" },
+      post: { title: "Post" },
+      baseOptions: { nav: { title: "Fumapress" } },
+    });
+    expect(
+      props && "body" in props && isValidElement(props.body) && isValidElement(props.children),
+    ).toBe(true);
+    expect(Object.keys((props && "actions" in props && props.actions) || {})).toEqual(["share"]);
+    expect(props?.tree.children.length).toBeGreaterThan(0);
+  });
+
+  it("hands the owning plugin the body of `props.body`, resolved once", async () => {
+    const getPageBody = vi.fn(() => ({ node: "body" }));
+    let owned: ReactNode;
+    let props: DefaultPageProps | undefined;
+    await render(
+      {
+        plugins: [
+          {
+            getPageBody,
+            getPageView(_page, body) {
+              owned = body?.node;
+              return { props: {}, node: body?.node };
+            },
+            slots: ({ page }) =>
+              page && [
+                {
+                  slot: "body.wrapper",
+                  component: ({ children }: { children: string }) => children,
+                },
+              ],
+          },
+        ],
+        ui: {
+          renderPage(input: DefaultPageProps) {
+            props = input;
+            return input.renderDefault();
+          },
+        } satisfies PressConfig<AppShape, any>["ui"],
+      },
+      async (ctx) => ({ lang: undefined, page: await getPage(ctx, ["docs", "basics"]) }),
+    );
+
+    expect(getPageBody).toHaveBeenCalledOnce();
+    expect(isValidElement(owned) && owned.props).toEqual({ children: "body" });
+    expect(props && "body" in props && props.body.props).toEqual({ children: owned });
+  });
+
+  it("builds the props of views, and renders the default without `ui.renderPage`", async () => {
+    const node = (await render({}, async () => ({
+      lang: undefined,
+      view: { type: "blog.index", props: { posts: [] }, node: "posts" },
+    }))) as ReactElement;
+
+    expect(node).toEqual(createElement("main", null, "blog.index"));
   });
 });

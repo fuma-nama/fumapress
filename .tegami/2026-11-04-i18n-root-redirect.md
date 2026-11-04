@@ -1,8 +1,6 @@
 ---
 packages:
-  "npm:@fumapress/core": patch
   "npm:fumapress": patch
-  "npm:@fumapress/astro": patch
   "npm:@fumapress/mintlify": patch
 ---
 

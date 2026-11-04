@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createPress, type PressConfig } from "@/context";
+import { pressContext, type TestSite } from "./harness";
 import { robotsPlugin, type RobotsOptions } from "@/plugins/robots";
 import { sitemapPlugin } from "@/plugins/sitemap";
 
-const content: PressConfig["content"] = { files: [] };
+const content: TestSite["content"] = { files: [] };
 
 async function generate(options?: RobotsOptions, sitemap?: string | false) {
-  const ctx = await createPress(
+  const ctx = await pressContext(
     {
       content,
-      preset: false,
+      preset: [],
       site: { baseUrl: "https://example.com/repo" },
       plugins: [robotsPlugin(options), sitemap !== false && sitemapPlugin({ path: sitemap })],
     },

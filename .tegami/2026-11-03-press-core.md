@@ -1,26 +1,37 @@
 ---
 packages:
-  "npm:fumapress": minor
   "npm:@fumapress/core": minor
-  "npm:@fumapress/ai": patch
-  "npm:@fumapress/feedback": patch
+  "npm:fumapress": patch
   "npm:@fumapress/graphql": minor
   "npm:@fumapress/notion": minor
   "npm:@fumapress/sanity": minor
   "npm:@fumapress/obsidian": minor
 ---
 
-### Refactored onto `@fumapress/core`
+### Added `@fumapress/core`
 
-- Added `@fumapress/core`: the engine, site config and plugins of Fumapress, shared by every framework. Its plugins extend the framework plugins of `fumadocs-core/framework/plugin`.
-- Plugins of integrations, like `openapiPlugin()` of `fumadocs-openapi/plugin`, work in Fumapress as-is.
-- `@fumapress/core` exports the helpers of runtimes: `recommendedPreset()`, `expandRoute()`, `matchRoute()`, `stripBase()`, `renderSlot()`, `wrapSlot()`, `crawlFrameworkPkgs()` of `@fumapress/core/vite`, and the `trailingSlash` option of runtimes.
-- Plugins can add routes, head tags, page slots and page data with the hooks of `@fumapress/core`. The Waku hooks, adapters and `this.data` keep working.
-- AI search indexes the pages of every plugin with page text, like OpenAPI pages.
-- Deprecated `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`: use the `/plugin` export of the Fumadocs integration.
-- `@fumapress/notion` re-exports `@fumadocs/notion` instead of shipping a copy of it.
-- Feedback of `@fumapress/feedback` also shows on pages of the glass layout.
+- Added `@fumapress/core`: the engine, site config and plugins of Fumapress, shared by the Waku and Astro runtimes. Sites import from `fumapress` or `@fumapress/astro`, which re-export what they need.
+- A site is `createPress(content, { i18n, loaderOptions }).plugins(...).config({...})`: the content types the plugins, the content and plugins type `.config()`.
+- Plugins are `Plugin<C, T>`, extending the framework plugins of `fumadocs-core/framework/plugin`. Plugins of integrations, like `openapiPlugin()` of `fumadocs-openapi/plugin`, work as-is.
+- Plugin hooks: `views({ lang })` for pages of plugins, `pageRoutes()` for routes derived from the pages, `routes()`, `middleware()`, `head()`, `slots()`, `baseOptions()`, `providerProps()` and `build()`.
+- Plugins owning the pages of a source render them with `getPageView(page, body)`, which receives the page body with its wrappers.
+- `ui.renderPage` receives typed props for content pages and plugin views, and the named slot items of plugins in `props.actions` and `props.footer`.
+- The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
+- Capabilities: a plugin `provides` one, others read its `api` with `this.getProvider()`. A listed plugin replaces the preset entry of its capability.
+- Search plugins give their client hook with `api.client(ctx)`, the runtimes compose it with the Fumadocs search dialog. The search of an i18n site searches the language of the page.
+- `configureLoader()` contributes loader options, the loader plugins of every plugin are combined in plugin order.
+- Hooks run in plugin order, your plugins first, then the preset and the runtime's defaults. `enforce` is not supported, TypeScript reports it.
+- `this.signal` aborts when the site reloads, `this.isClientReference()` tells exports of `'use client'` modules.
+- `this.withBase(path)` is the URL a route is served at: with a runtime's `trailingSlash`, routes rendered on request end with `/`.
+- Two routes on one path are an error naming both; your own pages win over plugin views.
 - Fixed the Markdown URL of pages under a base path, and the robots.txt sitemap link of a custom sitemap `path`.
 - Sitemaps escape `&` in alternate links, Markdown served to agents is `Cache-Control: private`, and URLs with a trailing slash negotiate Markdown too.
 - Link validation no longer reports links rendered by its own requests.
 - `openapiPlugin()` reports a proxy in static mode with the error of `fumadocs-openapi/plugin`.
+
+### Deprecated the integration packages
+
+- Deprecated `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`: use the `/plugin` export of the Fumadocs integration.
+- They depend on `@fumapress/core` instead of `fumapress`, and work on Waku and Astro.
+- `@fumapress/notion` re-exports `@fumadocs/notion` instead of shipping a copy of it.
+- `@fumapress/obsidian` stops watching the vault when the site reloads.

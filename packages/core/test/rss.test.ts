@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { PageData, VirtualFile } from "fumadocs-core/source";
-import { createPress, type PressConfig } from "@/context";
+import { pressContext, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { buildRSS, rssPlugin, type RSSOptions } from "@/plugins/rss";
 
@@ -16,8 +16,8 @@ const dates: Plugin = {
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
-function createSite(options?: RSSOptions, config: Partial<PressConfig> = {}) {
-  return createPress(
+function createSite(options?: RSSOptions, config: Partial<TestSite> = {}) {
+  return pressContext(
     {
       content: {
         files: [
@@ -27,7 +27,7 @@ function createSite(options?: RSSOptions, config: Partial<PressConfig> = {}) {
           page("blog/new.cn.mdx", { title: "New (cn)", date: "2026-02-01" }),
         ],
       },
-      preset: false,
+      preset: [],
       site: { name: "Site", baseUrl: "https://example.com/docs" },
       plugins: [dates, rssPlugin(options)],
       ...config,
@@ -131,7 +131,9 @@ describe("rssPlugin", () => {
     const index = (await ctx.getLoader()).getPage([]);
 
     await expect(ctx.getHead({})).resolves.toEqual([link]);
-    expect(await ctx.getHead({ page: index })).not.toContainEqual(link);
+    // a page's head includes the tags of every page, once
+    const tags = await ctx.getHead({ page: index });
+    expect(tags.filter((tag) => tag.attrs?.type === "application/rss+xml")).toEqual([link]);
     await expect((await createSite({ alternateLink: false })).getHead({})).resolves.toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPress } from "@/context";
+import { pressContext } from "./harness";
 import type { PressBuildOutput } from "@/plugin";
 import {
   linkValidationPlugin,
@@ -15,8 +15,8 @@ async function runBuild(options: {
 }) {
   const { links, missing = [], plugin } = options;
   const emitted = new Map<string, string | Uint8Array>();
-  const ctx = await createPress(
-    { content: { files: [] }, preset: false, plugins: [linkValidationPlugin(plugin)] },
+  const ctx = await pressContext(
+    { content: { files: [] }, preset: [], plugins: [linkValidationPlugin(plugin)] },
     { base: "/" },
   );
   const build = () =>

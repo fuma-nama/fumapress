@@ -1,6 +1,6 @@
 ---
 packages:
-  "npm:@fumapress/core": patch
+  "npm:fumapress": patch
 ---
 
 ### Full page URLs in `llms.txt`

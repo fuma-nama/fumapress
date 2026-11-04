@@ -42,10 +42,9 @@ export interface RSSChannel {
   items: RSSItem[];
 }
 
-export interface RSSOptions<
-  C extends AppShape = AppShape,
-  Ctx extends Context<C> = Context<C>,
-> extends Partial<Pick<RSSChannel, "title" | "description" | "language">> {
+export interface RSSOptions<C extends AppShape = AppShape> extends Partial<
+  Pick<RSSChannel, "title" | "description" | "language">
+> {
   /**
    * path of the feed route
    *
@@ -72,10 +71,10 @@ export interface RSSOptions<
    *
    * By default, includes pages with a creation date (or modified date as fallback), resolved from content sources.
    */
-  getItem?: (this: Ctx, page: C["page"]) => Awaitable<RSSItem | undefined>;
+  getItem?: (this: Context<C>, page: C["page"]) => Awaitable<RSSItem | undefined>;
 
   /** additional items of the feed, their `link` must be a fully-qualified URL */
-  additionalItems?: RSSItem[] | ((this: Ctx) => Awaitable<RSSItem[]>);
+  additionalItems?: RSSItem[] | ((this: Context<C>) => Awaitable<RSSItem[]>);
 }
 
 function toTime(value: Date | string | undefined): number {
@@ -134,9 +133,9 @@ export function buildRSS(channel: RSSChannel): string {
  *
  * One feed covers every language: fallback pages are left out, translations link to their own URL.
  */
-export function rssPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
-  options: RSSOptions<NoInfer<C>, NoInfer<Ctx>> = {},
-): Plugin<C, Ctx> {
+export function rssPlugin<C extends AppShape = AppShape>(
+  options: RSSOptions<NoInfer<C>> = {},
+): Plugin<C, { provides: "rss" }> {
   const {
     path = "/rss.xml",
     limit = 20,
@@ -158,9 +157,10 @@ export function rssPlugin<C extends AppShape = AppShape, Ctx extends Context<C> 
 
   return {
     name: "core:rss",
-    head({ page }) {
+    provides: ["rss"],
+    head({ page, route }) {
       // tags without `page` are on every page
-      if (!alternateLink || page) return;
+      if (!alternateLink || page || route) return;
 
       return [
         {

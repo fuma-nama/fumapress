@@ -1,4 +1,3 @@
-import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
 
 type ValidateResult = "not-found" | null;
@@ -51,10 +50,9 @@ export interface LinkValidationOptions {
 }
 
 /** validate the links rendered in prerendered pages, after the build */
-export function linkValidationPlugin<
-  C extends AppShape = AppShape,
-  Ctx extends Context<C> = Context<C>,
->(options: LinkValidationOptions = {}): Plugin<C, Ctx> {
+export function linkValidationPlugin<C extends AppShape = AppShape>(
+  options: LinkValidationOptions = {},
+): Plugin<C> {
   const {
     ignored,
     externalLink,

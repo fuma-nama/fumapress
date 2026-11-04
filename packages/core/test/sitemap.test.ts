@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { createPress, type FrameworkPage, type PressConfig } from "@/context";
+import type { RuntimeRoute } from "@/context";
+import type { FrameworkRoute } from "@/plugin";
+import { pressContext, type TestSite } from "./harness";
 import { buildSitemap, sitemapPlugin, type SitemapOptions } from "@/plugins/sitemap";
 
 const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
@@ -11,19 +13,19 @@ function page(path: string): VirtualFile {
 }
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn` */
-const content: PressConfig["content"] = {
+const content: TestSite["content"] = {
   files: [page("docs/basics.mdx"), page("docs/basics.cn.mdx"), page("docs/only-en.mdx")],
 };
 
 async function generate(
-  config: Partial<PressConfig> = {},
+  config: Partial<TestSite> = {},
   options?: SitemapOptions,
-  frameworkPages: FrameworkPage[] = [],
+  frameworkRoutes: RuntimeRoute[] = [],
 ) {
-  const ctx = await createPress(
+  const ctx = await pressContext(
     {
       content,
-      preset: false,
+      preset: [],
       site: { baseUrl: "https://example.com/repo" },
       ...config,
       plugins: [
@@ -34,7 +36,7 @@ async function generate(
         sitemapPlugin(options),
       ],
     },
-    { base: "/repo/", getFrameworkPages: async () => frameworkPages },
+    { base: "/repo/", routes: frameworkRoutes },
   );
   const [route] = await ctx.getApiRoutes();
 
@@ -91,9 +93,15 @@ describe("sitemapPlugin", () => {
 
   it("lists the pages of the framework after content pages, without the URLs of content pages", async () => {
     const translations = [
-      { locale: "en", path: "/en/blog" },
-      { locale: "cn", path: "/cn/blog" },
+      { lang: "en", path: "/en/blog" },
+      { lang: "cn", path: "/cn/blog" },
     ];
+    const route = (
+      path: string,
+      translations: FrameworkRoute["pages"][number]["translations"] = [],
+    ): RuntimeRoute => ({
+      route: { path, render: "static", options: {}, pages: [{ path, translations, params: {} }] },
+    });
     const xml = await generate(
       { i18n, site: { baseUrl: "https://example.com/repo", hreflang: { cn: "zh-Hans" } } },
       {
@@ -105,11 +113,11 @@ describe("sitemapPlugin", () => {
       },
       [
         // the URLs of a fallback page, of a custom `loc` and of a content page stay out
-        { path: "/cn/docs/only-en", translations: [] },
-        { path: "/custom", translations: [] },
-        { path: "/en/docs/basics", translations: [] },
-        { path: "/about", translations: [] },
-        { path: "/cn/blog", translations },
+        route("/cn/docs/only-en"),
+        route("/custom"),
+        route("/en/docs/basics"),
+        route("/about"),
+        route("/cn/blog", translations),
       ],
     );
 

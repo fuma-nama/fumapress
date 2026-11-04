@@ -1,12 +1,42 @@
-import type { ApiRoute, BuildMode } from "fumadocs-core/framework/plugin";
+import type { UseSearchReturn } from "fumadocs-core/search/client";
 import type { AdvancedIndex, SearchAPI } from "fumadocs-core/search/server";
 import type { Context } from "./context";
-import type { AppShape } from "./plugin";
+import type { AppShape, ClientHook, LangEnv, Plugin } from "./plugin";
+import { useServerSearch } from "./search.client";
 
-/** the API of search plugins, from `this.getProvider("search")?.api` */
+/** the `search` capability: the provider hook the runtime composes with the Fumadocs dialog, `usePressSearch()` returns its result */
 export interface SearchPluginAPI {
-  /** the format of the index at `/api/search` in `static` mode, the browser searches it with the client of the engine */
-  staticIndex?: "flexsearch" | "orama";
+  /** the hook on a site, which can depend on its mode and base path */
+  client: (ctx: Context) => ClientHook<UseSearchReturn, any>;
+}
+
+const path = "/api/search";
+
+/**
+ * Search with an engine at `/api/search`: in `static` mode, the exported index searched in the browser with `useIndex`,
+ * a search server in the other modes.
+ */
+export function searchPlugin<C extends AppShape>(
+  name: string,
+  useIndex: (props: { from: string } & LangEnv<AppShape>) => UseSearchReturn,
+  createServer: (ctx: Context<C>) => SearchAPI,
+): Plugin<C, { provides: "search" }> {
+  return {
+    name,
+    provides: ["search"],
+    api: {
+      client: (ctx) =>
+        ctx.mode === "static"
+          ? { hook: useIndex, props: { from: ctx.withBase(path) } }
+          : { hook: useServerSearch, props: { api: ctx.withBase(path) } },
+    },
+    routes() {
+      const server = createServer(this);
+      if (this.mode === "static")
+        return [{ path, render: "static", GET: () => server.staticGET() }];
+      return [{ path, render: "dynamic", GET: (request) => server.GET(request) }];
+    },
+  };
 }
 
 /** the search index of a page from `getPageStructuredData()` of its content source, `plugin` names the search plugin in errors */
@@ -24,12 +54,4 @@ export function buildIndexDefault<C extends AppShape>(plugin: string) {
       structuredData,
     };
   };
-}
-
-/** a static index for search in the browser in `static` mode, a search server in the others */
-export function searchRoute(mode: BuildMode, server: SearchAPI): ApiRoute {
-  if (mode === "static")
-    return { path: "/api/search", render: "static", GET: () => server.staticGET() };
-
-  return { path: "/api/search", render: "dynamic", GET: (request) => server.GET(request) };
 }
