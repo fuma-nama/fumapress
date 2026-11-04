@@ -4,6 +4,7 @@ import { uiTranslations } from "fumadocs-ui/i18n";
 import {
   getHomeUrl,
   stripBase,
+  type ApiRoute,
   type AppShape,
   type Awaitable,
   type Context,
@@ -13,6 +14,7 @@ import {
   type PluginInfo,
   type Press,
   type PressBuildOutput,
+  type RouteHandler,
   type RouteOptions,
 } from "@fumapress/core";
 import {
@@ -20,6 +22,7 @@ import {
   createPressContext,
   expandRoute,
   matchRoute,
+  methods,
   notFoundView,
   pathLocale,
   renderPage,
@@ -31,7 +34,6 @@ import {
   type RuntimeRoute,
 } from "@fumapress/core/runtime";
 import { HomeShell, mergeI18n, renderDefault, siteI18n } from "@fumapress/core/runtime/ui";
-import { methods, type ApiRoute, type RouteHandler } from "fumadocs-core/framework/plugin";
 import { renderRoute } from "fumadocs-core/server";
 import {
   unstable_formatRouterRequest,
@@ -239,8 +241,8 @@ export async function createRouter(
     const out =
       params &&
       (await (view.render === "dynamic"
-        ? view.view(params, { request: unstable_getRequest() })
-        : view.view(params)));
+        ? view.view(params, { lang: route.lang, request: unstable_getRequest() })
+        : view.view(params, { lang: route.lang })));
     if (!out) unstable_notFound();
 
     return (

@@ -13,14 +13,14 @@ describe("build output", async () => {
       content: {},
       plugins: [
         {
-          apiRoutes: () => [{ path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) }],
-          views: () => [
-            {
+          routes({ createApi, createView }) {
+            createApi({ path: "/api/[id]", GET: () => Response.json({}) });
+            createView({
               path: "/live/[id]",
               render: "dynamic",
               view: () => ({ type: "live", props: {}, node: "live" }),
-            },
-          ],
+            });
+          },
         },
       ],
     },

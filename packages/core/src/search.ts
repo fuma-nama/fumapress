@@ -28,11 +28,11 @@ export function searchPlugin<C extends AppShape>(
             : { SearchDialog: FetchSearchDialog, options: { api: url, locale: lang } },
       };
     },
-    apiRoutes() {
+    routes({ createApi }) {
       const server = createServer(this);
       if (this.mode === "static")
-        return [{ path, render: "static", GET: () => server.staticGET() }];
-      return [{ path, render: "dynamic", GET: (request) => server.GET(request) }];
+        createApi({ path, render: "static", GET: () => server.staticGET() });
+      else createApi({ path, GET: (request) => server.GET(request) });
     },
   };
 }

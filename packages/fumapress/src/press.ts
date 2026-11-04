@@ -72,9 +72,9 @@ declare module "@fumapress/core" {
 export interface WakuHooks<C extends AppShape> {
   /**
    * collect: Waku pages, layouts, slices and handler interceptors of the plugin, with Fumapress' `lang` on pages and
-   * layouts. Called once, it covers every language itself (unlike `views` and `deriveRoutes`). Layouts only in route groups
+   * layouts. Called once, it covers every language itself, like `routes`. Layouts only in route groups
    * (`/(name)`): the site owns its pages, a plugin layout never wraps them. Not the root (`ui.renderRoot` is the site's), and
-   * no `createApi` (API routes are core `apiRoutes()`, on both runtimes). A path taken twice by pages or by layouts, or a
+   * no `createApi` (API routes are `createApi` of core `routes()`, on both runtimes). A path taken twice by pages or by layouts, or a
    * slice id taken twice, is an error naming both; your own page or layout wins.
    */
   createPages?: (

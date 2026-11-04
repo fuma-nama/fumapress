@@ -48,13 +48,13 @@ export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
         },
       ];
     },
-    apiRoutes() {
+    routes({ createApi }) {
       if (this.mode === "static") return;
       const optimizer = createImageOptimizer(
         config,
         import.meta.env.DEV ? undefined : new ImageOptimizationCache(),
       );
-      return [{ path: config.path, render: "dynamic", GET: optimizer }];
+      createApi({ path: config.path, GET: optimizer });
     },
   };
 }

@@ -89,7 +89,14 @@ describe("framework routes", () => {
         i18n: { languages: ["en", "cn"], defaultLanguage: "en" },
         plugins: [
           {
-            views: () => [{ path: "/blog", view: () => ({ type: "blog", props: {}, node: "" }) }],
+            routes({ createView }) {
+              for (const lang of this.languages)
+                createView({
+                  lang,
+                  path: "/blog",
+                  view: () => ({ type: "blog", props: {}, node: "" }),
+                });
+            },
           },
         ],
       },

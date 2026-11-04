@@ -16,8 +16,9 @@ export type {
   WakuRouteProps,
 } from "./router";
 export { selectTreeRoot } from "@fumapress/core";
-export type { BuildMode } from "fumadocs-core/framework/plugin";
+export type { BuildMode } from "@fumapress/core";
 export type {
+  ApiRoute,
   AppShape,
   BaseOptions,
   GitProvider,
@@ -27,6 +28,10 @@ export type {
   PressContext,
   ProviderProps,
   RenderPageProps,
+  RouteFns,
+  RouteHandler,
+  RouteParams,
   SiteConfig,
   UIOptions,
+  ViewRoute,
 } from "@fumapress/core";

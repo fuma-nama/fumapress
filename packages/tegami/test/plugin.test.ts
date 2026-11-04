@@ -25,6 +25,7 @@ const dates: Record<string, Date> = {
 
 function context(body = true) {
   return {
+    languages: ["en"],
     getLoader: async () => ({ getPages: () => pages }),
     getPageCreatedAt: async (page: { url: string }) => dates[page.url],
     getPageBody: async (page: { url: string }) => (body ? { node: page.url } : undefined),
@@ -35,13 +36,16 @@ async function views(
   options: ChangelogPluginOptions<string> = { source: "changelog" },
   ctx = context(),
 ) {
-  return (await changelogPlugin(options).views!.call(ctx, { lang: "en" })) as
-    | ViewRoute[]
-    | undefined;
+  const out: ViewRoute[] = [];
+  await changelogPlugin(options).routes!.call(ctx, {
+    createApi() {},
+    createView: (route) => out.push(route),
+  });
+  return out;
 }
 
 function render(route: ViewRoute | undefined) {
-  return route!.view({}, { request: new Request("http://localhost") });
+  return route!.view({}, { lang: "en", request: new Request("http://localhost") });
 }
 
 describe("changelogPlugin", () => {
@@ -50,7 +54,7 @@ describe("changelogPlugin", () => {
     expect(
       (await views({ source: "changelog", paths: { index: "/" } }))?.map(({ path }) => path),
     ).toEqual(["/"]);
-    expect(await views({ source: "changelog", paths: { index: false } })).toBeUndefined();
+    expect(await views({ source: "changelog", paths: { index: false } })).toEqual([]);
   });
 
   it("renders the pages of its sources, newest first", async () => {

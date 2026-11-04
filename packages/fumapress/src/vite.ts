@@ -249,7 +249,7 @@ function core(options: WakuPressOptions = {}): Plugin {
         const mdx = Boolean(await this.resolve("fumadocs-mdx/press"));
         if (!mdx && (await this.resolve("fumadocs-mdx")))
           throw new Error(
-            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/press`: update `fumadocs-mdx` to 15.4.11 or later.",
+            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/press`: update `fumadocs-mdx` to 15.5.0 or later.",
           );
         return getManagedServerEntry(mdx);
       }

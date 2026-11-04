@@ -39,6 +39,7 @@ const pages = [
 /** the site of the hooks: pages with a `date` frontmatter */
 function context(blog: ReturnType<typeof blogPlugin>) {
   return {
+    languages: ["en", "cn"],
     getLoader: () => ({ getPages: (lang: string) => pages.filter((p) => p.locale === lang) }),
     getCapability: (capability: string) => (capability === "blog" ? blog.api : undefined),
     localizePath: (lang: string, path: string) => `/${lang}${path}`,
@@ -52,12 +53,22 @@ type Options = Partial<BlogPluginOptions<AppShape, string | undefined>>;
 function setup({ source = "blog", ...options }: Options = {}, body?: ReactNode) {
   const plugin = blogPlugin({ source, ...options });
   const ctx = context(plugin);
+  const views = async (lang: string) => {
+    const out: ViewRoute[] = [];
+    await plugin.routes!.call(ctx, {
+      createApi() {},
+      createView(route) {
+        if (route.lang === lang) out.push(route);
+      },
+    });
+    return out;
+  };
   return {
     plugin,
-    views: async (lang: string) => (await plugin.views!.call(ctx, { lang }))!,
+    views,
     /** the posts of the index view */
     posts: async (lang: string) => {
-      const [index] = (await plugin.views!.call(ctx, { lang }))!;
+      const [index] = await views(lang);
       return ((await render(index)) as View<{ "blog.index": BlogIndexViewProps }>).props.posts;
     },
     /** the page as core renders it, with `body` as its wrapped content */
@@ -68,7 +79,7 @@ function setup({ source = "blog", ...options }: Options = {}, body?: ReactNode) 
 
 /** a view as the runtime renders it */
 function render(route: ViewRoute | undefined, params: Record<string, string> = {}) {
-  return route!.view(params, { request: new Request("http://localhost") });
+  return route!.view(params, { lang: "en", request: new Request("http://localhost") });
 }
 
 async function html(node: ReactNode) {

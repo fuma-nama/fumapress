@@ -58,43 +58,41 @@ export function changelogPlugin<
   return {
     name: "tegami:changelog",
     provides: ["changelog"],
-    views({ lang }) {
+    routes({ createView }) {
       if (indexPath === false) return;
-      return [
-        {
-          path: indexPath,
-          view: async () => {
-            const pending: Promise<Entry>[] = [];
-            for (const page of (await this.getLoader()).getPages(lang)) {
-              if (!isEntry(page)) continue;
-              pending.push(
-                Promise.all([this.getPageCreatedAt(page), this.getPageBody(page)]).then(
-                  ([date, body]) => {
-                    if (!body)
-                      throw new Error(
-                        `[@fumapress/tegami] the changelog page "${page.path}" has no body, its content source doesn't render it.`,
-                      );
-                    const packages: Entry["packages"] = [];
-                    for (const [name, { version }] of Object.entries(getPackages(page.data) ?? {}))
-                      packages.push({ name, version });
-                    packages.sort((a, b) => a.name.localeCompare(b.name));
-                    return { page, date, packages, body: body.node };
-                  },
-                ),
-              );
-            }
-            const now = Date.now();
-            const entries = (await Promise.all(pending)).sort(
-              (a, b) => (b.date?.getTime() ?? now) - (a.date?.getTime() ?? now),
+      createView({
+        path: indexPath,
+        view: async (_, { lang }) => {
+          const pending: Promise<Entry>[] = [];
+          for (const page of (await this.getLoader()).getPages(lang)) {
+            if (!isEntry(page)) continue;
+            pending.push(
+              Promise.all([this.getPageCreatedAt(page), this.getPageBody(page)]).then(
+                ([date, body]) => {
+                  if (!body)
+                    throw new Error(
+                      `[@fumapress/tegami] the changelog page "${page.path}" has no body, its content source doesn't render it.`,
+                    );
+                  const packages: Entry["packages"] = [];
+                  for (const [name, { version }] of Object.entries(getPackages(page.data) ?? {}))
+                    packages.push({ name, version });
+                  packages.sort((a, b) => a.name.localeCompare(b.name));
+                  return { page, date, packages, body: body.node };
+                },
+              ),
             );
-            return {
-              type: "changelog.index",
-              props: { entries },
-              node: <ChangelogIndexView entries={entries} />,
-            };
-          },
+          }
+          const now = Date.now();
+          const entries = (await Promise.all(pending)).sort(
+            (a, b) => (b.date?.getTime() ?? now) - (a.date?.getTime() ?? now),
+          );
+          return {
+            type: "changelog.index",
+            props: { entries },
+            node: <ChangelogIndexView entries={entries} />,
+          };
         },
-      ];
+      });
     },
   };
 }

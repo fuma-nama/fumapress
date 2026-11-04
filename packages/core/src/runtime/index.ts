@@ -13,6 +13,7 @@ export {
   createLocalizer,
   expandRoute,
   matchRoute,
+  methods,
   notFoundView,
   pathLocale,
   rootRedirect,

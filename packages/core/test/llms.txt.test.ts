@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiRoute } from "fumadocs-core/framework/plugin";
+import type { ApiRoute } from "@/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
 import { pressContext, type TestSite } from "./harness";

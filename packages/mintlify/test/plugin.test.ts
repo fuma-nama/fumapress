@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { Context, DocsPageData } from "@fumapress/core";
+import type { Context, DocsPageData, ViewRoute } from "@fumapress/core";
 import type { Root } from "fumadocs-core/page-tree";
 import type { LoaderPlugin } from "fumadocs-core/source";
 import { notFoundView } from "@/features/not-found";
@@ -11,10 +11,11 @@ const fixturesRoot = path.join(import.meta.dirname, "fixtures");
 
 /** the members of a context the plugin uses, the home page is `/` */
 /** views of this plugin are static, the request is unused */
-const env = { request: new Request("https://example.com/404") };
+const env = { lang: undefined, request: new Request("https://example.com/404") };
 
 const ctx = {
   mode: "default",
+  languages: [undefined],
   withBase: (pathname: string) => (pathname === "/" ? "/base" : `/base${pathname}`),
   localizePath: (_lang: string | undefined, pathname: string) => pathname,
   getLoader: async () => ({ getPageByUrl: () => ({}) }),
@@ -137,7 +138,9 @@ describe("mintlifyPlugin", () => {
   it("adds the 404 page as a view", async () => {
     const { ctx, plugin } = await setup();
 
-    const [route] = (await plugin.views?.call(ctx, { lang: undefined })) ?? [];
+    const createView = vi.fn();
+    await plugin.routes?.call(ctx, { createApi: vi.fn(), createView });
+    const route: ViewRoute | undefined = createView.mock.calls[0]?.[0];
     expect(route?.path).toBe("/404");
     const view = await route?.view({}, env);
     expect(view?.props).toEqual({ title: "Not found", description: "Try **searching**." });
@@ -145,10 +148,10 @@ describe("mintlifyPlugin", () => {
   });
 
   it("redirects the 404 page home by default", async () => {
-    const view = await notFoundView(ctx, undefined, {})?.view({}, env);
+    const view = await notFoundView(ctx, {})?.view({}, env);
     expect(view?.props.title).toBe("Page not found");
     expect(JSON.stringify(view?.node)).toContain("0;url=/base");
-    expect(notFoundView(ctx, undefined, { 404: { redirect: false } })).toBeUndefined();
+    expect(notFoundView(ctx, { 404: { redirect: false } })).toBeUndefined();
   });
 
   it("respects feature toggles", async () => {
@@ -159,7 +162,9 @@ describe("mintlifyPlugin", () => {
     expect(await plugin.configureLoader?.call(ctx, { baseUrl: "/" })).toBeUndefined();
     expect(await plugin.baseOptions?.call(ctx, { lang: undefined })).toBeUndefined();
     expect(await plugin.providerProps?.call(ctx, { lang: undefined })).toEqual({});
-    expect(await plugin.views?.call(ctx, { lang: undefined })).toBeUndefined();
+    const createView = vi.fn();
+    await plugin.routes?.call(ctx, { createApi: vi.fn(), createView });
+    expect(createView).not.toHaveBeenCalled();
     expect(
       await plugin.transformPage?.call(
         ctx,

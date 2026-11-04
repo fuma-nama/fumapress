@@ -14,8 +14,9 @@ export function createPress<
   return core.createPress(content, options);
 }
 
-export type { BuildMode } from "fumadocs-core/framework/plugin";
+export type { BuildMode } from "@fumapress/core";
 export type {
+  ApiRoute,
   AppShape,
   BaseOptions,
   GitProvider,
@@ -25,7 +26,11 @@ export type {
   PressContext,
   ProviderProps,
   RenderPageProps,
+  RouteFns,
+  RouteHandler,
+  RouteParams,
   SiteConfig,
   UIOptions,
+  ViewRoute,
 } from "@fumapress/core";
 export { recommendedPreset, selectTreeRoot } from "@fumapress/core";

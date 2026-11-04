@@ -140,7 +140,7 @@ describe("pages", () => {
   it("render views in the home layout, with their title", async () => {
     const view = { type: "test" as const, props: {}, node: "content", title: "Test" };
     const views: Plugin<AppShape, { views: { test: {} } }> = {
-      views: () => [{ path: "/test", view: () => view }],
+      routes: ({ createView }) => createView({ path: "/test", view: () => view }),
     };
     const ctx = await site(views);
     const [routed] = await ctx.getViewRoutes();

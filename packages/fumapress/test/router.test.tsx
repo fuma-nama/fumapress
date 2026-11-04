@@ -183,7 +183,8 @@ describe("createPages", () => {
 
     const view: Plugin<AppShape, { views: { x: {} } }> = {
       name: "view",
-      views: () => [{ path: "/x", view: () => ({ type: "x", props: {}, node: "x" }) }],
+      routes: ({ createView }) =>
+        createView({ path: "/x", view: () => ({ type: "x", props: {}, node: "x" }) }),
     };
     await expect(routes([page, view])).rejects.toThrow(/"page" and "view" both take the path/);
   });
@@ -202,7 +203,10 @@ describe("createPages", () => {
   it("makes a view at `/404` the not found page", async () => {
     const view: Plugin<AppShape, { views: { x: {} } }> = {
       name: "views",
-      views: () => [{ path: "/404", view: () => ({ type: "x", props: {}, node: "gone" }) }],
+      routes({ createView }) {
+        for (const lang of this.languages)
+          createView({ lang, path: "/404", view: () => ({ type: "x", props: {}, node: "gone" }) });
+      },
     };
     await routes([view]);
     expect(paths("page").filter((path) => path === "/404")).toHaveLength(1);
@@ -215,13 +219,12 @@ describe("createPages", () => {
   it("registers a view without the pages your own pages take", async () => {
     const tags: Plugin<AppShape, { views: { x: {} } }> = {
       name: "tags",
-      views: () => [
-        {
+      routes: ({ createView }) =>
+        createView({
           path: "/tags/[tag]",
           staticPaths: ["a", "b"],
           view: () => ({ type: "x", props: {}, node: "tag" }),
-        },
-      ],
+        }),
     };
     await routes([tags], ({ createPage }) => createPage({ path: "/(fs)/tags/a", component: Page }));
     expect(route("/tags/[tag]").staticPaths).toEqual([["b"]]);
@@ -231,13 +234,12 @@ describe("createPages", () => {
     const tags: string[] = [];
     const view: Plugin<AppShape, { views: { x: {} } }> = {
       name: "tags",
-      views: () => [
-        {
+      routes: ({ createView }) =>
+        createView({
           path: "/tags/[tag]",
           render: "dynamic",
           view: ({ tag }) => (tags.push(String(tag)), { type: "x", props: {}, node: "tag" }),
-        },
-      ],
+        }),
     };
     await routes([view], undefined, undefined, "default");
     recorded.request = new Request("https://example.com/tags/x");
@@ -264,9 +266,8 @@ describe("createPages", () => {
   it("rejects reading the routes through base options while plugins create them, without a home", async () => {
     const nav: Plugin = {
       name: "nav",
-      async views() {
+      async routes() {
         await this.getBaseOptions({ lang: undefined });
-        return [];
       },
     };
     const router = await createRouter(
@@ -307,8 +308,8 @@ describe("createPages", () => {
   it("renders the head of views from core, with their title and description", async () => {
     const view: Plugin<AppShape, { views: { x: {} } }> = {
       name: "views",
-      views: () => [
-        {
+      routes: ({ createView }) =>
+        createView({
           path: "/blog",
           view: () => ({
             type: "x",
@@ -317,8 +318,7 @@ describe("createPages", () => {
             title: "Blog",
             description: "Posts",
           }),
-        },
-      ],
+        }),
     };
     await routes([view]);
     const out = await html(route("/blog"), { path: "/blog" });

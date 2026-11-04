@@ -89,10 +89,17 @@ export interface PressContent<C extends AppShape, R> extends PressApp<C, MergedT
   ): PressApp<C, CollectTypes<P>, R>;
 }
 
+/**
+ * - `static`: always prefer static, including search etc.
+ * - `dynamic`: always prefer dynamic.
+ * - `default`: only certain parts like search routes are dynamic.
+ */
+export type BuildMode = "static" | "dynamic" | "default";
+
 /** the options of `.config()` */
 export interface PressConfig<C extends AppShape, T extends PluginTypes> {
   /** @defaultValue "default" */
-  mode?: Framework.BuildMode;
+  mode?: BuildMode;
   /** the default layer: entries load after your plugins unless one provides their capability; `[]` for none @defaultValue recommendedPreset() */
   preset?: readonly PresetEntry<Plugin<C, any>>[];
   site?: SiteConfig;

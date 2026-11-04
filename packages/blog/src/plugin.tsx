@@ -6,7 +6,6 @@ import type {
   PageView,
   Plugin,
   SourcePage,
-  ViewRoute,
 } from "@fumapress/core";
 import type { Page } from "fumadocs-core/source";
 import { blogTranslations } from "./i18n";
@@ -241,22 +240,23 @@ export function blogPlugin<
       },
     },
     translations: blogTranslations(),
-    async views({ lang }) {
-      const views: ViewRoute<BlogTypes<Post, S & string>["views"]>[] = [];
-      if (indexPath !== false)
-        views.push({
-          path: indexPath,
-          view: async () => {
-            const { entries, resolve, tagsUrl } = await collect(this, lang);
-            const props = { posts: await Promise.all(entries.map(resolve)), tagsUrl };
-            return { type: "blog.index", props, node: <BlogIndexView {...props} /> };
-          },
-        });
-      if (tagsPath === false) return views;
+    async routes({ createView }) {
+      for (const lang of this.languages) {
+        if (indexPath !== false)
+          createView({
+            lang,
+            path: indexPath,
+            view: async () => {
+              const { entries, resolve, tagsUrl } = await collect(this, lang);
+              const props = { posts: await Promise.all(entries.map(resolve)), tagsUrl };
+              return { type: "blog.index", props, node: <BlogIndexView {...props} /> };
+            },
+          });
+        if (tagsPath === false) continue;
 
-      const { tags } = await collect(this, lang);
-      views.push(
-        {
+        const { tags } = await collect(this, lang);
+        createView({
+          lang,
           path: tagsPath,
           view: async () => {
             const { tags, indexUrl } = await collect(this, lang);
@@ -266,8 +266,9 @@ export function blogPlugin<
             };
             return { type: "blog.tags", props, node: <BlogTagsView {...props} /> };
           },
-        },
-        {
+        });
+        createView({
+          lang,
           path: joinPath(tagsPath, "[tag]"),
           staticPaths: Array.from(tags.keys()),
           view: async ({ tag: slug }) => {
@@ -282,9 +283,8 @@ export function blogPlugin<
             const props = { tag, posts: await Promise.all(posts), indexUrl };
             return { type: "blog.tag", props, node: <BlogTagView {...props} /> };
           },
-        },
-      );
-      return views;
+        });
+      }
     },
     async getPageView(page, body) {
       if (!isPost(page)) return;

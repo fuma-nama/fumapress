@@ -57,7 +57,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
         },
       ];
     },
-    apiRoutes() {
+    routes({ createApi }) {
       if (this.mode === "static") {
         throw new Error(
           "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static', its /api/ai endpoint calls the model on the server.",
@@ -92,53 +92,50 @@ export function aiPlugin<C extends AppShape = AppShape>(
         },
       });
 
-      return [
-        {
-          path: "/api/ai",
-          render: "dynamic",
-          async POST(req) {
-            if (beforeRequest) {
-              const res = await beforeRequest(req);
-              if (res) return res;
-            }
+      createApi({
+        path: "/api/ai",
+        async POST(req) {
+          if (beforeRequest) {
+            const res = await beforeRequest(req);
+            if (res) return res;
+          }
 
-            const reqJson: { messages: ChatUIMessage[] } = await req.json();
-            let locale: string | null = null;
+          const reqJson: { messages: ChatUIMessage[] } = await req.json();
+          let locale: string | null = null;
 
-            const result = streamText({
-              model,
-              stopWhen: stepCountIs(5),
+          const result = streamText({
+            model,
+            stopWhen: stepCountIs(5),
+            tools: {
+              search: searchTool,
+            },
+            system: systemPrompt,
+            messages: await convertToModelMessages<ChatUIMessage>(reqJson.messages, {
               tools: {
                 search: searchTool,
               },
-              system: systemPrompt,
-              messages: await convertToModelMessages<ChatUIMessage>(reqJson.messages, {
-                tools: {
-                  search: searchTool,
-                },
-                convertDataPart(part) {
-                  if (part.type === "data-client") {
-                    locale = part.data.locale;
+              convertDataPart(part) {
+                if (part.type === "data-client") {
+                  locale = part.data.locale;
 
-                    return {
-                      type: "text",
-                      text: `[Client Context: ${JSON.stringify(part.data)}]`,
-                    };
-                  }
-                },
-              }),
-              toolsContext: {
-                search: {
-                  locale,
-                },
+                  return {
+                    type: "text",
+                    text: `[Client Context: ${JSON.stringify(part.data)}]`,
+                  };
+                }
               },
-              toolChoice: "auto",
-            });
+            }),
+            toolsContext: {
+              search: {
+                locale,
+              },
+            },
+            toolChoice: "auto",
+          });
 
-            return result.toUIMessageStreamResponse();
-          },
+          return result.toUIMessageStreamResponse();
         },
-      ];
+      });
     },
   };
 }

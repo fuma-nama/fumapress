@@ -174,40 +174,39 @@ export function rssPlugin<C extends AppShape = AppShape>(
         },
       ];
     },
-    apiRoutes() {
-      return [
-        {
-          path,
-          GET: async () => {
-            const source = await this.getLoader();
-            const pending: Awaitable<RSSItem | undefined>[] = [];
-            for (const page of source.getPages()) {
-              if (!fallbackOrigin(source, this.i18nConfig, page))
-                pending.push(getItem.call(this, page));
-            }
-            const items: RSSItem[] = [];
-            for (const item of await Promise.all(pending)) if (item) items.push(item);
-            items.push(
-              ...(typeof additionalItems === "function"
-                ? await additionalItems.call(this)
-                : additionalItems),
-            );
-            // stable: on date ties, pages come before additional items
-            items.sort((a, b) => toTime(b.pubDate) - toTime(a.pubDate));
+    routes({ createApi }) {
+      createApi({
+        path,
+        render: "static",
+        GET: async () => {
+          const source = await this.getLoader();
+          const pending: Awaitable<RSSItem | undefined>[] = [];
+          for (const page of source.getPages()) {
+            if (!fallbackOrigin(source, this.i18nConfig, page))
+              pending.push(getItem.call(this, page));
+          }
+          const items: RSSItem[] = [];
+          for (const item of await Promise.all(pending)) if (item) items.push(item);
+          items.push(
+            ...(typeof additionalItems === "function"
+              ? await additionalItems.call(this)
+              : additionalItems),
+          );
+          // stable: on date ties, pages come before additional items
+          items.sort((a, b) => toTime(b.pubDate) - toTime(a.pubDate));
 
-            const title = options.title ?? this.siteConfig.name;
-            const xml = buildRSS({
-              title,
-              link: this.absoluteUrl("/"),
-              description: options.description ?? title,
-              language: options.language,
-              selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path) : undefined,
-              items: items.slice(0, limit),
-            });
-            return new Response(xml, { headers: { "Content-Type": "application/rss+xml" } });
-          },
+          const title = options.title ?? this.siteConfig.name;
+          const xml = buildRSS({
+            title,
+            link: this.absoluteUrl("/"),
+            description: options.description ?? title,
+            language: options.language,
+            selfUrl: this.siteConfig.baseUrl ? this.absoluteUrl(path) : undefined,
+            items: items.slice(0, limit),
+          });
+          return new Response(xml, { headers: { "Content-Type": "application/rss+xml" } });
         },
-      ];
+      });
     },
   };
 }

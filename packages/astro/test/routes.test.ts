@@ -25,11 +25,16 @@ const GET = () => new Response("get");
 describe("static routes", () => {
   it("expand the params of their static paths", async () => {
     const ctx = await site({
-      apiRoutes: () => [
-        { path: "/og/[...slugs]", staticPaths: [["a", "b.webp"], ["index.webp"]], GET },
-        { path: "/llms.txt", GET },
-        { path: "/api/search", render: "dynamic", GET },
-      ],
+      routes({ createApi }) {
+        createApi({
+          path: "/og/[...slugs]",
+          render: "static",
+          staticPaths: [["a", "b.webp"], ["index.webp"]],
+          GET,
+        });
+        createApi({ path: "/llms.txt", render: "static", GET });
+        createApi({ path: "/api/search", GET });
+      },
     });
     const paths = await fileStaticPaths(ctx, true);
 
@@ -75,15 +80,19 @@ describe("static routes", () => {
 describe("server routes", async () => {
   const ctx = await site(
     {
-      apiRoutes: () => [
-        {
+      routes({ createApi }) {
+        createApi({
           path: "/api/[id]",
           render: "dynamic",
           GET: (_request, { params }) => Response.json(params),
           PUT: () => new Response("put"),
-        },
-        { path: "/proxy", render: "dynamic", ALL: (request) => new Response(request.method) },
-      ],
+        });
+        createApi({
+          path: "/proxy",
+          render: "dynamic",
+          ALL: (request) => new Response(request.method),
+        });
+      },
     },
     {},
     "/sub",
@@ -113,8 +122,10 @@ describe("server routes", async () => {
   });
 
   it("create the routes of plugins once per content", async () => {
-    const routes = vi.fn(() => [{ path: "/api", render: "dynamic" as const, GET }]);
-    const once = await site({ apiRoutes: routes });
+    const routes = vi.fn<NonNullable<Plugin["routes"]>>(({ createApi }) =>
+      createApi({ path: "/api", GET }),
+    );
+    const once = await site({ routes });
     for (let i = 0; i < 3; i++) await serve(once, new Request("http://localhost/api"));
     expect(routes).toHaveBeenCalledTimes(1);
   });
@@ -142,16 +153,24 @@ describe("views", () => {
   const i18n = { languages: ["en", "cn"], defaultLanguage: "en" };
   const view = (node: unknown) => ({ type: "test" as const, props: {}, node: String(node) });
   const views: Plugin<AppShape, { views: { test: {} } }> = {
-    views: ({ lang }) => [
-      { path: "/blog", view: () => view(`blog:${lang}`) },
-      {
-        path: "/tags/[tag]",
-        staticPaths: lang === "cn" ? ["react"] : ["react", "vue"],
-        view: ({ tag }) => view(`${tag}:${lang}`),
-      },
-      { path: "/(app)/live/[id]", render: "dynamic", view: ({ id }) => view(id) },
-      { path: "/404", view: () => view(`404:${lang}`) },
-    ],
+    routes({ createView }) {
+      for (const lang of this.languages) {
+        createView({ lang, path: "/blog", view: () => view(`blog:${lang}`) });
+        createView({
+          lang,
+          path: "/tags/[tag]",
+          staticPaths: lang === "cn" ? ["react"] : ["react", "vue"],
+          view: ({ tag }) => view(`${tag}:${lang}`),
+        });
+        createView({
+          lang,
+          path: "/(app)/live/[id]",
+          render: "dynamic",
+          view: ({ id }) => view(id),
+        });
+        createView({ lang, path: "/404", view: () => view(`404:${lang}`) });
+      }
+    },
   };
   const paths = async (config: Partial<TestSite>) => {
     const out: (string | undefined)[] = [];
@@ -226,7 +245,15 @@ describe("views", () => {
 
   it("match the pages of their route by the decoded path of the request", async () => {
     const tags: Plugin<AppShape, any> = {
-      views: () => [{ path: "/tags/[tag]", staticPaths: ["über"], view: ({ tag }) => view(tag) }],
+      routes({ createView }) {
+        for (const lang of this.languages)
+          createView({
+            lang,
+            path: "/tags/[tag]",
+            staticPaths: ["über"],
+            view: ({ tag }) => view(tag),
+          });
+      },
     };
     const ctx = await site(tags, { i18n, mode: "dynamic" });
     const listed = (await serve(
@@ -245,7 +272,9 @@ describe("views", () => {
   });
 
   it("answer 404 without content", async () => {
-    const ctx = await site({ views: () => [{ path: "/empty", view: () => undefined }] });
+    const ctx = await site({
+      routes: ({ createView }) => createView({ path: "/empty", view: () => undefined }),
+    });
     const [routed] = await ctx.getViewRoutes();
     const response = await pageTarget(
       { view: { ...routed!, page: routed!.route.pages[0]! } },
@@ -263,9 +292,8 @@ describe("middleware", () => {
     runtime.ctx = await site(
       {
         middleware,
-        apiRoutes: () => [
-          { path: "/b", render: "dynamic", GET: (request) => new Response(request.url) },
-        ],
+        routes: ({ createApi }) =>
+          createApi({ path: "/b", render: "dynamic", GET: (request) => new Response(request.url) }),
       },
       {},
       "/sub",
@@ -290,11 +318,11 @@ describe("middleware", () => {
   it("gives files rendered on request the trailing slash of `[...fumapressServer]`, when Astro routes them to the 404 page", async () => {
     runtime.ctx = await site(
       {
-        apiRoutes: () => [
-          { path: "/robots.txt", render: "dynamic", GET },
-          { path: "/api/x", render: "dynamic", GET },
-          { path: "/sitemap.xml", GET },
-        ],
+        routes({ createApi }) {
+          createApi({ path: "/robots.txt", GET });
+          createApi({ path: "/api/x", GET });
+          createApi({ path: "/sitemap.xml", render: "static", GET });
+        },
       },
       {},
       "/sub",

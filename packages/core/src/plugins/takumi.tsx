@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import type { ApiRoute, RouteParams } from "fumadocs-core/framework/plugin";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { fallbackOrigin, joinPaths, type Context } from "../context";
-import type { AppShape, Awaitable, HeadTag, PageRoute, Plugin } from "../plugin";
+import type { AppShape, Awaitable, HeadTag, PageRoute, Plugin, RouteParams } from "../plugin";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T
@@ -146,19 +145,19 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         ),
       );
     },
-    async apiRoutes() {
+    async routes({ createApi }) {
       const source = await this.getLoader();
-      const routes: ApiRoute[] = [];
 
-      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
+      for (const lang of this.languages) {
         const staticPaths: string[][] = [];
         for (const page of source.getPages(lang)) {
           if (!fallbackOrigin(source, this.i18nConfig, page))
             staticPaths.push(imageSegments(page.slugs));
         }
 
-        routes.push({
+        createApi({
           path: this.localizePath(lang, `${basePath(this)}/[...slugs]`),
+          render: "static",
           staticPaths,
           GET: async (_request, { params }) => {
             const page =
@@ -170,11 +169,8 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           },
         });
       }
-
-      return routes;
     },
-    deriveRoutes({ routes }) {
-      const out: ApiRoute[] = [];
+    deriveRoutes({ createApi }, { routes }) {
       for (const route of routes) {
         const image = route.options.ogImage;
         if (!image) continue;
@@ -188,21 +184,19 @@ export function takumiPlugin<C extends AppShape = AppShape>(
           });
         };
         if (route.render === "dynamic") {
-          out.push({
+          createApi({
             path: routeImagePath(this, route, route.path),
-            render: "dynamic",
             GET: (_, { params }) => render(params),
           });
           continue;
         }
         for (const { path, params } of route.pages)
-          out.push({
+          createApi({
             path: routeImagePath(this, route, path),
             render: "static",
             GET: () => render(params),
           });
       }
-      return out;
     },
   };
 }

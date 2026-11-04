@@ -3,16 +3,12 @@ import {
   expandRoute,
   matchRoute,
   rootRedirect,
+  methods,
   type RoutedView,
   type RuntimeContext,
 } from "@fumapress/core/runtime";
-import {
-  methods,
-  type ApiRoute,
-  type Method,
-  type RouteHandler,
-  type RouteParams,
-} from "fumadocs-core/framework/plugin";
+import type { ApiRoute, RouteHandler, RouteParams } from "@fumapress/core";
+import type { Method } from "fumadocs-core/framework/plugin";
 import type { Page } from "fumadocs-core/source";
 import type { PageTarget } from "../ui/page";
 
@@ -42,8 +38,8 @@ export async function pageTarget(
     const { params } = view.page;
     const content =
       view.view.render === "dynamic"
-        ? await view.view.view(params, { request })
-        : await view.view.view(params);
+        ? await view.view.view(params, { lang: view.route.lang, request })
+        : await view.view.view(params, { lang: view.route.lang });
     if (content) return { view, content };
   }
   return new Response(null, { status: 404 });

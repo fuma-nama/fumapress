@@ -11,7 +11,7 @@ declare module "virtual:fumapress/astro" {
   /** Astro has an adapter, routes can render on request */
   export const adapter: boolean;
   /** the mode without `mode` in the config: `static` without an adapter, `dynamic` with `output: 'server'` */
-  export const defaultMode: import("fumadocs-core/framework/plugin").BuildMode;
+  export const defaultMode: import("@fumapress/core").BuildMode;
   /** your page routes from `astro:routes:resolved`, with the paths of their pages */
   export const routes: (Pick<import("@fumapress/core").PageRoute, "path" | "render"> & {
     pages: string[];

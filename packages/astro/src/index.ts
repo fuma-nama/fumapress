@@ -6,7 +6,7 @@ import type { Connect, DevEnvironment, Plugin, RunnableDevEnvironment } from "vi
 import fumadocs, { type CollectionConfig, type FumadocsOptions } from "@fumadocs/astro";
 import { stripBase } from "@fumapress/core";
 import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/runtime/vite";
-import type { BuildMode } from "fumadocs-core/framework/plugin";
+import type { BuildMode } from "@fumapress/core";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
 import type * as Routes from "./routes/shared";

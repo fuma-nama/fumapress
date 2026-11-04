@@ -76,26 +76,25 @@ export function robotsPlugin<C extends AppShape = AppShape>(
   return {
     name: "core:robots",
     provides: ["robots"],
-    apiRoutes() {
-      return [
-        {
-          path,
-          GET: () => {
-            const sections = rules.map(ruleToText);
-            const api = this.getCapability("sitemap");
-            const sitemapPath =
-              typeof sitemap === "string"
-                ? sitemap
-                : sitemap !== false && (api?.path ?? (sitemap ? "/sitemap.xml" : undefined));
-            if (sitemapPath) sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath)}`);
-            if (additionalContent) sections.push(additionalContent);
+    routes({ createApi }) {
+      createApi({
+        path,
+        render: "static",
+        GET: () => {
+          const sections = rules.map(ruleToText);
+          const api = this.getCapability("sitemap");
+          const sitemapPath =
+            typeof sitemap === "string"
+              ? sitemap
+              : sitemap !== false && (api?.path ?? (sitemap ? "/sitemap.xml" : undefined));
+          if (sitemapPath) sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath)}`);
+          if (additionalContent) sections.push(additionalContent);
 
-            return new Response(sections.join("\n\n"), {
-              headers: { "Content-Type": "text/plain" },
-            });
-          },
+          return new Response(sections.join("\n\n"), {
+            headers: { "Content-Type": "text/plain" },
+          });
         },
-      ];
+      });
     },
   };
 }

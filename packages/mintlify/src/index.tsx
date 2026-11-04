@@ -124,10 +124,10 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
           : undefined,
       };
     },
-    views({ lang }) {
+    routes({ createView }) {
       if (!enabled("notFound")) return;
-      const view = notFoundView(this, lang, docs.errors);
-      if (view) return [view];
+      const view = notFoundView(this, docs.errors);
+      if (view) createView(view);
     },
     async configureLoader() {
       if (!enabled("navigation")) return;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Context } from "@fumapress/core";
 import type { LanguageModel } from "ai";
 import { aiPlugin } from "../src/chat";
@@ -15,10 +15,12 @@ const ctx = {
 describe("aiPlugin", () => {
   it("serves /api/ai on the server", async () => {
     const plugin = aiPlugin({ model });
-    expect(await plugin.apiRoutes!.call(ctx)).toEqual([
-      { path: "/api/ai", render: "dynamic", POST: expect.any(Function) },
-    ]);
-    expect(() => plugin.apiRoutes!.call({ ...ctx, mode: "static" })).toThrow(/mode: 'static'/);
+    const createApi = vi.fn();
+    await plugin.routes!.call(ctx, { createApi, createView: vi.fn() });
+    expect(createApi.mock.calls).toEqual([[{ path: "/api/ai", POST: expect.any(Function) }]]);
+    expect(() =>
+      plugin.routes!.call({ ...ctx, mode: "static" }, { createApi, createView: vi.fn() }),
+    ).toThrow(/mode: 'static'/);
   });
 
   it("provides the chat that the built-in UI docks", () => {

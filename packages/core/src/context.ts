@@ -1,10 +1,4 @@
-import {
-  methods,
-  type ApiRoute,
-  type PageBody,
-  type PluginContext,
-  type PluginLoaderOptions,
-} from "fumadocs-core/framework/plugin";
+import type { PageBody, PluginContext, PluginLoaderOptions } from "fumadocs-core/framework/plugin";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type { _Internal, LoaderConfig, LoaderOutput } from "fumadocs-core/source";
@@ -21,6 +15,7 @@ import {
   type HeadTag,
   type LangEnv,
   type PageEnv,
+  type ApiRoute,
   type PageRoute,
   type PageView,
   type Plugin,
@@ -28,12 +23,20 @@ import {
   type PluginOption,
   type PresetEntry,
   type PressBuildOutput,
+  type RouteFns,
   type SlotItem,
   type ViewRoute,
 } from "./plugin";
-import type { BaseOptions, Press, ProviderProps } from "./press";
+import type { BaseOptions, BuildMode, Press, ProviderProps } from "./press";
 import { addRepoLink, getFileUrl, resolveGit, type GitProvider } from "./git";
-import { compareRoutes, createLocalizer, expandRoute, getHomeUrl, matchRoute } from "./routes";
+import {
+  compareRoutes,
+  createLocalizer,
+  expandRoute,
+  getHomeUrl,
+  matchRoute,
+  methods,
+} from "./routes";
 
 /** the i18n config of a site with the languages `Lang`, plugins for any site (`string | undefined`) get either */
 export type InferI18nConfig<Lang extends string | undefined> = [Lang] extends [undefined]
@@ -88,7 +91,9 @@ export interface PageAlternate<C extends AppShape = AppShape> {
 export interface Context<out C extends AppShape = AppShape> extends PluginContext<
   InferLoaderConfig<C>
 > {
-  readonly mode: PluginContext["mode"];
+  readonly mode: BuildMode;
+  /** the languages of the site, `[undefined]` without i18n */
+  readonly languages: readonly C["lang"][];
   /** the base path of the site, `/` at the root */
   readonly base: string;
   /** aborted when the runtime drops this context (a reloaded press.config): `fs.watch(dir, { signal: this.signal })` */
@@ -197,7 +202,7 @@ export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C
    * created its pages and before the routes are read, reads throw until then; a new list replaces them.
    */
   setRuntimeRoutes(routes: readonly RuntimeRoute<C>[]): void;
-  /** the `apiRoutes` and `deriveRoutes` results with `render` filled in from `mode`, most specific path first */
+  /** the API routes of `routes` and `deriveRoutes` with `render` resolved from `mode`, most specific path first */
   getApiRoutes(): Promise<ApiRoute[]>;
   /** the views and the views of `deriveRoutes` with their page routes, without the ones your own pages replace, most specific path first */
   getViewRoutes(): Promise<RoutedView<C>[]>;
@@ -389,6 +394,12 @@ function routeKeys(pattern: string | undefined, pages: readonly { path: string }
   return keys;
 }
 
+/** what the hooks of a plugin create */
+interface CreatedRoutes {
+  api: ApiRoute[];
+  views: (ViewRoute & { lang?: string })[];
+}
+
 interface CollectedRoutes {
   api: ApiRoute[];
   views: RoutedView[];
@@ -534,7 +545,7 @@ export async function createPressContext(
     /** sets {@link Collection.deriving} */
     derive: (routes?: PageRoute[]) => void,
   ): Promise<CollectedRoutes> {
-    const languages = ctx.i18nConfig?.languages ?? [undefined];
+    const { languages } = ctx;
     const defaultLanguage = ctx.i18nConfig?.defaultLanguage;
     /** route key → its owner, for "a path has one route": the plugin, your own page or a content page */
     const owners = new Map<string, PluginInfo | string>();
@@ -563,13 +574,14 @@ export async function createPressContext(
     function checkRender(plugin: AnyPlugin, path: string, render: "static" | "dynamic") {
       if (render === "dynamic" && mode === "static")
         throw new Error(
-          `[Fumapress] the route "${path}" of ${nameOf(plugin)} renders on request, which \`mode: "static"\` can't serve: read \`this.mode\` to degrade.`,
+          `[Fumapress] the route "${path}" of ${nameOf(plugin)} renders on request, which \`mode: "static"\` can't serve: turn it off in the options of the plugin, or use another \`mode\`. Plugins that can degrade read \`this.mode\`.`,
         );
     }
 
     function addApi(plugin: AnyPlugin, route: ApiRoute) {
-      const render = route.render ?? (mode === "dynamic" ? "dynamic" : "static");
-      checkRender(plugin, route.path, render);
+      const declared = route.render ?? "dynamic";
+      checkRender(plugin, route.path, declared);
+      const render = mode === "dynamic" ? "dynamic" : declared;
       if (render === "static") {
         if (!route.staticPaths && route.path.includes("["))
           throw new Error(
@@ -643,63 +655,74 @@ export async function createPressContext(
         out.pageRoutes.push(route);
     }
 
-    const [routeLists, viewLists] = await Promise.all([
-      Promise.all(
-        plugins.map((plugin) =>
-          routeContext(plugin, (ctx) => Promise.resolve(plugin.apiRoutes?.call(ctx))),
-        ),
-      ),
-      Promise.all(
-        plugins.map((plugin) =>
-          routeContext(plugin, (ctx) =>
-            Promise.all(languages.map((lang) => plugin.views?.call(ctx, { lang }))),
-          ),
-        ),
-      ),
-    ]);
-
-    for (const [i, plugin] of plugins.entries()) {
-      for (const route of routeLists[i] ?? []) {
-        if ("view" in route)
+    /** what a hook creates; plugins run in parallel, the routes are added in layer order for stable errors */
+    async function create(
+      plugin: AnyPlugin,
+      run: (fns: RouteFns) => Awaitable<void>,
+    ): Promise<CreatedRoutes> {
+      const created: CreatedRoutes = { api: [], views: [] };
+      let open = true;
+      function check(path: string) {
+        if (!open)
           throw new Error(
-            `[Fumapress] ${nameOf(plugin)} returns the view "${route.path}" from \`apiRoutes()\`: views go in \`views()\`.`,
+            `[Fumapress] ${nameOf(plugin)} creates the route "${path}" after its hook returned: await its work in the hook.`,
           );
-        addApi(plugin, route);
+      }
+      await run({
+        createApi(route) {
+          check(route.path);
+          created.api.push(route);
+        },
+        createView(route) {
+          check(route.path);
+          created.views.push(route);
+        },
+      });
+      open = false;
+      return created;
+    }
+
+    function addCreated(plugin: AnyPlugin, { api, views }: CreatedRoutes) {
+      for (const route of api) addApi(plugin, route);
+      for (const route of views) {
+        if (route.lang !== undefined) addView(plugin, route, route.lang);
+        else for (const lang of languages) addView(plugin, route, lang);
       }
     }
-    for (const [i, plugin] of plugins.entries()) {
-      for (const [j, lang] of languages.entries())
-        for (const route of viewLists[i]?.[j] ?? []) addView(plugin, route, lang);
-    }
+
+    const createdLists = await Promise.all(
+      plugins.map((plugin) =>
+        routeContext(plugin, (ctx) => create(plugin, (fns) => plugin.routes?.call(ctx, fns))),
+      ),
+    );
+    for (const [i, plugin] of plugins.entries()) addCreated(plugin, createdLists[i]!);
 
     const final = [...out.pageRoutes];
     derive(final);
     const derived = await Promise.all(
       plugins.map((plugin) =>
         routeContext(plugin, (ctx) =>
-          Promise.all(
-            languages.map((lang) => {
-              const routes: PageRoute[] = [];
-              for (const route of final)
-                if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
-              return plugin.deriveRoutes?.call(ctx, { lang, routes: Object.freeze(routes) });
-            }),
+          create(plugin, (fns) =>
+            Promise.all(
+              languages.map((lang) => {
+                const routes: PageRoute[] = [];
+                for (const route of final)
+                  if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
+                return plugin.deriveRoutes?.call(
+                  ctx,
+                  {
+                    ...fns,
+                    createView: (route) => fns.createView({ ...route, lang: route.lang ?? lang }),
+                  },
+                  { lang, routes: Object.freeze(routes) },
+                );
+              }),
+            ).then(() => undefined),
           ),
         ),
       ),
     ).finally(() => derive());
-    for (const [i, plugin] of plugins.entries()) {
-      for (const [j, lang] of languages.entries()) {
-        for (const route of derived[i]?.[j] ?? []) {
-          if (!route.view) addApi(plugin, route);
-          else if (route.ALL || methods.some((method) => route[method]))
-            throw new Error(
-              `[Fumapress] ${nameOf(plugin)} returns "${route.path}" from \`deriveRoutes()\` with both a \`view\` and handlers: an entry is an API route or a view.`,
-            );
-          else addView(plugin, route, lang);
-        }
-      }
-    }
+    for (const [i, plugin] of plugins.entries()) addCreated(plugin, derived[i]!);
 
     out.api.sort((a, b) => compareRoutes(a.path, b.path));
     out.views.sort((a, b) => compareRoutes(a.route.path, b.route.path));
@@ -807,6 +830,7 @@ export async function createPressContext(
 
   const ctx: RuntimeContext = Object.freeze({
     mode,
+    languages: Object.freeze(i18nConfig?.languages ?? [undefined]),
     base: runtime.base,
     signal: runtime.signal,
     plugins: Object.freeze(plugins),

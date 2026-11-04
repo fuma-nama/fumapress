@@ -2,6 +2,7 @@ import { createElement, type ComponentType, type ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { Meta, Page } from "fumadocs-core/source";
+import type { TOCItemType } from "fumadocs-core/toc";
 import type { Context, InferLoaderConfig } from "./context";
 import type { BaseOptions, ProviderProps } from "./press";
 
@@ -102,34 +103,33 @@ export interface RuntimeHooks<in C extends AppShape> {}
  * generic factory typed by the site (`myPlugin<C extends AppShape>(options: MyOptions<NoInfer<C>>): Plugin<C, MyTypes>`).
  */
 export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes = {}>
-  extends Framework.Plugin<InferLoaderConfig<C>, Context<C>, DocsPageData>, RuntimeHooks<C> {
+  extends
+    Framework.Plugin<InferLoaderConfig<C>, Context<C>, RouteFns<C, Declared<T, "views">>>,
+    RuntimeHooks<C> {
   readonly "~types"?: T;
+  /** runs before the content loader is created */
+  init?: (this: Context<C>) => Awaitable<void>;
   /** runs after the content loader is created */
   configure?: (this: Context<C>) => Awaitable<void>;
   /** at most one plugin per capability; a listed plugin providing a preset entry's capability replaces that entry in place */
   provides?: readonly Declared<T, "provides">[];
   /** read by others with `this.getCapability(capability)`; complete at creation, a value of the site is a function of its context */
   api?: ProviderAPI<Declared<T, "provides">>;
-  /** pages of the plugin in the language `lang`, called once per language; `ui.renderPage` renders them as `props.type` */
-  views?: (
-    this: Context<C>,
-    env: LangEnv<C>,
-  ) => Awaitable<ViewRoute<Declared<T, "views">>[] | undefined>;
   /**
    * routes derived from the final page routes of `lang` (those rendered in `lang`, your own pages without a language in the
    * default one), called once per language: API routes like their Markdown or images, and views like a print page. A path
-   * has one route (principle 2); your own page wins (principle 3). An entry is an API route or a view, never both.
+   * has one route (principle 2); your own page wins (principle 3).
    */
   deriveRoutes?: (
     this: Context<C>,
+    fns: RouteFns<C, Declared<T, "views">>,
     env: LangEnv<C> & { routes: readonly PageRoute<C>[] },
-  ) => Awaitable<
-    | (
-        | (Framework.ApiRoute & { view?: never })
-        | (ViewRoute<Declared<T, "views">> & { [M in Framework.Method | "ALL"]?: never })
-      )[]
-    | undefined
-  >;
+  ) => Awaitable<void>;
+  transformPage?: (
+    this: Context<C>,
+    data: Readonly<DocsPageData>,
+    page: C["page"],
+  ) => Awaitable<Partial<DocsPageData> | undefined>;
   /**
    * a content page of a source the plugin owns (its `source` option), with the props it adds; `body` is the page's
    * content with `body.wrapper` applied, `props.body` of `ui.renderPage`
@@ -183,22 +183,65 @@ export type View<V> = V extends unknown
     }[keyof V & string]
   : never;
 
+/** `[name]` params are strings, `[...name]` params are arrays of segments */
+export type RouteParams = Record<string, string | string[]>;
+
+/** a web-standard handler, return a 404 response for paths without content */
+export type RouteHandler = (
+  request: Request,
+  context: { params: RouteParams },
+) => Awaitable<Response>;
+
+/** an API route, its handlers are named by method, `ALL` handles every method */
+export interface ApiRoute extends Partial<Record<Framework.Method | "ALL", RouteHandler>> {
+  /**
+   * URL pattern without the base path, like `/llms.txt` or `/api/[...slugs]`.
+   *
+   * Params are written as `[name]`, and `[...name]` for the rest of the path.
+   */
+  path: string;
+
+  /**
+   * - `dynamic`: handle requests on the server.
+   * - `static`: generate the `GET` response at build time, `mode: "dynamic"` handles it on request.
+   *
+   * @defaultValue "dynamic"
+   */
+  render?: "static" | "dynamic";
+
+  /** the params of each static page, in the order of the path, required when a static path has params */
+  staticPaths?: string[] | string[][];
+}
+
+/** what plugins create in `routes` and `deriveRoutes`, before the hook returns */
+export interface RouteFns<C extends AppShape = AppShape, V = any> extends Framework.RouteFns {
+  createApi(route: ApiRoute): void;
+  /**
+   * a page of the plugin, `ui.renderPage` renders it as `props.type`. Without `lang`, it is created in the languages the hook
+   * covers: every language in `routes`, `env.lang` in `deriveRoutes`.
+   */
+  createView(route: ViewRoute<V, C["lang"]> & { lang?: C["lang"] }): void;
+}
+
 /**
- * `path` without the language prefix; the site prefixes it and links the views of other languages at the same `path`.
- * A view rendered on request (`render: "dynamic"`) gets the request; a static one has none to read.
+ * `path` without the language prefix; the site prefixes it and links the views of other languages at the same `path`. A view
+ * rendered on request (`render: "dynamic"`) gets the request; a static one has none to read.
  */
-export type ViewRoute<V = any> = Pick<Framework.ApiRoute, "path" | "staticPaths"> &
+export type ViewRoute<V = any, Lang extends string | undefined = string | undefined> = Pick<
+  ApiRoute,
+  "path" | "staticPaths"
+> &
   (
     | {
         /** prerendered; `mode: "dynamic"` renders it on request, still without the request */
         render?: "static";
-        view(params: Framework.RouteParams): Awaitable<View<V> | undefined>;
+        view(params: RouteParams, env: { lang: Lang }): Awaitable<View<V> | undefined>;
       }
     | {
         render: "dynamic";
         view(
-          params: Framework.RouteParams,
-          env: { request: Request },
+          params: RouteParams,
+          env: { lang: Lang; request: Request },
         ): Awaitable<View<V> | undefined>;
       }
   );
@@ -238,14 +281,14 @@ export interface PageRoute<C extends AppShape = AppShape> {
   readonly pages: readonly {
     /** URL path, with the language prefix and without the base path */
     readonly path: string;
-    readonly params: Framework.RouteParams;
+    readonly params: RouteParams;
     /** the page in every language it exists in, itself included */
     readonly translations: { lang: C["lang"]; path: string }[];
   }[];
   /** `getConfig()` of a Waku route file, `{}` on Astro */
   readonly options: Readonly<RouteOptions>;
   /** the Markdown of a page of the route, when the framework renders it (Waku: `asMarkdown()`) */
-  markdown?(path: string, params: Framework.RouteParams): Promise<string | undefined>;
+  markdown?(path: string, params: RouteParams): Promise<string | undefined>;
 }
 
 /** options of a page route, the `getConfig()` of a Waku route file; plugin packages declare their keys by declaration merging */
@@ -333,7 +376,13 @@ export interface PressBuildOutput {
 }
 
 /** the data of a docs page, transformed by plugins */
-export interface DocsPageData extends Framework.DocsPageData {
+export interface DocsPageData extends Pick<Page, "url" | "path" | "locale"> {
+  title: string;
+  description?: string;
+  toc: TOCItemType[];
+  /** use the full width of the page */
+  full?: boolean;
+  lastModified?: Date;
   /** the URL of its Markdown, for LLMs */
   markdownUrl?: string;
   /** the URL to view its source file */

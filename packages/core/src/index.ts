@@ -1,5 +1,6 @@
 export {
   recommendedPreset,
+  type ApiRoute,
   type AppShape,
   type Awaitable,
   type Capability,
@@ -17,7 +18,10 @@ export {
   type PresetEntry,
   type PressBuildOutput,
   type ProviderAPI,
+  type RouteFns,
+  type RouteHandler,
   type RouteOptions,
+  type RouteParams,
   type RuntimeHooks,
   type SlotItem,
   type View,
@@ -26,6 +30,7 @@ export {
 export {
   createPress,
   type BaseOptions,
+  type BuildMode,
   type ContentOptions,
   type InferAppShape,
   type PageNode,

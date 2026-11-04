@@ -1,4 +1,10 @@
-import { getHomeUrl, type Context, type View, type ViewRoute } from "@fumapress/core";
+import {
+  getHomeUrl,
+  type Context,
+  type RouteParams,
+  type View,
+  type ViewRoute,
+} from "@fumapress/core";
 import type { MintlifyErrors } from "../schema";
 import { renderInlineMarkdown } from "./markdown";
 
@@ -15,7 +21,6 @@ export interface MintlifyViews {
  */
 export function notFoundView(
   ctx: Context,
-  lang: string | undefined,
   errors: MintlifyErrors,
 ): ViewRoute<MintlifyViews> | undefined {
   const config = errors?.["404"];
@@ -25,7 +30,10 @@ export function notFoundView(
   const props = { title: config?.title ?? "Page not found", description: config?.description };
   return {
     path: "/404",
-    async view(): Promise<View<MintlifyViews>> {
+    async view(
+      _: RouteParams,
+      { lang }: { lang: string | undefined },
+    ): Promise<View<MintlifyViews>> {
       const home = ctx.withBase(await getHomeUrl(ctx, lang));
       if (redirect)
         return {

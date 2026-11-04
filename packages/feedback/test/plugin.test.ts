@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Context } from "@fumapress/core";
+import type { ApiRoute, Context } from "@fumapress/core";
 import { feedbackPlugin } from "../src/index";
 import { emailFeedbackPlugin } from "../src/email";
 import { Feedback, FeedbackText } from "../src/components/feedback/client";
@@ -13,19 +13,25 @@ const ctx = {
   isClientReference: (value: unknown) => value === clientAction,
 } as unknown as Context;
 
+async function apiRoutes(plugin: ReturnType<typeof feedbackPlugin>, site = ctx) {
+  const routes: ApiRoute[] = [];
+  await plugin.routes!.call(site, { createApi: (route) => routes.push(route), createView() {} });
+  return routes;
+}
+
 describe("feedbackPlugin", () => {
   it("serves server actions as API routes", async () => {
     const plugin = feedbackPlugin({ onPageFeedbackAction: action, onTextFeedbackAction: action });
-    expect(await plugin.apiRoutes!.call(ctx)).toEqual([
-      { path: "/api/feedback/page", render: "dynamic", POST: expect.any(Function) },
-      { path: "/api/feedback/text", render: "dynamic", POST: expect.any(Function) },
+    expect(await apiRoutes(plugin)).toEqual([
+      { path: "/api/feedback/page", POST: expect.any(Function) },
+      { path: "/api/feedback/text", POST: expect.any(Function) },
     ]);
-    expect(() => plugin.apiRoutes!.call({ ...ctx, mode: "static" })).toThrow(/static mode/);
+    await expect(apiRoutes(plugin, { ...ctx, mode: "static" })).rejects.toThrow(/static mode/);
   });
 
   it("runs client actions in the browser", async () => {
     const plugin = feedbackPlugin({ onPageFeedbackAction: clientAction });
-    expect(await plugin.apiRoutes!.call({ ...ctx, mode: "static" })).toEqual([]);
+    expect(await apiRoutes(plugin, { ...ctx, mode: "static" })).toEqual([]);
     expect(await plugin.slots!.call(ctx, { page: {} as never })).toEqual([
       {
         slot: "footer",
@@ -55,7 +61,7 @@ describe("feedbackPlugin", () => {
   });
 
   it("validates request bodies", async () => {
-    const [route] = (await feedbackPlugin({ onPageFeedbackAction: action }).apiRoutes!.call(ctx))!;
+    const [route] = await apiRoutes(feedbackPlugin({ onPageFeedbackAction: action }));
     const request = new Request("http://localhost/api/feedback/page", {
       method: "POST",
       body: JSON.stringify({ url: "/" }),
@@ -72,7 +78,7 @@ describe("feedbackPlugin", () => {
       from: "a@example.com",
       to: "b@example.com",
     });
-    const [route] = (await plugin.apiRoutes!.call(ctx))!;
+    const [route] = await apiRoutes(plugin);
     const response = await route!.POST!(
       new Request("http://localhost/api/feedback/page", {
         method: "POST",

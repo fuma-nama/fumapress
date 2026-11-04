@@ -1,4 +1,3 @@
-import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { llms } from "fumadocs-core/source/llms";
 import { fallbackOrigin, joinPaths, type Context } from "../context";
@@ -86,57 +85,58 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     transformPage(data) {
       return { markdownUrl: this.withBase(markdownPath(data.url)) };
     },
-    async apiRoutes() {
-      const out: ApiRoute[] = [
-        {
-          path: "/llms.txt",
-          GET: async () =>
-            new Response(
-              llms(await this.getLoader(), {
-                renderUrl: (item) => this.absoluteUrl(item.url),
-              }).index(),
-            ),
-        },
-        {
-          path: "/llms-full.txt",
-          GET: async () => {
-            const source = await this.getLoader();
-            const pending: Awaitable<string | undefined>[] = [];
-            for (const page of source.getPages()) {
-              if (!fallbackOrigin(source, this.i18nConfig, page))
-                pending.push(getLLMText.call(this, page));
-            }
+    async routes({ createApi }) {
+      createApi({
+        path: "/llms.txt",
+        render: "static",
+        GET: async () =>
+          new Response(
+            llms(await this.getLoader(), {
+              renderUrl: (item) => this.absoluteUrl(item.url),
+            }).index(),
+          ),
+      });
+      createApi({
+        path: "/llms-full.txt",
+        render: "static",
+        GET: async () => {
+          const source = await this.getLoader();
+          const pending: Awaitable<string | undefined>[] = [];
+          for (const page of source.getPages()) {
+            if (!fallbackOrigin(source, this.i18nConfig, page))
+              pending.push(getLLMText.call(this, page));
+          }
 
-            const texts: string[] = [];
-            for (const text of await Promise.all(pending)) if (text !== undefined) texts.push(text);
-            return new Response(texts.join("\n\n"));
-          },
+          const texts: string[] = [];
+          for (const text of await Promise.all(pending)) if (text !== undefined) texts.push(text);
+          return new Response(texts.join("\n\n"));
         },
-      ];
+      });
       // the middleware serves them, from the pages of revalidated sources
-      if (this.mode === "dynamic") return out;
+      if (this.mode === "dynamic") return;
 
       // a route per file, a catch-all route would take the paths of pages
       for (const page of (await this.getLoader()).getPages()) {
-        out.push({ path: markdownPath(page.url), GET: () => markdown(this, page) });
+        createApi({
+          path: markdownPath(page.url),
+          render: "static",
+          GET: () => markdown(this, page),
+        });
       }
-      return out;
     },
-    async deriveRoutes({ lang, routes: pageRoutes }) {
+    async deriveRoutes({ createApi }, { lang, routes: pageRoutes }) {
       if (routes !== "all") return;
       // content pages keep their own Markdown
       const markdownPaths = new Set<string>();
       for (const page of (await this.getLoader()).getPages(lang))
         markdownPaths.add(markdownPath(page.url));
 
-      const out: ApiRoute[] = [];
       for (const route of pageRoutes) {
         const render = route.markdown?.bind(route);
         if (!render) continue;
         if (route.render === "dynamic") {
-          out.push({
+          createApi({
             path: joinPaths(mirrorPath, route.path),
-            render: "dynamic",
             async GET(request, { params }) {
               const { pathname } = new URL(request.url);
               const text = await render(
@@ -158,10 +158,9 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           const text = await render(page.path, page.params);
           if (text === undefined) continue;
           markdownPaths.add(path);
-          out.push({ path, render: "static", GET: () => markdownResponse(text) });
+          createApi({ path, render: "static", GET: () => markdownResponse(text) });
         }
       }
-      return out;
     },
     async middleware(request, next) {
       if (this.mode === "static" || request.method !== "GET") return next();

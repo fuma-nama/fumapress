@@ -3,7 +3,6 @@ import type { MDXComponents } from "mdx/types";
 import { components } from "virtual:fumapress/island";
 import { NoProcessedMarkdownError, type AstroPageData } from "@fumadocs/astro/source";
 import { stripBase, type Context, type Plugin } from "@fumapress/core";
-import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { LoaderOutput, Page, PageData } from "fumadocs-core/source";
@@ -106,8 +105,7 @@ export function getPageTreeFile(source: LoaderOutput, locale?: string): Promise<
 async function getPageTreeFiles(ctx: Context): Promise<PageTreeFile[]> {
   const source = await ctx.getLoader();
   const files: Promise<PageTreeFile>[] = [];
-  for (const locale of ctx.i18nConfig?.languages ?? [undefined])
-    files.push(getPageTreeFile(source, locale));
+  for (const locale of ctx.languages) files.push(getPageTreeFile(source, locale));
   return Promise.all(files);
 }
 
@@ -186,13 +184,11 @@ export function contentSourcePlugin(): Plugin {
       // from the frontmatter, or `lastModified` of collections
       if ("lastModified" in data) return toDate(data.lastModified);
     },
-    async apiRoutes() {
+    async routes({ createApi }) {
       // the middleware serves them on request: with `trailingSlash: "always"`, Astro takes their paths for pages without the slash
-      if (this.mode === "dynamic") return [];
-      const routes: ApiRoute[] = [];
+      if (this.mode === "dynamic") return;
       for (const { path, json } of await getPageTreeFiles(this))
-        routes.push({ path, GET: () => treeResponse(json) });
-      return routes;
+        createApi({ path, render: "static", GET: () => treeResponse(json) });
     },
     async middleware(request, next) {
       if (this.mode !== "dynamic" || request.method !== "GET") return next();

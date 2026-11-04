@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { NotionIntegration, NotionPageData, NotionRendererProps } from "../src";
 import { notionPlugin } from "../src/plugin";
 
@@ -29,5 +29,7 @@ it("renders with a custom Renderer and a normalized proxy path", async () => {
   const { type, props } = body!.node as ReactElement<NotionRendererProps>;
   expect(type).toBe(Renderer);
   expect(props.getFileUrl!(image)).toBe(`/files?page=${pageId}&block=${assetId}`);
-  expect((await plugin.apiRoutes!.call(ctx))?.[0]?.path).toBe("/files");
+  const createApi = vi.fn();
+  await plugin.routes!.call(ctx, { createApi, createView: vi.fn() });
+  expect(createApi.mock.calls[0]?.[0].path).toBe("/files");
 });

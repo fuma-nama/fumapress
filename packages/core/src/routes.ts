@@ -1,7 +1,17 @@
-import type { RouteParams } from "fumadocs-core/framework/plugin";
+import type { Method } from "fumadocs-core/framework/plugin";
 import { findPath } from "fumadocs-core/page-tree";
 import type { Context, RoutedView, RuntimeContext } from "./context";
-import type { AppShape, PageRoute } from "./plugin";
+import type { AppShape, PageRoute, RouteParams } from "./plugin";
+
+export const methods: readonly Method[] = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+];
 
 /** `pathname` without the base path `base` (`withBase('/')`), `undefined` outside of it */
 export function stripBase(pathname: string, base: string): string | undefined {

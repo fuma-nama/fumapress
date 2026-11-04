@@ -1,5 +1,4 @@
-import type { AppShape, Awaitable, Context, Plugin, SlotItem } from "@fumapress/core";
-import type { ApiRoute } from "fumadocs-core/framework/plugin";
+import type { ApiRoute, AppShape, Awaitable, Context, Plugin, SlotItem } from "@fumapress/core";
 import type { ZodMiniType } from "zod/mini";
 import {
   blockFeedback,
@@ -41,27 +40,24 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
     path: string,
     schema: ZodMiniType<T>,
     action: ((feedback: T) => Promise<ActionResponse>) | undefined,
-  ): ApiRoute[] {
-    if (!action || ctx.isClientReference(action)) return [];
-    return [
-      {
-        path,
-        render: "dynamic",
-        async POST(request) {
-          const response = await beforeRequest?.(request);
-          if (response) return response;
+  ): ApiRoute | undefined {
+    if (!action || ctx.isClientReference(action)) return;
+    return {
+      path,
+      async POST(request) {
+        const response = await beforeRequest?.(request);
+        if (response) return response;
 
-          const parsed = schema.safeParse(await request.json());
-          if (!parsed.success) return new Response("invalid body type", { status: 400 });
-          try {
-            return Response.json(await action(parsed.data));
-          } catch (error) {
-            if (error instanceof Response) return error;
-            throw error;
-          }
-        },
+        const parsed = schema.safeParse(await request.json());
+        if (!parsed.success) return new Response("invalid body type", { status: 400 });
+        try {
+          return Response.json(await action(parsed.data));
+        } catch (error) {
+          if (error instanceof Response) return error;
+          throw error;
+        }
       },
-    ];
+    };
   }
 
   /** the action of the UI: the client function itself, or the URL of its route */
@@ -72,16 +68,18 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
   return {
     name: "feedback:main",
     translations: feedbackTranslations(),
-    apiRoutes() {
-      const routes = [
-        ...route(this, pageApi, pageFeedback, onPageFeedbackAction),
-        ...route(this, textApi, blockFeedback, onTextFeedbackAction),
-      ];
-      if (routes.length > 0 && this.mode === "static")
-        throw new Error(
-          "[@fumapress/feedback] actions other than client functions run on the server, they are not compatible with static mode",
-        );
-      return routes;
+    routes({ createApi }) {
+      for (const item of [
+        route(this, pageApi, pageFeedback, onPageFeedbackAction),
+        route(this, textApi, blockFeedback, onTextFeedbackAction),
+      ]) {
+        if (!item) continue;
+        if (this.mode === "static")
+          throw new Error(
+            "[@fumapress/feedback] actions other than client functions run on the server, they are not compatible with static mode",
+          );
+        createApi(item);
+      }
     },
     async slots({ page }) {
       if (!page) return;

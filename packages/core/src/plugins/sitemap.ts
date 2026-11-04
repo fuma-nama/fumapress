@@ -295,59 +295,56 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
     name: "core:sitemap",
     provides: ["sitemap"],
     api: { path },
-    apiRoutes() {
-      return [
-        {
-          path,
-          GET: async () => {
-            const source = await this.getLoader();
-            const pages = source.getPages();
-            const pending: Awaitable<SitemapUrl | undefined>[] = [];
-            for (const page of pages) {
-              pending.push(
-                fallbackOrigin(source, this.i18nConfig, page)
-                  ? undefined
-                  : getEntry.call(this, page),
-              );
-            }
-            const results = await Promise.all(pending);
-            const entries: SitemapUrl[] = [];
-            // content pages are listed by `getEntry` only, framework pages must not re-add excluded ones
-            const pageLocs = new Set<string>();
-            for (let i = 0; i < pages.length; i++) {
-              const entry = results[i];
-              pageLocs.add(this.absoluteUrl(pages[i]!.url));
-              if (!entry) continue;
-              pageLocs.add(entry.loc);
-              entries.push(entry);
-            }
-
-            for (const route of await this.getRoutes()) {
-              for (const page of route.pages) {
-                const loc = this.absoluteUrl(page.path);
-                if (pageLocs.has(loc)) continue;
-                pageLocs.add(loc);
-
-                const alternates: PageAlternate[] = [];
-                if (page.translations.length > 1) {
-                  for (const { lang, path } of page.translations)
-                    if (lang) alternates.push(pageAlternate(this, lang, path));
-                }
-                entries.push({ loc, priority: 1, alternates });
-              }
-            }
-            entries.push(
-              ...(typeof additionalEntries === "function"
-                ? await additionalEntries.call(this)
-                : additionalEntries),
+    routes({ createApi }) {
+      createApi({
+        path,
+        render: "static",
+        GET: async () => {
+          const source = await this.getLoader();
+          const pages = source.getPages();
+          const pending: Awaitable<SitemapUrl | undefined>[] = [];
+          for (const page of pages) {
+            pending.push(
+              fallbackOrigin(source, this.i18nConfig, page) ? undefined : getEntry.call(this, page),
             );
+          }
+          const results = await Promise.all(pending);
+          const entries: SitemapUrl[] = [];
+          // content pages are listed by `getEntry` only, framework pages must not re-add excluded ones
+          const pageLocs = new Set<string>();
+          for (let i = 0; i < pages.length; i++) {
+            const entry = results[i];
+            pageLocs.add(this.absoluteUrl(pages[i]!.url));
+            if (!entry) continue;
+            pageLocs.add(entry.loc);
+            entries.push(entry);
+          }
 
-            return new Response(buildSitemap(entries), {
-              headers: { "Content-Type": "application/xml" },
-            });
-          },
+          for (const route of await this.getRoutes()) {
+            for (const page of route.pages) {
+              const loc = this.absoluteUrl(page.path);
+              if (pageLocs.has(loc)) continue;
+              pageLocs.add(loc);
+
+              const alternates: PageAlternate[] = [];
+              if (page.translations.length > 1) {
+                for (const { lang, path } of page.translations)
+                  if (lang) alternates.push(pageAlternate(this, lang, path));
+              }
+              entries.push({ loc, priority: 1, alternates });
+            }
+          }
+          entries.push(
+            ...(typeof additionalEntries === "function"
+              ? await additionalEntries.call(this)
+              : additionalEntries),
+          );
+
+          return new Response(buildSitemap(entries), {
+            headers: { "Content-Type": "application/xml" },
+          });
         },
-      ];
+      });
     },
   };
 }
