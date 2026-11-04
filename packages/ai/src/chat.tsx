@@ -9,15 +9,11 @@ import {
   tool,
   type UIMessage,
 } from "ai";
-import type { Awaitable } from "@fumapress/core";
-import type { AppContext, AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Awaitable, Plugin } from "@fumapress/core";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
-import type { DocsLayoutContextData } from "fumapress/layouts/docs";
-import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { type ElementType, isValidElement } from "react";
 
 export type ChatUIMessage = UIMessage<
   never,
@@ -25,8 +21,8 @@ export type ChatUIMessage = UIMessage<
   { search: InferUITool<SearchTool> }
 >;
 
-export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C, AppContext<C>> {
-  /** @default true */
+export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
+  /** add the chat around every page and the `ai` page action @default true */
   configureUI?: boolean;
 
   model: LanguageModel;
@@ -36,72 +32,32 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** add AI chat */
+/** AI chat: the `/api/ai` endpoint, the chat that docs layouts dock, and the `ai` page action that opens it */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): PressPlugin<C> {
+): Plugin<C, { actions: "ai" }> {
   const { configureUI = true } = options;
 
   return {
     name: "ai:main",
-    async init() {
-      if (this.translationsConfig) {
-        // ensure language pack works correctly without calling `extend()`
-        this.translationsConfig.extend(aiTranslations());
-      }
-
-      if (configureUI) {
-        const { AIChatLayout } = await import("./components/chat");
-        const { DocsLayout } = await import("./components/layouts/docs");
-        const { DocsLayout: NotebookLayout } = await import("./components/layouts/notebook");
-
-        /**
-         * render the layout element from a client component, with the chat as its `aiChat` option.
-         *
-         * @param layout - the layout as a client component, defaults to the element type: Glass and Spacious layouts are client components already, and importing Spacious layout (Base UI only) would fail Radix UI builds.
-         * @param trigger - add a floating trigger, for layouts without their own
-         */
-        const initUI = (
-          data: DocsLayoutContextData<C>,
-          layout: ElementType | undefined,
-          trigger: boolean,
-        ) => {
-          (data.layoutInterceptors ??= []).push(({ props, next }) => {
-            const element = next(props);
-            if (!isValidElement<DocsLayoutProps>(element)) return element;
-
-            return (
-              <AIChatLayout
-                layout={layout ?? (element.type as ElementType)}
-                trigger={trigger}
-                {...element.props}
-              />
-            );
-          });
-        };
-
-        initUI((this.data["core:docs-layout"] ??= {}), DocsLayout, true);
-        initUI(
-          (this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>,
-          NotebookLayout,
-          true,
-        );
-        initUI(
-          (this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>,
-          undefined,
-          false,
-        );
-        initUI(
-          (this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>,
-          undefined,
-          false,
-        );
-      }
+    translations: aiTranslations(),
+    async slots({ page }) {
+      if (!configureUI) return;
+      const { AIChat, AIChatAction } = await import("./components/chat");
+      if (page) return [{ slot: "page.actions", name: "ai", component: AIChatAction }];
+      return [
+        {
+          slot: "layout.wrapper",
+          component: AIChat,
+          props: { api: this.withBase("/api/ai") },
+          order: -1,
+        },
+      ];
     },
-    createPages({ createApi }) {
+    routes() {
       if (this.mode === "static") {
         throw new Error(
-          "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static'",
+          "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static', its /api/ai endpoint calls the model on the server.",
         );
       }
 
@@ -133,11 +89,11 @@ export function aiPlugin<C extends AppShape = AppShape>(
         },
       });
 
-      createApi({
-        path: "/api/ai",
-        render: "dynamic",
-        handlers: {
-          async POST(req: Request) {
+      return [
+        {
+          path: "/api/ai",
+          render: "dynamic",
+          async POST(req) {
             if (beforeRequest) {
               const res = await beforeRequest(req);
               if (res) return res;
@@ -179,7 +135,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
             return result.toUIMessageStreamResponse();
           },
         },
-      });
+      ];
     },
   };
 }

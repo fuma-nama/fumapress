@@ -9,8 +9,8 @@ export interface PageDocument extends DocumentData {
   locale: string;
 }
 
-export interface SearchOptions<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>> {
-  pageToIndex?: (this: Ctx, page: C["page"]) => Awaitable<PageDocument | null>;
+export interface SearchOptions<C extends AppShape = AppShape> {
+  pageToIndex?: (this: Context<C>, page: C["page"]) => Awaitable<PageDocument | null>;
 }
 
 async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
@@ -22,10 +22,7 @@ async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
   return out;
 }
 
-export function createSearch<C extends AppShape, Ctx extends Context<C>>(
-  options: SearchOptions<C, Ctx>,
-  ctx: Ctx,
-) {
+export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: Context<C>) {
   const { getLoader } = ctx;
   const {
     pageToIndex = async function (page): Promise<PageDocument | null> {

@@ -6,10 +6,7 @@ import type { AppShape, Context, Plugin } from "@fumapress/core";
 import { z } from "zod";
 import { createSearch, type SearchOptions } from "./search";
 
-export interface McpOptions<
-  C extends AppShape = AppShape,
-  Ctx extends Context<C> = Context<C>,
-> extends SearchOptions<C, Ctx> {
+export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
   /**
    * Base path for MCP routes.
    *
@@ -22,12 +19,12 @@ export interface McpOptions<
   /**
    * Register additional tools on the MCP server.
    */
-  tools?: (this: Ctx, server: McpServer) => void | Promise<void>;
+  tools?: (this: Context<C>, server: McpServer) => void | Promise<void>;
 }
 
-export function mcpPlugin<C extends AppShape = AppShape, Ctx extends Context<C> = Context<C>>(
-  options: McpOptions<NoInfer<C>, NoInfer<Ctx>> = {},
-): Plugin<C, Ctx> {
+export function mcpPlugin<C extends AppShape = AppShape>(
+  options: McpOptions<NoInfer<C>> = {},
+): Plugin<C> {
   const { path = "/mcp", server: serverInfo, tools: registerTools } = options;
 
   return {
