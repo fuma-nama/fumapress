@@ -28,4 +28,4 @@ export type {
   SiteConfig,
   UIOptions,
 } from "@fumapress/core";
-export { recommendedPreset } from "@fumapress/core";
+export { recommendedPreset, selectTreeRoot } from "@fumapress/core";

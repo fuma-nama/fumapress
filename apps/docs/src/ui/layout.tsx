@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import type { BaseOptions, RenderPageProps } from "fumapress";
+import { selectTreeRoot, type BaseOptions, type RenderPageProps } from "fumapress";
 import { Image } from "fumapress/image";
-import { scopeTree } from "fumadocs-core/page-tree";
 import { DocsLayout } from "fumadocs-ui/layouts/notebook";
 import {
   DocsBody,
@@ -74,7 +73,7 @@ function NotebookDocs({
 }: RenderPageProps<typeof app, "docs" | "changelog">) {
   return (
     // the sidebar shows the docs on every page of this layout
-    <DocsLayout {...baseOptions} tree={scopeTree(tree, "docs") ?? tree}>
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
       <DocsPage
         toc={pageData.toc}
         full={pageData.full}
