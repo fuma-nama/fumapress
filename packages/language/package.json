@@ -33,32 +33,20 @@
   },
   "devDependencies": {
     "@fumapress/ai": "workspace:*",
+    "@fumapress/blog": "workspace:*",
     "@fumapress/feedback": "workspace:*",
     "@types/node": "^26.6.2",
     "fumadocs-core": "^16.16.2",
     "fumadocs-openapi": "^12.3.0",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
-    "fumapress": "workspace:*",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "@fumapress/ai": "workspace:^",
-    "@fumapress/feedback": "workspace:^",
-    "fumadocs-core": "*",
-    "fumapress": "workspace:^"
+    "fumadocs-core": "*"
   },
   "peerDependenciesMeta": {
-    "@fumapress/ai": {
-      "optional": true
-    },
-    "@fumapress/feedback": {
-      "optional": true
-    },
     "fumadocs-core": {
-      "optional": true
-    },
-    "fumapress": {
       "optional": true
     }
   }
