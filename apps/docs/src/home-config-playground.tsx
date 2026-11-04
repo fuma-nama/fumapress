@@ -13,7 +13,7 @@ interface Feature {
   id: FeatureId;
   name: string;
   description: string;
-  imports: { from: string; names: string[] }[];
+  imports: { from: string; default?: string; names?: string[] }[];
   setup?: string[];
   content?: string[];
   plugin: string;
@@ -43,7 +43,7 @@ const features: Feature[] = [
     description: "Generates API reference pages from your OpenAPI spec.",
     imports: [
       { from: "fumadocs-openapi/server", names: ["createOpenAPI"] },
-      { from: "fumadocs-openapi/plugin", names: ["openapiPlugin"] },
+      { from: "fumadocs-openapi/press", default: "openapiPlugin" },
     ],
     setup: ['const openapi = createOpenAPI({ input: ["./openapi.json"] });'],
     content: ["  openapi: await openapi.staticSource(),"],
@@ -68,11 +68,12 @@ const features: Feature[] = [
 function createConfigCode(selected: readonly FeatureId[]) {
   const activeFeatures = features.filter((feature) => selected.includes(feature.id));
 
-  const importsByModule = new Map<string, string[]>();
+  const importsByModule = new Map<string, { default?: string; names: string[] }>();
   for (const feature of activeFeatures) {
-    for (const { from, names } of feature.imports) {
-      const merged = importsByModule.get(from) ?? [];
-      for (const name of names) if (!merged.includes(name)) merged.push(name);
+    for (const { from, default: defaultName, names = [] } of feature.imports) {
+      const merged = importsByModule.get(from) ?? { names: [] };
+      merged.default ??= defaultName;
+      for (const name of names) if (!merged.names.includes(name)) merged.names.push(name);
       importsByModule.set(from, merged);
     }
   }
@@ -81,10 +82,11 @@ function createConfigCode(selected: readonly FeatureId[]) {
 
   return [
     'import { createPress } from "fumapress";',
-    ...Array.from(
-      importsByModule,
-      ([from, names]) => `import { ${names.join(", ")} } from "${from}";`,
-    ),
+    ...Array.from(importsByModule, ([from, { default: defaultName, names }]) => {
+      const named = names.length > 0 ? `{ ${names.join(", ")} }` : undefined;
+      const specifiers = defaultName && named ? `${defaultName}, ${named}` : (defaultName ?? named);
+      return `import ${specifiers} from "${from}";`;
+    }),
     'import { defineDocs } from "fumadocs-mdx/macro";',
     "",
     "const docs = defineDocs({",

@@ -246,10 +246,10 @@ function core(options: WakuPressOptions = {}): Plugin {
     async load(id) {
       if (id === "\0virtual:vite-rsc-waku/server-entry-inner") {
         // Fumadocs MDX renders MDX content, sites without it have none
-        const mdx = Boolean(await this.resolve("fumadocs-mdx/plugin"));
+        const mdx = Boolean(await this.resolve("fumadocs-mdx/press"));
         if (!mdx && (await this.resolve("fumadocs-mdx")))
           throw new Error(
-            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/plugin`: update `fumadocs-mdx` to 15.4.11 or later.",
+            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/press`: update `fumadocs-mdx` to 15.4.11 or later.",
           );
         return getManagedServerEntry(mdx);
       }
@@ -265,7 +265,7 @@ import { fsRouterFn } from 'fumapress/router/fs';
 ${
   mdx
     ? `import components from 'virtual:fumapress/components';
-import { mdxPlugin } from 'fumadocs-mdx/plugin';`
+import mdxPlugin from 'fumadocs-mdx/press';`
     : ""
 }
 

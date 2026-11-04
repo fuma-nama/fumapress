@@ -132,7 +132,7 @@ const styleTag = import.meta.env.DEV ? (
 );
 
 export interface WakuRouterOptions {
-  /** the content renderers, the last layer: `mdxPlugin({ components })` of Fumadocs MDX with the MDX components module */
+  /** the content renderers, the last layer: `mdxPlugin({ components })` of `fumadocs-mdx/press` with the MDX components module */
   renderers?: Plugin<WakuAppShape>[];
 }
 

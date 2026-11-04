@@ -1,30 +1,30 @@
 import { createNotionFileUrlResolver } from "@fumadocs/notion/file";
-import * as Fumadocs from "@fumadocs/notion/plugin";
+import * as Fumadocs from "@fumadocs/notion/press";
 import type { NotionRendererProps } from "@fumadocs/notion/renderer";
 import type { AppShape, Plugin } from "@fumapress/core";
 import type { ComponentType } from "react";
 import { isNotionPageData, type NotionIntegration } from "./source";
 
-/** @deprecated use `fileProxy` of `NotionPluginOptions` of `@fumadocs/notion/plugin` */
+/** @deprecated use `fileProxy` of `NotionPluginOptions` of `@fumadocs/notion/press` */
 export interface NotionFileProxyOptions extends Exclude<
   Fumadocs.NotionPluginOptions["fileProxy"],
   boolean | undefined
 > {}
 
-/** @deprecated use `NotionPluginOptions` of `@fumadocs/notion/plugin` */
+/** @deprecated use `NotionPluginOptions` of `@fumadocs/notion/press` */
 export interface NotionPluginOptions extends Omit<Fumadocs.NotionPluginOptions, "notion"> {
   /** Replace the default semantic block renderer. */
   Renderer?: ComponentType<NotionRendererProps>;
 }
 
-/** @deprecated use `notionPlugin()` of `@fumadocs/notion/plugin` */
+/** @deprecated use `notionPlugin()`, the default export of `@fumadocs/notion/press` */
 export function notionPlugin<C extends AppShape = AppShape>(
   integration: NotionIntegration,
   { fileProxy = true, Renderer, ...options }: NotionPluginOptions = {},
 ): Plugin<C> {
   const filePath =
     typeof fileProxy === "object" ? normalizeProxyPath(fileProxy.path) : "/api/notion/file";
-  const plugin = Fumadocs.notionPlugin({
+  const plugin = Fumadocs.default({
     ...options,
     notion: integration,
     fileProxy: typeof fileProxy === "object" ? { path: filePath } : fileProxy,

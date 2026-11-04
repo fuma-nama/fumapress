@@ -11,7 +11,7 @@ packages:
 - `ui.providerProps` sets the root provider of every page, like `theme`, over the `providerProps()` of plugins.
 - Deprecated `meta`, use the keyed `head` tags instead.
 - The MDX renderer is built in: `press({ components: "./src/components/mdx.tsx" })` of `fumapress/vite` sets the MDX components, relative links resolve by default.
-- MDX renders with `mdxPlugin()` of `fumadocs-mdx/plugin`, which needs `fumadocs-mdx` 15.4.11 or later. A custom server entry passes it: `createRouter(press, { renderers: [mdxPlugin({ components })] })`.
+- MDX renders with `mdxPlugin()` of `fumadocs-mdx/press`, which needs `fumadocs-mdx` 15.4.11 or later. A custom server entry passes it: `createRouter(press, { renderers: [mdxPlugin({ components })] })`.
 - Plugins are `Plugin` of `fumapress`, replacing `PressPlugin`. They reach Waku through `waku` (`WakuPlugin`): `createPages` (layouts in route groups only), `honoMiddleware` and `unstable_serverEntry`, replacing `createPages`, `createMiddlewares` and `unstable_onServerEntry`. The first plugin is the outermost server entry wrapper.
 - The `middleware()` of plugins runs on client navigations too, with the request of the page.
 - Image optimizers are plugins: `vercelImage()`, `cloudflareImage()` and `selfHostedImage()`, replacing the `image` option of `fumapress/vite`. The preset's `image` entry picks the platform's.
@@ -19,7 +19,7 @@ packages:
 - Without a search plugin, the search toggle is hidden unless `ui.providerProps.search.SearchDialog` sets your dialog.
 - `WakuRouteProps<typeof app, "/showcase/[slug]">`, `WakuRouteConfig` and `getPressContext<typeof app>()` type your own pages and their params; `usePressSearch()` of `fumapress/search` gives the search of the site's search plugin.
 - Refactored the Open Graph images: `ogImage` of route configs replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.
-- Refactored: removed `fumapress/plugins/openapi` and `fumapress/plugins/asyncapi`, use `openapiPlugin()` of `fumadocs-openapi/plugin` and `asyncapiPlugin()` of `@fumadocs/asyncapi/plugin`.
+- Refactored: removed `fumapress/plugins/openapi` and `fumapress/plugins/asyncapi`, use `openapiPlugin()` of `fumadocs-openapi/press` and `asyncapiPlugin()` of `@fumadocs/asyncapi/press`.
 - Deprecated `fumapress/adapters/mdx/schema`, use `fumapress/schema`.
 - Refactored: removed the layout factories of `fumapress/layouts/*`, `fumapress/adapters/mdx`, `fumapress/plugins/blog` and `fumapress/i18n` (use `@fumapress/blog`), `renderNotFound`, `AppContext`, `this.data`, `preinit`, `configureRoutes` and plugin `renderPage`.
 - `selectTreeRoot(tree, "docs")` replaces the `treeRoot` option of the layouts: pass it to the `tree` of your layout in `ui.renderPage`.

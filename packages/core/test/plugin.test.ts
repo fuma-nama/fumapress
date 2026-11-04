@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 import type { MetaData, PageData, StaticSource } from "fumadocs-core/source";
-import { openapiPlugin } from "fumadocs-openapi/plugin";
+import openapiPlugin from "fumadocs-openapi/press";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { recommendedPreset, wrapSlot } from "@/plugin";
 import { pressContext } from "./harness";

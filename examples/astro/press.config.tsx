@@ -2,7 +2,7 @@ import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
 import { createPress } from "@fumapress/astro/config";
 import { linkValidationPlugin } from "@fumapress/astro/plugins/link-validation";
-import { openapiPlugin } from "fumadocs-openapi/plugin";
+import openapiPlugin from "fumadocs-openapi/press";
 import { createOpenAPI } from "fumadocs-openapi/server";
 
 const openapi = createOpenAPI({
