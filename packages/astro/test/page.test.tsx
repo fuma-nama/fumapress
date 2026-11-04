@@ -1,14 +1,14 @@
 import { createElement } from "react";
 import { parse } from "devalue";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { type AppShape, type Context, type Plugin, type Press } from "@fumapress/core";
-import { pageAlternate } from "@fumapress/core/runtime";
+import { type AppShape, type Plugin, type Press } from "@fumapress/core";
+import { pageAlternate, type RuntimeContext } from "@fumapress/core/runtime";
 import { registerReference } from "@/island/references";
 import * as client from "./fixtures/client";
 import { pressContext, testPress, type TestSite } from "./harness";
 
 const runtime = vi.hoisted(() => ({
-  ctx: undefined as Context | undefined,
+  ctx: undefined as RuntimeContext | undefined,
   press: undefined as Press | undefined,
 }));
 vi.mock("@/runtime", () => ({

@@ -6,7 +6,7 @@ export default defineConfig({
   entry: [
     "src/{index,config,runtime,search}.ts",
     "src/plugins/*.ts",
-    "src/routes/{file,middleware,shared}.ts",
+    "src/routes/{context,file,middleware,shared}.ts",
     "src/ui/{page,content,default}.tsx",
     "src/island/{island.tsx,references.ts}",
   ],

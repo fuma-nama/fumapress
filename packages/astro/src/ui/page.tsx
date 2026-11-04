@@ -52,12 +52,12 @@ async function getIsland(
 ): Promise<IslandProps> {
   const ctx = getPressContext();
   // `withBase()` gives the URLs of routes rendered on request, like the actions of slots, once the routes are collected
-  await ctx.getApiRoutes();
+  await ctx.getRoutes();
   const [slots, { i18n, ...props }] = await Promise.all([
     ctx.getSlots({}),
     ctx.getProviderProps({ lang }),
   ]);
-  const client = ctx.getProvider("search")?.api?.client(ctx);
+  const client = ctx.getCapability("search")?.client(ctx);
   provider = { ...provider, i18n: mergeI18n(provider.i18n, i18n) };
   const island = await serializeIsland(
     createElement(Provider, {

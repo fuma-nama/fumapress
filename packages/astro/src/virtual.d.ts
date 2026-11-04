@@ -13,7 +13,7 @@ declare module "virtual:fumapress/astro" {
   /** the mode without `mode` in the config: `static` without an adapter, `dynamic` with `output: 'server'` */
   export const defaultMode: import("fumadocs-core/framework/plugin").BuildMode;
   /** your page routes from `astro:routes:resolved`, with the paths of their pages */
-  export const routes: (Pick<import("@fumapress/core").FrameworkRoute, "path" | "render"> & {
+  export const routes: (Pick<import("@fumapress/core").PageRoute, "path" | "render"> & {
     pages: string[];
   })[];
   /** in the bundle of prerendered routes, it renders the pages of the build in its process */
@@ -42,7 +42,7 @@ declare module "virtual:fumapress/client-references" {
 /** a build of the integration, the prerendered pages add their links, the runtime sets `ctx` when plugins have a `build` */
 declare var FUMAPRESS_BUILD:
   | {
-      ctx?: import("@fumapress/core").Context;
+      ctx?: import("@fumapress/core/runtime").RuntimeContext;
       links: import("@fumapress/core").PressBuildOutput["links"];
     }
   | undefined;

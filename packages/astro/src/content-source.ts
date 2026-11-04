@@ -186,7 +186,7 @@ export function contentSourcePlugin(): Plugin {
       // from the frontmatter, or `lastModified` of collections
       if ("lastModified" in data) return toDate(data.lastModified);
     },
-    async routes() {
+    async apiRoutes() {
       // the middleware serves them on request: with `trailingSlash: "always"`, Astro takes their paths for pages without the slash
       if (this.mode === "dynamic") return [];
       const routes: ApiRoute[] = [];

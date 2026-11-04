@@ -1,5 +1,11 @@
-import { stripBase, type Context, type FrameworkRoute, type RoutedView } from "@fumapress/core";
-import { expandRoute, matchRoute, rootRedirect } from "@fumapress/core/runtime";
+import { stripBase, type PageRoute } from "@fumapress/core";
+import {
+  expandRoute,
+  matchRoute,
+  rootRedirect,
+  type RoutedView,
+  type RuntimeContext,
+} from "@fumapress/core/runtime";
 import {
   methods,
   type ApiRoute,
@@ -14,7 +20,7 @@ const staticPaths = new WeakMap<ApiRoute[], Set<string>>();
 
 /** a view at one of the pages of its route */
 export interface ViewPage extends RoutedView {
-  page: FrameworkRoute["pages"][number];
+  page: PageRoute["pages"][number];
 }
 
 /** the props of `[...fumapressPage]` and the pages of `[...fumapressServer]`: a content page, a view, or a redirect */
@@ -44,7 +50,7 @@ export async function pageTarget(
 }
 
 /** the view rendered on request at `path` (without the base path), with its translations when its route lists the path */
-export async function matchView(ctx: Context, path: string): Promise<ViewPage | undefined> {
+export async function matchView(ctx: RuntimeContext, path: string): Promise<ViewPage | undefined> {
   for (const routed of await ctx.getViewRoutes()) {
     const { route } = routed;
     if (route.render !== "dynamic") continue;
@@ -64,7 +70,7 @@ export async function matchView(ctx: Context, path: string): Promise<ViewPage | 
 }
 
 /** whether a route of plugins serves `path` (without the base path), with or without the trailing slash */
-export async function isApiRoute(ctx: Context, path: string): Promise<boolean> {
+export async function isApiRoute(ctx: RuntimeContext, path: string): Promise<boolean> {
   const list = await ctx.getApiRoutes();
   let paths = staticPaths.get(list);
   if (!paths) {
@@ -80,7 +86,7 @@ export async function isApiRoute(ctx: Context, path: string): Promise<boolean> {
 }
 
 /** the static paths of `[...fumapressPage]`, no pages in `dynamic` mode */
-export async function pageStaticPaths(ctx: Context, adapter: boolean) {
+export async function pageStaticPaths(ctx: RuntimeContext, adapter: boolean) {
   const paths: { params: { fumapressPage?: string }; props: PageProps }[] = [];
   if (ctx.mode === "dynamic") return paths;
   for (const { route, view } of await ctx.getViewRoutes()) {
@@ -117,7 +123,7 @@ export async function pageStaticPaths(ctx: Context, adapter: boolean) {
 }
 
 /** the static paths of `[...fumapressFile]`, the routes rendered at build time */
-export async function fileStaticPaths(ctx: Context, adapter: boolean) {
+export async function fileStaticPaths(ctx: RuntimeContext, adapter: boolean) {
   const paths: {
     params: { fumapressFile?: string };
     props: { GET: RouteHandler; params: RouteParams };
@@ -143,7 +149,7 @@ export async function fileStaticPaths(ctx: Context, adapter: boolean) {
 
 /** the route rendered on request at `path` (without the base path), with its params */
 export async function matchApiRoute(
-  ctx: Context,
+  ctx: RuntimeContext,
   path: string,
 ): Promise<{ route: ApiRoute; params: RouteParams } | undefined> {
   for (const route of await ctx.getApiRoutes()) {
@@ -172,7 +178,7 @@ async function dispatch(route: ApiRoute, request: Request, params: RouteParams):
 }
 
 /** the response of `[...fumapressServer]`: the routes rendered on request, or the page to render on request */
-export async function serve(ctx: Context, request: Request): Promise<Response | PageProps> {
+export async function serve(ctx: RuntimeContext, request: Request): Promise<Response | PageProps> {
   const path = stripBase(new URL(request.url).pathname, ctx.withBase("/"));
   if (path === undefined) return new Response(null, { status: 404 });
   const match = await matchApiRoute(ctx, path);
@@ -196,7 +202,7 @@ export async function serve(ctx: Context, request: Request): Promise<Response | 
  * The URL with `/` of a file that a route of plugins renders on request, like `/robots.txt` in `dynamic` mode. With
  * `trailingSlash: "always"`, Astro doesn't add the slash to files, but `[...fumapressServer]` takes them only with it.
  */
-export async function serverFileUrl(ctx: Context, url: URL): Promise<URL | undefined> {
+export async function serverFileUrl(ctx: RuntimeContext, url: URL): Promise<URL | undefined> {
   const path = stripBase(url.pathname, ctx.withBase("/"));
   if (!path || !/\.[^/]+$/.test(path) || !(await matchApiRoute(ctx, path))) return;
   const out = new URL(url);

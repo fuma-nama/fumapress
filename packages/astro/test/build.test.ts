@@ -13,7 +13,7 @@ describe("build output", async () => {
       content: {},
       plugins: [
         {
-          routes: () => [{ path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) }],
+          apiRoutes: () => [{ path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) }],
           views: () => [
             {
               path: "/live/[id]",

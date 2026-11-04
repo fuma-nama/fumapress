@@ -1,14 +1,18 @@
 import type { APIContext, MiddlewareNext } from "astro";
 import { describe, expect, it, vi } from "vitest";
-import { type AppShape, type Context, type Plugin } from "@fumapress/core";
-import { notFoundView } from "@fumapress/core/runtime";
+import { type AppShape, type Plugin } from "@fumapress/core";
+import { notFoundView, type RuntimeContext } from "@fumapress/core/runtime";
 import { onRequest } from "@/routes/middleware";
 import { fileStaticPaths, pageStaticPaths, pageTarget, serve } from "@/routes/shared";
 import type { PageProps, ViewPage } from "@/routes/shared";
 import { pressContext, type TestSite } from "./harness";
 
-const runtime = vi.hoisted(() => ({ ctx: undefined as Context | undefined }));
-vi.mock("@/runtime", () => ({ getPressContext: () => runtime.ctx }));
+const runtime = vi.hoisted(() => ({ ctx: undefined as RuntimeContext | undefined }));
+vi.mock("@/routes/context", () => ({
+  get ctx() {
+    return runtime.ctx;
+  },
+}));
 
 const docs = { files: [{ type: "page" as const, path: "index.mdx", data: { title: "Home" } }] };
 
@@ -21,7 +25,7 @@ const GET = () => new Response("get");
 describe("static routes", () => {
   it("expand the params of their static paths", async () => {
     const ctx = await site({
-      routes: () => [
+      apiRoutes: () => [
         { path: "/og/[...slugs]", staticPaths: [["a", "b.webp"], ["index.webp"]], GET },
         { path: "/llms.txt", GET },
         { path: "/api/search", render: "dynamic", GET },
@@ -71,7 +75,7 @@ describe("static routes", () => {
 describe("server routes", async () => {
   const ctx = await site(
     {
-      routes: () => [
+      apiRoutes: () => [
         {
           path: "/api/[id]",
           render: "dynamic",
@@ -110,7 +114,7 @@ describe("server routes", async () => {
 
   it("create the routes of plugins once per content", async () => {
     const routes = vi.fn(() => [{ path: "/api", render: "dynamic" as const, GET }]);
-    const once = await site({ routes });
+    const once = await site({ apiRoutes: routes });
     for (let i = 0; i < 3; i++) await serve(once, new Request("http://localhost/api"));
     expect(routes).toHaveBeenCalledTimes(1);
   });
@@ -259,7 +263,7 @@ describe("middleware", () => {
     runtime.ctx = await site(
       {
         middleware,
-        routes: () => [
+        apiRoutes: () => [
           { path: "/b", render: "dynamic", GET: (request) => new Response(request.url) },
         ],
       },
@@ -286,7 +290,7 @@ describe("middleware", () => {
   it("gives files rendered on request the trailing slash of `[...fumapressServer]`, when Astro routes them to the 404 page", async () => {
     runtime.ctx = await site(
       {
-        routes: () => [
+        apiRoutes: () => [
           { path: "/robots.txt", render: "dynamic", GET },
           { path: "/api/x", render: "dynamic", GET },
           { path: "/sitemap.xml", GET },

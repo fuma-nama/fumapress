@@ -101,7 +101,7 @@ describe("framework routes", () => {
         ],
       },
     );
-    const routes = await getPressContext().getFrameworkRoutes();
+    const routes = await getPressContext().getRoutes();
     expect(routes.map(({ path, lang, render }) => [path, lang, render])).toEqual([
       ["/about", "en", "static"],
       ["/cn/about", "cn", "static"],

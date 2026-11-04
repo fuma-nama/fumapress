@@ -16,22 +16,16 @@ export function createPress<
 
 export type { BuildMode } from "fumadocs-core/framework/plugin";
 export type {
-  RenderPageProps,
-  ContentPageProps,
-  ViewPageProps,
-  SourcePage,
-  PageNode,
+  AppShape,
   BaseOptions,
-  ProviderProps,
-  PressContext,
+  GitProvider,
+  PageNode,
   Plugin,
   PluginTypes,
-  RouteOptions,
-  FrameworkRoute,
+  PressContext,
+  ProviderProps,
+  RenderPageProps,
   SiteConfig,
-  GitProvider,
-  AppShape,
-  ViewRoute,
-  ClientHook,
+  UIOptions,
 } from "@fumapress/core";
 export { recommendedPreset } from "@fumapress/core";

@@ -10,7 +10,7 @@ import type { BuildMode } from "fumadocs-core/framework/plugin";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
 import type * as Routes from "./routes/shared";
-import type * as Runtime from "./runtime";
+import type * as Context from "./routes/context";
 import type * as Generated from "virtual:fumapress/astro";
 
 export interface AstroPressOptions extends FumadocsOptions {
@@ -114,7 +114,7 @@ export default withProvider(components);`;
             entrypoint: new URL("./routes/middleware.js", import.meta.url),
           });
 
-          const runtime = internalModule("runtime");
+          const context = internalModule("routes/context");
           const crawl = await crawlFrameworkPkgs(root, "astro");
           const { dependencies = {}, devDependencies = {} } = JSON.parse(
             fs.readFileSync(path.join(root, "package.json"), "utf8"),
@@ -136,10 +136,10 @@ export default withProvider(components);`;
                   trailingSlashPlugin(
                     config.trailingSlash,
                     basePath || "/",
-                    runtime,
+                    context,
                     internalModule("routes/shared"),
                   ),
-                contentReloadPlugin(runtime, Object.values(collections), root),
+                contentReloadPlugin(context, Object.values(collections), root),
               ],
             },
           });
@@ -236,7 +236,8 @@ function isInside(dir: string, file: string): boolean {
  * Collections are left to Astro, which reloads their content itself.
  */
 function contentReloadPlugin(
-  runtime: string,
+  /** the module of the runtime context */
+  context: string,
   collections: CollectionConfig[],
   root: string,
 ): Plugin {
@@ -251,7 +252,7 @@ function contentReloadPlugin(
       const onFile = async (file: string) => {
         if (ssr.moduleGraph.getModulesByFile(file)?.size) return;
         if (dirs.some((dir) => isInside(dir, file))) return;
-        const ctx = (await ssr.runner.import<typeof Runtime>(runtime)).getPressContext();
+        const { ctx } = await ssr.runner.import<typeof Context>(context);
         for (const page of (await ctx.getLoader()).getPages()) {
           if (!page.absolutePath || !isInside(path.dirname(page.absolutePath), file)) continue;
           ctx.invalidateLoader();
@@ -278,7 +279,8 @@ function trailingSlashPlugin(
   trailingSlash: "always" | "never",
   /** like `withBase('/')` */
   base: string,
-  runtime: string,
+  /** the module of the runtime context */
+  context: string,
   routes: string,
 ): Plugin {
   return {
@@ -287,11 +289,11 @@ function trailingSlashPlugin(
       const { ssr } = server.environments;
       if (!isRunnable(ssr)) return;
       const isRoute = async (path: string) => {
-        const [{ getPressContext }, { isApiRoute }] = await Promise.all([
-          ssr.runner.import<typeof Runtime>(runtime),
+        const [{ ctx }, { isApiRoute }] = await Promise.all([
+          ssr.runner.import<typeof Context>(context),
           ssr.runner.import<typeof Routes>(routes),
         ]);
-        return isApiRoute(getPressContext(), path);
+        return isApiRoute(ctx, path);
       };
 
       const handle: Connect.NextHandleFunction = (req, _res, next) => {

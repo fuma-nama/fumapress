@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { stripBase, type Context, type PressBuildOutput } from "@fumapress/core";
+import { stripBase, type PressBuildOutput } from "@fumapress/core";
+import type { RuntimeContext } from "@fumapress/core/runtime";
 import { matchApiRoute, matchView } from "./routes/shared";
 
 export interface BuildOutputOptions {
@@ -28,7 +29,7 @@ async function findFile(dir: string, pathname: string): Promise<string | undefin
 
 /** the output of an Astro build for the `build` of plugins, routes rendered on request answer without content */
 export function createBuildOutput(
-  ctx: Context,
+  ctx: RuntimeContext,
   links: PressBuildOutput["links"],
   { dir, outDir, routes }: BuildOutputOptions,
 ): PressBuildOutput {
