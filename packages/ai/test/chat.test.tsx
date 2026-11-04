@@ -14,10 +14,10 @@ const ctx = {
 describe("aiPlugin", () => {
   it("serves /api/ai on the server", async () => {
     const plugin = aiPlugin({ model });
-    expect(await plugin.routes!.call(ctx)).toEqual([
+    expect(await plugin.apiRoutes!.call(ctx)).toEqual([
       { path: "/api/ai", render: "dynamic", POST: expect.any(Function) },
     ]);
-    expect(() => plugin.routes!.call({ ...ctx, mode: "static" })).toThrow(/mode: 'static'/);
+    expect(() => plugin.apiRoutes!.call({ ...ctx, mode: "static" })).toThrow(/mode: 'static'/);
   });
 
   it("wraps every page in the chat of its endpoint", async () => {
@@ -28,7 +28,7 @@ describe("aiPlugin", () => {
 
   it("adds the `ai` action to content pages", async () => {
     expect(await aiPlugin({ model }).slots!.call(ctx, { page: {} as never })).toEqual([
-      { slot: "page.actions", name: "ai", component: AIChatAction },
+      { slot: "actions", name: "ai", component: AIChatAction },
     ]);
   });
 

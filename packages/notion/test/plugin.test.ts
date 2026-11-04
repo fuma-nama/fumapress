@@ -29,5 +29,5 @@ it("renders with a custom Renderer and a normalized proxy path", async () => {
   const { type, props } = body!.node as ReactElement<NotionRendererProps>;
   expect(type).toBe(Renderer);
   expect(props.getFileUrl!(image)).toBe(`/files?page=${pageId}&block=${assetId}`);
-  expect((await plugin.routes!.call(ctx))?.[0]?.path).toBe("/files");
+  expect((await plugin.apiRoutes!.call(ctx))?.[0]?.path).toBe("/files");
 });

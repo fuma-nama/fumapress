@@ -72,7 +72,7 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
   return {
     name: "feedback:main",
     translations: feedbackTranslations(),
-    routes() {
+    apiRoutes() {
       const routes = [
         ...route(this, pageApi, pageFeedback, onPageFeedbackAction),
         ...route(this, textApi, blockFeedback, onTextFeedbackAction),
@@ -95,7 +95,7 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
         });
       if (onPageFeedbackAction)
         items.push({
-          slot: "page.footer",
+          slot: "footer",
           name: "feedback",
           component: Feedback,
           props: { action: uiAction(this, pageApi, onPageFeedbackAction) },

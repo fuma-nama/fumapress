@@ -13,8 +13,8 @@ import type { ChatUIMessage } from "@/chat";
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
 
 /**
- * The chat of the `api` endpoint. The layouts inside it dock it and open it from their "Ask AI" button. `Ctrl + /` opens
- * it and `Escape` closes it.
+ * The chat of the `api` endpoint, docked by the layouts inside it. The `ai` page action and `Ctrl + /` open it, `Escape`
+ * closes it; `AIChatTrigger` is a floating button for your own `ui.renderPage`.
  * `aiPlugin()` adds it around every page.
  */
 export function AIChat({ api, children }: { api: string; children: ReactNode }) {

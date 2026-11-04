@@ -44,7 +44,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
     async slots({ page }) {
       if (!configureUI) return;
       const { AIChat, AIChatAction } = await import("./components/chat");
-      if (page) return [{ slot: "page.actions", name: "ai", component: AIChatAction }];
+      if (page) return [{ slot: "actions", name: "ai", component: AIChatAction }];
       return [
         {
           slot: "layout.wrapper",
@@ -54,7 +54,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
         },
       ];
     },
-    routes() {
+    apiRoutes() {
       if (this.mode === "static") {
         throw new Error(
           "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static', its /api/ai endpoint calls the model on the server.",

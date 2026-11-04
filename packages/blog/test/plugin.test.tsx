@@ -40,7 +40,7 @@ const pages = [
 function context(blog: ReturnType<typeof blogPlugin>) {
   return {
     getLoader: () => ({ getPages: (lang: string) => pages.filter((p) => p.locale === lang) }),
-    getProvider: (capability: string) => (capability === "blog" ? blog : undefined),
+    getCapability: (capability: string) => (capability === "blog" ? blog.api : undefined),
     localizePath: (lang: string, path: string) => `/${lang}${path}`,
     getPageCreatedAt: async (page: Page) => new Date(Reflect.get(page.data, "date")),
     getPageToc: async () => [],
@@ -184,9 +184,9 @@ describe("blogPlugin", () => {
 
   it("lists the posts for own pages", async () => {
     const { ctx, posts } = setup();
-    expect(await getBlogPosts(ctx, "en")).toEqual(await posts("en"));
+    expect(await getBlogPosts(ctx, { lang: "en" })).toEqual(await posts("en"));
     await expect(
-      getBlogPosts({ getProvider: () => undefined } as unknown as Context, "en"),
+      getBlogPosts({ getCapability: () => undefined } as unknown as Context, { lang: "en" }),
     ).rejects.toThrow("requires blogPlugin()");
   });
 });

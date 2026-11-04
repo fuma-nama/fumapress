@@ -109,14 +109,13 @@ describe("mintlifyPlugin", () => {
 
   it("keeps timestamps with `metadata.timestamp`", async () => {
     const { ctx, plugin } = await setup();
-    const lastModified = new Date();
     const data = await plugin.transformPage?.call(
       ctx,
-      { lastModified } as DocsPageData,
+      { lastModified: new Date() } as DocsPageData,
       undefined as never,
     );
 
-    expect(data?.lastModified).toBe(lastModified);
+    expect(data).toBeUndefined();
   });
 
   it("redirects requests", async () => {
@@ -154,7 +153,6 @@ describe("mintlifyPlugin", () => {
 
   it("respects feature toggles", async () => {
     const { ctx, plugin } = await setup({ features: off });
-    const lastModified = new Date();
 
     expect(await plugin.head?.call(ctx, {})).toBeUndefined();
     expect(await plugin.slots?.call(ctx, {})).toBeUndefined();
@@ -163,9 +161,12 @@ describe("mintlifyPlugin", () => {
     expect(await plugin.providerProps?.call(ctx, { lang: undefined })).toEqual({});
     expect(await plugin.views?.call(ctx, { lang: undefined })).toBeUndefined();
     expect(
-      (await plugin.transformPage?.call(ctx, { lastModified } as DocsPageData, undefined as never))
-        ?.lastModified,
-    ).toBe(lastModified);
+      await plugin.transformPage?.call(
+        ctx,
+        { lastModified: new Date() } as DocsPageData,
+        undefined as never,
+      ),
+    ).toBeUndefined();
 
     const next = vi.fn(async () => new Response("page"));
     await plugin.middleware?.call(ctx, new Request("https://example.com/base/old/a"), next);

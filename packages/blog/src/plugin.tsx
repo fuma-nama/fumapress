@@ -2,6 +2,7 @@ import type {
   AppShape,
   Awaitable,
   Context,
+  LangEnv,
   PageView,
   Plugin,
   SourcePage,
@@ -58,12 +59,12 @@ export interface BlogPluginOptions<C extends AppShape, S extends C["source"]> {
   getImage?: (this: Context<C>, page: SourcePage<C, S>) => Awaitable<string | undefined>;
 }
 
-/** the `blog` capability: `this.getProvider("blog")?.api` */
+/** the `blog` capability: `this.getCapability("blog")` */
 export interface BlogAPI {
   source: readonly (string | undefined)[];
   authors: Record<string, BlogAuthor>;
   /** the posts of `lang` newest first; `ctx` is the site's context */
-  getPosts(ctx: Context, lang: string | undefined): Promise<BlogPost[]>;
+  getPosts(ctx: Context, env: LangEnv<AppShape>): Promise<BlogPost[]>;
 }
 
 export interface TagInfo {
@@ -125,14 +126,15 @@ export type BlogTypes<P, S extends string> = {
   pages: { [K in S]: BlogPostViewProps<P> };
 };
 
-/** The posts of `lang` newest first, for your own pages like a landing page. Requires `blogPlugin()`. */
+/** The posts of `lang` newest first, for your own pages like a landing page; `env` is optional without i18n. Requires `blogPlugin()`. */
 export async function getBlogPosts<C extends AppShape>(
   ctx: Context<C>,
-  lang: C["lang"],
-): Promise<BlogPost[]> {
-  const api = ctx.getProvider("blog")?.api;
+  ...[env]: [C["lang"]] extends [undefined] ? [env?: LangEnv<C>] : [env: LangEnv<C>]
+): Promise<BlogPost<C["page"]>[]> {
+  const api = ctx.getCapability("blog");
   if (!api) throw new Error("[@fumapress/blog] getBlogPosts() requires blogPlugin()");
-  return api.getPosts(ctx, lang);
+  // the posts are pages of the site of `ctx`, the capability API is typed for any site
+  return api.getPosts(ctx, { lang: env?.lang }) as Promise<BlogPost<C["page"]>[]>;
 }
 
 /** URL segment of a tag: lowercase, whitespace replaced by `-` */
@@ -237,7 +239,7 @@ export function blogPlugin<
     api: {
       source,
       authors,
-      async getPosts(ctx: Context<C>, lang: C["lang"]) {
+      async getPosts(ctx: Context<C>, { lang }: LangEnv<C>) {
         const { entries, resolve } = await collect(ctx, lang);
         return Promise.all(entries.map(resolve));
       },

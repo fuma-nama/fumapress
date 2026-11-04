@@ -23,7 +23,7 @@ export interface ChangelogPluginOptions<S> {
   };
 }
 
-/** the `changelog` capability: `this.getProvider("changelog")?.api` */
+/** the `changelog` capability: `this.getCapability("changelog")` */
 export interface ChangelogAPI {
   source: readonly (string | undefined)[];
 }

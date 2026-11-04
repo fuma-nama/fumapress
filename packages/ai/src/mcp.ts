@@ -29,7 +29,7 @@ export function mcpPlugin<C extends AppShape = AppShape>(
 
   return {
     name: "ai:mcp",
-    routes() {
+    apiRoutes() {
       if (this.mode === "static") {
         throw new Error("[Fumapress] MCP server is not compatible with static mode");
       }

@@ -155,11 +155,10 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
       };
       return { plugins: [navigation] };
     },
-    transformPage(data) {
+    transformPage() {
       // Mintlify hides last-modified timestamps unless `metadata.timestamp` is enabled
       if (enabled("metadata") && docs.metadata?.timestamp !== true)
-        return { ...data, lastModified: undefined };
-      return data;
+        return { lastModified: undefined };
     },
     head({ page }) {
       if (!enabled("theme")) return;

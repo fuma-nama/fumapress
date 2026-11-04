@@ -38,10 +38,10 @@
   },
   "dependencies": {
     "@fumadocs/notion": "^0.2.5",
-    "@fumapress/core": "workspace:^",
-    "@notionhq/client": "^5.26.0"
+    "@fumapress/core": "workspace:^"
   },
   "devDependencies": {
+    "@notionhq/client": "^5.26.0",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -55,6 +55,7 @@
     "vitest": "^5.0.1"
   },
   "peerDependencies": {
+    "@notionhq/client": "^5.23.0",
     "@types/react": "*",
     "fumadocs-core": "^16.17.11",
     "fumadocs-ui": "*",
