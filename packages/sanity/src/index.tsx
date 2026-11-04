@@ -89,8 +89,10 @@ export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc 
     );
   }
 
+  // the hooks of `@fumadocs/sanity/plugin` read every Sanity document, this plugin only those of `docType`
+  const plugin = Fumadocs.sanityPlugin();
   return {
-    ...Fumadocs.sanityPlugin({ docType }),
+    ...plugin,
     async getPageBody({ data }) {
       if (isSanityPage(data)) return { node: <Renderer value={(await data.load()).body} /> };
     },
@@ -99,6 +101,18 @@ export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc 
       return (await data.load()).renderToc({
         render: (body) => <Renderer value={body as PortableTextBlock} />,
       });
+    },
+    getPageText(page) {
+      if (isSanityPage(page.data)) return plugin.getPageText!.call(this, page);
+    },
+    getPageStructuredData(page) {
+      if (isSanityPage(page.data)) return plugin.getPageStructuredData!.call(this, page);
+    },
+    getPageCreatedAt(page) {
+      if (isSanityPage(page.data)) return plugin.getPageCreatedAt!.call(this, page);
+    },
+    getPageLastModified(page) {
+      if (isSanityPage(page.data)) return plugin.getPageLastModified!.call(this, page);
     },
   };
 }
