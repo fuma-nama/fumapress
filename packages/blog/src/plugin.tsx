@@ -61,8 +61,6 @@ export interface BlogPluginOptions<C extends AppShape, S extends C["source"]> {
 
 /** the `blog` capability: `this.getCapability("blog")` */
 export interface BlogAPI {
-  source: readonly (string | undefined)[];
-  authors: Record<string, BlogAuthor>;
   /** the posts of `lang` newest first; `ctx` is the site's context */
   getPosts(ctx: Context, env: LangEnv<AppShape>): Promise<BlogPost[]>;
 }
@@ -237,8 +235,6 @@ export function blogPlugin<
     name: "blog:main",
     provides: ["blog"],
     api: {
-      source,
-      authors,
       async getPosts(ctx: Context<C>, { lang }: LangEnv<C>) {
         const { entries, resolve } = await collect(ctx, lang);
         return Promise.all(entries.map(resolve));

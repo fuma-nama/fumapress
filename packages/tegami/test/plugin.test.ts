@@ -74,10 +74,6 @@ describe("changelogPlugin", () => {
     ]);
   });
 
-  it("provides its sources", () => {
-    expect(changelogPlugin({ source: "changelog" }).api).toEqual({ source: ["changelog"] });
-  });
-
   it("requires page bodies", async () => {
     const [route] = (await views(undefined, context(false)))!;
     await expect(render(route)).rejects.toThrow('the changelog page "a.mdx" has no body');

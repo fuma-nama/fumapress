@@ -6,7 +6,7 @@ import { ChangelogIndexView } from "./components/layouts.tsx";
 
 declare module "@fumapress/core" {
   interface CapabilityAPI {
-    changelog: ChangelogAPI;
+    changelog: undefined;
   }
 }
 
@@ -21,11 +21,6 @@ export interface ChangelogPluginOptions<S> {
      */
     index?: string | false;
   };
-}
-
-/** the `changelog` capability: `this.getCapability("changelog")` */
-export interface ChangelogAPI {
-  source: readonly (string | undefined)[];
 }
 
 export interface ChangelogEntry<P = Page> {
@@ -63,7 +58,6 @@ export function changelogPlugin<
   return {
     name: "tegami:changelog",
     provides: ["changelog"],
-    api: { source },
     views({ lang }) {
       if (indexPath === false) return;
       return [

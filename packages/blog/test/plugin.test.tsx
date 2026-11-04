@@ -172,8 +172,7 @@ describe("blogPlugin", () => {
   });
 
   it("owns the pages of several sources", async () => {
-    const { plugin, posts, view } = setup({ source: ["blog", "news"] }, <p />);
-    expect(plugin.api).toMatchObject({ source: ["blog", "news"], authors: {} });
+    const { posts, view } = setup({ source: ["blog", "news"] }, <p />);
     expect((await posts("en")).map((post) => post.page.path)).toEqual([
       "blog/new.mdx",
       "blog/old.mdx",
