@@ -10,14 +10,16 @@ packages:
 
 ### Added `@fumapress/core`
 
-- Added `@fumapress/core`: the engine, site config and plugins of Fumapress, shared by the Waku and Astro runtimes. Sites import from `fumapress` or `@fumapress/astro`, which re-export what they need.
+- Added `@fumapress/core`: the engine, site config and plugins of Fumapress, shared by the Waku and Astro runtimes. Sites import from `fumapress` or `@fumapress/astro`, plugin packages from `@fumapress/core`.
 - A site is `createPress(content, { i18n, loaderOptions }).plugins(...).config({...})`: the content types the plugins, the content and plugins type `.config()`.
 - Plugins are `Plugin<C, T>`, extending the framework plugins of `fumadocs-core/framework/plugin`. Plugins of integrations, like `openapiPlugin()` of `fumadocs-openapi/plugin`, work as-is.
-- Plugin hooks: `views({ lang })` for pages of plugins, `pageRoutes()` for routes derived from the pages, `routes()`, `middleware()`, `head()`, `slots()`, `baseOptions()`, `providerProps()` and `build()`.
+- Plugin hooks: `views({ lang })` for pages of plugins, `deriveRoutes()` for routes derived from the page routes, `apiRoutes()`, `middleware()`, `head()`, `slots()`, `baseOptions()`, `providerProps()` and `build()`.
+- `this.getRoutes()` lists the page routes: your own pages, the views and the pages of runtime hooks.
 - Plugins owning the pages of a source render them with `getPageView(page, body)`, which receives the page body with its wrappers.
-- `ui.renderPage` receives typed props for content pages and plugin views, and the named slot items of plugins in `props.actions` and `props.footer`.
+- `ui.renderPage` receives typed props for content pages and plugin views, and the items of the `actions` and `footer` slots in `props.actions` and `props.footer`.
+- `UIOptions<typeof app>` types `ui` callbacks in their own files.
 - The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
-- Capabilities: a plugin `provides` one, others read its `api` with `this.getProvider()`. A listed plugin replaces the preset entry of its capability.
+- Capabilities: a plugin `provides` one, others read its `api` with `this.getCapability()`. A listed plugin replaces the preset entry of its capability, `.filter((entry) => entry.provides !== "rss")` drops one.
 - Search plugins give their client hook with `api.client(ctx)`, the runtimes compose it with the Fumadocs search dialog. The search of an i18n site searches the language of the page.
 - `configureLoader()` contributes loader options, the loader plugins of every plugin are combined in plugin order.
 - Hooks run in plugin order, your plugins first, then the preset and the runtime's defaults. `enforce` is not supported, TypeScript reports it.
@@ -33,5 +35,5 @@ packages:
 
 - Deprecated `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`: use the `/plugin` export of the Fumadocs integration.
 - They depend on `@fumapress/core` instead of `fumapress`, and work on Waku and Astro.
-- `@fumapress/notion` re-exports `@fumadocs/notion` instead of shipping a copy of it.
+- `@fumapress/notion` re-exports `@fumadocs/notion` instead of shipping a copy of it, `@notionhq/client` is a peer dependency.
 - `@fumapress/obsidian` stops watching the vault when the site reloads.

@@ -30,7 +30,7 @@ export function searchPlugin<C extends AppShape>(
           ? { hook: useIndex, props: { from: ctx.withBase(path) } }
           : { hook: useServerSearch, props: { api: ctx.withBase(path) } },
     },
-    routes() {
+    apiRoutes() {
       const server = createServer(this);
       if (this.mode === "static")
         return [{ path, render: "static", GET: () => server.staticGET() }];

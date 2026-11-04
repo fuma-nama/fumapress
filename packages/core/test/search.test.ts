@@ -83,9 +83,9 @@ describe.each([
     const plugin = searchPlugin();
     const ctx = await createSite({ plugins: [plugin] }, { base: "/repo/" });
     const index = await createSite({ mode: "static", plugins: [plugin] });
-    const api = ctx.getProvider("search")?.api;
+    const api = ctx.getCapability("search");
 
-    expect(ctx.getProvider("search")?.provides).toEqual(["search"]);
+    expect(api).toBe(plugin.api);
     expect(api?.client(ctx)).toEqual({ hook: useServerSearch, props: { api: "/repo/api/search" } });
     expect(api?.client(index)).toEqual({ hook: useIndex, props: { from: "/api/search" } });
   });

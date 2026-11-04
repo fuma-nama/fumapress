@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
 import type { RuntimeRoute } from "@/context";
-import type { FrameworkRoute } from "@/plugin";
+import type { PageRoute } from "@/plugin";
 import { pressContext, type TestSite } from "./harness";
 import { buildSitemap, sitemapPlugin, type SitemapOptions } from "@/plugins/sitemap";
 
@@ -98,7 +98,7 @@ describe("sitemapPlugin", () => {
     ];
     const route = (
       path: string,
-      translations: FrameworkRoute["pages"][number]["translations"] = [],
+      translations: PageRoute["pages"][number]["translations"] = [],
     ): RuntimeRoute => ({
       route: { path, render: "static", options: {}, pages: [{ path, translations, params: {} }] },
     });

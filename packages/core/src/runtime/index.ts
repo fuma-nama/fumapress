@@ -4,6 +4,7 @@ export {
   pageAlternate,
   pageLinks,
   type PressRuntime,
+  type RoutedView,
   type RuntimeContext,
   type RuntimeRoute,
 } from "../context";

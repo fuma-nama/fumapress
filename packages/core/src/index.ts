@@ -5,16 +5,10 @@ export {
   type Capability,
   type CapabilityAPI,
   type ClientHook,
-  type Declared,
   type DocsPageData,
-  type FrameworkPage,
-  type FrameworkRoute,
-  type HeadEnv,
   type LangEnv,
   type MergedTypes,
-  type NamedSlots,
-  type PageEnv,
-  type PageRoutesEnv,
+  type PageRoute,
   type PageView,
   type Plugin,
   type PluginInfo,
@@ -22,9 +16,7 @@ export {
   type PluginTypes,
   type PresetEntry,
   type PressBuildOutput,
-  type Provider,
   type ProviderAPI,
-  type RoutedView,
   type RouteOptions,
   type RuntimeHooks,
   type SlotItem,
@@ -35,10 +27,8 @@ export {
   createPress,
   type BaseOptions,
   type ContentOptions,
-  type ContentPageProps,
   type InferAppShape,
   type PageNode,
-  type PageType,
   type Press,
   type PressApp,
   type PressConfig,
@@ -46,20 +36,12 @@ export {
   type PressContext,
   type ProviderProps,
   type RenderPageProps,
-  type RenderPagePropsOf,
   type SourcePage,
   type UIOptions,
-  type ViewPageProps,
 } from "./press";
-export type {
-  Context,
-  InferI18nConfig,
-  InferLoaderConfig,
-  PageAlternate,
-  SiteConfig,
-} from "./context";
+export type { Context, PageAlternate, SiteConfig } from "./context";
 export { getHomeUrl, stripBase } from "./routes";
 export type { SearchPluginAPI } from "./search";
 export type { SitemapAPI } from "./plugins/sitemap";
-export type { TakumiAPI } from "./plugins/takumi";
+export type { OGImageAPI } from "./plugins/takumi";
 export type { GitProvider } from "./git";

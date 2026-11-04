@@ -17,19 +17,18 @@ import {
   type AppShape,
   type Awaitable,
   type Capability,
+  type CapabilityAPI,
   type DocsPageData,
-  type FrameworkRoute,
   type HeadEnv,
   type LangEnv,
   type PageEnv,
+  type PageRoute,
   type PageView,
   type Plugin,
   type PluginInfo,
   type PluginOption,
   type PresetEntry,
   type PressBuildOutput,
-  type Provider,
-  type RoutedView,
   type SlotItem,
   type ViewRoute,
 } from "./plugin";
@@ -97,8 +96,8 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   readonly signal: AbortSignal;
   /** in layer order: your plugins, the preset, the runtime's defaults */
   readonly plugins: readonly PluginInfo[];
-  /** the plugin providing a capability, with the API of the capability */
-  getProvider<K extends Capability>(capability: K): Provider<K> | undefined;
+  /** the API of the plugin providing `capability` */
+  getCapability<K extends keyof CapabilityAPI>(capability: K): CapabilityAPI[K] | undefined;
   readonly siteConfig: Readonly<
     Pick<SiteConfig, "baseUrl" | "hreflang"> & Required<Pick<SiteConfig, "name">>
   > & {
@@ -128,7 +127,7 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   /** translations of a page for `hreflang` links, without fallback pages, empty when it has none */
   getPageAlternates(page: C["page"]): Promise<PageAlternate<C>[]>;
   /** your own pages, the views and the pages of runtime hooks; throws while the routes are created */
-  getFrameworkRoutes(): Promise<FrameworkRoute<C>[]>;
+  getRoutes(): Promise<PageRoute<C>[]>;
 
   getPageBody(page: C["page"]): Promise<PageBody | undefined>;
   /** the page of the plugin owning `page`, `body` is its content with `body.wrapper` applied */
@@ -148,10 +147,6 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
   /** of a content page with `page`, `layout.wrapper` without it; sorted by `order` */
   getSlots(env: PageEnv<C>): Promise<Partial<Record<SlotItem["slot"], SlotItem[]>>>;
-  /** with `render` filled in from `mode` and the `pageRoutes` results, most specific path first */
-  getApiRoutes(): Promise<ApiRoute[]>;
-  /** the views and the views of `pageRoutes` with their page routes, without the ones your own pages replace, most specific path first */
-  getViewRoutes(): Promise<RoutedView<C>[]>;
   /** runs the `middleware` of plugins; `next(path)` of a plugin is `next(path)` here, which re-enters the chain */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
@@ -183,9 +178,15 @@ export interface PressRuntime<C extends AppShape = AppShape> {
 
 /** a page route the runtime serves: your own page, or a page a plugin's runtime hook (`waku.createPages`) created */
 export interface RuntimeRoute<C extends AppShape = AppShape> {
-  route: FrameworkRoute<C>;
+  route: PageRoute<C>;
   /** the plugin that created it, none on your own pages */
   plugin?: PluginInfo;
+}
+
+/** a view with its page route, as the runtime serves it */
+export interface RoutedView<C extends AppShape = AppShape> {
+  route: PageRoute<C>;
+  view: ViewRoute;
 }
 
 /** the context as the runtime holds it, from {@link createPressContext} */
@@ -197,6 +198,10 @@ export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C
    * created its pages and before the routes are read, reads throw until then; a new list replaces them.
    */
   setRuntimeRoutes(routes: readonly RuntimeRoute<C>[]): void;
+  /** the `apiRoutes` and `deriveRoutes` results with `render` filled in from `mode`, most specific path first */
+  getApiRoutes(): Promise<ApiRoute[]>;
+  /** the views and the views of `deriveRoutes` with their page routes, without the ones your own pages replace, most specific path first */
+  getViewRoutes(): Promise<RoutedView<C>[]>;
 }
 
 /** join `paths` to `base` with `/`, `base` is kept as-is, like a base URL */
@@ -387,7 +392,7 @@ function routeKeys(pattern: string | undefined, pages: readonly { path: string }
 interface CollectedRoutes {
   api: ApiRoute[];
   views: RoutedView[];
-  frameworkRoutes: FrameworkRoute[];
+  pageRoutes: PageRoute[];
 }
 
 /** the routes of one content and one list of the runtime */
@@ -396,10 +401,10 @@ interface Collection {
   served: readonly RuntimeRoute[];
   routes: Promise<CollectedRoutes>;
   /**
-   * The page routes `pageRoutes` derive from, while they run. Pages rendered by them (the Markdown of `llmsPlugin`) read
-   * these instead of waiting for themselves; `pageRoutes` add no pages a home or a redirect is looked up in.
+   * The page routes `deriveRoutes` derive from, while they run. Pages rendered by them (the Markdown of `llmsPlugin`) read
+   * these instead of waiting for themselves; `deriveRoutes` add no pages a home or a redirect is looked up in.
    */
-  deriving?: FrameworkRoute[];
+  deriving?: PageRoute[];
 }
 
 /** paths that keep their form with `trailingSlash`: ending with `/`, or files with their extension, like the URLs of Astro with `trailingSlash: "always"` */
@@ -511,16 +516,12 @@ export async function createPressContext(
       creating
         ? Promise.reject(
             new Error(
-              `[Fumapress] ${nameOf(plugin)} reads the routes while plugins create them: derive routes from the final list in \`pageRoutes()\`.`,
+              `[Fumapress] ${nameOf(plugin)} reads the routes while plugins create them: derive routes from the final list in \`deriveRoutes()\`.`,
             ),
           )
         : undefined;
     const guarded: Context = Object.freeze(
-      Object.create(ctx, {
-        getFrameworkRoutes: { value: () => reject() ?? ctx.getFrameworkRoutes() },
-        getApiRoutes: { value: () => reject() ?? ctx.getApiRoutes() },
-        getViewRoutes: { value: () => reject() ?? ctx.getViewRoutes() },
-      }),
+      Object.create(ctx, { getRoutes: { value: () => reject() ?? ctx.getRoutes() } }),
     );
     return run(guarded).finally(() => {
       creating = false;
@@ -531,7 +532,7 @@ export async function createPressContext(
     source: LoaderOutput<InferLoaderConfig<AppShape>>,
     runtimeRoutes: readonly RuntimeRoute[],
     /** sets {@link Collection.deriving} */
-    derive: (routes?: FrameworkRoute[]) => void,
+    derive: (routes?: PageRoute[]) => void,
   ): Promise<CollectedRoutes> {
     const languages = ctx.i18nConfig?.languages ?? [undefined];
     const defaultLanguage = ctx.i18nConfig?.defaultLanguage;
@@ -542,7 +543,7 @@ export async function createPressContext(
       contentUrls.push(page.url);
       owners.set(page.url, `the content page "${page.url}"`);
     }
-    const out: CollectedRoutes = { api: [], views: [], frameworkRoutes: [] };
+    const out: CollectedRoutes = { api: [], views: [], pageRoutes: [] };
     const localize = createLocalizer(ctx);
 
     /** false when your own page takes a key of a plugin's page (yours wins), an error naming both for any other owner */
@@ -604,7 +605,7 @@ export async function createPressContext(
       const pattern = ctx.localizePath(lang, expanded.pattern);
       if (owners.get(patternKey(pattern)) === ownPage) return;
       // your own page at one of its pages takes only that page
-      const pages: FrameworkRoute["pages"][number][] = [];
+      const pages: PageRoute["pages"][number][] = [];
       const staticPaths: string[][] = [];
       for (const [i, { pathname, params }] of expanded.pages.entries()) {
         if (owners.get(pageKey(ctx.localizePath(lang, pathname))) === ownPage) continue;
@@ -623,29 +624,29 @@ export async function createPressContext(
         }
       }
 
-      const framework: FrameworkRoute = { path: pattern, lang, render, pages, options: {} };
+      const pageRoute: PageRoute = { path: pattern, lang, render, pages, options: {} };
       out.views.push({
-        route: framework,
+        route: pageRoute,
         view: pages.length === expanded.pages.length ? route : { ...route, staticPaths },
       });
-      out.frameworkRoutes.push(framework);
+      out.pageRoutes.push(pageRoute);
     }
 
     // your own pages first: they win over the pages of plugins
     for (const { route, plugin } of runtimeRoutes) {
       if (plugin) continue;
       for (const key of routeKeys(route.path, route.pages)) owners.set(key, ownPage);
-      out.frameworkRoutes.push(route);
+      out.pageRoutes.push(route);
     }
     for (const { route, plugin } of runtimeRoutes) {
       if (plugin && claim(routeKeys(route.path, route.pages), plugin, route.path, true))
-        out.frameworkRoutes.push(route);
+        out.pageRoutes.push(route);
     }
 
     const [routeLists, viewLists] = await Promise.all([
       Promise.all(
         plugins.map((plugin) =>
-          routeContext(plugin, (ctx) => Promise.resolve(plugin.routes?.call(ctx))),
+          routeContext(plugin, (ctx) => Promise.resolve(plugin.apiRoutes?.call(ctx))),
         ),
       ),
       Promise.all(
@@ -661,7 +662,7 @@ export async function createPressContext(
       for (const route of routeLists[i] ?? []) {
         if ("view" in route)
           throw new Error(
-            `[Fumapress] ${nameOf(plugin)} returns the view "${route.path}" from \`routes()\`: views go in \`views()\`.`,
+            `[Fumapress] ${nameOf(plugin)} returns the view "${route.path}" from \`apiRoutes()\`: views go in \`views()\`.`,
           );
         addApi(plugin, route);
       }
@@ -671,17 +672,17 @@ export async function createPressContext(
         for (const route of viewLists[i]?.[j] ?? []) addView(plugin, route, lang);
     }
 
-    const final = [...out.frameworkRoutes];
+    const final = [...out.pageRoutes];
     derive(final);
     const derived = await Promise.all(
       plugins.map((plugin) =>
         routeContext(plugin, (ctx) =>
           Promise.all(
             languages.map((lang) => {
-              const routes: FrameworkRoute[] = [];
+              const routes: PageRoute[] = [];
               for (const route of final)
                 if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
-              return plugin.pageRoutes?.call(ctx, { lang, routes: Object.freeze(routes) });
+              return plugin.deriveRoutes?.call(ctx, { lang, routes: Object.freeze(routes) });
             }),
           ),
         ),
@@ -690,8 +691,12 @@ export async function createPressContext(
     for (const [i, plugin] of plugins.entries()) {
       for (const [j, lang] of languages.entries()) {
         for (const route of derived[i]?.[j] ?? []) {
-          if (route.view) addView(plugin, route, lang);
-          else addApi(plugin, route);
+          if (!route.view) addApi(plugin, route);
+          else if (route.ALL || methods.some((method) => route[method]))
+            throw new Error(
+              `[Fumapress] ${nameOf(plugin)} returns "${route.path}" from \`deriveRoutes()\` with both a \`view\` and handlers: an entry is an API route or a view.`,
+            );
+          else addView(plugin, route, lang);
         }
       }
     }
@@ -722,7 +727,7 @@ export async function createPressContext(
     const current = served;
     if (!current)
       throw new Error(
-        "[Fumapress] the routes are read before they are created: read them in handlers, views and `head`, or derive routes from them in `pageRoutes()`.",
+        "[Fumapress] the routes are read before they are created: read them in handlers, views and `head`, or derive routes from them in `deriveRoutes()`.",
       );
     const source = await ctx.getLoader();
     if (collected?.source !== source || collected.served !== current) {
@@ -737,7 +742,7 @@ export async function createPressContext(
     }
     return collected;
   }
-  async function getRoutes(): Promise<CollectedRoutes> {
+  async function collectedRoutes(): Promise<CollectedRoutes> {
     return (await getCollection()).routes;
   }
 
@@ -808,7 +813,7 @@ export async function createPressContext(
     setRuntimeRoutes(routes: readonly RuntimeRoute[]) {
       served = routes;
     },
-    getProvider: (capability: Capability) => providers.get(capability),
+    getCapability: (capability: Capability) => providers.get(capability)?.api,
     siteConfig,
     i18nConfig,
     translationsConfig: translations,
@@ -859,9 +864,9 @@ export async function createPressContext(
       }
       return out.length > 1 ? out : [];
     },
-    async getFrameworkRoutes() {
+    async getRoutes() {
       const { deriving, routes } = await getCollection();
-      return deriving ?? (await routes).frameworkRoutes;
+      return deriving ?? (await routes).pageRoutes;
     },
     getPageBody: (page: AppShape["page"]) =>
       resolve(page, "getPageBody", (plugin) => plugin.getPageBody?.call(ctx, page)),
@@ -940,8 +945,8 @@ export async function createPressContext(
       for (const item of items) (out[item.slot] ??= []).push(item);
       return out;
     },
-    getApiRoutes: async () => (await getRoutes()).api,
-    getViewRoutes: async () => (await getRoutes()).views,
+    getApiRoutes: async () => (await collectedRoutes()).api,
+    getViewRoutes: async () => (await collectedRoutes()).views,
     handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>) {
       function dispatch(i: number): Promise<Response> {
         const plugin = middleware[i];

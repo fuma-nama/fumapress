@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { ApiRoute, HeadTag, RouteParams } from "fumadocs-core/framework/plugin";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { fallbackOrigin, joinPaths, type Context } from "../context";
-import type { AppShape, Awaitable, FrameworkRoute, Plugin } from "../plugin";
+import type { AppShape, Awaitable, PageRoute, Plugin } from "../plugin";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T
@@ -17,14 +17,14 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
    *
    * By default, it is `/` (static mode) or `/_takumi` (dynamic mode).
    */
-  basePath?: string;
+  path?: string;
   /** @defaultValue 1200 */
   width?: number;
   /** @defaultValue 630 */
   height?: number;
 
   /**
-   * Options shared by every image, `generate()` overrides them per page.
+   * Options shared by every image, `getImage()` overrides them per page.
    *
    * Values resolved once belong here, like the fonts from `googleFonts()` of `takumi-js/helpers`.
    * On runtimes that can't load the native addon, pass the WebAssembly build of `takumi-js/wasm` as `module`.
@@ -32,7 +32,7 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   options?: TakumiImageOptions;
 
   /** the image of a content page, defaults to its title, description and the site name */
-  generate?: (this: Context<C>, page: C["page"]) => Awaitable<TakumiImage>;
+  getImage?: (this: Context<C>, page: C["page"]) => Awaitable<TakumiImage>;
 }
 
 export interface TakumiImage {
@@ -41,29 +41,25 @@ export interface TakumiImage {
   options?: TakumiImageOptions;
 }
 
-/** the image of a page route (`takumiOptions` of its options): a `node` to draw, or `title` and `description` for the default template */
-export interface TakumiRouteImage extends Partial<TakumiImage> {
+/** the image of a page route (`ogImage` of its options): a `node` to draw, or `title` and `description` for the default template */
+export interface OGImageRoute extends Partial<TakumiImage> {
   title?: string;
   description?: string;
 }
 
 declare module "@fumapress/core" {
   interface CapabilityAPI {
-    "og-image": TakumiAPI;
+    "og-image": OGImageAPI;
   }
 
   interface RouteOptions {
     /** the Open Graph image of the route, drawn by the `og-image` plugin of the preset; a function gets the params of the rendered path */
-    takumiOptions?:
-      | TakumiRouteImage
-      | ((this: Context, params: RouteParams) => Awaitable<TakumiRouteImage>);
+    ogImage?: OGImageRoute | ((this: Context, params: RouteParams) => Awaitable<OGImageRoute>);
   }
 }
 
-/** the API of the `og-image` capability, from `this.getProvider("og-image")?.api` */
-export interface TakumiAPI {
-  /** the base route of images without a trailing slash, empty at the root, set in `init()` */
-  basePath: string;
+/** the API of the `og-image` capability, from `this.getCapability("og-image")` */
+export interface OGImageAPI {
   /** the response of an image, with the size and the shared `options` of the plugin */
   render: (image: TakumiImage) => ImageResponse;
   /** the head tags of the image at `url` */
@@ -90,14 +86,13 @@ function pageSlugs(segments: string[]): string[] {
  * Open Graph images of content pages with Takumi, requires `takumi-js`.
  *
  * Every language gets an image route, fallback pages use the image of the page they fall back to. Page routes with
- * `takumiOptions` get one too: prerendered for static routes, rendered on request for dynamic ones.
+ * `ogImage` get one too: prerendered for static routes, rendered on request for dynamic ones.
  */
 export function takumiPlugin<C extends AppShape = AppShape>(
   options: TakumiOptions<NoInfer<C>> = {},
 ): Plugin<C, { provides: "og-image" }> {
   const { width = 1200, height = 630 } = options;
-  const api: TakumiAPI = {
-    basePath: "",
+  const api: OGImageAPI = {
     render: (image) =>
       new ImageResponse(image.node, {
         width,
@@ -119,23 +114,26 @@ export function takumiPlugin<C extends AppShape = AppShape>(
     return { node: generate({ title, description, site: this.siteConfig.name }) };
   }
 
+  /** the base route of images without a trailing slash, empty at the root */
+  function basePath(ctx: Context<C>): string {
+    const path = options.path ?? (ctx.mode === "dynamic" ? "/_takumi" : "/");
+    return path.replace(/^\/?/, "/").replace(/\/$/, "");
+  }
+
   /** a static page gets a `.webp` file next to it, a dynamic page an image route with its params under `/_takumi` */
-  function routeImagePath(route: FrameworkRoute<C>, pathname: string): string {
-    if (route.render === "dynamic") return joinPaths("/", api.basePath || "/_takumi", pathname);
-    return joinPaths("/", api.basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
+  function routeImagePath(ctx: Context<C>, route: PageRoute<C>, pathname: string): string {
+    const base = basePath(ctx);
+    if (route.render === "dynamic") return joinPaths("/", base || "/_takumi", pathname);
+    return joinPaths("/", base, pathname === "/" ? "index.webp" : `${pathname}.webp`);
   }
 
   return {
     name: "core:takumi",
     provides: ["og-image"],
     api,
-    init() {
-      const basePath = options.basePath ?? (this.mode === "dynamic" ? "/_takumi" : "/");
-      api.basePath = basePath.replace(/^\/?/, "/").replace(/\/$/, "");
-    },
     async head({ page, route, path }) {
-      if (route?.options.takumiOptions && path !== undefined)
-        return api.tags(this.absoluteUrl(routeImagePath(route, path)));
+      if (route?.options.ogImage && path !== undefined)
+        return api.tags(this.absoluteUrl(routeImagePath(this, route, path)));
       if (!page) return;
       // fallback pages have no image of their own, point at the origin's
       const origin = fallbackOrigin(await this.getLoader(), this.i18nConfig, page);
@@ -143,12 +141,12 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         this.absoluteUrl(
           this.localizePath(
             (origin ?? page).locale,
-            `${api.basePath}/${imageSegments(page.slugs).join("/")}`,
+            `${basePath(this)}/${imageSegments(page.slugs).join("/")}`,
           ),
         ),
       );
     },
-    async routes() {
+    async apiRoutes() {
       const source = await this.getLoader();
       const routes: ApiRoute[] = [];
 
@@ -160,7 +158,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         }
 
         routes.push({
-          path: this.localizePath(lang, `${api.basePath}/[...slugs]`),
+          path: this.localizePath(lang, `${basePath(this)}/[...slugs]`),
           staticPaths,
           GET: async (_request, { params }) => {
             const page =
@@ -168,17 +166,17 @@ export function takumiPlugin<C extends AppShape = AppShape>(
               (await this.getLoader()).getPage(pageSlugs(params.slugs), lang);
             if (!page) return new Response(null, { status: 404 });
 
-            return api.render(await (options.generate ?? defaultImage).call(this, page));
+            return api.render(await (options.getImage ?? defaultImage).call(this, page));
           },
         });
       }
 
       return routes;
     },
-    pageRoutes({ routes }) {
+    deriveRoutes({ routes }) {
       const out: ApiRoute[] = [];
       for (const route of routes) {
-        const image = route.options.takumiOptions;
+        const image = route.options.ogImage;
         if (!image) continue;
 
         const render = async (params: RouteParams) => {
@@ -191,7 +189,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         };
         if (route.render === "dynamic") {
           out.push({
-            path: routeImagePath(route, route.path),
+            path: routeImagePath(this, route, route.path),
             render: "dynamic",
             GET: (_, { params }) => render(params),
           });
@@ -199,7 +197,7 @@ export function takumiPlugin<C extends AppShape = AppShape>(
         }
         for (const { path, params } of route.pages)
           out.push({
-            path: routeImagePath(route, path),
+            path: routeImagePath(this, route, path),
             render: "static",
             GET: () => render(params),
           });

@@ -6,7 +6,7 @@ import { defineI18n, type I18nConfig } from "fumadocs-core/i18n";
 import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type Context } from "@/context";
 import type { HeadTag } from "fumadocs-core/framework/plugin";
-import type { AppShape, FrameworkRoute, Plugin, PresetEntry } from "@/plugin";
+import type { AppShape, PageRoute, Plugin, PresetEntry } from "@/plugin";
 import {
   createPress,
   renderPage,
@@ -59,7 +59,7 @@ function GET() {
 }
 
 /** an own page of the runtime at `path` */
-function ownRoute(path: string, lang?: string): FrameworkRoute {
+function ownRoute(path: string, lang?: string): PageRoute {
   return {
     path,
     lang,
@@ -160,9 +160,9 @@ describe("createPressContext", () => {
 
   it("hands the runtime the plugins with their hooks", async () => {
     const routes = () => [];
-    const ctx = await createSite({ plugins: [{ name: "a", routes }] });
+    const ctx = await createSite({ plugins: [{ name: "a", apiRoutes: routes }] });
 
-    expect(ctx.plugins[0]?.routes).toBe(routes);
+    expect(ctx.plugins[0]?.apiRoutes).toBe(routes);
   });
 
   it("names `enforce` as an unknown plugin key: plugins run in layer order", () => {
@@ -173,14 +173,13 @@ describe("createPressContext", () => {
 });
 
 describe("layers", () => {
-  const entry = (name: string, provides: string): PresetEntry<Plugin<AppShape, any>> => ({
-    name,
+  const entry = (provides: string): PresetEntry<Plugin<AppShape, any>> => ({
     provides,
-    load: vi.fn(() => ({ name, provides: [provides] })),
+    load: vi.fn(() => ({ name: `core:${provides}`, provides: [provides] })),
   });
 
   it("orders your plugins, the preset, then the runtime's defaults", async () => {
-    const preset = [entry("core:a", "a"), entry("core:b", "b")];
+    const preset = [entry("a"), entry("b")];
     const ctx = await createSite(
       { preset, plugins: [{ name: "one" }, [{ name: "two" }, false, null], undefined] },
       { defaults: [{ name: "mdx" }] },
@@ -196,7 +195,7 @@ describe("layers", () => {
   });
 
   it("puts a listed plugin providing an entry's capability in the entry's place", async () => {
-    const preset = [entry("core:a", "a"), entry("core:b", "b"), entry("core:c", "c")];
+    const preset = [entry("a"), entry("b"), entry("c")];
     const ctx = await createSite({
       preset,
       plugins: [{ name: "my-b", provides: ["b"] }, { name: "one" }],
@@ -204,11 +203,10 @@ describe("layers", () => {
 
     expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["one", "core:a", "my-b", "core:c"]);
     expect(preset[1]!.load).not.toHaveBeenCalled();
-    expect(ctx.getProvider("b")?.name).toBe("my-b");
   });
 
   it("uses the runtime's preset without `preset`, none with `[]`", async () => {
-    const preset = vi.fn(() => [entry("waku:image", "image")]);
+    const preset = vi.fn(() => [entry("image")]);
     expect((await createSite({ preset: undefined }, { preset })).plugins).toHaveLength(1);
     expect((await createSite({}, { preset })).plugins).toHaveLength(0);
   });
@@ -422,7 +420,7 @@ describe("getHead", () => {
       { lang: "en", path: "/en/about" },
       { lang: "cn", path: "/cn/about" },
     ];
-    const route: FrameworkRoute = {
+    const route: PageRoute = {
       path: "/cn/about",
       lang: "cn",
       render: "static",
@@ -564,12 +562,12 @@ describe("getSlots", () => {
   it("gives a named item one writer, naming both", async () => {
     const action = (name: string) => ({
       name,
-      slots: () => [{ slot: "page.actions" as const, name: "share", component: () => null }],
+      slots: () => [{ slot: "actions" as const, name: "share", component: () => null }],
     });
     const ctx = await createSite({ plugins: [action("a"), action("b")] });
 
     await expect(ctx.getSlots({ page: await getPage(ctx, []) })).rejects.toThrow(
-      '"a" and "b" both add the "page.actions" item "share"',
+      '"a" and "b" both add the "actions" item "share"',
     );
   });
 });
@@ -579,7 +577,7 @@ describe("getApiRoutes", () => {
     const config: Partial<TestSite> = {
       plugins: [
         {
-          routes: () => [
+          apiRoutes: () => [
             { path: "/a", GET },
             { path: "/b", GET, render: "dynamic" },
           ],
@@ -599,9 +597,9 @@ describe("getApiRoutes", () => {
 
   it("rejects static routes with handlers other than GET", async () => {
     const post = await createSite({
-      plugins: [{ routes: () => [{ path: "/api", GET, POST: GET }] }],
+      plugins: [{ apiRoutes: () => [{ path: "/api", GET, POST: GET }] }],
     });
-    const all = await createSite({ plugins: [{ routes: () => [{ path: "/api", ALL: GET }] }] });
+    const all = await createSite({ plugins: [{ apiRoutes: () => [{ path: "/api", ALL: GET }] }] });
 
     await expect(post.getApiRoutes()).rejects.toThrow(
       'the static route "/api" is generated from its GET handler, its POST handler needs',
@@ -611,10 +609,10 @@ describe("getApiRoutes", () => {
 
   it("rejects static routes with params but no `staticPaths`", async () => {
     const missing = await createSite({
-      plugins: [{ routes: () => [{ path: "/og/[...slugs]", GET }] }],
+      plugins: [{ apiRoutes: () => [{ path: "/og/[...slugs]", GET }] }],
     });
     const listed = await createSite({
-      plugins: [{ routes: () => [{ path: "/og/[...slugs]", GET, staticPaths: [["a"]] }] }],
+      plugins: [{ apiRoutes: () => [{ path: "/og/[...slugs]", GET, staticPaths: [["a"]] }] }],
     });
 
     await expect(missing.getApiRoutes()).rejects.toThrow(
@@ -629,7 +627,7 @@ describe("getApiRoutes", () => {
         mode: "dynamic",
         plugins: items.map(({ name, ...item }) => ({
           name,
-          routes: () => [{ path: "/api", ...item }],
+          apiRoutes: () => [{ path: "/api", ...item }],
         })),
       });
 
@@ -639,7 +637,7 @@ describe("getApiRoutes", () => {
     await expect(
       (
         await createSite({
-          plugins: [{ name: "md", routes: () => [{ path: "/docs/basics", GET }] }],
+          plugins: [{ name: "md", apiRoutes: () => [{ path: "/docs/basics", GET }] }],
         })
       ).getApiRoutes(),
     ).rejects.toThrow('the content page "/docs/basics" and "md" both take the path "/docs/basics"');
@@ -648,14 +646,14 @@ describe("getApiRoutes", () => {
   it("gives a path one route whatever the names of its owners", async () => {
     const named = await createSite({
       plugins: [
-        { name: "x", routes: () => [{ path: "/a.txt", GET }] },
-        { name: "x", routes: () => [{ path: "/a.txt", GET }] },
+        { name: "x", apiRoutes: () => [{ path: "/a.txt", GET }] },
+        { name: "x", apiRoutes: () => [{ path: "/a.txt", GET }] },
       ],
     });
     const unnamed = await createSite({
       plugins: [
-        { routes: () => [{ path: "/a.txt", GET }] },
-        { routes: () => [{ path: "/a.txt", GET }] },
+        { apiRoutes: () => [{ path: "/a.txt", GET }] },
+        { apiRoutes: () => [{ path: "/a.txt", GET }] },
       ],
     });
 
@@ -666,7 +664,7 @@ describe("getApiRoutes", () => {
   });
 
   it("leaves the pages of a page pattern to static routes, which serve their listed paths only", async () => {
-    const catchAll = (path: string, lang?: string): FrameworkRoute => ({
+    const catchAll = (path: string, lang?: string): PageRoute => ({
       path,
       lang,
       render: "static",
@@ -687,7 +685,10 @@ describe("getApiRoutes", () => {
       },
     );
     const onRequest = await createSite(
-      { mode: "dynamic", plugins: [{ name: "x", routes: () => [{ path: "/[...slugs]", GET }] }] },
+      {
+        mode: "dynamic",
+        plugins: [{ name: "x", apiRoutes: () => [{ path: "/[...slugs]", GET }] }],
+      },
       { routes: [{ route: catchAll("/[...slug]") }] },
     );
 
@@ -701,11 +702,13 @@ describe("getApiRoutes", () => {
     );
   });
 
-  it("rejects views returned from `routes()`", async () => {
+  it("rejects views returned from `apiRoutes()`", async () => {
     const ctx = await createSite({
-      plugins: [{ name: "x", routes: () => [{ path: "/v", view: () => undefined } as never] }],
+      plugins: [{ name: "x", apiRoutes: () => [{ path: "/v", view: () => undefined } as never] }],
     });
-    await expect(ctx.getApiRoutes()).rejects.toThrow('"x" returns the view "/v" from `routes()`');
+    await expect(ctx.getApiRoutes()).rejects.toThrow(
+      '"x" returns the view "/v" from `apiRoutes()`',
+    );
   });
 
   it("sorts routes by specificity", async () => {
@@ -713,7 +716,7 @@ describe("getApiRoutes", () => {
       mode: "dynamic",
       plugins: [
         {
-          routes: () => [
+          apiRoutes: () => [
             { path: "/api/[...rest]", GET },
             { path: "/api/[id]", GET },
             { path: "/api/list", GET },
@@ -749,7 +752,7 @@ describe("views", () => {
         },
       ],
     });
-    const routes = await ctx.getFrameworkRoutes();
+    const routes = await ctx.getRoutes();
 
     expect(langs).toEqual(["en", "cn"]);
     expect((await ctx.getViewRoutes()).map(({ route, view }) => [route.lang, view.path])).toEqual([
@@ -770,10 +773,7 @@ describe("views", () => {
     );
 
     expect((await ctx.getViewRoutes()).map(({ route }) => route.path)).toEqual(["/blog"]);
-    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual([
-      "/about",
-      "/blog",
-    ]);
+    expect((await ctx.getRoutes()).map((route) => route.path)).toEqual(["/about", "/blog"]);
   });
 
   it("give one of their pages to your own page there, keeping the others", async () => {
@@ -847,12 +847,12 @@ describe("views", () => {
     );
   });
 
-  it("are listed with their page routes, the ones of `getFrameworkRoutes()`", async () => {
+  it("are listed with their page routes, the ones of `getRoutes()`", async () => {
     const ctx = await createSite({ plugins: [{ name: "x", views: () => [view("/blog")] }] });
     const [entry] = await ctx.getViewRoutes();
 
     expect(entry?.view.path).toBe("/blog");
-    expect(await ctx.getFrameworkRoutes()).toContain(entry?.route);
+    expect(await ctx.getRoutes()).toContain(entry?.route);
   });
 
   it("can't read the routes while plugins create them", async () => {
@@ -861,14 +861,14 @@ describe("views", () => {
         {
           name: "eager",
           async views() {
-            await this.getFrameworkRoutes();
+            await this.getRoutes();
             return [];
           },
         },
       ],
     });
 
-    await expect(ctx.getFrameworkRoutes()).rejects.toThrow(
+    await expect(ctx.getRoutes()).rejects.toThrow(
       '"eager" reads the routes while plugins create them',
     );
   });
@@ -905,14 +905,12 @@ describe("runtime routes", () => {
       isClientReference: () => false,
     });
 
-    await expect(ctx.getFrameworkRoutes()).rejects.toThrow(
-      "the routes are read before they are created",
-    );
+    await expect(ctx.getRoutes()).rejects.toThrow("the routes are read before they are created");
     ctx.setRuntimeRoutes([{ route: ownRoute("/a") }]);
-    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/a"]);
+    expect((await ctx.getRoutes()).map((route) => route.path)).toEqual(["/a"]);
     // a rerun of the runtime's routing
     ctx.setRuntimeRoutes([{ route: ownRoute("/b") }]);
-    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/b"]);
+    expect((await ctx.getRoutes()).map((route) => route.path)).toEqual(["/b"]);
   });
 
   it("can't be read during setup", async () => {
@@ -921,7 +919,7 @@ describe("runtime routes", () => {
         plugins: [
           {
             async configure() {
-              await this.getFrameworkRoutes();
+              await this.getRoutes();
             },
           },
         ],
@@ -952,12 +950,12 @@ describe("runtime routes", () => {
       },
     );
 
-    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual(["/a", "/b"]);
+    expect((await ctx.getRoutes()).map((route) => route.path)).toEqual(["/a", "/b"]);
   });
 
   it("of your own and API routes take a path once, naming both", async () => {
     const ctx = await createSite(
-      { plugins: [{ name: "x", routes: () => [{ path: "/about", GET }] }] },
+      { plugins: [{ name: "x", apiRoutes: () => [{ path: "/about", GET }] }] },
       { routes: [{ route: ownRoute("/about") }] },
     );
 
@@ -967,7 +965,7 @@ describe("runtime routes", () => {
   });
 });
 
-describe("pageRoutes", () => {
+describe("deriveRoutes", () => {
   it("derives routes from the final page routes of each language", async () => {
     const seen: string[] = [];
     const ctx = await createSite(
@@ -982,7 +980,7 @@ describe("pageRoutes", () => {
           },
           {
             name: "print",
-            pageRoutes({ lang, routes }) {
+            deriveRoutes({ lang, routes }) {
               seen.push(`${lang}: ${routes.map((route) => route.path).join(", ")}`);
               const out = [];
               for (const route of routes)
@@ -994,14 +992,14 @@ describe("pageRoutes", () => {
               return out;
             },
           },
-          { name: "late", pageRoutes: ({ routes }) => void seen.push(`late: ${routes.length}`) },
+          { name: "late", deriveRoutes: ({ routes }) => void seen.push(`late: ${routes.length}`) },
         ],
       },
       // an own page without a language belongs to the default one
       { routes: [{ route: ownRoute("/") }, { route: ownRoute("/cn/about", "cn") }] },
     );
 
-    expect((await ctx.getFrameworkRoutes()).map((route) => route.path)).toEqual([
+    expect((await ctx.getRoutes()).map((route) => route.path)).toEqual([
       "/",
       "/cn/about",
       "/en/blog",
@@ -1028,10 +1026,10 @@ describe("pageRoutes", () => {
           {
             name: "md",
             // like the Markdown of your own pages, which read the site outside of plugin hooks
-            async pageRoutes() {
+            async deriveRoutes() {
               rendered.push(
                 await site!.getBaseOptions({ lang: undefined }),
-                (await site!.getFrameworkRoutes()).map((route) => route.path),
+                (await site!.getRoutes()).map((route) => route.path),
               );
               return [];
             },
@@ -1049,12 +1047,24 @@ describe("pageRoutes", () => {
   it("rejects a derived view on a content page, naming both", async () => {
     const ctx = await createSite({
       plugins: [
-        { name: "print", pageRoutes: () => [{ path: "/docs/basics", view: () => undefined }] },
+        { name: "print", deriveRoutes: () => [{ path: "/docs/basics", view: () => undefined }] },
       ],
     });
 
     await expect(ctx.getViewRoutes()).rejects.toThrow(
       'the content page "/docs/basics" and "print" both take',
+    );
+  });
+
+  it("rejects an entry with both a view and handlers", async () => {
+    const view = { path: "/print", GET, view: () => undefined };
+    const ctx = await createSite({
+      // @ts-expect-error -- an entry is an API route or a view
+      plugins: [{ name: "print", deriveRoutes: () => [view] }],
+    });
+
+    await expect(ctx.getViewRoutes()).rejects.toThrow(
+      '"print" returns "/print" from `deriveRoutes()` with both a `view` and handlers',
     );
   });
 });
@@ -1140,7 +1150,7 @@ describe("URLs", () => {
         site: { baseUrl: undefined },
         plugins: [
           {
-            routes: () => [
+            apiRoutes: () => [
               { path: "/api/ai", render: "dynamic", POST: GET },
               { path: "/api/feedback/[name]", render: "dynamic", POST: GET },
               { path: "/robots.txt", render: "dynamic", GET },
@@ -1157,7 +1167,7 @@ describe("URLs", () => {
     );
 
     expect(ctx.withBase("/api/ai")).toBe("/repo/api/ai");
-    await ctx.getFrameworkRoutes();
+    await ctx.getRoutes();
     expect(ctx.withBase("/api/ai")).toBe("/repo/api/ai/");
     expect(ctx.withBase("/api/feedback/page")).toBe("/repo/api/feedback/page/");
     expect(ctx.withBase("/live/1")).toBe("/repo/live/1/");
@@ -1167,9 +1177,9 @@ describe("URLs", () => {
       expect(ctx.withBase(path)).toBe(path === "/" ? "/repo" : `/repo${path}`);
 
     const plain = await createSite({
-      plugins: [{ routes: () => [{ path: "/api/ai", render: "dynamic", POST: GET }] }],
+      plugins: [{ apiRoutes: () => [{ path: "/api/ai", render: "dynamic", POST: GET }] }],
     });
-    await plain.getFrameworkRoutes();
+    await plain.getRoutes();
     expect(plain.withBase("/api/ai")).toBe("/api/ai");
   });
 
@@ -1334,7 +1344,7 @@ describe("renderPage", () => {
             getPageView: () => ({ props: { post: { title: "Post" } }, node: "post" }),
             slots: ({ page }) =>
               page && [
-                { slot: "page.actions", name: "share", component: () => "share" },
+                { slot: "actions", name: "share", component: () => "share" },
                 {
                   slot: "body.wrapper",
                   component: ({ children }: { children: string }) => children,

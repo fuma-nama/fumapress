@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiRoute } from "fumadocs-core/framework/plugin";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import type { FrameworkRoute } from "@/plugin";
+import type { PageRoute } from "@/plugin";
 import { pressContext, type TestSite } from "./harness";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
 
@@ -65,7 +65,7 @@ describe("routes", () => {
     const ctx = await createSite({}, { i18n });
     const routes = await ctx.getApiRoutes();
 
-    expect(ctx.getProvider("og-image")?.name).toBe("core:takumi");
+    expect(ctx.getCapability("og-image")).toBeDefined();
     // the most specific first
     expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
       { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
@@ -81,24 +81,24 @@ describe("routes", () => {
     expect((await request(routes[1]!, ["docs", "missing.webp"])).status).toBe(404);
   });
 
-  it("renders on request in dynamic mode, under `/_takumi` or `basePath`", async () => {
+  it("renders on request in dynamic mode, under `/_takumi` or `path`", async () => {
     const routes = async (options: TakumiOptions) =>
       (await createSite(options, { mode: "dynamic" })).getApiRoutes();
 
     expect((await routes({}))[0]).toMatchObject({ path: "/_takumi/[...slugs]", render: "dynamic" });
-    const [route] = await routes({ basePath: "/images/" });
+    const [route] = await routes({ path: "/images/" });
     expect(route).toMatchObject({ path: "/images/[...slugs]", render: "dynamic" });
     await readImage(route!, ["docs", "only-en.webp"]);
   });
 
-  it("applies shared options under the ones from generate()", async () => {
+  it("applies shared options under the ones from getImage()", async () => {
     const seen: string[] = [];
     const [route] = await (
       await createSite({
         width: 600,
         height: 315,
         options: { headers: { "x-shared": "1" }, status: 200, width: 300 },
-        generate(page) {
+        getImage(page) {
           seen.push(`${this.siteConfig.name} ${page.url}`);
           return { node: <div>Page</div>, options: { status: 201 } };
         },
@@ -161,11 +161,11 @@ describe("page image", () => {
 });
 
 describe("route images", () => {
-  it("draws the `takumiOptions` of page routes, with their head tags", async () => {
-    const route: FrameworkRoute = {
+  it("draws the `ogImage` of page routes, with their head tags", async () => {
+    const route: PageRoute = {
       path: "/about",
       render: "static",
-      options: { takumiOptions: { title: "About" } },
+      options: { ogImage: { title: "About" } },
       pages: [{ path: "/about", translations: [], params: {} }],
     };
     const ctx = await pressContext(

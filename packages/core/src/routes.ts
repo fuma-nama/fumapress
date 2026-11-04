@@ -1,7 +1,7 @@
 import type { RouteParams } from "fumadocs-core/framework/plugin";
 import { findPath } from "fumadocs-core/page-tree";
-import type { Context } from "./context";
-import type { AppShape, FrameworkPage, RoutedView } from "./plugin";
+import type { Context, RoutedView, RuntimeContext } from "./context";
+import type { AppShape, PageRoute } from "./plugin";
 
 /** `pathname` without the base path `base` (`withBase('/')`), `undefined` outside of it */
 export function stripBase(pathname: string, base: string): string | undefined {
@@ -93,8 +93,11 @@ export function matchRoute(pattern: string, pathname: string): RouteParams | und
  */
 export function createLocalizer(
   ctx: Context,
-): (lang: string | undefined, pathname: string) => FrameworkPage {
-  const translations = new Map<string, FrameworkPage["translations"]>();
+): (
+  lang: string | undefined,
+  pathname: string,
+) => Pick<PageRoute["pages"][number], "path" | "translations"> {
+  const translations = new Map<string, PageRoute["pages"][number]["translations"]>();
   return (lang, pathname) => {
     let siblings = translations.get(pathname);
     if (!siblings) translations.set(pathname, (siblings = []));
@@ -130,7 +133,7 @@ function hasPage(routes: { pages: readonly { path: string }[] }[], path: string)
 export async function getHomeUrl(ctx: Context, lang: string | undefined): Promise<string> {
   const home = ctx.localizePath(lang, "/");
   const loader = await ctx.getLoader();
-  if (loader.getPageByUrl(home, lang) || hasPage(await ctx.getFrameworkRoutes(), home)) return home;
+  if (loader.getPageByUrl(home, lang) || hasPage(await ctx.getRoutes(), home)) return home;
   // links of meta files aren't pages
   const path = findPath(
     loader.getPageTree(lang).children,
@@ -145,7 +148,7 @@ export async function getHomeUrl(ctx: Context, lang: string | undefined): Promis
 export async function rootRedirect(ctx: Context): Promise<string | undefined> {
   const i18n = ctx.i18nConfig;
   if (!i18n || i18n.hideLocale === "default-locale") return;
-  if (hasPage(await ctx.getFrameworkRoutes(), "/")) return;
+  if (hasPage(await ctx.getRoutes(), "/")) return;
   return getHomeUrl(ctx, i18n.defaultLanguage);
 }
 
@@ -159,7 +162,7 @@ export function pathLocale(ctx: Context, path: string): string | undefined {
 
 /** the view at `/404` in `lang`, or in the default language: the 404 page of `lang` */
 export async function notFoundView<C extends AppShape>(
-  ctx: Context<C>,
+  ctx: RuntimeContext<C>,
   lang: C["lang"],
 ): Promise<RoutedView<C> | undefined> {
   let found: RoutedView<C> | undefined;

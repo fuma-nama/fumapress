@@ -16,7 +16,7 @@ import {
   type HeadEnv,
   type LangEnv,
   type MergedTypes,
-  type NamedSlots,
+  type NamedSlot,
   type Plugin,
   type PluginOption,
   type PluginTypes,
@@ -99,14 +99,14 @@ export interface PressConfig<C extends AppShape, T extends PluginTypes> {
   head?:
     | Framework.HeadTag[]
     | ((this: Context<C>, env: HeadEnv<C>) => Awaitable<Framework.HeadTag[] | undefined>);
-  ui?: UIOptions<C, T>;
+  ui?: UIOptionsOf<C, T>;
 }
 
 export type PageNode = Exclude<ReactNode, undefined | PromiseLike<unknown>>;
 export type BaseOptions = Omit<BaseLayoutProps, "children">;
 export type ProviderProps = Omit<RootProviderProps, "children">;
 
-export interface UIOptions<C extends AppShape, T extends PluginTypes> {
+interface UIOptionsOf<C extends AppShape, T extends PluginTypes> {
   /** Fumadocs `baseOptions(lang)`; links are written as served, `this.localizePath()` localizes them */
   baseOptions?: BaseOptions | ((this: Context<C>, env: LangEnv<C>) => Awaitable<BaseOptions>);
   /** `<RootProvider>` props; a custom dialog is `search.SearchDialog` with `usePressSearch()` */
@@ -143,7 +143,7 @@ export type ContentPageProps<
   /** the rendered content, with `body.wrapper` applied */
   body: ReactElement;
 } & {
-  [S in keyof NamedSlots]: Partial<Record<Declared<T, S>, ReactElement>>;
+  [S in NamedSlot]: Partial<Record<Declared<T, S>, ReactElement>>;
 } & (K extends keyof Declared<T, "pages">
     ? Declared<T, "pages">[K] & { children: ReactElement }
     : {});
@@ -186,6 +186,12 @@ export type RenderPageProps<
 /** `this` of callbacks in their own files: `PressContext<typeof app>` */
 export type PressContext<A extends Press<any, any>> = Context<TypesOfPress<A>["content"]>;
 
+/** `ui` callbacks in their own files: `UIOptions<typeof app>["baseOptions"]` */
+export type UIOptions<A extends Press<any, any>> = UIOptionsOf<
+  TypesOfPress<A>["content"],
+  TypesOfPress<A>["plugins"]
+>;
+
 /**
  * The content stage of a runtime's `createPress()`: the runtime passes its own `.config()` options as `R`.
  *
@@ -221,7 +227,7 @@ export function createPress(
 export type DefaultPageProps = RenderPageBase<AppShape> & { type: string | undefined } & (
     | (Pick<
         ContentPageProps<AppShape["source"], AppShape, PluginTypes>,
-        "page" | "slugs" | "pageData" | "body" | keyof NamedSlots
+        "page" | "slugs" | "pageData" | "body" | NamedSlot
       > & {
         /** the content of the plugin owning the page */
         children?: ReactElement;
@@ -280,8 +286,8 @@ export async function renderPage(
       slugs: page.slugs,
       pageData,
       body: createElement(Fragment, null, node),
-      actions: namedItems(slots["page.actions"]),
-      footer: namedItems(slots["page.footer"]),
+      actions: namedItems(slots.actions),
+      footer: namedItems(slots.footer),
       children: view && createElement(Fragment, null, view.node),
     };
   }

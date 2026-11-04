@@ -76,13 +76,13 @@ export function robotsPlugin<C extends AppShape = AppShape>(
   return {
     name: "core:robots",
     provides: ["robots"],
-    routes() {
+    apiRoutes() {
       return [
         {
           path,
           GET: () => {
             const sections = rules.map(ruleToText);
-            const api = this.getProvider("sitemap")?.api;
+            const api = this.getCapability("sitemap");
             const sitemapPath =
               typeof sitemap === "string"
                 ? sitemap

@@ -29,7 +29,7 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
    *
    * The Markdown renders the page without its layouts: access checks of a page belong in the page itself, or in
    * middleware that covers its `<page>.md` too. Static pages render while the routes are created, they can read
-   * `getFrameworkRoutes()` and the base options but not wait for the views or API routes.
+   * `getRoutes()` and the base options.
    *
    * @defaultValue "content"
    */
@@ -84,9 +84,9 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     name: "core:llms.txt",
     provides: ["llms"],
     transformPage(data) {
-      return { ...data, markdownUrl: this.withBase(markdownPath(data.url)) };
+      return { markdownUrl: this.withBase(markdownPath(data.url)) };
     },
-    async routes() {
+    async apiRoutes() {
       const out: ApiRoute[] = [
         {
           path: "/llms.txt",
@@ -122,7 +122,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       }
       return out;
     },
-    async pageRoutes({ lang, routes: pageRoutes }) {
+    async deriveRoutes({ lang, routes: pageRoutes }) {
       if (routes !== "all") return;
       // content pages keep their own Markdown
       const markdownPaths = new Set<string>();

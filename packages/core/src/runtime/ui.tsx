@@ -22,9 +22,9 @@ import type { BaseOptions, DefaultPageProps, PageNode, ProviderProps } from "../
 
 export interface DefaultDocsProps extends Pick<DefaultPageProps, "tree" | "baseOptions"> {
   pageData: DocsPageData;
-  /** the items of `page.actions` */
+  /** the items of the `actions` slot */
   actions: ReactNode;
-  /** the items of `page.footer` */
+  /** the items of the `footer` slot */
   footer: ReactNode;
   /** the body */
   children: ReactNode;

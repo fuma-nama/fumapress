@@ -27,14 +27,14 @@ describe("recommendedPreset", () => {
       if (plugin.name?.startsWith("core:")) expect(plugin.provides).toHaveLength(1);
   });
 
-  it("drops an entry with a filter", async () => {
+  it("drops an entry by its capability, others read the API of a capability", async () => {
     const ctx = await pressContext({
       content: { files: [] },
-      preset: recommendedPreset().filter((entry) => entry.name !== "core:rss"),
+      preset: recommendedPreset().filter((entry) => entry.provides !== "rss"),
     });
 
-    expect(ctx.getProvider("rss")).toBeUndefined();
-    expect(ctx.getProvider("sitemap")?.api?.path).toBe("/sitemap.xml");
+    expect(ctx.plugins.map((plugin) => plugin.name)).not.toContain("core:rss");
+    expect(ctx.getCapability("sitemap")?.path).toBe("/sitemap.xml");
   });
 });
 

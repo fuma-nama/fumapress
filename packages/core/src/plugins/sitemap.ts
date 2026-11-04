@@ -146,7 +146,7 @@ declare module "@fumapress/core" {
   }
 }
 
-/** the API of the `sitemap` capability, from `this.getProvider("sitemap")?.api` */
+/** the API of the `sitemap` capability, from `this.getCapability("sitemap")` */
 export interface SitemapAPI {
   /** the path of the sitemap, without the base path */
   path: string;
@@ -295,7 +295,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
     name: "core:sitemap",
     provides: ["sitemap"],
     api: { path },
-    routes() {
+    apiRoutes() {
       return [
         {
           path,
@@ -322,7 +322,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
               entries.push(entry);
             }
 
-            for (const route of await this.getFrameworkRoutes()) {
+            for (const route of await this.getRoutes()) {
               for (const page of route.pages) {
                 const loc = this.absoluteUrl(page.path);
                 if (pageLocs.has(loc)) continue;

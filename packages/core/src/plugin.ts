@@ -28,29 +28,21 @@ export interface PageEnv<C extends AppShape> {
   page?: C["page"];
 }
 
-/** `head` runs twice per page: site-wide (`{}`), then the page's own call (`{ page }`, or `{ route, path }` on framework pages, with `view` on views) */
+/** `head` runs twice per page: site-wide (`{}`), then the page's own call (`{ page }`, or `{ route, path }` on page routes, with `view` on views) */
 export interface HeadEnv<C extends AppShape> extends PageEnv<C> {
-  route?: FrameworkRoute<C>;
+  route?: PageRoute<C>;
   /** the rendered path of `route`, with the language prefix, without the base path */
   path?: string;
   /** the content of a view at `path`, its `title` and `description` are the page's own */
   view?: View<any>;
 }
 
-/** the routes `pageRoutes` derives from: those rendered in `lang`, own pages without a language in the default one */
-export interface PageRoutesEnv<C extends AppShape> extends LangEnv<C> {
-  routes: readonly FrameworkRoute<C>[];
-}
-
-/** the named slots, by the `renderPage` prop that holds their items; a new contribution kind is one entry */
-export interface NamedSlots {
-  actions: "page.actions";
-  footer: "page.footer";
-}
+/** the named slots: the slot id is the `renderPage` prop holding their items by name */
+export type NamedSlot = "actions" | "footer";
 
 /** what a plugin declares for types: its views, the props it adds to pages of a source, its capabilities and named slot items */
 export type PluginTypes = { views?: object; pages?: object; provides?: Capability } & {
-  [K in keyof NamedSlots]?: string;
+  [K in NamedSlot]?: string;
 };
 
 /** the declarations `K` of plugin types: on a union, their union; on `any`, `any`; on the merged types of a site, its own */
@@ -72,7 +64,7 @@ export interface MergedTypes<U> extends NamedSlotNames<U> {
   views: Intersect<Declared<U, "views">>;
   pages: Intersect<Declared<U, "pages">>;
 }
-type NamedSlotNames<U> = { [K in keyof NamedSlots]: Declared<U, K> };
+type NamedSlotNames<U> = { [K in NamedSlot]: Declared<U, K> };
 
 /** keys outside the plugin contract, like a removed or misspelled hook: `const P` skips the excess property check of literals */
 export type UnknownKeys<E, C extends AppShape> = E extends readonly unknown[]
@@ -116,7 +108,7 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
   readonly "~types"?: T;
   /** at most one plugin per capability; a listed plugin providing a preset entry's capability replaces that entry in place */
   provides?: readonly Declared<T, "provides">[];
-  /** read by others with `this.getProvider(capability)?.api`; complete at creation, a value of the site is a function of its context */
+  /** read by others with `this.getCapability(capability)`; complete at creation, a value of the site is a function of its context */
   api?: ProviderAPI<Declared<T, "provides">>;
   /** pages of the plugin in the language `lang`, called once per language; `ui.renderPage` renders them as `props.type` */
   views?: (
@@ -124,15 +116,19 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
     env: LangEnv<C>,
   ) => Awaitable<ViewRoute<Declared<T, "views">>[] | undefined>;
   /**
-   * routes derived from the final page routes of `lang` (your own pages, the pages of runtime hooks and the `views()` of every plugin), called once per
-   * language: API routes like their Markdown or images, and views like a print page. A path has one route (principle 2);
-   * your own page wins (principle 3). An API route has no `view`, so a view in the list is checked as a view.
+   * routes derived from the final page routes of `lang` (those rendered in `lang`, your own pages without a language in the
+   * default one), called once per language: API routes like their Markdown or images, and views like a print page. A path
+   * has one route (principle 2); your own page wins (principle 3). An entry is an API route or a view, never both.
    */
-  pageRoutes?: (
+  deriveRoutes?: (
     this: Context<C>,
-    env: PageRoutesEnv<C>,
+    env: LangEnv<C> & { routes: readonly PageRoute<C>[] },
   ) => Awaitable<
-    ((Framework.ApiRoute & { view?: never }) | ViewRoute<Declared<T, "views">>)[] | undefined
+    | (
+        | (Framework.ApiRoute & { view?: never })
+        | (ViewRoute<Declared<T, "views">> & { [M in Framework.Method | "ALL"]?: never })
+      )[]
+    | undefined
   >;
   /**
    * a content page of a source the plugin owns (its `source` option), with the props it adds; `body` is the page's
@@ -213,31 +209,29 @@ interface SlotBase {
 /**
  * UI in places every layout renders:
  *
- * - `page.actions`: beside the page actions of a content page, `props.actions[name]` of `ui.renderPage`.
- * - `page.footer`: after the content of a content page, `props.footer[name]`.
+ * - `actions`: beside the page actions of a content page, `props.actions[name]` of `ui.renderPage`.
+ * - `footer`: after the content of a content page, `props.footer[name]`.
  * - `body.wrapper`: around the content of a content page, the component receives it as `children`.
  * - `layout.wrapper`: around the layout of every page, inside the root provider, like `body.wrapper`.
  */
 export type SlotItem<T extends PluginTypes = PluginTypes> =
-  | {
-      [K in keyof NamedSlots]: SlotBase & { slot: NamedSlots[K]; name: Declared<T, K> };
-    }[keyof NamedSlots]
+  | { [K in NamedSlot]: SlotBase & { slot: K; name: Declared<T, K> } }[NamedSlot]
   | (SlotBase & { slot: "body.wrapper" | "layout.wrapper" });
 
-/** a view with its page route, as the runtime serves it */
-export interface RoutedView<C extends AppShape = AppShape> {
-  route: FrameworkRoute<C>;
-  view: ViewRoute;
-}
-
-/** a page route of the framework: your own page, a view, or a page of a runtime hook; read-only, every plugin reads the same list */
-export interface FrameworkRoute<C extends AppShape = AppShape> {
+/** a route rendering pages: your own page, a view, or a page of a runtime hook; read-only, every plugin reads the same list */
+export interface PageRoute<C extends AppShape = AppShape> {
   /** URL pattern, with the language prefix and without the base path */
   readonly path: string;
   readonly lang?: C["lang"];
   readonly render: "static" | "dynamic";
   /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
-  readonly pages: readonly (FrameworkPage<C> & { readonly params: Framework.RouteParams })[];
+  readonly pages: readonly {
+    /** URL path, with the language prefix and without the base path */
+    readonly path: string;
+    readonly params: Framework.RouteParams;
+    /** the page in every language it exists in, itself included */
+    readonly translations: { lang: C["lang"]; path: string }[];
+  }[];
   /** `getConfig()` of a Waku route file, `{}` on Astro */
   readonly options: Readonly<RouteOptions>;
   /** the Markdown of a page of the route, when the framework renders it (Waku: `asMarkdown()`) */
@@ -247,15 +241,7 @@ export interface FrameworkRoute<C extends AppShape = AppShape> {
 /** options of a page route, the `getConfig()` of a Waku route file; plugin packages declare their keys by declaration merging */
 export interface RouteOptions {}
 
-/** a page the framework renders outside the content */
-export interface FrameworkPage<C extends AppShape = AppShape> {
-  /** URL path, with the language prefix and without the base path */
-  path: string;
-  /** the page in every language it exists in, itself included */
-  translations: { lang: C["lang"]; path: string }[];
-}
-
-/** the API of each capability, from `this.getProvider(capability)?.api`; plugin modules add theirs by declaration merging */
+/** the API of each capability, from `this.getCapability(capability)`; plugin modules add theirs by declaration merging */
 export interface CapabilityAPI {
   search: SearchPluginAPI;
   robots: unknown;
@@ -274,11 +260,6 @@ export type ProviderAPI<K> = [K] extends [never]
 /** what plugins read of each other */
 export type PluginInfo = Pick<Plugin<AppShape, { provides: Capability }>, "name" | "provides">;
 
-/** the plugin providing the capability `K`, its `api` is the API of the capability */
-export interface Provider<K extends Capability> extends PluginInfo {
-  api?: ProviderAPI<K>;
-}
-
 /**
  * a hook the runtime calls in the client, as slots pass `component`: `hook` is an export of a `"use client"` module,
  * `props` its serializable input, and the runtime adds the page's `lang`
@@ -291,46 +272,39 @@ export interface ClientHook<R, P extends Record<string, unknown> = {}> {
 /** a preset entry, loaded unless a listed plugin provides its capability */
 export interface PresetEntry<
   P extends PluginInfo = Plugin<AppShape, any>,
-  N extends string = string,
+  K extends Capability = Capability,
 > {
-  name: N;
-  provides: Capability;
+  provides: K;
   load: () => Awaitable<P>;
 }
 
-/** sitemap, robots.txt, llms.txt, RSS, search and Open Graph images; drop one with `.filter((entry) => entry.name !== "core:rss")` */
+/** sitemap, robots.txt, llms.txt, RSS, search and Open Graph images; drop one with `.filter((entry) => entry.provides !== "rss")` */
 export function recommendedPreset<C extends AppShape = AppShape>(): PresetEntry<
   Plugin<C, any>,
-  "core:sitemap" | "core:robots" | "core:llms.txt" | "core:rss" | "core:flexsearch" | "core:takumi"
+  "sitemap" | "robots" | "llms" | "rss" | "search" | "og-image"
 >[] {
   return [
     {
-      name: "core:sitemap",
       provides: "sitemap",
       load: async () => (await import("./plugins/sitemap")).sitemapPlugin<C>(),
     },
     {
-      name: "core:robots",
       provides: "robots",
       load: async () => (await import("./plugins/robots")).robotsPlugin<C>(),
     },
     {
-      name: "core:llms.txt",
       provides: "llms",
       load: async () => (await import("./plugins/llms.txt")).llmsPlugin<C>(),
     },
     {
-      name: "core:rss",
       provides: "rss",
       load: async () => (await import("./plugins/rss")).rssPlugin<C>(),
     },
     {
-      name: "core:flexsearch",
       provides: "search",
       load: async () => (await import("./plugins/flexsearch")).flexsearchPlugin<C>(),
     },
     {
-      name: "core:takumi",
       provides: "og-image",
       load: async () => (await import("./plugins/takumi")).takumiPlugin<C>(),
     },

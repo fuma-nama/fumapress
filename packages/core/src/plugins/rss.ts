@@ -174,7 +174,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
         },
       ];
     },
-    routes() {
+    apiRoutes() {
       return [
         {
           path,
