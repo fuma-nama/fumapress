@@ -1,39 +1,104 @@
-import type { AppShape, PressPlugin } from "fumapress";
-import type { ActionResponse, BlockFeedback, PageFeedback } from "./components/feedback/schema";
+import type { AppShape, Awaitable, Context, Plugin, SlotItem } from "@fumapress/core";
+import type { ApiRoute } from "fumadocs-core/framework/plugin";
+import type { ZodMiniType } from "zod/mini";
+import {
+  blockFeedback,
+  pageFeedback,
+  type ActionResponse,
+  type BlockFeedback,
+  type PageFeedback,
+} from "./components/feedback/schema";
+import { feedbackTranslations } from "./i18n";
+
+const pageApi = "/api/feedback/page";
+const textApi = "/api/feedback/text";
 
 export interface FeedbackPluginOptions {
+  /**
+   * handles page feedback: a client function (`'use client'`) in the browser, other functions on the server at
+   * `/api/feedback/page`, where a thrown `Response` is the answer
+   */
   onPageFeedbackAction?: (feedback: PageFeedback) => Promise<ActionResponse>;
+  /** handles text feedback, like `onPageFeedbackAction` at `/api/feedback/text` */
   onTextFeedbackAction?: (feedback: BlockFeedback) => Promise<ActionResponse>;
+  /**
+   * invoked before handling feedback requests on the server, you can use it for ratelimit and other validations.
+   */
+  beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
+/** the `feedback` item of `props.footer` in `ui.renderPage` */
+export type FeedbackTypes = { footer: "feedback" };
+
+/** feedback on pages (the `feedback` footer) and on text selections (around the content) */
 export function feedbackPlugin<C extends AppShape = AppShape>(
   options: FeedbackPluginOptions,
-): PressPlugin<C> {
-  const { onPageFeedbackAction, onTextFeedbackAction } = options;
+): Plugin<C, FeedbackTypes> {
+  const { onPageFeedbackAction, onTextFeedbackAction, beforeRequest } = options;
+
+  function route<T>(
+    ctx: Context<C>,
+    path: string,
+    schema: ZodMiniType<T>,
+    action: ((feedback: T) => Promise<ActionResponse>) | undefined,
+  ): ApiRoute[] {
+    if (!action || ctx.isClientReference(action)) return [];
+    return [
+      {
+        path,
+        render: "dynamic",
+        async POST(request) {
+          const response = await beforeRequest?.(request);
+          if (response) return response;
+
+          const parsed = schema.safeParse(await request.json());
+          if (!parsed.success) return new Response("invalid body type", { status: 400 });
+          try {
+            return Response.json(await action(parsed.data));
+          } catch (error) {
+            if (error instanceof Response) return error;
+            throw error;
+          }
+        },
+      },
+    ];
+  }
+
+  /** the action of the UI: the client function itself, or the URL of its route */
+  function uiAction<T extends object>(ctx: Context<C>, path: string, action: T): T | string {
+    return ctx.isClientReference(action) ? action : ctx.withBase(path);
+  }
 
   return {
     name: "feedback:main",
-    async init() {
-      if (this.translationsConfig) {
-        const { feedbackTranslations } = await import("./i18n");
-        // ensure language pack works correctly without calling `extend()`
-        this.translationsConfig.extend(feedbackTranslations());
-      }
+    translations: feedbackTranslations(),
+    routes() {
+      const routes = [
+        ...route(this, pageApi, pageFeedback, onPageFeedbackAction),
+        ...route(this, textApi, blockFeedback, onTextFeedbackAction),
+      ];
+      if (routes.length > 0 && this.mode === "static")
+        throw new Error(
+          "[@fumapress/feedback] actions other than client functions run on the server, they are not compatible with static mode",
+        );
+      return routes;
     },
-    async slots() {
+    async slots({ page }) {
+      if (!page) return;
       const { Feedback, FeedbackText } = await import("./components/feedback/client");
-      const items = [];
+      const items: SlotItem<FeedbackTypes>[] = [];
       if (onTextFeedbackAction)
         items.push({
-          slot: "body.wrapper" as const,
+          slot: "body.wrapper",
           component: FeedbackText,
-          props: { onSendAction: onTextFeedbackAction },
+          props: { action: uiAction(this, textApi, onTextFeedbackAction) },
         });
       if (onPageFeedbackAction)
         items.push({
-          slot: "page.footer" as const,
+          slot: "page.footer",
+          name: "feedback",
           component: Feedback,
-          props: { onSendAction: onPageFeedbackAction },
+          props: { action: uiAction(this, pageApi, onPageFeedbackAction) },
         });
       return items;
     },

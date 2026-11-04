@@ -1,10 +1,9 @@
 import { App, Octokit } from "octokit";
-import { blockFeedback, pageFeedback } from "@/components/feedback/schema";
-import type { AppShape, PressPlugin, PressPluginOption } from "fumapress";
-import { feedbackPlugin } from ".";
-import { onPageFeedbackAction, onTextFeedbackAction } from "./github.client";
+import type { AppShape, Plugin } from "@fumapress/core";
+import type { ActionResponse } from "@/components/feedback/schema";
+import { feedbackPlugin, type FeedbackPluginOptions, type FeedbackTypes } from ".";
 
-export interface GitHubFeedbackPluginOptions {
+export interface GitHubFeedbackPluginOptions extends Pick<FeedbackPluginOptions, "beforeRequest"> {
   /** info for the repository to store feedbacks */
   storage: {
     owner: string;
@@ -15,10 +14,6 @@ export interface GitHubFeedbackPluginOptions {
 
   appId: string;
   privateKey: string;
-  /**
-   * invoked before handling feedback requests, you can use it for ratelimit and other validations.
-   */
-  beforeRequest?: (request: Request) => Response | undefined | Promise<Response | undefined>;
 }
 
 interface RepositoryInfo {
@@ -33,8 +28,7 @@ interface RepositoryInfo {
 
 export function githubFeedbackPlugin<C extends AppShape = AppShape>(
   options: GitHubFeedbackPluginOptions,
-): PressPluginOption<C> {
-  const { beforeRequest } = options;
+): Plugin<C, FeedbackTypes> {
   const { owner, repo, category: FeedbackCategory } = options.storage;
   let instance: Promise<Octokit> | undefined;
 
@@ -82,18 +76,17 @@ export function githubFeedbackPlugin<C extends AppShape = AppShape>(
     return (cachedDestination = repository);
   }
 
-  async function createDiscussionThread(pageId: string, body: string): Promise<Response> {
+  async function createDiscussionThread(pageId: string, body: string): Promise<ActionResponse> {
     const octokit = await getOctokit();
     const repo = await getFeedbackRepository();
     const category = repo.discussionCategories.nodes.find(
       (category) => category.name === FeedbackCategory,
     );
 
-    if (!category) {
-      return new Response(`Please create a "${FeedbackCategory}" category in GitHub Discussion`, {
+    if (!category)
+      throw new Response(`Please create a "${FeedbackCategory}" category in GitHub Discussion`, {
         status: 500,
       });
-    }
 
     const title = `Feedback for ${pageId}`;
     const queryResult: {
@@ -123,9 +116,7 @@ export function githubFeedbackPlugin<C extends AppShape = AppShape>(
                   }
                 }`);
 
-      return Response.json({
-        githubUrl: result.addDiscussionComment.comment.url,
-      });
+      return { githubUrl: result.addDiscussionComment.comment.url };
     } else {
       const result: {
         createDiscussion: {
@@ -138,73 +129,26 @@ export function githubFeedbackPlugin<C extends AppShape = AppShape>(
                   }
                 }`);
 
-      return Response.json({
-        githubUrl: result.createDiscussion.discussion.url,
-      });
+      return { githubUrl: result.createDiscussion.discussion.url };
     }
   }
 
-  const base = feedbackPlugin<C>({
-    onPageFeedbackAction,
-    onTextFeedbackAction,
-  });
-
-  const additional: PressPlugin<C> = {
-    name: "feedback:github",
-    createPages({ createApi }) {
-      if (this.mode === "static")
-        throw new Error(
-          "[@fumapress/feedback] GitHub integration is not compatiable with static mode",
-        );
-
-      createApi({
-        render: "dynamic",
-        path: "/api/feedback/page",
-        handlers: {
-          POST: async (req) => {
-            if (beforeRequest) {
-              const res = await beforeRequest(req);
-              if (res) return res;
-            }
-
-            const parsed = pageFeedback.safeParse(await req.json());
-            if (!parsed.success) return new Response("invalid body type", { status: 400 });
-            const feedback = parsed.data;
-            const url = new URL(feedback.url);
-
-            return createDiscussionThread(
-              url.pathname,
-              `[${feedback.opinion}] ${feedback.message}\n\n> Forwarded from user feedback.`,
-            );
-          },
-        },
-      });
-
-      createApi({
-        render: "dynamic",
-        path: "/api/feedback/text",
-        handlers: {
-          POST: async (req) => {
-            if (beforeRequest) {
-              const res = await beforeRequest(req);
-              if (res) return res;
-            }
-
-            const parsed = blockFeedback.safeParse(await req.json());
-            if (!parsed.success) return new Response("invalid body type", { status: 400 });
-            const feedback = parsed.data;
-            const url = new URL(feedback.url);
-            url.hash = feedback.blockId;
-
-            return createDiscussionThread(
-              url.pathname,
-              `> ${feedback.blockBody}\n\n${feedback.message}\n\n> [Forwarded from user feedback](${url.href}).`,
-            );
-          },
-        },
-      });
+  return feedbackPlugin<C>({
+    beforeRequest: options.beforeRequest,
+    async onPageFeedbackAction(feedback) {
+      return createDiscussionThread(
+        new URL(feedback.url).pathname,
+        `[${feedback.opinion}] ${feedback.message}\n\n> Forwarded from user feedback.`,
+      );
     },
-  };
+    async onTextFeedbackAction(feedback) {
+      const url = new URL(feedback.url);
+      url.hash = feedback.blockId;
 
-  return [base, additional];
+      return createDiscussionThread(
+        url.pathname,
+        `> ${feedback.blockBody}\n\n${feedback.message}\n\n> [Forwarded from user feedback](${url.href}).`,
+      );
+    },
+  });
 }

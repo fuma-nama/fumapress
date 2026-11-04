@@ -5,8 +5,6 @@ description: Collect feedback from your Fumapress app.
 
 ## Installation
 
-This plugin is Waku only, it doesn't run on [Astro](/docs/astro). Its actions are Server Functions, which Astro doesn't have.
-
 ```npm
 npm i @fumapress/feedback
 ```
@@ -21,37 +19,53 @@ import { feedbackPlugin } from "@fumapress/feedback";
 export default defineConfig({
   // ...
 })
-  // [!code highlight:12]
+  // [!code highlight:10]
   .plugins(
     feedbackPlugin({
-      onPageFeedbackAction(data) {
-        "use server";
+      async onPageFeedbackAction(data) {
         // ...
       },
-      onTextFeedbackAction(data) {
-        "use server";
+      async onTextFeedbackAction(data) {
         // ...
       },
     }),
   );
 ```
 
-The `onPageFeedbackAction` & `onTextFeedbackAction` options are [Server Functions](https://react.dev/reference/rsc/server-functions#usage) to be called by client.
-They receive the user feedback, you can define the flow afterwards (e.g. storing that in your analytics platform):
+It works on [Astro](/docs/astro) too, in the `plugins` of `@fumapress/astro/config`.
+
+The `onPageFeedbackAction` & `onTextFeedbackAction` options receive the user feedback on the server, at `/api/feedback/page` and `/api/feedback/text`. These routes need a server, so they are not compatible with `mode: "static"`. You can define the flow afterwards (e.g. storing that in your analytics platform):
 
 ```tsx title="press.config.tsx"
 feedbackPlugin({
   async onPageFeedbackAction({ opinion, url, message }) {
-    "use server";
     await analytics.track("page-feedback", { opinion, url, message });
     return {};
   },
   async onTextFeedbackAction({ url, blockId, blockBody, message }) {
-    "use server";
     const discussion = await createDiscussion({ url, blockId, blockBody, message });
     return { githubUrl: discussion.url };
   },
 });
+```
+
+To send feedback from the browser instead, like to the API of an analytics service, export the action from a `'use client'` module. It runs without routes, so it works with `mode: "static"`:
+
+```ts tab="lib/feedback.ts"
+"use client";
+import type { PageFeedback } from "@fumapress/feedback/schema";
+
+export async function onPageFeedbackAction({ opinion, url, message }: PageFeedback) {
+  await analytics.track("page-feedback", { opinion, url, message });
+  return {};
+}
+```
+
+```tsx tab="press.config.tsx"
+import { feedbackPlugin } from "@fumapress/feedback";
+import { onPageFeedbackAction } from "./lib/feedback";
+
+feedbackPlugin({ onPageFeedbackAction });
 ```
 
 The returned `githubUrl`/`emailSent` tells the UI where the feedback went, the payload and response types are exported from `@fumapress/feedback/schema`.
@@ -155,8 +169,9 @@ Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays
 
    `to` may be a single address or an array.
 
-Both integrations accept a `beforeRequest` hook that runs before each feedback request, return a `Response` to reject it (e.g. for rate limiting). They register API routes, so they are not compatible with `mode: "static"`.
+`feedbackPlugin()` and both integrations accept a `beforeRequest` hook that runs before each feedback request on the server. Return a `Response` to reject it (e.g. for rate limiting).
 
-<Callout type="warn" title="Do not enable the GitHub and email integrations at the same time">
-  Both plugins register `/api/feedback/page` and `/api/feedback/text`, this will cause conflicts.
+<Callout type="warn" title="Use only one feedback plugin">
+  `feedbackPlugin()`, `githubFeedbackPlugin()` and `emailFeedbackPlugin()` all register
+  `/api/feedback/page` and `/api/feedback/text`. Enabling more than one causes conflicts.
 </Callout>
