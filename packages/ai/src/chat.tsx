@@ -32,7 +32,7 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** AI chat: the `/api/ai` endpoint, the chat that docs layouts dock, and the `ai` page action that opens it */
+/** AI chat: the `/api/ai` endpoint, the chat around every page, and the `ai` page action that opens it */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
 ): Plugin<C, { actions: "ai" }> {

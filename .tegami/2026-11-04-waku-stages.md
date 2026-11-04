@@ -22,4 +22,5 @@ packages:
 - Refactored: removed `fumapress/plugins/openapi` and `fumapress/plugins/asyncapi`, use `openapiPlugin()` of `fumadocs-openapi/plugin` and `asyncapiPlugin()` of `@fumadocs/asyncapi/plugin`.
 - Deprecated `fumapress/adapters/mdx/schema`, use `fumapress/schema`.
 - Refactored: removed the layout factories of `fumapress/layouts/*`, `fumapress/adapters/mdx`, `fumapress/plugins/blog` and `fumapress/i18n` (use `@fumapress/blog`), `renderNotFound`, `AppContext`, `this.data`, `preinit`, `configureRoutes` and plugin `renderPage`.
+- `selectTreeRoot(tree, "docs")` replaces the `treeRoot` option of the layouts: pass it to the `tree` of your layout in `ui.renderPage`.
 - `fumapress/css/preset.css` no longer includes the blog styles, import `@fumapress/blog/css/preset.css` with `@fumapress/blog`.

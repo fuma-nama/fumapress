@@ -1,11 +1,10 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import { AIChatPanel, AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/ai-chat";
+import { AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/ai-chat";
 import { useTranslations } from "@fuma-translate/react";
 import { DefaultChatTransport } from "ai";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import { AIChatOptionsProvider } from "fumadocs-ui/layouts/shared";
 import { MessageCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ChatUIMessage } from "@/chat";
@@ -13,9 +12,8 @@ import type { ChatUIMessage } from "@/chat";
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
 
 /**
- * The chat of the `api` endpoint, docked by the layouts inside it. The `ai` page action and `Ctrl + /` open it, `Escape`
- * closes it; `AIChatTrigger` is a floating button for your own `ui.renderPage`.
- * `aiPlugin()` adds it around every page.
+ * The chat state of the `api` endpoint. The `ai` page action and `Ctrl + /` open it, `Escape` closes it;
+ * `AIChatTrigger` is a floating button for your own `ui.renderPage`. `aiPlugin()` adds it around every page.
  */
 export function AIChat({ api, children }: { api: string; children: ReactNode }) {
   const { locale } = useI18n();
@@ -40,18 +38,8 @@ export function AIChat({ api, children }: { api: string; children: ReactNode }) 
         ],
       })}
     >
-      <DockedChat>{children}</DockedChat>
-    </AIChatProvider>
-  );
-}
-
-function DockedChat({ children }: { children: ReactNode }) {
-  const { open, setOpen } = useAIChat();
-
-  return (
-    <AIChatOptionsProvider value={{ open, onOpenChange: setOpen, panel: <AIChatPanel /> }}>
       {children}
-    </AIChatOptionsProvider>
+    </AIChatProvider>
   );
 }
 
