@@ -46,22 +46,22 @@ const features: Feature[] = [
       { from: "fumapress/plugins/openapi", names: ["openapiPlugin"] },
     ],
     setup: ['const openapi = createOpenAPI({ input: ["./openapi.json"] });'],
-    content: ["    openapi: await openapi.staticSource(),"],
+    content: ["  openapi: await openapi.staticSource(),"],
     plugin: "openapiPlugin({ server: openapi })",
   },
   {
     id: "blog",
     name: "Blog",
     description: "Turns content collections into a polished blog.",
-    imports: [{ from: "fumapress/plugins/blog", names: ["blogPlugin"] }],
+    imports: [{ from: "@fumapress/blog", names: ["blogPlugin"] }],
     setup: [
       "const blog = defineDocs({",
       '  dir: "content/blog",',
       "  docs: { async: true },",
       "});",
     ],
-    content: ['    blog: blog.toFumadocsSource({ baseDir: "blog" }),'],
-    plugin: "blogPlugin()",
+    content: ['  blog: blog.toFumadocsSource({ baseDir: "blog" }),'],
+    plugin: 'blogPlugin({ source: "blog" })',
   },
 ];
 
@@ -80,8 +80,7 @@ function createConfigCode(selected: readonly FeatureId[]) {
   const plugins = activeFeatures.map((feature) => feature.plugin);
 
   return [
-    'import { defineConfig } from "fumapress";',
-    'import { fumadocsMdx } from "fumapress/adapters/mdx";',
+    'import { createPress } from "fumapress";',
     ...Array.from(
       importsByModule,
       ([from, names]) => `import { ${names.join(", ")} } from "${from}";`,
@@ -94,18 +93,16 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "});",
     ...activeFeatures.flatMap((feature) => (feature.setup ? ["", ...feature.setup] : [])),
     "",
-    "export default defineConfig({",
-    "  content: {",
-    "    docs: docs.toFumadocsSource(),",
+    "export default createPress({",
+    "  docs: docs.toFumadocsSource(),",
     ...activeFeatures.flatMap((feature) => feature.content ?? []),
-    "  },",
     "})",
     ...(plugins.length === 0
       ? []
       : plugins.length === 1
         ? [`  .plugins(${plugins[0]})`]
         : ["  .plugins(", ...plugins.map((plugin) => `    ${plugin},`), "  )"]),
-    "  .adapters(fumadocsMdx());",
+    "  .config({});",
   ].join("\n");
 }
 

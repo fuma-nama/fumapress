@@ -17,12 +17,14 @@ export const plugins = [
     ),
     keywords: ["search", "flexsearch"],
     docsHref: "/docs/plugins/flexsearch",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(flexsearchPlugin());`,
+})
+  .plugins(flexsearchPlugin())
+  .config({});`,
   },
   {
     id: "orama-search",
@@ -30,12 +32,14 @@ export default defineConfig({
     description: "Full-text search powered by ZBSearch with the same search dialog UX.",
     keywords: ["search", "orama", "zbsearch"],
     docsHref: "/docs/plugins/orama-search",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(oramaSearchPlugin());`,
+})
+  .plugins(oramaSearchPlugin())
+  .config({});`,
   },
   {
     id: "llms",
@@ -48,12 +52,14 @@ export default defineConfig({
     ),
     keywords: ["llm", "ai", "markdown"],
     docsHref: "/docs/plugins/llms.txt",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(llmsPlugin());`,
+})
+  .plugins(llmsPlugin())
+  .config({});`,
   },
   {
     id: "blog",
@@ -61,8 +67,8 @@ export default defineConfig({
     description: "Turn a content collection into blog routes, panels, and RSS.",
     keywords: ["blog", "rss", "posts"],
     docsHref: "/docs/plugins/blog",
-    usage: `import { defineConfig } from "fumapress";
-import { blogPlugin } from "fumapress/plugins/blog";
+    usage: `import { createPress } from "fumapress";
+import { blogPlugin } from "@fumapress/blog";
 import { defineDocs } from "fumadocs-mdx/macro";
 
 const docs = defineDocs({
@@ -74,12 +80,12 @@ const blog = defineDocs({
   docs: { async: true },
 });
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    blog: blog.toFumadocsSource({ baseDir: "blog" }),
-  },
-}).plugins(blogPlugin());`,
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+})
+  .plugins(blogPlugin({ source: "blog" }))
+  .config({});`,
   },
   {
     id: "takumi",
@@ -87,12 +93,14 @@ export default defineConfig({
     description: "Generate Open Graph images for every docs page automatically.",
     keywords: ["og", "open graph", "social"],
     docsHref: "/docs/plugins/takumi",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { takumiPlugin } from "fumapress/plugins/takumi";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(takumiPlugin());`,
+})
+  .plugins(takumiPlugin())
+  .config({});`,
   },
   {
     id: "image",
@@ -117,14 +125,16 @@ export default function Hero() {
     ),
     keywords: ["seo", "sitemap", "xml"],
     docsHref: "/docs/plugins/sitemap",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { sitemapPlugin } from "fumapress/plugins/sitemap";
 
-export default defineConfig({
-  site: {
-    baseUrl: "https://example.com",
-  },
-}).plugins(sitemapPlugin());`,
+export default createPress({
+  // ...
+})
+  .plugins(sitemapPlugin())
+  .config({
+    site: { baseUrl: "https://example.com" },
+  });`,
   },
   {
     id: "link-validation",
@@ -136,12 +146,14 @@ export default defineConfig({
     ),
     keywords: ["links", "404", "build"],
     docsHref: "/docs/plugins/link-validation",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(linkValidationPlugin());`,
+})
+  .plugins(linkValidationPlugin())
+  .config({});`,
   },
   {
     id: "openapi",
@@ -149,7 +161,7 @@ export default defineConfig({
     description: "Generate API reference pages from an OpenAPI spec.",
     keywords: ["api", "openapi", "swagger"],
     docsHref: "/docs/plugins/openapi",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { openapiPlugin } from "fumapress/plugins/openapi";
 
@@ -157,11 +169,12 @@ const openapi = createOpenAPI({
   input: ["./openapi.json"],
 });
 
-export default defineConfig({
-  content: {
-    openapi: await openapi.staticSource(),
-  },
-}).plugins(openapiPlugin({ server: openapi }));`,
+export default createPress({
+  // ...
+  openapi: await openapi.staticSource(),
+})
+  .plugins(openapiPlugin({ server: openapi }))
+  .config({});`,
   },
   {
     id: "asyncapi",
@@ -169,7 +182,7 @@ export default defineConfig({
     description: "Generate event-driven API reference pages from an AsyncAPI spec.",
     keywords: ["api", "asyncapi", "events", "messaging"],
     docsHref: "/docs/plugins/asyncapi",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { createAsyncAPI } from "@fumadocs/asyncapi/server";
 import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
 
@@ -177,11 +190,12 @@ const asyncapi = createAsyncAPI({
   input: ["./asyncapi.yaml"],
 });
 
-export default defineConfig({
-  content: {
-    asyncapi: await asyncapi.staticSource(),
-  },
-}).plugins(asyncapiPlugin({ server: asyncapi }));`,
+export default createPress({
+  // ...
+  asyncapi: await asyncapi.staticSource(),
+})
+  .plugins(asyncapiPlugin({ server: asyncapi }))
+  .config({});`,
   },
   {
     id: "ai",
@@ -189,17 +203,19 @@ export default defineConfig({
     description: 'Add an "Ask AI" chat powered by the Vercel AI SDK.',
     keywords: ["chat", "ask ai", "gpt"],
     docsHref: "/docs/plugins/ai",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { openai } from "@ai-sdk/openai";
 import { aiPlugin } from "@fumapress/ai";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(
-  aiPlugin({
-    model: openai("gpt-5"),
-  }),
-);`,
+})
+  .plugins(
+    aiPlugin({
+      model: openai("gpt-5"),
+    }),
+  )
+  .config({});`,
   },
   {
     id: "mcp",
@@ -207,12 +223,14 @@ export default defineConfig({
     description: "Expose your documentation to MCP clients over Streamable HTTP.",
     keywords: ["mcp", "model context protocol", "tools", "agents"],
     docsHref: "/docs/plugins/mcp",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { mcpPlugin } from "@fumapress/ai";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(mcpPlugin());`,
+})
+  .plugins(mcpPlugin())
+  .config({});`,
   },
   {
     id: "feedback",
@@ -220,19 +238,21 @@ export default defineConfig({
     description: "Collect page and text feedback with server actions or integrations.",
     keywords: ["feedback", "survey"],
     docsHref: "/docs/plugins/feedback",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { feedbackPlugin } from "@fumapress/feedback";
 
-export default defineConfig({
+export default createPress({
   // ...
-}).plugins(
-  feedbackPlugin({
-    onPageFeedbackAction(data) {
-      "use server";
-      // ...
-    },
-  }),
-);`,
+})
+  .plugins(
+    feedbackPlugin({
+      onPageFeedbackAction(data) {
+        "use server";
+        // ...
+      },
+    }),
+  )
+  .config({});`,
   },
   {
     id: "tegami",
@@ -240,7 +260,7 @@ export default defineConfig({
     description: "Publish package changelogs to a filterable timeline page.",
     keywords: ["changelog", "releases", "tegami", "versioning"],
     docsHref: "/docs/plugins/tegami",
-    usage: `import { defineConfig } from "fumapress";
+    usage: `import { createPress } from "fumapress";
 import { changelogPlugin } from "@fumapress/tegami";
 import { defineDocs } from "fumadocs-mdx/macro";
 
@@ -253,12 +273,12 @@ const changelog = defineDocs({
   docs: { async: true },
 });
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
-  },
-}).plugins(changelogPlugin());`,
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
+})
+  .plugins(changelogPlugin({ source: "changelog" }))
+  .config({});`,
   },
 ] as const;
 

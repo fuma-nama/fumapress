@@ -1,0 +1,113 @@
+import type { ReactNode } from "react";
+import type { BaseOptions, RenderPageProps } from "fumapress";
+import { Image } from "fumapress/image";
+import { scopeTree } from "fumadocs-core/page-tree";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  MarkdownCopyButton,
+  PageLastUpdate,
+  ViewOptionsPopover,
+} from "fumadocs-ui/layouts/notebook/page";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import type { LinkItemType } from "fumadocs-ui/layouts/shared";
+import { SponsorsMarquee } from "@fumari/sponsors";
+import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
+import type { app } from "../../press.config";
+
+export const baseOptions: BaseOptions = {
+  nav: {
+    title: (
+      <>
+        <Image
+          src="/logo.png"
+          width={64}
+          height={64}
+          className="size-8 rounded-full shadow-md shadow-black mb-1"
+        />
+        <span>
+          <span className="font-mono uppercase border-b-2 border-fd-primary">Fumapress</span>
+          <br />
+          <span className="font-normal text-fd-muted-foreground text-xs">The site generator</span>
+        </span>
+      </>
+    ),
+  },
+};
+
+const homeLinks: LinkItemType[] = [
+  { url: "/docs", text: "Documentation", icon: <BookIcon />, active: "nested-url" },
+  { url: "/blog", text: "Blog", icon: <RssIcon />, active: "nested-url" },
+  { url: "/changelog", text: "Changelog", icon: <HistoryIcon />, active: "nested-url" },
+  { url: "https://fuma-nama.dev/sponsors", text: "Sponsors", external: true },
+];
+
+/** the landing, blog and changelog pages */
+export function HomeShell({
+  baseOptions,
+  children,
+}: {
+  baseOptions: BaseOptions;
+  children: ReactNode;
+}) {
+  return (
+    <HomeLayout {...baseOptions} links={[...homeLinks, ...(baseOptions.links ?? [])]}>
+      <main
+        data-fd-home-layout-container=""
+        className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto"
+      >
+        {children}
+      </main>
+    </HomeLayout>
+  );
+}
+
+function NotebookDocs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  actions,
+}: RenderPageProps<typeof app, "docs" | "changelog">) {
+  return (
+    // the sidebar shows the docs on every page of this layout
+    <DocsLayout {...baseOptions} tree={scopeTree(tree, "docs") ?? tree}>
+      <DocsPage
+        toc={pageData.toc}
+        full={pageData.full}
+        tableOfContent={{ footer: <SponsorsMarquee /> }}
+      >
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription className="mb-0">{pageData.description}</DocsDescription>
+        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
+          {pageData.markdownUrl && <MarkdownCopyButton markdownUrl={pageData.markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={pageData.markdownUrl} githubUrl={pageData.githubUrl} />
+          {Object.values(actions)}
+        </div>
+        <DocsBody>{body}</DocsBody>
+        {pageData.lastModified && <PageLastUpdate date={pageData.lastModified} />}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // taken before the switch: once every type has a case, `props` is `never` in `default`
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "docs":
+    case "changelog":
+      return <NotebookDocs {...props} />;
+    case "blog":
+    case "blog.index":
+    case "blog.tags":
+    case "blog.tag":
+    case "changelog.index":
+      return <HomeShell baseOptions={props.baseOptions}>{props.children}</HomeShell>;
+    default:
+      return renderDefault();
+  }
+}

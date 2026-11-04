@@ -8,7 +8,7 @@ const generator = createGenerator();
 
 export default defineConfig({
   plugins: [
-    press(),
+    press({ components: "./src/components/mdx.tsx" }),
     fumadocsMdx({
       globalOptions: {
         mdxOptions: {

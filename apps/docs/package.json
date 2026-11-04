@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@fumapress/ai": "workspace:*",
+    "@fumapress/blog": "workspace:*",
     "@fumapress/notion": "workspace:*",
     "@fumapress/obsidian": "workspace:*",
     "@fumapress/tegami": "workspace:*",
@@ -19,8 +20,8 @@
     "@paper-design/shaders-react": "^0.0.81",
     "@shikijs/magic-move": "^4.4.3",
     "cn": "^0.4.0",
-    "fumadocs-core": "^16.16.2",
-    "fumadocs-mdx": "^15.4.6",
+    "fumadocs-core": "^16.17.11",
+    "fumadocs-mdx": "^15.4.11",
     "fumadocs-typescript": "^5.4.1",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "fumapress": "workspace:*",
