@@ -10,7 +10,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumapress/notion": "workspace:*",
+    "@fumadocs/notion": "^0.2.5",
     "@notionhq/client": "^5.26.0",
     "fumadocs-core": "^16.16.2",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",

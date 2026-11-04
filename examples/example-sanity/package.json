@@ -10,7 +10,7 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumapress/sanity": "workspace:*",
+    "@fumadocs/sanity": "^0.2.4",
     "@portabletext/react": "^8.0.1",
     "@sanity/client": "^8.7.0",
     "fumadocs-core": "^16.16.2",

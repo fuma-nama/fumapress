@@ -3,44 +3,38 @@ import { baseBlocks, baseComponents, baseMarks } from "@/components/sanity/base"
 import { filesComponents } from "@/components/sanity/files";
 import { stepsComponents } from "@/components/sanity/steps";
 import { tabsComponents } from "@/components/sanity/tabs";
-import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
-import { PortableText } from "@portabletext/react";
+import { createSanitySource } from "@fumadocs/sanity";
+import sanityPlugin from "@fumadocs/sanity/press";
 import { createClient } from "@sanity/client";
 import { createPress } from "fumapress";
 
-const sanityClient = createClient({
-  projectId: process.env.SANITY_STUDIO_PROJECT_ID,
-  dataset: process.env.SANITY_STUDIO_DATASET,
-  apiVersion: "2024-12-04",
-});
-
-const sanityIntegration = fumapressSanity({
-  client: sanityClient,
+const source = createSanitySource({
+  client: createClient({
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
+    dataset: process.env.SANITY_STUDIO_DATASET,
+    apiVersion: "2024-12-04",
+  }),
   docType: "docs",
-  PortableText({ value }) {
-    return (
-      <PortableText
-        value={value}
-        components={{
-          block: baseBlocks,
-          types: {
-            ...baseComponents,
-            ...filesComponents,
-            ...tabsComponents,
-            ...stepsComponents,
-            ...accordionComponents,
-          },
-          marks: baseMarks,
-        }}
-      />
-    );
-  },
 });
 
-export default createPress(sanityIntegration.dynamicSource(), {
+export default createPress(source, {
   loaderOptions: { alwaysRevalidate: true },
 })
-  .plugins(sanityPlugin(sanityIntegration))
+  .plugins(
+    sanityPlugin({
+      components: {
+        block: baseBlocks,
+        types: {
+          ...baseComponents,
+          ...filesComponents,
+          ...tabsComponents,
+          ...stepsComponents,
+          ...accordionComponents,
+        },
+        marks: baseMarks,
+      },
+    }),
+  )
   .config({
     mode: "dynamic",
     site: {

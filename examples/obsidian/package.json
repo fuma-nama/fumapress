@@ -11,8 +11,8 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@fumapress/obsidian": "workspace:*",
     "fumadocs-core": "^16.16.2",
+    "fumadocs-obsidian": "^1.1.1",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",

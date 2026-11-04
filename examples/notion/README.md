@@ -1,6 +1,6 @@
 # Notion example
 
-This example pulls published pages from a Notion data source and renders their blocks with `@fumapress/notion`.
+This example pulls published pages from a Notion data source and renders their blocks with `@fumadocs/notion`.
 
 ## Configure Notion
 
