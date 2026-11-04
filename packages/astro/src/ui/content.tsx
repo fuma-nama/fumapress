@@ -5,17 +5,13 @@ import { navigate } from "astro:transitions/client";
 import type { Framework } from "fumadocs-core/framework";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/astro";
 import { ContentLink, toHref } from "./link";
-import type { SearchEngine } from "./search";
 
 /*
  * Compiled MDX imports this module through the MDX components, it never imports the layout module or the runtime.
  */
 
 /** the props of providers from the server, see `getProviderData()` */
-export interface ProviderData extends Pick<RootProviderProps, "pathname" | "params" | "i18n"> {
-  /** the engine of the default search dialog, search is disabled without it */
-  search?: SearchEngine;
-}
+export type ProviderData = Pick<RootProviderProps, "pathname" | "params" | "i18n">;
 
 /** page URLs have no base path */
 function go(url: string) {
@@ -31,7 +27,7 @@ export function rootProps(
 }
 
 /**
- * For islands of the content, they are React trees of their own: without the theme and search of layouts.
+ * For Astro content with React components, like `<Content />` of a collection: without the theme and search of pages.
  */
 export function ContentProvider({
   provider,

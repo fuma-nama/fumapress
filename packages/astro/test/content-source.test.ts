@@ -1,20 +1,21 @@
+import { isValidElement } from "react";
 import { expect, it, vi } from "vitest";
-import { createPress, type Context } from "@fumapress/core";
 import { contentSourcePlugin } from "@/content-source";
+import { pressContext } from "./harness";
+import { AstroContent } from "@/island/serialize";
 
 // it reads the config of the integration
 vi.mock("@fumadocs/astro/source", () => ({ NoProcessedMarkdownError: class extends Error {} }));
 
 it("leaves pages to the plugins of their content source", async () => {
   const data = { title: "Home", content: "%% raw %%", load: async () => ({}) };
-  const ctx = (await createPress(
+  const ctx = await pressContext(
     {
       content: { docs: { files: [{ type: "page" as const, path: "index.md", data }] } },
-      preset: false,
-      plugins: [contentSourcePlugin(), { getPageText: () => "rendered" }],
+      plugins: [{ getPageText: () => "rendered" }],
     },
-    { base: "/" },
-  )) as Context;
+    { defaults: [contentSourcePlugin()] },
+  );
   const [page] = (await ctx.getLoader()).getPages();
 
   expect(await ctx.getPageText(page!)).toBe("rendered");
@@ -23,15 +24,13 @@ it("leaves pages to the plugins of their content source", async () => {
 it("serves the page tree of each language at a URL by its content", async () => {
   async function treeRoutes(title: string) {
     const data = { title, load: async () => ({}) };
-    const ctx = (await createPress(
+    const ctx = await pressContext(
       {
         content: { docs: { files: [{ type: "page" as const, path: "index.md", data }] } },
         i18n: { languages: ["en", "fr"], defaultLanguage: "en" },
-        preset: false,
-        plugins: [contentSourcePlugin()],
       },
-      { base: "/" },
-    )) as Context;
+      { base: "/", defaults: [contentSourcePlugin()] },
+    );
     const source = await ctx.getLoader();
     const paths: string[] = [];
     for (const [i, route] of (await ctx.getApiRoutes()).entries()) {
@@ -54,18 +53,16 @@ it("serves the page tree of each language at a URL by its content", async () => 
   expect((await treeRoutes("Other"))[0]).not.toBe(paths[0]);
 
   // on request, by the middleware
-  const ctx = (await createPress(
+  const ctx = await pressContext(
     {
       mode: "dynamic",
       content: {
         docs: { files: [{ type: "page" as const, path: "index.md", data: { title: "Home" } }] },
       },
       i18n: { languages: ["en", "fr"], defaultLanguage: "en" },
-      preset: false,
-      plugins: [contentSourcePlugin()],
     },
-    { base: "/docs" },
-  )) as Context;
+    { base: "/docs", defaults: [contentSourcePlugin()] },
+  );
   expect(await ctx.getApiRoutes()).toEqual([]);
   const next = async () => new Response(null, { status: 404 });
   const tree = await ctx.handleRequest(new Request(`http://localhost/docs${paths[1]}`), next);
@@ -74,4 +71,26 @@ it("serves the page tree of each language at a URL by its content", async () => 
   expect(await tree.json()).toEqual(await source.serializePageTree(source.getPageTree("fr")));
   const other = "/docs/_fumapress/page-tree/fr.0000000000000000.json";
   expect((await ctx.handleRequest(new Request(`http://localhost${other}`), next)).status).toBe(404);
+});
+
+it("renders collection pages as their `<Content />`, dated by the `date` frontmatter", async () => {
+  const Content = () => new Response();
+  const data = {
+    title: "Post",
+    date: "2026-11-04",
+    getText: async () => "",
+    load: async () => ({ body: Content, toc: [] }),
+  };
+  const ctx = await pressContext(
+    {
+      content: { docs: { files: [{ type: "page" as const, path: "post.mdx", data }] } },
+    },
+    { base: "/", defaults: [contentSourcePlugin()] },
+  );
+  const [page] = (await ctx.getLoader()).getPages();
+  const body = await ctx.getPageBody(page!);
+
+  expect(isValidElement(body?.node) && body.node.type).toBe(AstroContent);
+  expect(body?.node).toHaveProperty("props.component", Content);
+  expect(await ctx.getPageCreatedAt(page!)).toEqual(new Date("2026-11-04"));
 });

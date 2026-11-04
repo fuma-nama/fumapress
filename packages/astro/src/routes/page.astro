@@ -1,21 +1,17 @@
 ---
 import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { adapter } from "virtual:fumapress/astro";
-import DocsPage from "../ui/DocsPage.astro";
-import View from "../ui/View.astro";
+import Page from "../ui/Page.astro";
 import { getPressContext } from "../runtime.js";
-import { pageStaticPaths } from "./shared.js";
+import { pageStaticPaths, pageTarget } from "./shared.js";
 
 export const getStaticPaths = (() =>
   pageStaticPaths(getPressContext(), adapter)) satisfies GetStaticPaths;
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { page, view, redirect } = Astro.props;
-if (redirect) return Astro.redirect(redirect);
-const content = await view?.route.view(view.params);
-if (view && !content) return new Response(null, { status: 404 });
+const target = await pageTarget(Astro.props, Astro.request);
+if (target instanceof Response) return target;
 ---
 
-{page && <DocsPage page={page} />}
-{view && content && <View view={view} content={content} />}
+<Page {...target} />

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "astro";
 import { getPressContext } from "../runtime";
-import { serve } from "./shared";
+import { serve, serverFileUrl } from "./shared";
 
 /** the `middleware` of plugins, for requests served on demand */
 export const onRequest: MiddlewareHandler = (context, next) => {
@@ -11,7 +11,14 @@ export const onRequest: MiddlewareHandler = (context, next) => {
     ctx.handleRequest(request, async (rewrite) => {
       if (rewrite !== undefined)
         return handle(new Request(new URL(ctx.withBase(rewrite), request.url), request));
-      if (request === context.request) return next();
+      if (request === context.request) {
+        // a file Astro's patterns don't take, it routes the request to the 404 page
+        const file =
+          context.routePattern === "/404"
+            ? await serverFileUrl(ctx, new URL(request.url))
+            : undefined;
+        return file ? next(file) : next();
+      }
       const response = await serve(ctx, request);
       return response instanceof Response ? response : context.rewrite(request);
     });

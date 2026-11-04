@@ -1,11 +1,13 @@
 import { defineConfig } from "tsdown";
+import { compilePresetCss, coreUiSource } from "../shared/compile-preset-css.ts";
 
 export default defineConfig({
   // with the modules of `.astro` files and the generated code, their exports are kept
   entry: [
-    "src/{index,config,runtime}.ts",
+    "src/{index,config,runtime,search}.ts",
+    "src/plugins/*.ts",
     "src/routes/{file,middleware,shared}.ts",
-    "src/ui/{page,content}.tsx",
+    "src/ui/{page,content,default}.tsx",
     "src/island/{island.tsx,references.ts}",
   ],
   target: "es2023",
@@ -27,6 +29,7 @@ export default defineConfig({
     exclude: [/^(\.\/)?(routes|ui|island)\//],
     customExports: {
       "./components/*": "./dist/components/*",
+      "./css/preset.css": "./css/preset.css",
       "./css/default.css": "./css/default.css",
     },
   },
@@ -34,4 +37,5 @@ export default defineConfig({
     onlyBundle: [],
     neverBundle: [/^astro:/, /^virtual:/, /\.astro$/],
   },
+  onSuccess: () => compilePresetCss(coreUiSource),
 });

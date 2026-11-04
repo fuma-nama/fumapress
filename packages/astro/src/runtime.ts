@@ -1,40 +1,70 @@
 import type { AstroGlobal } from "astro";
 import { trailingSlash } from "astro:config/client";
 import config from "virtual:fumapress/config";
-import { adapter, mode as defaultMode, pages, prerender, siteUrl } from "virtual:fumapress/astro";
-import {
-  createPress,
-  recommendedPreset,
-  stripBase,
-  type AppShape,
-  type Context,
-} from "@fumapress/core";
-import { i18nProvider } from "fumadocs-ui/i18n";
+import { adapter, defaultMode, routes, prerender, siteUrl } from "virtual:fumapress/astro";
+import { stripBase, type Press, type PressContext } from "@fumapress/core";
+import { createPressContext, pathLocale } from "@fumapress/core/runtime";
+import { siteI18n } from "@fumapress/core/runtime/ui";
+import { uiTranslations } from "fumadocs-ui/i18n";
 import { contentSourcePlugin } from "./content-source";
-import { expandViews } from "./routes/shared";
+import { getReference } from "./island/references";
 import type { ProviderData } from "./ui/content";
-import type { SearchEngine } from "./ui/search";
 
-const mode = config.mode ?? defaultMode;
+const input = config["~press"];
+const mode = input.config.mode ?? defaultMode;
 if (mode !== "static" && !adapter)
   throw new Error(
     `[Fumapress] \`mode: "${mode}"\` renders routes on request, add an adapter to Astro or use \`mode: "static"\`.`,
   );
 
-const ctx = await createPress(
-  {
-    ...config,
-    mode,
-    site: { ...config.site, baseUrl: config.site?.baseUrl ?? siteUrl },
-    plugins: [contentSourcePlugin(), ...(config.plugins ?? [])],
+/** the site of `press.config.tsx`, with the mode and URL of the Astro config */
+const press: Press = {
+  ...config,
+  "~press": {
+    ...input,
+    config: {
+      ...input.config,
+      mode,
+      site: { ...input.config.site, baseUrl: input.config.site?.baseUrl ?? siteUrl },
+    },
   },
-  {
-    base: import.meta.env.BASE_URL,
-    preset: recommendedPreset,
-    getFrameworkPages: async (ctx) => [...pages, ...(await expandViews(ctx))],
-    trailingSlash: trailingSlash === "always",
-  },
+};
+
+// a reloaded `press.config.tsx` creates another context
+const controller = new AbortController();
+import.meta.hot?.dispose(() => controller.abort());
+
+const ctx = await createPressContext(press, {
+  base: import.meta.env.BASE_URL,
+  trailingSlash: trailingSlash === "always",
+  defaults: [
+    contentSourcePlugin(),
+    { name: "astro:ui-translations", translations: uiTranslations() },
+  ],
+  signal: controller.signal,
+  isClientReference: (value) => getReference(value) !== undefined,
+});
+
+ctx.setRuntimeRoutes(
+  routes.map(({ path, render, pages }) => ({
+    route: {
+      path,
+      lang: pathLocale(ctx, path),
+      render,
+      pages: pages.map((page) => ({ path: page, translations: [], params: {} })),
+      options: {},
+    },
+  })),
 );
+
+if (import.meta.env.DEV) {
+  for (const plugin of ctx.plugins) {
+    if ("waku" in plugin && plugin.waku)
+      console.warn(
+        `[Fumapress] ${plugin.name ?? "a plugin"} uses Waku's own APIs (\`waku\`), Astro doesn't run them.`,
+      );
+  }
+}
 
 if (prerender) {
   if (!ctx.plugins.some((plugin) => plugin.build)) {
@@ -53,22 +83,11 @@ if (prerender) {
   }
 }
 
-const searchPlugin = ctx.getProvider("search");
-const search: SearchEngine | undefined =
-  searchPlugin && ((mode === "static" && searchPlugin.api?.staticIndex) || "fetch");
 const base = ctx.withBase("/");
 
-/** the language of a path by its prefix, like the URLs of pages */
-function localeOf(path: string): string | undefined {
-  const i18n = ctx.i18nConfig;
-  if (!i18n) return;
-  const prefix = path.split("/", 2)[1];
-  return prefix && i18n.languages.includes(prefix) ? prefix : i18n.defaultLanguage;
-}
-
-/** the site, for your own pages and routes */
-export function getPressContext<C extends AppShape = AppShape>(): Context<C> {
-  return ctx as unknown as Context<C>;
+/** the site, for your own pages and routes: `getPressContext<typeof app>()` */
+export function getPressContext<A extends Press<any, any> = Press>(): PressContext<A> {
+  return ctx as unknown as PressContext<A>;
 }
 
 /**
@@ -76,9 +95,9 @@ export function getPressContext<C extends AppShape = AppShape>(): Context<C> {
  *
  * @param lang - the language of the page, from its URL prefix by default
  */
-export function getProviderData(
+export function getProviderData<A extends Press<any, any> = Press>(
   astro: Pick<AstroGlobal, "url" | "params">,
-  lang?: string,
+  lang?: NonNullable<A["~types"]>["content"]["lang"],
 ): ProviderData {
   // like the URLs of pages, prerendering with `build.format: "file"` gives the path of the file
   const pathname =
@@ -86,16 +105,9 @@ export function getProviderData(
       /(?:\/index\.html|\.html|(.)\/)$/,
       "$1",
     ) || "/";
-  const translations = ctx.translationsConfig;
-
   return {
     pathname,
     params: astro.params,
-    i18n:
-      translations &&
-      ("config" in translations
-        ? i18nProvider(translations, lang ?? localeOf(pathname))
-        : i18nProvider(translations)),
-    search,
+    i18n: siteI18n(ctx, { lang: lang ?? pathLocale(ctx, pathname) }),
   };
 }

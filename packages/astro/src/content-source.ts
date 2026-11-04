@@ -10,6 +10,7 @@ import type { LoaderOutput, Page, PageData } from "fumadocs-core/source";
 import type { SerializedPageTree } from "fumadocs-core/source/client";
 import type { TOCItemType } from "fumadocs-core/toc";
 import { createRelativeLink } from "fumadocs-ui/mdx";
+import { AstroContent } from "./island/serialize";
 
 /** the renderer from `load()`, like `MarkdownRenderer` of `@fumadocs/local-md` */
 interface Renderer {
@@ -129,13 +130,16 @@ function toDate(value: unknown): Date | undefined {
 /**
  * Pages of Astro content collections, and of runtime content sources whose `page.data.load()` returns a renderer: Local Markdown, Local HTML, Obsidian and Python.
  *
- * Runtime sources render with the MDX components, with relative links resolved. It runs after the other plugins: the plugins of content sources like Obsidian and your plugins override it.
+ * Collection pages render as their `<Content />`. Runtime sources render with the MDX components, with relative links resolved. It is a default of the runtime, the last layer: the plugins of content sources like Obsidian and your plugins override it.
  */
 export function contentSourcePlugin(): Plugin {
   return {
     name: "fumapress",
-    enforce: "post",
     async getPageBody(page) {
+      if (isCollectionPage(page.data))
+        return {
+          node: createElement(AstroContent, { component: (await loadOnce(page.data)).body }),
+        };
       const rendered = await render(this, page);
       if (rendered) return { node: rendered.body };
     },
@@ -174,6 +178,9 @@ export function contentSourcePlugin(): Plugin {
         lines.push(item.content);
       }
       return lines.join("\n\n");
+    },
+    getPageCreatedAt({ data }) {
+      if ("date" in data) return toDate(data.date);
     },
     getPageLastModified({ data }) {
       // from the frontmatter, or `lastModified` of collections

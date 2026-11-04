@@ -1,22 +1,20 @@
 ---
 import { ClientRouter } from "astro:transitions";
 import "virtual:fumapress/css";
-import { getHeadTags, type HeadProps } from "./page.js";
+import Island from "../island/Island.astro";
+import type { RenderedPage } from "./page.js";
 
-interface Props extends HeadProps {
-  lang?: string;
-}
+type Props = RenderedPage;
 
-const { lang, ...head } = Astro.props;
-const tags = await getHeadTags(head);
+const { lang, head, island } = Astro.props;
 ---
 
-<html lang={lang ?? head.page?.locale ?? "en"} transition:animate="none">
+<html lang={lang ?? "en"} transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {
-      tags.map(({ tag: Tag, attrs, children }) =>
+      head.map(({ tag: Tag, attrs, children }) =>
         Tag === "title" ? (
           <title set:text={children} />
         ) : children === undefined ? (
@@ -26,10 +24,22 @@ const tags = await getHeadTags(head);
         ),
       )
     }
+    {
+      // the island fetches them, in parallel with its scripts; kept on navigation like `transition:persist`
+      island.pageTrees.map((href) => (
+        <link
+          rel="preload"
+          as="fetch"
+          crossorigin=""
+          href={href}
+          data-astro-transition-persist={`fumapress-page-tree:${href}`}
+        />
+      ))
+    }
     <slot name="head" />
     <ClientRouter />
   </head>
   <body style="display: flex; flex-direction: column; min-height: 100vh">
-    <slot />
+    <Island {...island} persist="fumapress-page"><slot /></Island>
   </body>
 </html>

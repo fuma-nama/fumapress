@@ -1,0 +1,10 @@
+---
+import Layout from "./Layout.astro";
+import { getPage, type PageTarget } from "./page.js";
+
+type Props = PageTarget;
+
+const page = await getPage(Astro, Astro.props);
+---
+
+<Layout {...page} />

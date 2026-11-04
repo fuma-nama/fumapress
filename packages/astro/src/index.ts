@@ -4,27 +4,22 @@ import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
 import type { Connect, DevEnvironment, Plugin, RunnableDevEnvironment } from "vite";
 import fumadocs, { type CollectionConfig, type FumadocsOptions } from "@fumadocs/astro";
-import { stripBase, type FrameworkPage } from "@fumapress/core";
-import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/vite";
+import { stripBase } from "@fumapress/core";
+import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/runtime/vite";
 import type { BuildMode } from "fumadocs-core/framework/plugin";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
 import type * as Routes from "./routes/shared";
 import type * as Runtime from "./runtime";
+import type * as Generated from "virtual:fumapress/astro";
 
-export interface PressOptions extends FumadocsOptions {
+export interface AstroPressOptions extends FumadocsOptions {
   /**
    * Module whose default export is the MDX components, like `./src/components/mdx.tsx`. The React content of plugins renders with them too.
    *
    * @defaultValue "fumadocs-ui/mdx"
    */
   components?: string;
-
-  /** Module of the `LayoutModule`, the UI of every page: `Provider`, `SearchDialog` and `useSearch` */
-  layout?: string;
-
-  /** Module whose default export is the component of docs pages, it receives `DocsPageProps` */
-  page?: string;
 }
 
 /** the MDX components without the `components` option */
@@ -38,10 +33,8 @@ const defaultComponents = "fumadocs-ui/mdx";
 export default function press({
   collections = { docs: { dir: "content/docs" } },
   components = defaultComponents,
-  layout,
-  page,
   ...options
-}: PressOptions = {}): AstroIntegration[] {
+}: AstroPressOptions = {}): AstroIntegration[] {
   // the content renders in the provider of content
   const contentCollections: Record<string, CollectionConfig> = {};
   for (const [name, collection] of Object.entries(collections))
@@ -52,7 +45,7 @@ export default function press({
 
   let basePath = "";
   let outDir = "";
-  let pages: FrameworkPage[] = [];
+  let routes: typeof Generated.routes = [];
   let onDemand: RegExp[] = [];
   let devUrl: string | undefined;
 
@@ -82,22 +75,14 @@ export default function press({
           };
           const modules: Record<string, string | ((environment: string) => string)> = {
             "virtual:fumapress/astro": (environment) => `export const adapter = ${adapter};
-export const mode = ${JSON.stringify(mode)};
-export const pages = ${JSON.stringify(pages)};
+export const defaultMode = ${JSON.stringify(mode)};
+export const routes = ${JSON.stringify(routes)};
 export const prerender = ${environment === "prerender"};
 export const siteUrl = ${JSON.stringify(devUrl ?? site)};`,
             "virtual:fumapress/island": `import components from ${userModule(root, components)};
 import { createIsland } from ${JSON.stringify(internalModule("island/island"))};
 export const PressIsland = createIsland(components);
 export { components };`,
-            // a namespace, as the exports are optional
-            "virtual:fumapress/layout": layout
-              ? `import * as layout from ${userModule(root, layout)};
-export const { Provider, SearchDialog, useSearch } = { ...layout };`
-              : "export const { Provider, SearchDialog, useSearch } = {};",
-            "virtual:fumapress/page": page
-              ? `export { default } from ${userModule(root, page)};`
-              : "export default undefined;",
           };
           for (const [name, collection] of Object.entries(collections)) {
             modules[`virtual:fumapress/components/${name}`] =
@@ -131,15 +116,20 @@ export default withProvider(components);`;
 
           const runtime = internalModule("runtime");
           const crawl = await crawlFrameworkPkgs(root, "astro");
+          const { dependencies = {}, devDependencies = {} } = JSON.parse(
+            fs.readFileSync(path.join(root, "package.json"), "utf8"),
+          );
           updateConfig({
             vite: {
+              // in dev, Astro externalizes the dependencies of Astro packages, like `@fumapress/core` of this one, unless the config lists them
+              ssr: { noExternal: crawl.framework },
               plugins: [
-                frameworkPlugin(crawl),
+                frameworkPlugin(crawl, { ...dependencies, ...devDependencies }),
                 virtualPlugin(files, modules),
                 // every page has one of the layouts, they load with the island
                 clientReferences(internalModule("island/references"), [
                   internalModule("ui/provider"),
-                  internalModule("ui/docs"),
+                  internalModule("ui/default"),
                   internalModule("ui/home"),
                 ]),
                 config.trailingSlash !== "ignore" &&
@@ -157,18 +147,18 @@ export default withProvider(components);`;
         "astro:config:done"({ config }) {
           outDir = fileURLToPath(config.outDir);
         },
-        "astro:routes:resolved"({ routes }) {
-          pages = [];
+        "astro:routes:resolved"(params) {
+          routes = [];
           onDemand = [];
-          for (const route of routes) {
+          for (const route of params.routes) {
             if (route.origin !== "project") continue;
             if (!route.isPrerendered) onDemand.push(route.patternRegex);
-            else if (
-              route.type === "page" &&
-              route.pathname &&
-              !/^\/(404|500)$/.test(route.pathname)
-            )
-              pages.push({ path: route.pathname, translations: [] });
+            if (route.type === "page" && !/^\/(404|500)$/.test(route.pattern))
+              routes.push({
+                path: route.pattern,
+                render: route.isPrerendered ? "static" : "dynamic",
+                pages: route.pathname ? [route.pathname] : [],
+              });
           }
         },
         "astro:server:start"({ address }) {
@@ -200,11 +190,16 @@ export default withProvider(components);`;
  * Packages of Fumadocs and Fumapress are bundled on the server, and not pre-bundled for the browser: client references tag their modules on the server, and a module must have one copy in the browser, its React contexts too.
  *
  * Their CommonJS dependencies are pre-bundled instead.
+ *
+ * @param own - the dependencies of the site: Vite resolves deduped packages from the root, so packages only other packages depend on, like `@fumapress/core`, resolve from their importers
  */
-function frameworkPlugin({ framework, include }: CrawlResult): Plugin {
+function frameworkPlugin({ framework, include }: CrawlResult, own: Record<string, string>): Plugin {
+  const dedupe = ["react", "react-dom"];
+  for (const name of framework) if (Object.hasOwn(own, name)) dedupe.push(name);
+
   return {
     name: "@fumapress/astro:framework",
-    config: () => ({ resolve: { dedupe: ["react", "react-dom", ...framework] } }),
+    config: () => ({ resolve: { dedupe } }),
     configEnvironment(name) {
       if (name === "client") return { optimizeDeps: { include, exclude: framework } };
       return { resolve: { noExternal: framework } };

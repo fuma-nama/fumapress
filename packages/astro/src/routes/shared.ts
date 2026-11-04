@@ -1,13 +1,5 @@
-import {
-  createLocalizer,
-  expandRoute,
-  matchRoute,
-  rootRedirect,
-  stripBase,
-  type Context,
-  type FrameworkPage,
-  type ViewRoute,
-} from "@fumapress/core";
+import { stripBase, type Context, type FrameworkRoute, type RoutedView } from "@fumapress/core";
+import { expandRoute, matchRoute, rootRedirect } from "@fumapress/core/runtime";
 import {
   methods,
   type ApiRoute,
@@ -16,45 +8,58 @@ import {
   type RouteParams,
 } from "fumadocs-core/framework/plugin";
 import type { Page } from "fumadocs-core/source";
+import type { PageTarget } from "../ui/page";
 
 const staticPaths = new WeakMap<ApiRoute[], Set<string>>();
 
-/** a view route at one of its pages, the pages of other languages at its `path` are the translations */
-export interface ExpandedView extends FrameworkPage {
-  route: ViewRoute;
-  params: RouteParams;
+/** a view at one of the pages of its route */
+export interface ViewPage extends RoutedView {
+  page: FrameworkRoute["pages"][number];
 }
 
 /** the props of `[...fumapressPage]` and the pages of `[...fumapressServer]`: a content page, a view, or a redirect */
 export interface PageProps {
   page?: Page;
-  view?: ExpandedView;
+  view?: ViewPage;
   redirect?: string;
 }
 
-/** the pages of view routes at their localized paths */
-export async function expandViews(ctx: Context): Promise<ExpandedView[]> {
-  const out: ExpandedView[] = [];
-  const localize = createLocalizer(ctx);
-  for (const route of await ctx.getViewRoutes()) {
-    for (const { pathname, params } of expandRoute(route.path, route.staticPaths).pages)
-      out.push({ ...localize(route.lang, pathname), route, params });
+/** what `Page.astro` renders for `props`, or the response of a redirect, or a 404 for a view without content */
+export async function pageTarget(
+  { page, view, redirect }: PageProps,
+  request: Request,
+): Promise<PageTarget | Response> {
+  if (redirect !== undefined)
+    return new Response(null, { status: 302, headers: { Location: redirect } });
+  if (page) return { page };
+  if (view) {
+    const { params } = view.page;
+    const content =
+      view.view.render === "dynamic"
+        ? await view.view.view(params, { request })
+        : await view.view.view(params);
+    if (content) return { view, content };
   }
-  return out;
+  return new Response(null, { status: 404 });
 }
 
-/** the view rendered on request at `path` (without the base path) */
-export async function matchView(ctx: Context, path: string): Promise<ExpandedView | undefined> {
-  // with its translations when its route lists the path
-  for (const view of await expandViews(ctx))
-    if (view.route.render === "dynamic" && view.path === path) return view;
-  for (const route of await ctx.getViewRoutes()) {
+/** the view rendered on request at `path` (without the base path), with its translations when its route lists the path */
+export async function matchView(ctx: Context, path: string): Promise<ViewPage | undefined> {
+  for (const routed of await ctx.getViewRoutes()) {
+    const { route } = routed;
     if (route.render !== "dynamic") continue;
-    const params = matchRoute(
-      ctx.localizePath(route.lang, expandRoute(route.path, undefined).pattern),
-      path,
-    );
-    if (params) return { path, translations: [], route, params };
+    const params = matchRoute(route.path, path);
+    if (!params) continue;
+    // the pages of routes have decoded paths, `matchRoute()` decoded every segment already
+    const decoded = decodeURI(path);
+    return {
+      ...routed,
+      page: route.pages.find((page) => page.path === decoded) ?? {
+        path: decoded,
+        translations: [],
+        params,
+      },
+    };
   }
 }
 
@@ -78,10 +83,10 @@ export async function isApiRoute(ctx: Context, path: string): Promise<boolean> {
 export async function pageStaticPaths(ctx: Context, adapter: boolean) {
   const paths: { params: { fumapressPage?: string }; props: PageProps }[] = [];
   if (ctx.mode === "dynamic") return paths;
-  for (const route of await ctx.getViewRoutes()) {
+  for (const { route, view } of await ctx.getViewRoutes()) {
     if (route.render === "dynamic" && !adapter)
       throw new Error(
-        `[Fumapress] the route "${route.path}" renders on request, add an adapter to Astro.`,
+        `[Fumapress] the route "${view.path}" renders on request, add an adapter to Astro.`,
       );
   }
   for (const page of (await ctx.getLoader()).getPages()) {
@@ -91,9 +96,16 @@ export async function pageStaticPaths(ctx: Context, adapter: boolean) {
       props: { page },
     });
   }
-  for (const view of await expandViews(ctx)) {
-    if (view.route.render === "static")
-      paths.push({ params: { fumapressPage: view.path.slice(1) || undefined }, props: { view } });
+  for (const routed of await ctx.getViewRoutes()) {
+    if (routed.route.render === "dynamic") continue;
+    for (const page of routed.route.pages) {
+      // `404.astro` renders the view at `/404`
+      if (page.path !== "/404")
+        paths.push({
+          params: { fumapressPage: page.path.slice(1) || undefined },
+          props: { view: { ...routed, page } },
+        });
+    }
   }
   const redirect = await rootRedirect(ctx);
   if (redirect !== undefined)
@@ -174,9 +186,20 @@ export async function serve(ctx: Context, request: Request): Promise<Response | 
     const page = (await ctx.getLoader()).getPageByUrl(trimmed);
     if (page) return { page };
     const redirect = path === "/" ? await rootRedirect(ctx) : undefined;
-    if (redirect !== undefined)
-      return new Response(null, { status: 302, headers: { Location: ctx.withBase(redirect) } });
+    if (redirect !== undefined) return { redirect: ctx.withBase(redirect) };
   }
   // a page rather than an endpoint: its 404 without body renders the 404 page
   return new Response(null, { status: 404 });
+}
+
+/**
+ * The URL with `/` of a file that a route of plugins renders on request, like `/robots.txt` in `dynamic` mode. With
+ * `trailingSlash: "always"`, Astro doesn't add the slash to files, but `[...fumapressServer]` takes them only with it.
+ */
+export async function serverFileUrl(ctx: Context, url: URL): Promise<URL | undefined> {
+  const path = stripBase(url.pathname, ctx.withBase("/"));
+  if (!path || !/\.[^/]+$/.test(path) || !(await matchApiRoute(ctx, path))) return;
+  const out = new URL(url);
+  out.pathname += "/";
+  return out;
 }

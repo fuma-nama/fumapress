@@ -1,28 +1,33 @@
 "use client";
-import { lazy, useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { ProviderProps } from "@fumapress/core";
+import { PressSearchContext, searchOptions, type PressSearch } from "@fumapress/core/search.client";
 import { RootProvider } from "fumadocs-ui/provider/astro";
-import { Provider as LayoutProvider, SearchDialog, useSearch } from "virtual:fumapress/layout";
 import { rootProps, type ProviderData } from "./content";
 import { Link } from "./link";
 
-/** the root provider of layouts, with the search and `Provider` of the layout module */
-export function Provider({ provider, children }: { provider: ProviderData; children: ReactNode }) {
-  const { search } = provider;
-  const Dialog = useMemo(
-    () =>
-      SearchDialog ??
-      (useSearch || search
-        ? lazy(async () => (await import("./search")).loadSearchDialog(search))
-        : undefined),
-    [search],
-  );
-
+/** the root provider of pages, with `providerProps` of the site and the search of its search plugin */
+export function Provider({
+  provider,
+  props,
+  search,
+  children,
+}: {
+  provider: ProviderData;
+  /** without `i18n`, the server merges it into `provider` */
+  props: Omit<ProviderProps, "i18n">;
+  search?: PressSearch;
+  children: ReactNode;
+}) {
   return (
-    <RootProvider
-      {...rootProps(provider, Link)}
-      search={Dialog ? { SearchDialog: Dialog } : { enabled: false }}
-    >
-      {LayoutProvider ? <LayoutProvider>{children}</LayoutProvider> : children}
-    </RootProvider>
+    <PressSearchContext value={search}>
+      <RootProvider
+        {...props}
+        {...rootProps(provider, Link)}
+        search={searchOptions(search, props.search)}
+      >
+        {children}
+      </RootProvider>
+    </PressSearchContext>
   );
 }

@@ -2,27 +2,30 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createPress, type Context } from "@fumapress/core";
 import { createBuildOutput } from "@/build";
+import { pressContext } from "./harness";
 
 describe("build output", async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "fumapress-astro-build-"));
   const dir = path.join(temp, "dist");
-  const ctx = (await createPress(
+  const ctx = await pressContext(
     {
       content: {},
-      preset: false,
       plugins: [
         {
-          routes: () => [
-            { path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) },
-            { path: "/live/[id]", render: "dynamic", view: () => ({ node: "live" }) },
+          routes: () => [{ path: "/api/[id]", render: "dynamic", GET: () => Response.json({}) }],
+          views: () => [
+            {
+              path: "/live/[id]",
+              render: "dynamic",
+              view: () => ({ type: "live", props: {}, node: "live" }),
+            },
           ],
         },
       ],
     },
     { base: "/sub" },
-  )) as Context;
+  );
   const output = createBuildOutput(ctx, [], { dir, outDir: temp, routes: [/^\/user\/?$/] });
   const status = async (pathname: string) =>
     (await output.fetch(new Request(`http://localhost${pathname}`))).status;

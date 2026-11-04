@@ -1,6 +1,8 @@
 import { parse } from "devalue";
-import { createElement, Fragment, lazy, Suspense, type ComponentType, type ReactNode } from "react";
+import { createElement, Fragment, Suspense, use, type ComponentType, type ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
+import type * as PageTree from "fumadocs-core/page-tree";
+import { deserializePageTree, type SerializedPageTree } from "fumadocs-core/source/client";
 import registry from "virtual:fumapress/client-references";
 import { modules, type ClientReference } from "./references";
 import type { Slot } from "./serialize";
@@ -28,32 +30,58 @@ export type IslandNode =
       ...children: IslandNode[],
     ];
 
-/** the components of client references, by key and name */
-const clientComponents = new Map<string, ComponentType>();
+/** the imports of client component modules in the browser, by key */
+const loading = new Map<string, Promise<void>>();
 
-/** load a client component module in the browser */
-async function load(key: string): Promise<Record<string, unknown>> {
-  const importer = registry[key];
-  if (importer) return importer();
-  // the dev server discovers client components as it renders them, the registry of this page lags behind
-  if (import.meta.hot) location.reload();
-  throw new Error(`[Fumapress] the client component module "${key}" is not in the build.`);
+/** page trees by the URL of their file: set by the server, fetched once in the browser */
+export const pageTrees = new Map<string, PageTree.Root>();
+const fetching = new Map<string, Promise<void>>();
+
+/** `promise`, forgotten by `cache` when it fails: a later render (like after a navigation) tries again */
+function retryable(cache: Map<string, Promise<void>>, key: string, promise: Promise<void>) {
+  const out = promise.catch((error: unknown) => {
+    cache.delete(key);
+    throw error;
+  });
+  cache.set(key, out);
+  return out;
 }
 
-/** a client component, it renders in `Suspense`: until its module is loaded in the browser */
-function resolveReference([key, name]: ClientReference): ComponentType<Record<string, unknown>> {
-  const id = `${key}#${name}`;
-  let component = clientComponents.get(id);
-  if (component) return component;
+function fetchPageTree(url: string): Promise<void> {
+  return (
+    fetching.get(url) ??
+    retryable(
+      fetching,
+      url,
+      fetch(url).then(async (res) => {
+        if (!res.ok)
+          throw new Error(`[Fumapress] failed to fetch the page tree ${url}: ${res.status}`);
+        const serialized: SerializedPageTree = await res.json();
+        pageTrees.set(url, deserializePageTree(serialized));
+      }),
+    )
+  );
+}
 
-  // registered on the server
-  const module = modules.get(key);
-  const Component = module
-    ? (module[name] as ComponentType)
-    : lazy(async () => ({ default: (await load(key))[name] as ComponentType }));
-  component = (props) => createElement(Suspense, null, createElement(Component, props));
-  clientComponents.set(id, component);
-  return component;
+/** import a client component module in the browser into `modules` */
+function load(key: string): Promise<void> {
+  const promise = loading.get(key);
+  if (promise) return promise;
+  const importer = registry[key];
+  if (importer)
+    return retryable(
+      loading,
+      key,
+      importer().then((module) => void modules.set(key, module)),
+    );
+
+  // the dev server discovers client components as it renders them, the registry of this page lags behind
+  if (import.meta.hot) location.reload();
+  const missing = Promise.reject(
+    new Error(`[Fumapress] the client component module "${key}" is not in the build.`),
+  );
+  loading.set(key, missing);
+  return missing;
 }
 
 /**
@@ -76,13 +104,36 @@ export function createIsland(components: MDXComponents) {
     return createElement(tagName, props || null, ...children.map(toReact));
   }
 
-  return function PressIsland({ tree, ...slots }: PressIslandProps) {
+  /** client references are the exports of their modules, it suspends until the missing modules and page trees are loaded */
+  function IslandTree({ tree, ...slots }: PressIslandProps) {
+    // the browser's imports and fetches, done or not: React replays a suspended render with the promises of the last
+    // one by position, so a finished one left out would stand in for the next unfinished one
+    const promises = new Set<Promise<void>>();
+    let missing = false;
     const nodes: IslandNode[] = parse(tree, {
       // own slots only, names like `constructor` aren't slots
       slot: (name: string) => (Object.hasOwn(slots, name) ? slots[name] : undefined),
-      tree: (children: IslandNode[]) => createElement(Fragment, null, ...children.map(toReact)),
-      ref: resolveReference,
+      tree: (children: IslandNode[]) =>
+        missing ? null : createElement(Fragment, null, ...children.map(toReact)),
+      ref: ([key, name]: ClientReference) => {
+        const module = modules.get(key);
+        if (!module || loading.has(key)) promises.add(load(key));
+        if (module) return module[name];
+        missing = true;
+      },
+      pageTree: (url: string) => {
+        const tree = pageTrees.get(url);
+        if (!tree || fetching.has(url)) promises.add(fetchPageTree(url));
+        if (tree) return tree;
+        missing = true;
+      },
     });
+    // the imports run in parallel, they all started while parsing
+    for (const promise of promises) use(promise);
     return createElement(Fragment, null, ...nodes.map(toReact));
+  }
+
+  return function PressIsland(props: PressIslandProps) {
+    return createElement(Suspense, null, createElement(IslandTree, props));
   };
 }

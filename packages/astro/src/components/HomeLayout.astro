@@ -1,31 +1,13 @@
 ---
-import type { PageAlternate } from "@fumapress/core";
-import Island from "../island/Island.astro";
 import Layout from "../ui/Layout.astro";
-import { getHomeLayout } from "../ui/page.js";
+import { getHomeLayout, type HomeLayoutOptions } from "../ui/page.js";
 
-interface Props {
-  title?: string;
-  description?: string;
-  /** the language of the page, from its URL prefix by default */
-  lang?: string;
-  /** the translations of the page, for `hreflang` links */
-  alternates?: PageAlternate[];
-  /** render the not found page of Fumadocs UI */
-  notFound?: boolean;
-}
+type Props = HomeLayoutOptions;
 
-const { title, description, lang, alternates, notFound } = Astro.props;
-const home = await getHomeLayout(Astro, { lang, notFound });
+const page = await getHomeLayout(Astro, Astro.props);
 ---
 
-<Layout
-  title={title}
-  description={description}
-  lang={home.lang}
-  pathname={notFound ? undefined : home.provider.pathname}
-  alternates={alternates}
->
+<Layout {...page}>
   <slot name="head" slot="head" />
-  <Island {...home.island} persist="home"><slot /></Island>
+  <slot />
 </Layout>
