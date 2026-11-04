@@ -2,10 +2,10 @@ import type { ObsidianPage, ObsidianSource } from "fumadocs-obsidian";
 import * as Fumadocs from "fumadocs-obsidian/plugin";
 import type { PageData } from "fumadocs-core/source";
 import defaultMdxComponents from "fumadocs-ui/mdx";
-import type { AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Plugin } from "@fumapress/core";
 
 /** @deprecated use `ObsidianPluginOptions` of `fumadocs-obsidian/plugin` */
-export interface ObsidianPluginOptions extends Fumadocs.ObsidianPluginOptions {
+export interface ObsidianPluginOptions extends Omit<Fumadocs.ObsidianPluginOptions, "vault"> {
   /**
    * Watch the vault through Vite during development. Add `obsidianVitePlugin()`
    * to the Waku Vite config to receive file changes.
@@ -34,25 +34,16 @@ export function isObsidianPageData(data: PageData): data is ObsidianPage {
 export function obsidianPlugin<C extends AppShape = AppShape>(
   vault: ObsidianSource,
   { watch = true, components }: ObsidianPluginOptions = {},
-): PressPlugin<C> {
-  if (watch && import.meta.env?.DEV) registerViteWatcher(vault);
-
-  return Fumadocs.obsidianPlugin(vault, {
-    components: { ...defaultMdxComponents, ...components },
-  });
-}
-
-function registerViteWatcher(vault: ObsidianSource): void {
-  let dispose: (() => void) | undefined;
-  let disposed = false;
-
-  void import("fumadocs-obsidian/dev/vite").then(({ watchWithVite }) => {
-    dispose = watchWithVite(vault);
-    if (disposed) dispose();
-  });
-
-  import.meta.hot?.dispose(() => {
-    disposed = true;
-    dispose?.();
-  });
+): Plugin<C> {
+  return {
+    ...Fumadocs.obsidianPlugin({
+      vault,
+      components: { ...defaultMdxComponents, ...components },
+    }),
+    async init() {
+      if (!watch || !import.meta.env?.DEV) return;
+      const { watchWithVite } = await import("fumadocs-obsidian/dev/vite");
+      if (!this.signal.aborted) this.signal.addEventListener("abort", watchWithVite(vault));
+    },
+  };
 }

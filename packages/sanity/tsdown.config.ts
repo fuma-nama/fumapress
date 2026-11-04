@@ -8,5 +8,7 @@ export default defineConfig({
   exports: true,
   deps: {
     onlyBundle: ["@fumadocs/sanity"],
+    // an optional peer of `@fumadocs/sanity`, for Next.js
+    neverBundle: [/^next-sanity(\/|$)/],
   },
 });

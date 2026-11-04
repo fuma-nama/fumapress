@@ -1,5 +1,5 @@
 import * as Fumadocs from "@fumadocs/notion/plugin";
-import type { AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Plugin } from "@fumapress/core";
 import type { NotionIntegration } from "./source";
 
 /** @deprecated use `fileProxy` of `NotionPluginOptions` of `@fumadocs/notion/plugin` */
@@ -9,15 +9,16 @@ export interface NotionFileProxyOptions extends Exclude<
 > {}
 
 /** @deprecated use `NotionPluginOptions` of `@fumadocs/notion/plugin` */
-export interface NotionPluginOptions extends Fumadocs.NotionPluginOptions {}
+export interface NotionPluginOptions extends Omit<Fumadocs.NotionPluginOptions, "notion"> {}
 
 /** @deprecated use `notionPlugin()` of `@fumadocs/notion/plugin` */
 export function notionPlugin<C extends AppShape = AppShape>(
   integration: NotionIntegration,
   { fileProxy, ...options }: NotionPluginOptions = {},
-): PressPlugin<C> {
-  return Fumadocs.notionPlugin(integration, {
+): Plugin<C> {
+  return Fumadocs.notionPlugin({
     ...options,
+    notion: integration,
     fileProxy:
       typeof fileProxy === "object" ? { path: normalizeProxyPath(fileProxy.path) } : fileProxy,
   });

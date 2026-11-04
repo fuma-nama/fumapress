@@ -1,8 +1,7 @@
-import { Scanner } from "@tailwindcss/oxide";
 import { defineConfig } from "tsdown";
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { compilePresetCss } from "../shared/compile-preset-css.ts";
 
 export default defineConfig({
   entry: ["src/index.ts", "src/vite.ts"],
@@ -20,17 +19,9 @@ export default defineConfig({
   deps: {
     onlyBundle: [],
   },
-  async onSuccess() {
-    const uiDir = path.dirname(fileURLToPath(import.meta.resolve("fumadocs-obsidian/ui")));
-    const scanner = new Scanner({
-      sources: [{ base: uiDir, pattern: "**/*.js", negated: false }],
-    });
-    const candidates = scanner.scan().toSorted();
-
-    await writeFile(
-      "css/generated.css",
-      `@source inline(${JSON.stringify(candidates.join(" "))});\n`,
-    );
-    console.log("generated CSS source");
-  },
+  onSuccess: () =>
+    compilePresetCss({
+      base: path.dirname(fileURLToPath(import.meta.resolve("fumadocs-obsidian/ui"))),
+      pattern: "**/*.js",
+    }),
 });

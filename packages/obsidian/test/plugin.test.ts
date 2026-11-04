@@ -7,15 +7,19 @@ import { renderToReadableStream } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 import { obsidianPlugin } from "../src/plugin";
 
-vi.mock("fumadocs-obsidian/dev/vite", () => ({ watchWithVite: vi.fn(() => () => {}) }));
+const dispose = vi.hoisted(() => vi.fn());
+vi.mock("fumadocs-obsidian/dev/vite", () => ({ watchWithVite: vi.fn(() => dispose) }));
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 
-it("renders vault pages with the MDX components of Fumadocs UI, watching the vault", async () => {
+it("renders vault pages with the MDX components of Fumadocs UI, watching the vault until the context ends", async () => {
   const vault = obsidian({ dir: fixturesDir });
   const content = loader(await vault.staticSource(), { baseUrl: "/" });
   const plugin = obsidianPlugin(vault);
-  const context = { getLoader: async () => content } as never;
+  const controller = new AbortController();
+  const context = { getLoader: async () => content, signal: controller.signal } as never;
+  await plugin.init!.call(context);
+  expect(watchWithVite).toHaveBeenCalledWith(vault);
 
   const body = await plugin.getPageBody!.call(context, content.getPage(["Welcome"])! as never);
   const stream = await renderToReadableStream(body!.node);
@@ -24,5 +28,7 @@ it("renders vault pages with the MDX components of Fumadocs UI, watching the vau
 
   expect(html).toContain("scroll-m-28");
   expect(html).toContain('href="/Guides/Publishing"');
-  await vi.waitFor(() => expect(watchWithVite).toHaveBeenCalledWith(vault));
+  expect(dispose).not.toHaveBeenCalled();
+  controller.abort();
+  expect(dispose).toHaveBeenCalledOnce();
 });

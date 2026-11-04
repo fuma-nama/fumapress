@@ -6,7 +6,7 @@ import {
 } from "@fumadocs/sanity";
 import * as Fumadocs from "@fumadocs/sanity/plugin";
 import type { DynamicSource, MetaData, PageData } from "fumadocs-core/source";
-import type { AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Plugin } from "@fumapress/core";
 import { type PortableTextBlock, PortableText as DefaultPortableText } from "@portabletext/react";
 import type { SanityClient } from "@sanity/client";
 import type { ReactNode } from "react";
@@ -76,7 +76,7 @@ export type PortableTextRenderer<B extends TypedObject = PortableTextBlock> = (p
  */
 export function sanityPlugin<C extends AppShape = AppShape, Doc extends BaseDoc = BaseDoc>(
   integration: SanityIntegration<Doc>,
-): PressPlugin<C> {
+): Plugin<C> {
   const { docType, renderer: Renderer } = integration;
 
   function isSanityPage(data: PageData): data is DocToPage<
