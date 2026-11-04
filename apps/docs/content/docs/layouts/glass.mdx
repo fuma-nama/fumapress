@@ -7,9 +7,7 @@ description: The docs layout with floating, translucent sidebar and header.
 
 See [Fumadocs Glass Layout](https://fumadocs.dev/docs/ui/layouts/glass) for the available props.
 
-On Astro, render `DocsLayout` of `fumadocs-ui/layouts/glass` in your [page module](/docs/astro/layouts#page-module).
-
-Requires Fumadocs UI v16.12.0 or above. Its styles are not in the Fumadocs UI preset, import them:
+Requires Fumadocs UI v16.12.0 or above. Its styles are not in the Fumadocs UI preset. Import them:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -20,24 +18,30 @@ Requires Fumadocs UI v16.12.0 or above. Its styles are not in the Fumadocs UI pr
 @import "fumapress/css/preset.css";
 ```
 
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createGlassLayoutPage } from "fumapress/layouts/glass";
+Swap the imports of the Docs Layout for `fumadocs-ui/layouts/glass` and `fumadocs-ui/layouts/glass/page`:
 
-const GlassLayout = createGlassLayoutPage<typeof config.$context>();
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot, type RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/glass";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/glass/page";
+import type { app } from "../../press.config";
 
-const config = defineConfig({
-  // ...
-  renderPage: (props) => <GlassLayout {...props} />,
-});
-
-export default config;
+export function Glass({ tree, baseOptions, pageData, body }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
 ```
 
-It accepts the same [options](/docs/layouts/docs#options) as the docs layout, and the [AI plugin](/docs/plugins/ai) shows its Ask AI trigger in the header and sidebar.
+It takes the same page data and slots as the [Docs Layout](/docs/layouts/docs). The [AI plugin](/docs/plugins/ai) shows its Ask AI trigger in the header and sidebar.
 
 <Callout title="Important to know">
 
-The glass layout is a client component, `layoutProps` cannot contain unserializable values (e.g. functions) unless they are supported slots.
+The glass layout is a client component. The layout's props cannot contain unserializable values (functions) unless they are supported slots.
 
 </Callout>

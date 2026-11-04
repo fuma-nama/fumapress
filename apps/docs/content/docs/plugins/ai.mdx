@@ -1,6 +1,6 @@
 ---
 title: AI
-description: Add "Ask AI" to your Fumapress app.
+description: Add an AI chat to your Fumapress site.
 ---
 
 ## Installation
@@ -9,35 +9,35 @@ description: Add "Ask AI" to your Fumapress app.
 npm i @fumapress/ai
 ```
 
-Add the plugin,
-it requires a `model` option, set this to an AI model you prefer (e.g. GPT).
+Add the plugin with a `model` option. Pass an [AI Gateway](https://ai-sdk.dev/docs/ai-sdk-core/settings#setting-the-model) model id, or a provider's model:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+// [!code ++]
+import { aiPlugin } from "@fumapress/ai";
+
+export default createPress(content)
+  // [!code ++]
+  .plugins(aiPlugin({ model: "openai/gpt-5" }))
+  .config({/* ... */});
+```
+
+To use a provider package instead of the gateway:
 
 ```npm
 npm i @ai-sdk/openai
 ```
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
 import { openai } from "@ai-sdk/openai";
-// [!code ++]
 import { aiPlugin } from "@fumapress/ai";
 
-export default defineConfig({
-  // ...
-})
-  // [!code highlight:5]
-  .plugins(
-    aiPlugin({
-      model: openai("gpt-5"),
-    }),
-  );
+aiPlugin({ model: openai("gpt-5") });
 ```
 
-See [AI SDK](https://ai-sdk.dev/docs/foundations/providers-and-models) docs for all available models.
+See the [AI SDK docs](https://ai-sdk.dev/docs/foundations/providers-and-models) for all available models.
 
-The chat is Waku only, the [MCP server](/docs/plugins/mcp) of `@fumapress/ai` runs on [Astro](/docs/astro) too.
-
-Finally, initialize the `src/app.css` file and add the following:
+Import the CSS preset:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -48,7 +48,7 @@ Finally, initialize the `src/app.css` file and add the following:
 @import "@fumapress/ai/css/preset.css";
 ```
 
-The plugin adds an "Ask AI" chat, backed by a `/api/ai` endpoint that searches your documentation to answer. The endpoint needs a server, so the plugin is not compatible with `mode: "static"`.
+The plugin adds a `/api/ai` endpoint that searches your documentation to answer. The built-in Docs Layout docks the chat and adds the `ai` [page action](/docs/layouts#page-actions-and-footers). The endpoint needs a server, so the plugin is not compatible with `mode: "static"`.
 
 ## Options
 
@@ -58,7 +58,7 @@ Overrides the default system prompt, which instructs the model to search your do
 
 ```tsx title="press.config.tsx"
 aiPlugin({
-  model: openai("gpt-5"),
+  model: "openai/gpt-5",
   systemPrompt:
     "You are the assistant for the Acme docs. Search the docs before answering, and keep answers short with source links.",
 });
@@ -66,11 +66,11 @@ aiPlugin({
 
 ### `beforeRequest`
 
-Runs before each request to `/api/ai`, return a `Response` to reject it. Since the endpoint calls your model provider, add rate limiting or other validation before exposing it publicly:
+Runs before each request to `/api/ai`. Return a `Response` to reject it. Since the endpoint calls your model provider, add rate limiting or other validation before exposing it publicly:
 
 ```tsx title="press.config.tsx"
 aiPlugin({
-  model: openai("gpt-5"),
+  model: "openai/gpt-5",
   async beforeRequest(req) {
     if (await isRateLimited(req)) {
       return new Response("Too Many Requests", { status: 429 });
@@ -81,10 +81,53 @@ aiPlugin({
 
 ### `pageToIndex`
 
-Controls how pages are indexed for the model's search tool, return `null` to exclude a page. Same as the [MCP plugin](/docs/plugins/mcp) option.
+Controls how pages are indexed for the model's search tool. Return `null` to exclude a page. Same as the [MCP plugin](/docs/plugins/mcp) option.
 
 ### `configureUI`
 
-Whether to add the built-in chat UI to layouts, defaults to `true`. Set it to `false` to integrate the endpoint with your own UI.
+Whether to dock the chat in the built-in UI and add the `ai` page action. Defaults to `true`.
 
-`AIChat` from `@fumapress/ai/components/chat` is the chat state of the `/api/ai` endpoint, use it with `AIChatPanel`, `AIChatTrigger`, and `useAIChat()` of [`@fumadocs/ai-chat`](https://www.npmjs.com/package/@fumadocs/ai-chat), which it re-exports.
+## Custom Layouts
+
+With your own [`renderPage`](/docs/layouts#render-page), place `props.actions.ai` where you want the action button, and dock the chat with a client wrapper using `useAIChat` and `AIChatPanel` from `@fumapress/ai/components/chat`:
+
+```tsx tab="src/chat-layout.tsx"
+"use client";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import { AIChatPanel, useAIChat } from "@fumapress/ai/components/chat";
+
+/** the Docs Layout with the chat of `aiPlugin()` docked */
+export function ChatLayout(props: DocsLayoutProps) {
+  const { open, setOpen } = useAIChat();
+
+  return <DocsLayout {...props} aiChat={{ open, onOpenChange: setOpen, panel: <AIChatPanel /> }} />;
+}
+```
+
+```tsx tab="press.config.tsx"
+import { createPress } from "fumapress";
+import { aiPlugin } from "@fumapress/ai";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { ChatLayout } from "./src/chat-layout";
+
+export const app = createPress(content).plugins(aiPlugin({ model: "openai/gpt-5" }));
+
+export default app.config({
+  mode: "dynamic",
+  ui: {
+    renderPage(props) {
+      if (props.type !== "docs") return props.renderDefault();
+      const { baseOptions, tree, pageData, body, actions } = props;
+      return (
+        <ChatLayout {...baseOptions} tree={tree}>
+          <DocsPage toc={pageData.toc}>
+            <div className="flex justify-end">{actions.ai}</div>
+            <DocsTitle>{pageData.title}</DocsTitle>
+            <DocsBody>{body}</DocsBody>
+          </DocsPage>
+        </ChatLayout>
+      );
+    },
+  },
+});
+```

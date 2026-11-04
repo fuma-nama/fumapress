@@ -9,8 +9,6 @@ description: Publish package changelogs to a filterable timeline page.
 
 When you apply a Tegami draft, `fumapressPlugin` writes MDX release notes into your content directory. `changelogPlugin` renders those entries on a single index page (`/changelog` by default) with package filters, date range, search, and load-more pagination.
 
-`changelogPlugin` is Waku only, it doesn't run on [Astro](/docs/astro).
-
 ## Installation
 
 ```npm
@@ -45,48 +43,32 @@ export default tegami({
 
 ### Fumadocs MDX
 
-Create a changelog collection with the Tegami schemas and enable the plugin:
+Create a changelog collection with the Tegami schemas and enable the plugin. The `source` option is required and names the content source key whose pages are changelog entries:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { changelogPlugin } from "@fumapress/tegami";
 // [!code ++]
-import { changelogMetaSchema, changelogPageSchema } from "@fumapress/tegami/schema";
+import { changelogPageSchema } from "@fumapress/tegami/schema";
 import { defineDocs } from "fumadocs-mdx/macro";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs" });
 
-// [!code ++:13]
+// [!code ++:5]
 const changelog = defineDocs({
   dir: "content/changelog",
-  docs: {
-    async: true,
-    schema: changelogPageSchema,
-    lastModified: true,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
-  },
-  meta: {
-    schema: changelogMetaSchema,
-  },
+  docs: { schema: changelogPageSchema },
 });
 
-export default defineConfig({
-  // [!code highlight:6]
-  content: {
-    docs: docs.toFumadocsSource(),
-    changelog: changelog.toFumadocsSource({
-      baseDir: "changelog",
-    }),
-  },
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
 })
   // [!code ++]
-  .plugins(changelogPlugin());
+  .plugins(changelogPlugin({ source: "changelog" }))
+  .config({/* ... */});
 ```
 
 Entries written by `fumapressPlugin` include the frontmatter `changelogPageSchema` requires, a release `date` and the released `packages`:
@@ -101,92 +83,68 @@ packages:
 ---
 ```
 
-By default, pages from the `changelog` content source are included. Override with `isChangelog()` if needed:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { changelogPlugin } from "@fumapress/tegami";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  changelogPlugin({
-    isChangelog: (page) => page.type === "changelog",
-  }),
-);
-```
-
 ### Other Content Sources
 
-Without Fumadocs MDX, keep your `content` config and detect changelog pages yourself:
+Without Fumadocs MDX, pass a content source that provides creation dates (the entry date comes from the page creation date):
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { changelogPlugin } from "@fumapress/tegami";
-import { myCms } from "./my-cms";
-
-export default defineConfig({
-  content: myCms.toStaticSource(),
-}).plugins(
-  changelogPlugin({
-    isChangelog: (page) => page.path.startsWith("changelog/"),
-  }),
-);
+changelogPlugin({ source: "changelog" });
 ```
-
-Entry dates are resolved through the `tegami:get-date` adapter hook, implemented by the Fumadocs MDX adapter. For other sources, implement the hook in your [adapter](/docs/adapters), otherwise entries are undated.
 
 ## Options
 
 ### `paths`
 
-Override the index pathname (default `/changelog`). Set to `false` to skip creating the index route.
+Override the index pathname (default `/changelog`). Set to `false` to skip creating the index route:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { changelogPlugin } from "@fumapress/tegami";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  changelogPlugin({
-    paths: {
-      index: "/releases",
-    },
-  }),
-);
+changelogPlugin({
+  source: "changelog",
+  paths: {
+    index: "/releases",
+  },
+});
 ```
 
-### `layouts`
+## Custom UI
 
-Override the shared layout or index page renderer:
+The plugin renders a `changelog.index` [view](/docs/plugins/authoring#views). Replace it as a [`renderPage`](/docs/layouts#render-page) case, or compose with `ChangelogIndexView`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import {
-  changelogPlugin,
-  createChangelogIndexPage,
-  createChangelogLayout,
-} from "@fumapress/tegami";
-import { createHomeLayout } from "fumapress/layouts/home";
+import { createPress } from "fumapress";
+import { changelogPlugin, ChangelogIndexView } from "@fumapress/tegami";
+import { changelogPageSchema } from "@fumapress/tegami/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
 
-const HomeLayout = createHomeLayout<typeof config.$context>();
-const ChangelogIndex = createChangelogIndexPage<typeof config.$context>({
-  heading: "Releases",
-  description: "What shipped recently.",
-  pageSize: 10,
+const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: { schema: changelogPageSchema },
 });
 
-const config = defineConfig({
-  // ...
-}).plugins(
-  changelogPlugin({
-    layouts: {
-      layout: (props) => <HomeLayout {...props} />,
-      index: (props) => <ChangelogIndex {...props} />,
-    },
-  }),
-);
+export const app = createPress({
+  changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
+}).plugins(changelogPlugin({ source: "changelog" }));
 
-export default config;
+export default app.config({
+  ui: {
+    renderPage(props) {
+      const { renderDefault } = props;
+      switch (props.type) {
+        case "changelog.index":
+          return (
+            <HomeLayout {...props.baseOptions}>
+              <ChangelogIndexView
+                entries={props.entries.filter((entry) => entry.packages.length > 0)}
+              />
+            </HomeLayout>
+          );
+        default:
+          return renderDefault();
+      }
+    },
+  },
+});
 ```
+
+`ChangelogIndexView` accepts `heading`, `description` and `pageSize` (defaults to `10`). Each entry has `page`, `date`, `packages` and `body`.

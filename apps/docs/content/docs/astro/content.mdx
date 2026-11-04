@@ -4,9 +4,9 @@ description: Content collections and the React content of plugins.
 icon: Library
 ---
 
-## Content Collections
+## Content Collections [#collections]
 
-Docs are MDX files of Astro content collections. `pageLoader()` and `metaLoader()` of `@fumadocs/astro` load the `content/docs` directory, `toFumadocsSource()` turns them into a content source:
+Docs are MDX files of Astro content collections. `pageLoader()` and `metaLoader()` of `@fumadocs/astro` load the content directory. `toFumadocsSource()` turns them into a content source:
 
 ```ts tab="src/content.config.ts"
 import { defineCollection } from "astro:content";
@@ -21,11 +21,11 @@ export const collections = {
 ```tsx tab="press.config.tsx"
 import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
-import { defineConfig } from "@fumapress/astro/config";
+import { createPress } from "@fumapress/astro/config";
 
-export default defineConfig({
-  content: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-});
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+).config({});
 ```
 
 Pages and `meta.json` files follow the [Fumadocs conventions](https://fumadocs.dev/docs/page-conventions), and the loaders validate frontmatter with `pageSchema` of `fumadocs-core/source/schema`. Add fields with a `schema` of your own:
@@ -46,9 +46,9 @@ export const collections = {
 };
 ```
 
-### Collections
+### Multiple Collections
 
-`content/docs` is the default collection of `press()`. To add another directory, list every collection in `collections`, and give each source a `baseDir` for its URL prefix:
+`content/docs` is the default collection of `press()`. To add another directory, list every collection in `collections`, and give each source a `baseDir` in its third argument:
 
 ```js tab="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -60,7 +60,7 @@ export default defineConfig({
       collections: {
         docs: { dir: "content/docs" },
         // [!code ++]
-        guides: { dir: "content/guides" },
+        blog: { dir: "content/blog" },
       },
     }),
   ],
@@ -72,28 +72,28 @@ export const collections = {
   docs: defineCollection({ loader: pageLoader() }),
   meta: defineCollection({ loader: metaLoader() }),
   // [!code ++:2]
-  guides: defineCollection({ loader: pageLoader("guides") }),
-  guidesMeta: defineCollection({ loader: metaLoader("guides") }),
+  blog: defineCollection({ loader: pageLoader("blog") }),
+  blogMeta: defineCollection({ loader: metaLoader("blog") }),
 };
 ```
 
 ```tsx tab="press.config.tsx"
-export default defineConfig({
-  content: {
-    docs: {
-      ...toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-      baseDir: "docs",
-    },
-    // [!code ++:4]
-    guides: {
-      ...toFumadocsSource(await getCollection("guides"), await getCollection("guidesMeta")),
-      baseDir: "guides",
-    },
-  },
-});
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  // [!code ++]
+  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
+    baseDir: "blog",
+  }),
+}).config({});
 ```
 
-The keys of `content` become the `type` of pages, as with the [content collections](/docs/collections) of Waku. Collections take the options of `press()` as defaults, and can set their own, like `components`.
+The keys of `content` become the `type` of pages. See [Content Collections](/docs/collections). Collections take the options of `press()` as defaults, and can set their own, like `components`.
 
 ### Last Modified
 
@@ -131,44 +131,46 @@ press({
 });
 ```
 
-The content of a page is one React island, see the [rendering rules](https://fumadocs.dev/docs/manual-installation/astro#rendering) of Fumadocs. The module loads on every page and in the browser: keep server-only code out of it, and don't import `press.config.tsx` or `@fumapress/astro/runtime` from it, the cycle with your content slows the build down.
+The module also applies on your own pages through `getProviderData`. See [Rendering Content](/docs/astro/routing#rendering-content).
+
+The content of a page is one React island. See the [rendering rules](https://fumadocs.dev/docs/manual-installation/astro#rendering) of Fumadocs. The module loads on every page and in the browser: keep server-only code out of it, and don't import `press.config.tsx` or `@fumapress/astro/runtime` from it. The cycle with your content slows the build down.
 
 ## React Content
 
-React content of plugins and the press config, like the pages of [OpenAPI](/docs/plugins/openapi), slots and JSX in `defaultLayoutProps`, renders on the server. Parts of it hydrate as islands:
+React content of plugins and the press config, like the pages of [OpenAPI](/docs/plugins/openapi), slot items and JSX in `ui.baseOptions`, renders on the server and hydrates as an island. Parts of it hydrate:
 
 - Client components, from modules starting with `"use client"`.
 - The components of your MDX components module.
 
-Other components render once on the server, they can't use state or effects. Props of hydrating components must be serializable: strings, numbers, dates, maps, JSX elements and client components work. A client component with a function prop throws an error naming the component, and an MDX component with one renders on the server.
+Other components render once on the server. They cannot use state or effects. Props of hydrating components must be serializable: strings, numbers, dates, maps, JSX elements and client components work. A client component with a function prop throws an error naming the component, and an MDX component with one renders on the server.
 
-Plugins that pass functions to the browser, like server actions, don't run on Astro.
+Navigating between pages keeps the island and its state, like the open folders of the sidebar.
+
+The page body is an island of its own. Providers in `ui.renderPage` and in `body.wrapper` don't reach it. Give the [MDX components](#mdx-components) their own `wrapper` instead.
+
+Feedback server actions work through routes on Astro. Client actions, like calling an external API from the browser, work as they do on Waku. See [Deployment](/docs/astro/deployment#adapters) for plugins that need a server.
 
 ## Other Sources
 
-Other content sources join `content` like collections, their plugins render them. For example, the pages of OpenAPI:
+Other content sources join the `createPress` call like collections. Their plugins render them. For example, the pages of OpenAPI:
 
 ```tsx title="press.config.tsx"
 import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
-import { defineConfig } from "@fumapress/astro/config";
-import { openapiPlugin } from "fumadocs-openapi/plugin";
+import { createPress } from "@fumapress/astro/config";
 import { createOpenAPI } from "fumadocs-openapi/server";
+import openapiPlugin from "fumadocs-openapi/press";
 
-const openapi = createOpenAPI({
-  input: ["./openapi.yaml"],
-});
+const openapi = createOpenAPI({ input: ["./openapi.yaml"] });
 
-export default defineConfig({
-  content: {
-    docs: {
-      ...toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-      baseDir: "docs",
-    },
-    openapi: await openapi.staticSource({ baseDir: "docs/api" }),
-  },
-  plugins: [openapiPlugin({ server: openapi })],
-});
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  openapi: await openapi.staticSource({ baseDir: "docs/api" }),
+})
+  .plugins(openapiPlugin({ server: openapi }))
+  .config({});
 ```
 
-Sources whose pages render Markdown at runtime, like [Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md), need no plugin: they render with your MDX components, and relative links are resolved. Notion and Sanity render with `notionPlugin()` of `@fumadocs/notion/plugin` and `sanityPlugin()` of `@fumadocs/sanity/plugin`.
+Sources whose pages render Markdown at runtime, like [Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md), need no plugin. They render with your MDX components, and relative links are resolved. Notion and Sanity render with the default exports of `@fumadocs/notion/press` and `@fumadocs/sanity/press`. See [Content Sources](/docs/adapters).

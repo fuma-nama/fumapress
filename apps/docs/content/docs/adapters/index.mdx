@@ -1,38 +1,100 @@
 ---
-title: Adapters
-description: Connect content sources to Fumapress.
+title: Content Sources
+description: Connect content from files, CMSs and vaults.
 icon: Plug
 ---
 
 ## Overview
 
-Adapters translate your content source into page data that Fumapress can render. They handle tasks such as rendering MDX bodies, extracting table of contents, and exposing plain text for search or LLM exports.
-
-If you use a custom CMS or another content format, you can implement your own adapter to integrate it with Fumapress.
-
-Adapters are Waku only, on [Astro](/docs/astro) plugins render the content sources, see [Content](/docs/astro/content#other-sources).
+A content source is a [Fumadocs source](https://fumadocs.dev/docs/headless/source-api) passed to `createPress`. Fumadocs MDX pages render without setup. Other sources come with a plugin that renders their pages through the [content hooks](#content-hooks).
 
 <DocsCategory />
 
 ## Usage
 
-Register adapters on your Fumapress config with `.adapters()`:
+Pass the source to `createPress` and add its plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { defineDocs } from "fumadocs-mdx/macro";
+import { createPress } from "fumapress";
+import { createNotion } from "@fumadocs/notion";
+import notionPlugin from "@fumadocs/notion/press";
+import { Client } from "@notionhq/client";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
+const notion = createNotion({
+  client: new Client({ auth: process.env.NOTION_TOKEN }),
+  dataSourceId: process.env.NOTION_DATA_SOURCE_ID!,
 });
 
-export default defineConfig({
-  content: docs.toFumadocsSource(),
+export default createPress(notion.dynamicSource({ properties: { title: "Name", slug: "Slug" } }), {
+  loaderOptions: { alwaysRevalidate: true },
 })
-  // [!code ++]
-  .adapters(fumadocsMdx());
+  .plugins(notionPlugin({ notion }))
+  .config({ mode: "dynamic" });
 ```
 
-You can register multiple adapters for different content sources.
+You can pass multiple sources as a record. The keys become `page.type` and `props.type`:
+
+```tsx title="press.config.tsx"
+export const app = createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+});
+```
+
+## Content Hooks
+
+A content source's plugin renders pages by implementing these hooks on `Plugin`. Each hook receives a page and returns its data, or `undefined` for pages it does not own.
+
+### `getPageBody`
+
+Returns `{ node }` with the rendered React content of the page.
+
+### `getPageText`
+
+Returns the plain text of the page, used by search and LLM exports.
+
+### `getPageToc`
+
+Returns the table of contents entries.
+
+### `getPageStructuredData`
+
+Returns structured data for the search index.
+
+### `getPageCreatedAt`
+
+Returns the creation date of the page.
+
+### `getPageLastModified`
+
+Returns the last modified date of the page.
+
+A minimal content hook plugin:
+
+```tsx title="acme/index.tsx"
+import type { AppShape, Plugin } from "@fumapress/core";
+
+interface AcmePageData {
+  load: () => Promise<string>;
+  plainText: () => string;
+}
+
+function isAcmePage(data: object): data is AcmePageData {
+  return "load" in data && "plainText" in data;
+}
+
+export default function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "acme",
+    async getPageBody(page) {
+      if (!isAcmePage(page.data)) return;
+      return { node: <div>{await page.data.load()}</div> };
+    },
+    getPageText(page) {
+      if (isAcmePage(page.data)) return page.data.plainText();
+    },
+  };
+}
+```
+
+See the [Fumadocs MDX](/docs/adapters/mdx), [Notion](/docs/adapters/notion), [Sanity](/docs/adapters/sanity) and [Obsidian](/docs/adapters/obsidian) pages for complete implementations.

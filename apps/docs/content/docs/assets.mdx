@@ -10,7 +10,7 @@ Files in the `public` directory are served from the root URL path: `public/scree
 
 ## Images
 
-Reference them from Markdown with an absolute path:
+Waku only. Reference them from Markdown with an absolute path:
 
 ```mdx
 ![A preview of the editor](/screenshot.png)
@@ -31,19 +31,21 @@ import { Image } from "fumapress/image";
 A common use is the site logo, passed as part of the navbar title:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { Image } from "fumapress/image";
 
-export default defineConfig({
+export default createPress(/* ... */).config({
   // ...
-  defaultLayoutProps: {
-    nav: {
-      title: (
-        <>
-          <Image src="/logo.png" width={64} height={64} className="size-8" alt="" />
-          My Docs
-        </>
-      ),
+  ui: {
+    baseOptions: {
+      nav: {
+        title: (
+          <>
+            <Image src="/logo.png" width={64} height={64} className="size-8" alt="" />
+            My Docs
+          </>
+        ),
+      },
     },
   },
 });
@@ -51,28 +53,17 @@ export default defineConfig({
 
 ## Favicon
 
-Place the icon in `public` and link it from `meta.root`:
+Place the icon in `public` and reference it from [head](/docs/config#head):
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  // ...
-  meta: {
-    root() {
-      return (
-        <>
-          {/* [!code ++] */}
-          <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-        </>
-      );
-    },
-  },
+createPress(/* ... */).config({
+  head: [
+    // [!code ++]
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } },
+  ],
 });
 ```
 
-The same place works for any other head tag, such as web fonts or verification tags, see [Meta](/docs/config#meta).
-
 ## Open Graph Images
 
-Social preview images are generated per page by the [Takumi plugin](/docs/plugins/takumi), enabled by default. See its `generate` option to customize the design.
+Social preview images are generated per page by the [Takumi plugin](/docs/plugins/takumi), enabled by default. See its `getImage` option to customize the design.

@@ -7,32 +7,29 @@ description: Detect broken links during build.
 
 This plugin is included in `fumapress`.
 
-Enable the plugin in your Fumapress config:
+Enable the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code ++]
-  .plugins(linkValidationPlugin());
+  .plugins(linkValidationPlugin())
+  .config({/* ... */});
 ```
 
-During static generation, the plugin collects links rendered with `<Link />` component. After the build finishes pre-rendering, it validates each unique `href`:
+During static generation, the plugin collects links rendered with the `Link` component in prerendered pages. After the build finishes pre-rendering, it validates each unique `href`:
 
-- **Relative links** — fetched against your app. A `404` response fails the build.
-- **Absolute URLs** — skipped unless you provide an `externalLink` callback.
+- **Relative links** are fetched against your site. A `404` response fails the build.
+- **Absolute URLs** are skipped unless you provide an `externalLink` callback.
 
 If any link is broken, the build throws an error listing the source page and target URL:
 
 ```text
 In "/docs/getting-started": link "/docs/missing-page" not-found
 ```
-
-On [Astro](/docs/astro), import `linkValidationPlugin` from `@fumapress/core/plugins/link-validation`. It validates the links of content, and requires Astro to prerender in the build process, see [Build Plugins](/docs/astro/deployment#build-plugins).
 
 ## Options
 
@@ -41,55 +38,35 @@ On [Astro](/docs/astro), import `linkValidationPlugin` from `@fumapress/core/plu
 Skip validation for specific links:
 
 ```tsx title="press.config.tsx"
-import { linkValidationPlugin } from "fumapress/plugins/link-validation";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  linkValidationPlugin({
-    ignored(href) {
-      return href.startsWith("https://example.com");
-    },
-  }),
-);
+linkValidationPlugin({
+  ignored(href) {
+    return href.startsWith("https://example.com");
+  },
+});
 ```
 
 ### `externalLink`
 
-Validate external (absolute) URLs. Return `"not-found"` to fail the build, or `null` when the link
-is valid:
+Validate external (absolute) URLs. Return `"not-found"` to fail the build, or `null` when the link is valid:
 
 ```tsx title="press.config.tsx"
-import { linkValidationPlugin } from "fumapress/plugins/link-validation";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  linkValidationPlugin({
-    async externalLink(href) {
-      const res = await fetch(href, { method: "HEAD" });
-      return res.ok ? null : "not-found";
-    },
-  }),
-);
+linkValidationPlugin({
+  async externalLink(href) {
+    const res = await fetch(href, { method: "HEAD" });
+    return res.ok ? null : "not-found";
+  },
+});
 ```
 
 ### `report`
 
-By default a broken link fails the build. To report problems as data instead — so a CI check can
-annotate a pull request rather than parse an error message — switch `report`:
+By default a broken link fails the build. To report problems as data instead, so a CI check can annotate a pull request rather than parse an error message, set `report`:
 
 ```tsx title="press.config.tsx"
-import { linkValidationPlugin } from "fumapress/plugins/link-validation";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  linkValidationPlugin({
-    // [!code ++]
-    report: "json",
-  }),
-);
+linkValidationPlugin({
+  // [!code ++]
+  report: "json",
+});
 ```
 
 | `report` | Writes `fumapress-diagnostics.json` | Fails the build |
@@ -99,8 +76,6 @@ export default defineConfig({
 | `both`   | yes                                 | yes             |
 
 The file is written to the build output directory, next to `public` and `server`:
-
-On Astro, it is written to `outDir`, which static hosts serve publicly.
 
 ```json title="dist/fumapress-diagnostics.json"
 {
@@ -116,15 +91,13 @@ On Astro, it is written to `outDir`, which static hosts serve publicly.
 }
 ```
 
-It is written on every build, including when nothing is wrong, so an empty `diagnostics` array
-means validation ran and found no problems rather than that it never ran.
+It is written on every build, including when nothing is wrong, so an empty `diagnostics` array means validation ran and found no problems.
 
 ### `diagnosticsPath`
 
-Change the file name, relative to the build output directory. Defaults to
-`fumapress-diagnostics.json`.
+Change the file name, relative to the build output directory. Defaults to `fumapress-diagnostics.json`.
 
 <Callout>
-  Only links rendered through `Link` from `fumapress/client` during pre-rendering are tracked, it
-  doesn't work for normal `<a />` tags.
+  Only links rendered through `Link` from `fumapress/client` during pre-rendering are tracked. It
+  does not work for plain `<a />` tags.
 </Callout>

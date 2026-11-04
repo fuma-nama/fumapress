@@ -11,33 +11,30 @@ The MCP plugin is included in `@fumapress/ai`.
 npm i @fumapress/ai
 ```
 
-Add the plugin to your Fumapress config:
+Add the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { mcpPlugin } from "@fumapress/ai";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code ++]
-  .plugins(mcpPlugin());
+  .plugins(mcpPlugin())
+  .config({/* ... */});
 ```
 
-The plugin creates an MCP server at `/mcp` using the [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) transport.
+The plugin creates an MCP server at `/mcp` using the [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) transport. The server needs a runtime with request handling, so it is not compatible with `mode: "static"`.
 
-It works on [Astro](/docs/astro) too, in the `plugins` of `@fumapress/astro/config`. The server needs an adapter.
-
-Outside of `.plugins()`, type the plugin as `PressPlugin` of `fumapress`, so `this` in its options is the app context of Waku:
+If `this` in the plugin's options needs typing outside `.plugins()`, use `Plugin` from `fumapress`:
 
 ```ts
-import type { PressPlugin } from "fumapress";
+import type { Plugin } from "fumapress";
 import { mcpPlugin } from "@fumapress/ai";
 
-export const mcp: PressPlugin = mcpPlugin({
+export const mcp: Plugin = mcpPlugin({
   tools(server) {
-    // `this.data` is typed
+    // `this` is the site context
   },
 });
 ```
@@ -64,95 +61,66 @@ When i18n is configured, the `search` tool accepts a `locale` parameter to filte
 
 ### `path`
 
-Change the MCP endpoint path.
+Change the MCP endpoint path:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { mcpPlugin } from "@fumapress/ai";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  mcpPlugin({
-    path: "/api/mcp",
-  }),
-);
+mcpPlugin({
+  path: "/api/mcp",
+});
 ```
 
 ### `server`
 
-Customize MCP server metadata. By default, the server name comes from `site.name` in your config.
+Customize MCP server metadata. The server name defaults to `site.name`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { mcpPlugin } from "@fumapress/ai";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  mcpPlugin({
-    server: {
-      name: "My Docs",
-      version: "2.0.0",
-    },
-  }),
-);
+mcpPlugin({
+  server: {
+    name: "My Docs",
+    version: "2.0.0",
+  },
+});
 ```
 
 ### `pageToIndex`
 
-By default, the plugin asks your configured adapters for each page's plain text content.
-Define `pageToIndex` to customize what gets indexed for search and page retrieval:
+Controls how pages are indexed for search and page retrieval. Return `null` to exclude a page:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { mcpPlugin } from "@fumapress/ai";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  mcpPlugin({
-    pageToIndex(page) {
-      return {
-        title: page.data.title ?? "",
-        description: page.data.description ?? "",
-        url: page.url,
-        content: page.data.description ?? "",
-        locale: page.locale ?? "",
-      };
-    },
-  }),
-);
+mcpPlugin({
+  pageToIndex(page) {
+    return {
+      title: page.data.title ?? "",
+      description: page.data.description ?? "",
+      url: page.url,
+      content: page.data.description ?? "",
+      locale: page.locale ?? "",
+    };
+  },
+});
 ```
-
-Return `null` to exclude a page from search.
 
 ### `tools`
 
 Register additional tools on the MCP server, an `McpServer` of [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server) v2:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
 import { mcpPlugin } from "@fumapress/ai";
 import { z } from "zod";
 
-export default defineConfig({
-  // ...
-}).plugins(
-  mcpPlugin({
-    tools(server) {
-      server.registerTool(
-        "get_site_name",
-        {
-          title: "Get Site Name",
-          description: "Return the site name from Fumapress config",
-          inputSchema: z.object({}),
-        },
-        async () => ({
-          content: [{ type: "text", text: this.siteConfig.name }],
-        }),
-      );
-    },
-  }),
-);
+mcpPlugin({
+  tools(server) {
+    server.registerTool(
+      "get_site_name",
+      {
+        title: "Get Site Name",
+        description: "Return the site name from the config",
+        inputSchema: z.object({}),
+      },
+      async () => ({
+        content: [{ type: "text", text: this.siteConfig.name }],
+      }),
+    );
+  },
+});
 ```

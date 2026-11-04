@@ -6,13 +6,30 @@ icon: Rocket
 
 ## Overview
 
-Fumapress on [Astro](https://astro.build) runs the same `press.config.tsx` as on Waku: content, site info, layout props and plugins. Astro owns the routing, builds and deployment, and Fumadocs UI renders in React islands.
+Fumapress on [Astro](https://astro.build) runs the same `press.config.tsx` as on Waku: content, plugins, site info and UI options. Astro owns the routing, builds and deployment, and Fumadocs UI renders in React islands.
 
 Compared to Waku:
 
-- Pages are Astro routes, without React Server Components.
-- Content comes from Astro content collections, through `@fumadocs/astro`.
-- Layouts are customized with modules instead of `renderPage`, see [Layouts](/docs/astro/layouts).
+- No React Server Components. Content comes from Astro content collections, through `@fumadocs/astro`.
+- The output of `ui.renderPage` renders in an island. See [React Content](/docs/astro/content#react-content).
+- No `ui.renderRoot`, Vite plugin, route files or image optimizers. Use Astro's equivalents.
+
+## Imports
+
+Astro imports the same API from these packages:
+
+| Waku (`fumapress`)                   | Astro                                           |
+| ------------------------------------ | ----------------------------------------------- |
+| `fumapress`                          | `@fumapress/astro/config`                       |
+| `fumapress/plugins/*`                | `@fumapress/astro/plugins/*`                    |
+| `fumapress/vite`                     | The `press()` integration of `@fumapress/astro` |
+| `getPressContext` (from `fumapress`) | `@fumapress/astro/runtime`                      |
+
+Plugin packages (`@fumapress/blog`, `@fumapress/tegami`, `@fumapress/ai`, `@fumapress/feedback`, `@fumapress/mintlify`) and the Fumadocs `/press` plugins (`fumadocs-openapi/press`, `@fumadocs/asyncapi/press`, `@fumadocs/graphql/press`, `@fumadocs/notion/press`, `@fumadocs/sanity/press`, `fumadocs-obsidian/press`) are imported as they are.
+
+`fumapress/image`, `fumapress/client`, `fumapress/router` and the image optimizer plugins have no Astro counterpart. Use [Astro Image](https://docs.astro.build/en/guides/images/) for image optimization.
+
+The shared guides at [Config](/docs/config), [Layouts](/docs/layouts), [Search](/docs/search) and [Plugins](/docs/plugins) apply with this mapping.
 
 ## Automatic Installation
 
@@ -27,24 +44,28 @@ Astro 7.4 requires Node.js 22.23.4 or later.
 Install the dependencies:
 
 ```npm
-npm i @fumapress/astro @fumapress/core @fumadocs/astro astro @astrojs/react fumadocs-core fumadocs-ui@npm:@fumadocs/base-ui react react-dom takumi-js
+npm i @fumapress/astro @fumadocs/astro astro @astrojs/react fumadocs-core fumadocs-ui@npm:@fumadocs/base-ui react react-dom takumi-js
 
 npm i tailwindcss @tailwindcss/vite @types/mdx @types/react @types/react-dom typescript -D
 ```
 
-`takumi-js` renders the Open Graph images of the [recommended preset](/docs/config#preset).
+`takumi-js` renders the Open Graph images of the [recommended preset](/docs/config#preset). `@fumapress/astro/plugins/takumi` re-exports its font helpers, `googleFonts` and `fontFromUrl`.
 
 Create the config files:
 
 ```js tab="astro.config.mjs"
+// @ts-check
 import { defineConfig } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 import press from "@fumapress/astro";
 
 export default defineConfig({
+  // the URL where your site is deployed, needed for SEO features like sitemap:
+  // site: "https://example.com",
   integrations: [
     press({
-      // the Markdown of pages for llms.txt
+      collections: { docs: { dir: "content" } },
+      lastModified: true,
       includeProcessedMarkdown: true,
     }),
   ],
@@ -57,10 +78,11 @@ export default defineConfig({
 ```tsx tab="press.config.tsx"
 import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
-import { defineConfig } from "@fumapress/astro/config";
+import { createPress } from "@fumapress/astro/config";
 
-export default defineConfig({
-  content: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+).config({
   site: {
     name: "My Docs",
   },
@@ -75,6 +97,10 @@ export const collections = {
   docs: defineCollection({ loader: pageLoader() }),
   meta: defineCollection({ loader: metaLoader() }),
 };
+```
+
+```css tab="src/app.css"
+@import "@fumapress/astro/css/default.css";
 ```
 
 ```json tab="tsconfig.json"
@@ -113,9 +139,9 @@ Start the dev server:
 npm run dev
 ```
 
-You can now start writing MDX files under the `content/docs` directory.
+You can now start writing MDX files under the `content` directory.
 
-```mdx title="content/docs/index.mdx"
+```mdx title="content/index.mdx"
 ---
 title: My Page
 description: Hello World
@@ -125,30 +151,3 @@ description: Hello World
 
 This is my first document.
 ```
-
-## Migrate from `@fumadocs/astro`
-
-The managed setup of `@fumadocs/astro` 0.1 moved to Fumapress, and `@fumadocs/astro` 0.2 is the integration for your own routes. Install `@fumapress/astro` and `@fumapress/core`, then:
-
-| Before                                                                        | Now                                                                           |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `fumadocs({ layout, page })`                                                  | `press({ layout, page })`                                                     |
-| `src/fumadocs.config.ts`                                                      | `press.config.tsx` at the project root                                        |
-| `source: loader(...)`                                                         | `content: toFumadocsSource(...)`                                              |
-| `title`                                                                       | `site.name`                                                                   |
-| `plugins/openapi`, `asyncapi`, `graphql`, `notion`, `sanity`                  | the `plugin` subpath of the integration, like `fumadocs-openapi/plugin`       |
-| `plugins/takumi`, `llms.txt`, `flexsearch`, `orama-search`, `link-validation` | the [recommended preset](/docs/config#preset), or `@fumapress/core/plugins/*` |
-| `plugins/git`                                                                 | `site.git`, and the `lastModified` collection option                          |
-| `plugins/mcp`                                                                 | `mcpPlugin()` of [`@fumapress/ai`](/docs/plugins/mcp)                         |
-| `baseOptions()` of the layout module                                          | `defaultLayoutProps`                                                          |
-| the `head` component                                                          | [`head()`](/docs/astro/configuration#head) tags                               |
-| `src/styles/global.css`, the `css` option                                     | `src/app.css`                                                                 |
-| `@fumadocs/astro/components/*`                                                | `@fumapress/astro/components/*`                                               |
-
-URLs change too:
-
-- Pages follow the content source, add `baseDir: "docs"` to keep them under `/docs`, see [Content](/docs/astro/content#collections).
-- Open Graph images move from `/og/<page>/image.webp` to `<page>.webp`.
-- The default search is FlexSearch instead of Orama, add `oramaSearchPlugin()` to keep Orama.
-
-Plugin pages are no longer replaced by MDX components of the same name, pass them to the plugin like the `ClientAPIPage` option of OpenAPI. On your own pages, `<Content />` needs a `provider`, see [Routing](/docs/astro/routing#rendering-content).

@@ -1,16 +1,12 @@
 ---
 title: Layouts
-description: Use and customize layouts in Fumapress.
+description: Render pages with Fumadocs layouts.
 icon: PanelsTopLeft
 ---
 
 ## Overview
 
-Layouts are page renderers. They decide how a content page is wrapped, how the page body is rendered, and which UI pieces like sidebar, table of contents, navbar, and footer are shown.
-
-Fumapress uses the docs layout by default. Pick another layout when a page needs a different reading experience, or switch between layouts per page with your own renderer.
-
-On Astro, you render layouts from a page module instead of `renderPage`, see [Layouts](/docs/astro/layouts).
+Every page goes through `ui.renderPage`. Without it, the built-in UI renders the [Docs Layout](/docs/layouts/docs) for content pages and the [Home Layout](/docs/layouts/home) for plugin views.
 
 <Cards>
   <Card href="/docs/layouts/docs" title="Docs Layout">
@@ -30,78 +26,148 @@ On Astro, you render layouts from a page module instead of `renderPage`, see [La
   </Card>
 </Cards>
 
-## Shared Props
+## Render Page
 
-Define `defaultLayoutProps` to share props across Fumadocs layouts. These props are merged into layouts that inherit default props, such as docs, notebook, and home layouts:
+`ui.renderPage` receives props typed by the page's source or plugin view. `props.type` is a source key (`"docs"`) or a view type (`"blog"`, `"blog.index"`). Content pages get `page`, `slugs`, `pageData`, `body`, `actions` and `footer`. Views get their own typed props plus `children`. Every page gets `lang`, `tree`, `baseOptions` and `renderDefault()`.
+
+Take `renderDefault` out of `props` before the switch. Once every type has a case, `props` is `never` in `default`.
+
+```tsx tab="src/ui/layout.tsx"
+import { selectTreeRoot, type RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  MarkdownCopyButton,
+  ViewOptionsPopover,
+} from "fumadocs-ui/layouts/notebook/page";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import type { app } from "../../press.config";
+
+function Docs({ tree, baseOptions, pageData, body, actions }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        <div className="flex gap-2">
+          {pageData.markdownUrl && <MarkdownCopyButton markdownUrl={pageData.markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={pageData.markdownUrl} githubUrl={pageData.githubUrl} />
+          {Object.values(actions)}
+        </div>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "docs":
+      return <Docs {...props} />;
+    case "blog":
+    case "blog.index":
+    case "blog.tags":
+    case "blog.tag":
+      return (
+        <HomeLayout {...props.baseOptions}>
+          <main className="mx-auto w-full max-w-[1400px] px-4 py-6">{props.children}</main>
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+}
+```
+
+```tsx tab="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { blogPlugin } from "@fumapress/blog";
+import { renderPage } from "./src/ui/layout";
+
+const docs = defineDocs({ dir: "content/docs", docs: { async: true } });
+const blog = defineDocs({ dir: "content/blog" });
+
+export const app = createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+}).plugins(blogPlugin({ source: "blog" }));
+
+export default app.config({
+  site: { name: "Acme" },
+  ui: { renderPage },
+});
+```
+
+Type a component with `RenderPageProps<typeof app, "docs">` to narrow the props to one source or view.
+
+## Base Options
+
+`ui.baseOptions` is shared by every layout and by your own pages through the site context's `getBaseOptions({ lang })`. Set it as an object or as a function of `lang`. Plugins add their own links under it. The site's own values win.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
+// ...
 
-export default defineConfig({
+export default app.config({
   // ...
-  defaultLayoutProps: {
-    nav: {
-      title: "My Docs",
+  ui: {
+    baseOptions: {
+      nav: { title: "Acme" },
+      links: [{ url: "/blog", text: "Blog", active: "nested-url" }],
     },
-    links: [
-      {
-        text: "GitHub",
-        url: "https://github.com/acme/docs",
-      },
-    ],
   },
 });
 ```
 
 ## Switching Layouts
 
-`renderPage` is just a function that returns JSX node. To switch between layouts for every page, create typed layout components and forward props to the one you want:
+Switch on `props.type` to render each source with a different layout.
 
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
-import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
-
-const DocsPage = createDocsLayoutPage<typeof config.$context>();
-const NotebookPage = createNotebookLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // ...
-  renderPage: (props) => {
-    if (props.page.path.startsWith("reference/")) {
-      return <NotebookPage {...props} />;
-    }
-
-    return <DocsPage {...props} />;
-  },
-});
-
-export default config;
+```tsx title="src/ui/layout.tsx"
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides":
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
 ```
 
-With multiple content sources, switch on `page.type` instead, see [Content Collections](/docs/collections).
+A condition on `props.page.path` works too, for example rendering pages under `reference/` with a different layout. With several sources, see [Content Collections](/docs/collections).
 
-## File-based Layouts
+## Page Actions and Footers
 
-File-based routes in `src/pages` use Waku's file-based routing model. Use `_layout.tsx` files to apply layouts on children routes.
+`actions` and `footer` are slot items added by your plugins, keyed by name. The AI plugin adds `actions.ai` and the feedback plugin adds `footer.feedback`. Place them in your page JSX, or spread all of them with `Object.values(actions)`.
 
-Define & export layouts:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createHomeLayout } from "fumapress/layouts/home";
-
-const config = defineConfig({
-  // ...
-});
-
-export const HomeLayout = createHomeLayout<typeof config.$context>();
-
-export default config;
+```tsx title="src/ui/layout.tsx"
+function Docs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  actions,
+  footer,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+      <DocsPage toc={pageData.toc}>
+        <div className="flex justify-end">{actions.ai}</div>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+        {footer.feedback}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
 ```
 
-To apply `HomeLayout` on all file-based routes under `/`:
-
-```tsx title="src/pages/_layout.tsx"
-export { HomeLayout as default } from "../../press.config";
-```
+See [AI](/docs/plugins/ai) and [Feedback](/docs/plugins/feedback) for the plugins that provide these slots.

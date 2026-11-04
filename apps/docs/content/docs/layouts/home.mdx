@@ -7,54 +7,57 @@ description: A navbar-only layout for landing and custom pages.
 
 See [Fumadocs Home Layout](https://fumadocs.dev/docs/ui/layouts/home-layout) for the available props.
 
-On Astro, use `HomeLayout.astro` for your pages, see [Your Pages](/docs/astro/routing#your-pages).
+## Plugin Views
 
-## Custom Pages
+Plugin views and plugin content pages (blog, changelog) render in the Home Layout by default. To restyle them, add a `renderPage` case with `HomeLayout` around `props.children`:
 
-`createHomeLayout()` returns a component wrapping its children with the navbar. `layoutProps` is deep-merged with `defaultLayoutProps`, set `inherit: { layoutProps: false }` to opt out.
+```tsx title="src/ui/layout.tsx"
+import type { ReactNode } from "react";
+import type { BaseOptions, RenderPageProps } from "fumapress";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import type { app } from "../../press.config";
 
-```tsx title="press.config.tsx"
-import { createHomeLayout } from "fumapress/layouts/home";
-import { BookIcon } from "lucide-react";
+function HomeShell({ baseOptions, children }: { baseOptions: BaseOptions; children: ReactNode }) {
+  return (
+    <HomeLayout {...baseOptions}>
+      <main className="mx-auto w-full max-w-[1400px] px-4 py-6">{children}</main>
+    </HomeLayout>
+  );
+}
 
-export const HomeLayout = createHomeLayout<typeof config.$context>({
-  layoutProps: {
-    links: [
-      {
-        url: "/docs",
-        text: "Documentation",
-        icon: <BookIcon />,
-        active: "nested-url",
-      },
-    ],
-  },
-});
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "blog":
+    case "blog.index":
+    case "blog.tags":
+    case "blog.tag":
+      return <HomeShell baseOptions={props.baseOptions}>{props.children}</HomeShell>;
+    default:
+      return renderDefault();
+  }
+}
 ```
 
-Use it as a [file-based layout](/docs/layouts#file-based-layouts), or pass it to plugins that render their own pages:
+See [Blog Custom UI](/docs/plugins/blog#custom-ui) for replacing the blog's views with your own components.
 
-```tsx title="press.config.tsx"
-config.plugins(
-  blogPlugin({
-    layouts: { layout: HomeLayout },
-  }),
-);
+## Your Own Pages
+
+Waku only. Pages in `src/pages` use `_layout.tsx` to wrap children with the Home Layout. The site context provides base options matching your config:
+
+```tsx title="src/pages/_layout.tsx"
+import type { ReactNode } from "react";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import { getPressContext, type WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export default async function Layout({
+  lang,
+  children,
+}: WakuRouteProps<typeof app> & { children: ReactNode }) {
+  const ctx = getPressContext<typeof app>();
+  return <HomeLayout {...await ctx.getBaseOptions({ lang })}>{children}</HomeLayout>;
+}
 ```
 
-## Content Pages
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createHomeLayoutPage } from "fumapress/layouts/home";
-
-const HomePage = createHomeLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // ...
-  renderPage: (props) => <HomePage {...props} />,
-});
-
-export default config;
-```
-
-Pass a `render` function to return `layoutProps` or a custom `body` for each page.
+See [File-based Routing](/docs/routing#file-based-routing) for the route conventions.

@@ -1,31 +1,124 @@
 ---
-title: Configurations
-description: Available options.
+title: Configuration
+description: The stages and options of press.config.tsx.
 icon: Cog
 ---
 
-## Main Config
+## Overview
 
-Primary options for your app.
-
-On [Astro](/docs/astro/configuration), import `defineConfig` from `@fumapress/astro/config`, it takes these options except `meta`, `renderPage`, `renderRoot` and `renderNotFound`.
+`press.config.tsx` has three stages: content, plugins, then config.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
+import { metaSchema, pageSchema } from "fumapress/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { blogPlugin } from "@fumapress/blog";
+import { blogPageSchema } from "@fumapress/blog/schema";
+import { baseOptions, renderPage } from "./src/ui/layout";
 
-export default defineConfig({
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { async: true, lastModified: true, schema: pageSchema },
+  meta: { schema: metaSchema },
+});
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: { schema: blogPageSchema },
+});
+
+// 1. content and loader options
+export const app = createPress(
+  {
+    docs: docs.toFumadocsSource({ baseDir: "docs" }),
+    blog: blog.toFumadocsSource({ baseDir: "blog" }),
+  },
+  { loaderOptions: { plugins: [lucideIconsPlugin()] } },
+)
+  // 2. plugins
+  .plugins(llmsPlugin({ routes: "all" }), blogPlugin({ source: "blog" }));
+
+// 3. config
+export default app.config({
+  site: {
+    name: "Acme",
+    baseUrl: "https://docs.acme.dev",
+    git: { user: "acme", repo: "docs", branch: "main" },
+  },
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
+  ui: { baseOptions, renderPage },
+});
+```
+
+`createPress(content, options)` takes your sources and returns a builder. `.plugins(...)` adds plugins (called once; lists are flattened and falsy values skipped). `.config({...})` sets everything else and is the default export.
+
+## Content
+
+The first argument is one source or a record of named sources. The keys become the `type` of each page.
+
+```tsx title="press.config.tsx"
+export default createPress(docs.toFumadocsSource()).config({
+  // ...
+});
+
+// or several sources
+export default createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+}).config({
   // ...
 });
 ```
+
+See [Collections](/docs/collections) for defining content sources with Fumadocs MDX.
+
+The optional second argument takes `i18n` (see [Internationalization](/docs/internationalization)) and `loaderOptions`.
+
+### Loader Options
+
+`loaderOptions` configures the [Loader API](https://fumadocs.dev/docs/headless/source-api) that Fumapress creates from your content sources. A common use is loader plugins, such as resolving the `icon` frontmatter field to Lucide icons:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+
+export default createPress(docs.toFumadocsSource(), {
+  // [!code ++:3]
+  loaderOptions: {
+    plugins: [lucideIconsPlugin()],
+  },
+}).config({
+  // ...
+});
+```
+
+For dynamic content sources (e.g. a CMS), `alwaysRevalidate: true` refetches them on every request:
+
+```tsx title="press.config.tsx"
+createPress(docs.toFumadocsSource(), {
+  loaderOptions: {
+    alwaysRevalidate: true,
+  },
+});
+```
+
+Leave it disabled to control this yourself with `getPressContext<typeof app>().revalidateLoader()`.
+
+## Plugins
+
+`.plugins(a, b)` adds plugins to the site. Call it once between `createPress()` and `.config()`. See [Plugins](/docs/plugins).
+
+## Config
 
 ### Site
 
 The site information like name and linked git repository:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
-export default defineConfig({
+export default createPress(/* ... */).config({
   site: {
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
@@ -38,36 +131,23 @@ export default defineConfig({
 });
 ```
 
-The repository is used for the icon link in navbar, and the link to source file of pages.
+The repository adds an icon link to the navbar and a link to the source file of each page.
 
-Source file links are resolved against the detected git root, set `git.rootDir` to override it, such as when building in an environment without the `.git` directory.
+Source file links resolve against the detected git root. Set `git.rootDir` to override it, such as when building without the `.git` directory.
 
 #### URLs
 
 `baseUrl` is required for some features to know the absolute URL of a page.
 
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  site: {
-    baseUrl: "https://press.fumadocs.dev",
-  },
-});
-```
-
-Page URLs have no trailing slash, the [deployment adapters](/docs/deployment) configure hosts to serve them that way.
+Page URLs have no trailing slash. The [deployment adapters](/docs/deployment) configure hosts to serve them that way.
 
 #### Locales
 
-With [i18n](/docs/internationalization), every page links its translations with `hreflang`. Locale codes are used as is, map the ones that are not BCP 47 language tags:
+With [i18n](/docs/internationalization), every page links its translations with `hreflang`. Locale codes are used as is. Map the ones that are not BCP 47 language tags:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
+createPress(/* ... */).config({
   site: {
-    // [!code ++:4]
     hreflang: {
       cn: "zh-Hans",
       tw: "zh-Hant",
@@ -78,12 +158,10 @@ export default defineConfig({
 
 #### Git Providers
 
-`git.provider` supports `github` (default), `gitlab`, and `bitbucket`, the navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
+`git.provider` supports `github` (default), `gitlab` and `bitbucket`. The navbar icon link and source file URLs follow the given provider. For self-hosted instances, pass the instance URL with `git.url`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
+createPress(/* ... */).config({
   site: {
     git: {
       provider: "gitlab",
@@ -96,56 +174,16 @@ export default defineConfig({
 });
 ```
 
-### Layouts
-
-Specify or customize page UI with `renderPage`, `renderRoot`, and `renderNotFound`.
-
-```tsx title="press.config.tsx"
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
-import { defineConfig } from "fumapress";
-
-const DocsLayout = createDocsLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // [!code ++]
-  renderPage: (props) => <DocsLayout {...props} />,
-});
-
-export default config;
-```
-
-`renderNotFound` customizes the not found screen, shown for unknown URLs and `notFound()` calls:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { Link } from "fumapress/client";
-
-export default defineConfig({
-  // [!code ++:6]
-  renderNotFound: () => (
-    <main>
-      <h1>Page not found</h1>
-      <Link href="/">Back to home</Link>
-    </main>
-  ),
-});
-```
-
-See [Layouts](/docs/layouts) for details.
-
 ### Render Mode
 
 `mode` controls how routes are rendered:
 
-- `default`: when your content source will not change after production build. It still emits API routes, such as the search API endpoint, which require a running server to host.
-- `static`: same as `default`, but will not emit API routes. Production builds emit only static files, which can be served via CDNs.
-- `dynamic`: when your content source will change after production build. Requires a running server to host.
+- `default`: pages are prerendered. API routes such as the search endpoint run on a server.
+- `static`: only static files are emitted, for any static host or CDN.
+- `dynamic`: pages render on request, for content sources that change after the build.
 
 ```ts title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  // ...
+createPress(/* ... */).config({
   // [!code ++]
   mode: "static",
 });
@@ -161,92 +199,170 @@ By default, Fumapress adds recommended plugins automatically:
 - [robots.txt](/docs/plugins/robots)
 - [llms.txt](/docs/plugins/llms.txt)
 - [RSS](/docs/plugins/rss)
-- Search with [Flexsearch](/docs/plugins/flexsearch)
+- Search with [FlexSearch](/docs/plugins/flexsearch)
 - OG images with [Takumi](/docs/plugins/takumi)
-- [Image optimization](/docs/plugins/image) matching your deployment target
+- [Image optimization](/docs/plugins/image) matching your deployment target (Waku only)
 
-Plugins you add yourself take priority, e.g. adding `oramaSearchPlugin()` replaces the default search.
+Listing a plugin that provides the same [capability](/docs/plugins#capabilities) as a preset entry takes that entry's place. For example, adding `oramaSearchPlugin()` replaces the default search.
 
-To start from an empty plugin list instead:
+To start from an empty plugin list:
 
 ```ts title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
-  // ...
+createPress(/* ... */).config({
   // [!code ++]
-  preset: false,
+  preset: [],
 });
 ```
 
-### Loader Options
-
-`loaderOptions` configures the [Loader API](https://fumadocs.dev/docs/headless/source-api) that Fumapress creates from your content sources. A common use is loader plugins, such as resolving the `icon` frontmatter field to Lucide icons:
+To drop a single entry, filter by `provides`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+import { createPress, recommendedPreset } from "fumapress";
 
-export default defineConfig({
-  // ...
-  // [!code ++:3]
-  loaderOptions: {
-    plugins: [lucideIconsPlugin()],
+export default createPress(/* ... */).config({
+  preset: recommendedPreset().filter((entry) => entry.provides !== "rss"),
+});
+```
+
+### Head
+
+Head tags are an array of `{ tag, attrs, children }` entries, such as the favicon and fonts:
+
+```tsx title="press.config.tsx"
+createPress(/* ... */).config({
+  head: [
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } },
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    {
+      tag: "link",
+      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+    },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+      },
+    },
+  ],
+});
+```
+
+The function form runs once site-wide (without `page` and `route`) and once per page, with `{ page, route, path, view }`. The site's tags win over the plugins' by key.
+
+```tsx title="press.config.tsx"
+createPress(/* ... */).config({
+  head({ page }) {
+    if (page) return;
+    return [{ tag: "link", attrs: { rel: "icon", href: this.withBase("/favicon.ico") } }];
   },
 });
 ```
 
-For dynamic content sources (e.g. a CMS), `alwaysRevalidate: true` refetches them on every request:
+### UI
+
+#### `baseOptions`
+
+The base layout options shared by every page: navbar, links, and other [Fumadocs layout props](https://fumadocs.dev/docs/ui/layouts/docs). Pass an object, or a function that receives `{ lang }` with `this` as the site context.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-
-export default defineConfig({
-  // ...
-  // [!code ++:3]
-  loaderOptions: {
-    alwaysRevalidate: true,
+createPress(/* ... */).config({
+  ui: {
+    baseOptions: {
+      nav: { title: "My Docs" },
+      links: [{ text: "GitHub", url: "https://github.com/acme/docs" }],
+    },
   },
 });
 ```
 
-Leave it disabled to control this yourself with `getPressContext().revalidateLoader()`.
+With i18n, use a function to localize paths:
 
-### Meta
+```tsx title="src/ui/layout.tsx"
+import type { UIOptions } from "fumapress";
+import type { app } from "../press.config";
 
-To add meta tags, you can leverage the `meta` config.
+export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+  return {
+    links: [{ url: this.localizePath(lang, "/blog"), text: lang === "zh" ? "部落格" : "Blog" }],
+  };
+};
+```
 
-On Astro, return head tags from [`head`](/docs/astro/configuration#head) instead.
+See [Base Options](/docs/layouts#base-options).
+
+#### `providerProps`
+
+Props passed to the root provider of every page, such as the theme. Search plugins put their dialog here automatically. To replace the dialog, pass `search.SearchDialog`. See [Custom Dialog](/docs/search#custom-dialog).
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+createPress(/* ... */).config({
+  ui: {
+    providerProps: {
+      theme: { defaultTheme: "dark" },
+    },
+  },
+});
+```
 
-export default defineConfig({
-  // [!code ++:19]
-  meta: {
-    root() {
+#### `translations`
+
+UI string translations. See [Translations](/docs/internationalization#translations).
+
+#### `renderPage`
+
+The function that renders every page. See [Render Page](/docs/layouts#render-page).
+
+#### `renderRoot`
+
+Waku only. Replaces the `<html>` document. Render `{head}` inside `<head>` and `{children}` inside `<body>`:
+
+```tsx title="press.config.tsx"
+createPress(/* ... */).config({
+  ui: {
+    renderRoot({ lang, head, children }) {
       return (
-        <>
-          <meta property="og:type" content="website" />
-          {/* you can use it for link tags as well */}
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
-            rel="stylesheet"
-          />
-        </>
+        <html lang={lang ?? "en"} className="dark" suppressHydrationWarning>
+          <head>{head}</head>
+          <body className="antialiased">{children}</body>
+        </html>
       );
     },
-    page(page) {
-      return <>{/* page-level meta tags */}</>;
-    },
   },
 });
 ```
 
-## UI
+## Types
+
+Export the `app` value (the result of `.plugins()`) and use `typeof app` for type helpers:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+
+export const app = createPress(/* ... */).plugins(/* ... */);
+export default app.config({/* ... */});
+```
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import type { app } from "../press.config";
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // ...
+}
+```
+
+Available type helpers from `fumapress`:
+
+- `RenderPageProps<typeof app, "docs">`: props of `ui.renderPage`, narrowed by source or view type.
+- `PressContext<typeof app>`: the return type of `getPressContext<typeof app>()`.
+- `UIOptions<typeof app>["baseOptions"]`: the type of `ui.baseOptions`.
+- `BaseOptions`: the Fumadocs layout props type.
+- `ProviderProps`: the root provider props type.
+- `WakuRouteProps<typeof app, "/showcase/[slug]">`: props of your own pages, typed by the file path.
+- `WakuRouteConfig`: the `getConfig()` return type of route files.
+
+## Styles
 
 ### Tailwind CSS
 
@@ -259,11 +375,9 @@ Create a `src/app.css` file:
 @import "fumapress/css/preset.css";
 ```
 
-It will be automatically loaded, restart the dev server if there's one running.
+It is loaded automatically. Restart the dev server if one is running.
 
-On Astro, start it from the default styles of `@fumapress/astro` instead, see [Styles](/docs/astro/configuration#styles).
-
-You can change the color theme or add custom styles, like:
+You can change the color theme or add custom styles:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -294,28 +408,34 @@ npm uninstall @base-ui/react
 
 ## Vite Plugin
 
-On Astro, the `press()` integration of `@fumapress/astro` takes its place, see [Integration](/docs/astro/configuration#integration).
+Waku only. The `press()` plugin connects Fumapress to Vite:
 
-The `press()` plugin connects Fumapress to Vite:
-
-```ts title="vite.config.ts"
+```ts tab="vite.config.ts"
 import { defineConfig } from "vite";
 import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [press(), fumadocsMdx(), tailwindcss()],
+  plugins: [press({ components: "./src/components/mdx.tsx" }), fumadocsMdx(), tailwindcss()],
 });
 ```
 
-It takes the options of the app itself, like the directory layout and deployment target:
+```tsx tab="src/components/mdx.tsx"
+import defaultMdxComponents from "fumadocs-ui/mdx";
+import { Callout } from "fumadocs-ui/components/callout";
+import type { MDXComponents } from "mdx/types";
 
-<auto-type-table type="import('fumapress/vite').PluginOptions" />
+export default { ...defaultMdxComponents, Callout } satisfies MDXComponents;
+```
+
+The `components` option points to a module whose default export is the MDX components. Relative links between pages resolve automatically.
+
+<auto-type-table type="import('fumapress/vite').WakuPressOptions" />
 
 ### Deployment Adapter
 
-Vercel, Netlify, and Cloudflare are detected from the environment, other targets fall back to `waku/adapters/node`. Set `adapter` when the detected one isn't what you deploy to, see [Deployment](/docs/deployment):
+Vercel, Netlify and Cloudflare are detected from the environment. Other targets fall back to `waku/adapters/node`. Set `adapter` when the detected one is not what you deploy to. See [Deployment](/docs/deployment).
 
 ```ts title="vite.config.ts"
 export default defineConfig({
@@ -330,7 +450,7 @@ export default defineConfig({
 
 ## CLI
 
-The `fumapress` CLI runs Vite with the environments your app needs, use it instead of calling `vite` directly.
+Waku only. The `fumapress` CLI runs Vite with the environments your site needs. Use it instead of calling `vite` directly.
 
 ```json title="package.json"
 {
@@ -342,7 +462,7 @@ The `fumapress` CLI runs Vite with the environments your app needs, use it inste
 }
 ```
 
-`dev` and `start` accept `--host` (`-h`) and `--port` (`-p`), the port can also be set with the `PORT` environment variable. `dev` listens on port 3000, `start` picks a free port from 8080.
+`dev` and `start` accept `--host` (`-h`) and `--port` (`-p`). The `PORT` environment variable also sets the port. `dev` listens on port 3000, `start` picks a free port from 8080.
 
 ```npm
 npm run dev -- --port 4000
@@ -350,28 +470,32 @@ npm run dev -- --port 4000
 
 ## Server Entry
 
-The server entry file is optional, you can create one if needed. Useful for implementing custom router.
+Waku only. The server entry file is optional. Create one for a custom router or non-standard rendering.
 
 Custom server entries use [Waku.js](https://waku.gg) APIs directly. Since Fumapress manages Waku as its own dependency, install it explicitly for direct API access, matching the version pinned by Fumapress:
 
 ```npm
-npm i waku@1.0.0-rc.0
+npm i waku@1.0.0-rc.1
 ```
 
 ```tsx title="src/waku.server.tsx"
 import _adapter from "waku/adapters/default";
-// your main config file
-import pressConfig from "../press.config";
+import press from "../press.config";
 import { createRouter } from "fumapress/router";
 import { fsRouterFn } from "fumapress/router/fs";
+import mdxPlugin from "fumadocs-mdx/press";
+import components from "./components/mdx";
 
-const router = await createRouter(pressConfig);
+const router = await createRouter(press, {
+  renderers: [mdxPlugin({ components })],
+});
+
+import.meta.hot?.dispose(router.dispose);
 
 const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
   base: "/src",
 });
 
-// file-system router
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
 const adapter = router.patchAdapter(_adapter);
@@ -379,17 +503,22 @@ const adapter = router.patchAdapter(_adapter);
 export default adapter(pages, { middlewareFns });
 ```
 
-You can also use [Waku Config-based Routing](https://waku.gg/#routing) instead of the file-system router, see the linked docs for usage.
+You can also use [Waku Config-based Routing](https://waku.gg/#routing) instead of the file-system router. The callback takes `(fns)` with `createPage`, `createLayout` and other functions:
 
 ```tsx title="src/waku.server.tsx"
 import _adapter from "waku/adapters/default";
-// your main config file
-import pressConfig from "../press.config";
+import press from "../press.config";
 import { createRouter } from "fumapress/router";
+import mdxPlugin from "fumadocs-mdx/press";
+import components from "./components/mdx";
 
-const router = await createRouter(pressConfig);
+const router = await createRouter(press, {
+  renderers: [mdxPlugin({ components })],
+});
 
-const pages = router.createPages(async ({ createPage }) => {
+import.meta.hot?.dispose(router.dispose);
+
+const pages = router.createPages(({ createPage }) => {
   // note: root element is already created by Fumapress
   createPage({
     render: "static",

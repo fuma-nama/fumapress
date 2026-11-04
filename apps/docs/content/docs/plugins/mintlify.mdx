@@ -7,37 +7,29 @@ description: Migrate from Mintlify, powered by your docs.json file.
 
 `@fumapress/mintlify` reads your existing Mintlify `docs.json` file and configures Fumapress from it.
 
-This plugin is Waku only, it doesn't run on [Astro](/docs/astro).
-
 ## Installation
 
 ```npm
 npm i @fumapress/mintlify
 ```
 
-Add the plugin to your config, with `docs.json` located in your project root:
+Add the plugin, with `docs.json` located in your project root:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
 // [!code ++]
 import { mintlifyPlugin } from "@fumapress/mintlify";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs" });
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-  },
-})
+export default createPress({ docs: docs.toFumadocsSource() })
   // [!code ++]
-  .plugins(mintlifyPlugin());
+  .plugins(mintlifyPlugin())
+  .config({/* ... */});
 ```
 
-Your MDX pages should live in the `content/docs` folder (paths in `docs.json` are resolved against it, a `docs/` or `content/docs/` prefix in navigation entries is ignored).
+Your MDX pages should live in the `content/docs` folder (paths in `docs.json` are resolved against it; a `docs/` or `content/docs/` prefix in navigation entries is ignored).
 
 ## Options
 
@@ -63,25 +55,49 @@ mintlifyPlugin({
 });
 ```
 
+The navbar, `appearance` and `search.prompt` apply under your own [`baseOptions`](/docs/layouts#base-options) and `ui.providerProps`, which take priority.
+
+The banner and footer are rendered through a `layout.wrapper` [slot](/docs/plugins/authoring#slots), so they appear on every page.
+
+## 404 Page
+
+`errors.404` produces a `mintlify.404` view. Style it with a [`renderPage`](/docs/layouts#render-page) case:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { mintlifyPlugin } from "@fumapress/mintlify";
+
+export default createPress(content)
+  .plugins(mintlifyPlugin({ features: { footer: false } }))
+  .config({
+    ui: {
+      renderPage(props) {
+        if (props.type === "mintlify.404") return <main>{props.title}</main>;
+        return props.renderDefault();
+      },
+    },
+  });
+```
+
 ## Internationalization
 
 When `docs.json` defines `navigation.languages`, configure i18n with `defineMintlifyI18n()`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineMintlifyI18n, mintlifyPlugin, readMintlifyDocs } from "@fumapress/mintlify";
 
 const mintlifyDocs = readMintlifyDocs();
+const i18n = defineMintlifyI18n(mintlifyDocs, {
+  // optionally map Mintlify locales to your own locale codes
+  localeMap: { cn: "zh" },
+});
 
-export default defineConfig({
-  content: {
-    // ...
-  },
-  translations: defineMintlifyI18n(mintlifyDocs, {
-    // optionally map Mintlify locales to your own locale codes
-    localeMap: { cn: "zh" },
-  }).translations(),
-}).plugins(mintlifyPlugin());
+export default createPress(content, { i18n })
+  .plugins(mintlifyPlugin())
+  .config({
+    ui: { translations: i18n.translations() },
+  });
 ```
 
 ## OpenAPI & AsyncAPI
@@ -89,35 +105,32 @@ export default defineConfig({
 `api.openapi` sources (file paths or URLs) can be forwarded to [Fumadocs OpenAPI](/docs/plugins/openapi):
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { mintlifyPlugin } from "@fumapress/mintlify";
 import { createMintlifyOpenAPI } from "@fumapress/mintlify/openapi";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import openapiPlugin from "fumadocs-openapi/press";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs" });
 const openapi = createMintlifyOpenAPI();
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    openapi: await openapi.staticSource(),
-  },
-}).plugins(mintlifyPlugin(), openapiPlugin({ server: openapi }));
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  openapi: await openapi.staticSource(),
+})
+  .plugins(mintlifyPlugin(), openapiPlugin({ server: openapi }))
+  .config({/* ... */});
 ```
 
 `api.asyncapi` sources work the same way with `createMintlifyAsyncAPI` from `@fumapress/mintlify/asyncapi` and the [AsyncAPI plugin](/docs/plugins/asyncapi).
 
-`api.playground.proxy` is respected (proxy enabled by default at `/api/proxy`). Other `api` options are not supported, see the support matrix.
+`api.playground.proxy` is respected (proxy enabled by default at `/api/proxy`). Other `api` options are not supported. See the [Support Matrix](#support-matrix).
 
 ## Support Matrix
 
-All valid `docs.json` files parse successfully — unsupported properties are accepted and ignored, so migration never breaks on them.
+All valid `docs.json` files parse successfully. Unsupported properties are accepted and ignored, so migration never breaks on them.
 
-> This page covers `docs.json` only. MDX content (Mintlify components like `<Card>`, `<Accordion>`, frontmatter conventions) is handled by your content adapter, not by this plugin.
+> This page covers `docs.json` only. MDX content (Mintlify components like `<Card>`, `<Accordion>`, frontmatter conventions) is handled by your content source, not by this plugin.
 
 ### Supported
 
@@ -144,27 +157,27 @@ All valid `docs.json` files parse successfully — unsupported properties are ac
 | `api.openapi` / `api.asyncapi`          | Via `createMintlifyOpenAPI()` / `createMintlifyAsyncAPI()`.                                                                                                                                                                                        |
 | `api.playground.proxy`                  | Enables/disables the API proxy.                                                                                                                                                                                                                    |
 
-### Partially supported
+### Partially Supported
 
 | Property         | Notes                                                                                                                                                                                                                                                                                                             |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `icons.library`  | All icons render with [Lucide](https://lucide.dev). Lucide names map 1:1; Font Awesome and Tabler names are matched best-effort (exact name or a translation table for common icons), unknown names are skipped with a warning.                                                                                   |
+| `icons.library`  | All icons render with [Lucide](https://lucide.dev). Lucide names map 1:1; Font Awesome and Tabler names are matched best-effort (exact name or a translation table for common icons). Unknown names are skipped with a warning.                                                                                   |
 | `colors.dark`    | No Fumadocs equivalent for a separate button/hover color; `primary`/`light` drive the theme.                                                                                                                                                                                                                      |
 | `integrations`   | Script-based analytics are injected into `<head>`: `amplitude`, `clarity`, `fathom`, `ga4`, `gtm`, `heap`, `hotjar`, `intercom`, `koala`, `logrocket`, `mixpanel`, `pirsch`, `plausible`, `posthog`, `segment`. Not supported: `adobe`, `clearbit`, `frontchat`, `hightouch`, `onetrust`, `telemetry`, `cookies`. |
-| `contextual`     | Fumapress always shows page actions (copy Markdown, open in AI tools) on docs pages; the `options` list and `display` position are not configurable.                                                                                                                                                              |
+| `contextual`     | Fumapress shows page actions (copy Markdown, open in AI tools) on docs pages; the `options` list and `display` position are not configurable.                                                                                                                                                                     |
 | `footer.socials` | Brand glyphs are included for all platforms Mintlify accepts; `website`/`earth-americas`/`podcast` use generic icons.                                                                                                                                                                                             |
 
-### Not supported
+### Not Supported
 
 | Property                                                                                                                | Notes                                                                                                                                                                                        |
 | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `theme`                                                                                                                 | Mintlify theme variants (`mint`, `maple`, `palm`, ...) don't map to Fumapress; the value is accepted and ignored. Customize with [Fumadocs CSS](https://fumadocs.dev/docs/ui/theme) instead. |
 | `background.decoration`                                                                                                 | Decorations are Mintlify theme assets. Add your own via `src/app.css`.                                                                                                                       |
 | `styling.eyebrows`                                                                                                      | Fumapress shows breadcrumbs by default.                                                                                                                                                      |
-| `styling.codeblocks`                                                                                                    | Code block themes are compiled at build time — configure Shiki themes in your MDX adapter options.                                                                                           |
+| `styling.codeblocks`                                                                                                    | Code block themes are compiled at build time; configure Shiki themes in your MDX options.                                                                                                    |
 | `thumbnails`                                                                                                            | Use the [Takumi plugin](/docs/plugins/takumi) to auto-generate social images.                                                                                                                |
 | `interaction.drilldown`                                                                                                 | Sidebar folder behavior is not configurable.                                                                                                                                                 |
-| `variables`                                                                                                             | Content-level templating is up to your content adapter.                                                                                                                                      |
+| `variables`                                                                                                             | Content-level templating is up to your content source.                                                                                                                                       |
 | `markdown.schema` / `markdown.instructions`                                                                             | See the [llms.txt plugin](/docs/plugins/llms.txt) for Markdown serving to AI agents.                                                                                                         |
 | `api.params` / `api.examples` / `api.url` / `api.mdx` / `api.playground.display` / `api.playground.credentials`         | Not configurable in Fumadocs OpenAPI.                                                                                                                                                        |
 | `navigation` extras: `directory`, `align`, `searchable`, `public`, `boost`, `color`, `hidden` languages/versions `href` | Search/access-control and layout hints without a Fumapress equivalent.                                                                                                                       |
@@ -172,6 +185,5 @@ All valid `docs.json` files parse successfully — unsupported properties are ac
 
 ## Notes
 
-- **Icons**: navigation, navbar and group icons resolve to Lucide components on the server, no extra client JavaScript is shipped.
-- **Banner & footer** are rendered outside the docs layout so they appear on every page.
-- **`$ref` resolution**: `docs.json` may reference other JSON files with `$ref`, they are resolved (and validated to stay inside your project root) before parsing.
+- **Icons**: navigation, navbar and group icons resolve to Lucide components on the server. No extra client JavaScript is shipped.
+- **`$ref` resolution**: `docs.json` may reference other JSON files with `$ref`. They are resolved (and validated to stay inside your project root) before parsing.

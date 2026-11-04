@@ -6,7 +6,49 @@ icon: FileText
 
 ## Overview
 
-Fumapress serves pages as Markdown for LLMs and AI agents through the [llms.txt plugin](/docs/plugins/llms.txt). Content pages get their Markdown from the content source, while custom routes built with React can define their own Markdown form with `fumapress/markdown`.
+Waku only. Fumapress serves pages as Markdown for LLMs and AI agents through the [llms.txt plugin](/docs/plugins/llms.txt). Content pages get their Markdown from the content source. Custom routes built with React can define their own Markdown form with `fumapress/markdown`.
+
+To include your own pages in the Markdown output, enable `routes: "all"` on the [llms.txt plugin](/docs/plugins/llms.txt):
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { llmsPlugin } from "fumapress/plugins/llms.txt";
+
+export const app = createPress(/* ... */).plugins(llmsPlugin({ routes: "all" }));
+
+export default app.config({/* ... */});
+```
+
+A page with dynamic params:
+
+```tsx title="src/pages/showcase/[slug].tsx"
+import type { WakuRouteConfig, WakuRouteProps } from "fumapress";
+import { asMarkdown, md } from "fumapress/markdown";
+import type { app } from "../../../press.config";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getConfig() {
+  return {
+    render: "static",
+    staticPaths: Object.keys(items),
+  } satisfies WakuRouteConfig;
+}
+
+export default function Showcase({ slug }: WakuRouteProps<typeof app, "/showcase/[slug]">) {
+  const item = items[slug];
+  if (!item) return null;
+  if (asMarkdown()) return md`# ${item.title}\n\n${item.description}`;
+  return (
+    <main>
+      <title>{item.title}</title>
+      {item.description}
+    </main>
+  );
+}
+```
 
 ## API
 

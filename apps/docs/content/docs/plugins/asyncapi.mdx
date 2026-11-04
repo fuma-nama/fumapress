@@ -1,6 +1,6 @@
 ---
 title: AsyncAPI
-description: Build event-driven API documentations with Fumapress.
+description: Build event-driven API documentation with Fumapress.
 ---
 
 ## Installation
@@ -9,7 +9,7 @@ description: Build event-driven API documentations with Fumapress.
 npm i @fumadocs/asyncapi shiki
 ```
 
-Import the CSS preset in `src/app.css`:
+Import the CSS preset:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -23,68 +23,47 @@ Import the CSS preset in `src/app.css`:
 Configure the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
-// [!code ++:3]
-import path from "node:path";
+// [!code ++:2]
 import { createAsyncAPI } from "@fumadocs/asyncapi/server";
-import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+import asyncapiPlugin from "@fumadocs/asyncapi/press";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs" });
 
 // [!code ++:4]
 const asyncapi = createAsyncAPI({
   // path or URL to your AsyncAPI spec
-  input: [path.resolve("./asyncapi.yaml")],
+  input: ["./asyncapi.yaml"],
 });
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    // [!code ++]
-    asyncapi: await asyncapi.staticSource(),
-  },
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  asyncapi: await asyncapi.staticSource({ baseDir: "docs/events" }),
 })
-  // fumapress plugin [!code ++]
-  .plugins(asyncapiPlugin({ server: asyncapi }));
+  // [!code ++]
+  .plugins(asyncapiPlugin({ server: asyncapi }))
+  .config({/* ... */});
 ```
 
-Update the path/URL to your AsyncAPI spec (e.g. `./asyncapi.yaml`), the API pages will be automatically generated based on your spec.
-
-On [Astro](/docs/astro), import `asyncapiPlugin` from `@fumadocs/asyncapi/plugin`.
+Update the path to your AsyncAPI spec. API pages are generated from the spec.
 
 ## Options
 
-You can see [Fumadocs AsyncAPI](https://www.fumadocs.dev/docs/integrations/asyncapi) for details of advanced options.
+See [Fumadocs AsyncAPI](https://www.fumadocs.dev/docs/integrations/asyncapi) for details of advanced options.
 
 ### `asyncapi.staticSource()`
 
-It support a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/asyncapi/generate-files).
+It supports a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/asyncapi/generate-files).
 
 <Callout title="How to customize its output file structure?">
 
-It accepts a `baseDir` option. For example, the following will generate all API pages under the `(asyncapi)` folder:
+It accepts a `baseDir` option. For example, the following generates all API pages under the `(asyncapi)` folder:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { defineDocs } from "fumadocs-mdx/macro";
-
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
-
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    asyncapi: await asyncapi.staticSource({
-      // [!code highlight]
-      baseDir: "(asyncapi)",
-    }),
-  },
+asyncapi.staticSource({
+  baseDir: "(asyncapi)",
 });
 ```
 
@@ -104,16 +83,11 @@ export const AsyncAPIPage = createAsyncAPIPage();
 And import it from the AsyncAPI plugin:
 
 ```tsx title="press.config.tsx"
-// [!code ++]
 import { AsyncAPIPage } from "./src/components/asyncapi";
 
-export default defineConfig({
-  // ...
-}).plugins(
-  asyncapiPlugin({
-    server: asyncapi,
-    // [!code ++]
-    ClientAPIPage: AsyncAPIPage,
-  }),
-);
+asyncapiPlugin({
+  server: asyncapi,
+  // [!code ++]
+  ClientAPIPage: AsyncAPIPage,
+});
 ```

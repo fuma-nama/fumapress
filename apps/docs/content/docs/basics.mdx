@@ -8,7 +8,7 @@ import { File, Files, Folder } from "fumadocs-ui/components/files";
 
 ## Project Layout
 
-A new app looks like this:
+A new site looks like this:
 
 <Files>
   <Folder name="content" defaultOpen>
@@ -40,7 +40,7 @@ This is my first document.
 
 The block at the top is frontmatter. `title` and `description` show in the page layout. Use `##` in the body: Fumapress already renders `title` as the main heading.
 
-Frontmatter also accepts an `icon`, a [Lucide](https://lucide.dev) icon name shown in the sidebar. Icon names are resolved by the `lucideIconsPlugin` loader plugin, see [Loader Options](/docs/config#loader-options).
+Frontmatter also accepts an `icon`, a [Lucide](https://lucide.dev) icon name shown in the sidebar. Icon names are resolved by the `lucideIconsPlugin` loader plugin. See [Loader Options](/docs/config#loader-options).
 
 Add another file:
 
@@ -87,10 +87,9 @@ Fumapress uses the same Markdown features and page tree rules as Fumadocs. When 
 Open `press.config.tsx`. This is where you name the site and connect a git repo:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
-export default defineConfig({
-  // ...
+export default createPress(/* ... */).config({
   site: {
     name: "My Docs",
     baseUrl: "https://docs.example.com",
@@ -105,23 +104,25 @@ export default defineConfig({
 
 `site.name` appears in the UI and metadata. `site.git` adds the repository link to navbar and an edit button on pages.
 
-Add additional links to the navbar with `defaultLayoutProps`:
+Add additional links to the navbar with [base options](/docs/config#ui):
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
-export default defineConfig({
+export default createPress(/* ... */).config({
   // ...
-  defaultLayoutProps: {
-    nav: {
-      title: "My Docs",
-    },
-    links: [
-      {
-        text: "GitHub",
-        url: "https://github.com/acme/docs",
+  ui: {
+    baseOptions: {
+      nav: {
+        title: "My Docs",
       },
-    ],
+      links: [
+        {
+          text: "GitHub",
+          url: "https://github.com/acme/docs",
+        },
+      ],
+    },
   },
 });
 ```
@@ -146,24 +147,25 @@ More presets: [Fumadocs UI Themes](https://fumadocs.dev/docs/ui/theme).
 
 ### Fonts
 
-The starter already loads Geist from Google Fonts. To use another font, pick one on [Google Fonts](https://fonts.google.com), copy the `<link />` tags, and put them in `meta.root` inside `press.config.tsx`:
+The starter already loads Geist from Google Fonts. To use another font, pick one on [Google Fonts](https://fonts.google.com), copy the `<link />` tags, and put them in the `head` option:
 
 ```tsx title="press.config.tsx"
-export default defineConfig({
-  meta: {
-    root() {
-      return (
-        <>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
-            rel="stylesheet"
-          />
-        </>
-      );
+export default createPress(/* ... */).config({
+  // ...
+  head: [
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    {
+      tag: "link",
+      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
     },
-  },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+      },
+    },
+  ],
 });
 ```
 
@@ -177,7 +179,7 @@ Then set the CSS variable in `src/app.css`:
 
 ## Add a Custom Page
 
-Markdown covers documentation. For a landing page or other React UI, create a file under `src/pages`:
+Waku only. Markdown covers documentation. For a landing page or other React UI, create a file under `src/pages`. See [File-based Routing](/docs/routing#file-based-routing).
 
 ```tsx title="src/pages/about.tsx"
 export default function Page() {
@@ -190,37 +192,38 @@ export default function Page() {
 }
 ```
 
-The above page will be available at `/about`, see [Routing](/docs/routing) for more details.
+The above page is available at `/about`.
 
 ### Rendering
 
-Fumapress use **React Server Components** (RSC), it requires basic knowledge of React to create UIs.
+Fumapress uses **React Server Components** (RSC), which requires basic knowledge of React.
 
-If you are familiar with React but not RSC, make a look at reads like [Making Sense of React Server Components](https://www.joshwcomeau.com/react/server-components).
+If you are familiar with React but not RSC, read [Making Sense of React Server Components](https://www.joshwcomeau.com/react/server-components).
 
 ## Read Content from Code
 
-Sometimes a custom page needs data from your Markdown files, such as a list of all pages. Export `getPressContext` from the config:
+Sometimes a custom page needs data from your Markdown files, such as a list of all pages. Export the `app` value from the config:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
-const config = defineConfig({
+// [!code ++]
+export const app = createPress(/* ... */).plugins(/* ... */);
+
+export default app.config({
   // ...
 });
-
-export const { getPressContext } = config.utils();
-export default config;
 ```
 
 Use it in a page:
 
 ```tsx title="src/pages/all-pages.tsx"
-import { getPressContext } from "../../press.config";
+import { getPressContext } from "fumapress";
+import type { app } from "../../press.config";
 
 export default async function Page() {
-  const source = await getPressContext().getLoader();
-  const pages = source.getPages();
+  const loader = await getPressContext<typeof app>().getLoader();
+  const pages = loader.getPages();
 
   return (
     <ul>
@@ -240,9 +243,7 @@ You can skip this until you build something that needs it.
 
 ### Coming from Fumadocs?
 
-In Fumadocs you create a loader in `lib/source.ts` and import it in your routes.
-
-In Fumapress, pass sources through `content` in `press.config.tsx`. You do not maintain `lib/source.ts` or a catch-all docs route yourself.
+In Fumadocs you create a loader in `lib/source.ts` and import it in your routes. In Fumapress, pass sources as the first argument of `createPress()`. You do not maintain `lib/source.ts` or a catch-all docs route yourself.
 
 ## Next Steps
 
@@ -251,15 +252,15 @@ In Fumapress, pass sources through `content` in `press.config.tsx`. You do not m
     Content routes, file-based pages, and plugins.
   </Card>
   <Card href="/docs/layouts" title="Layouts">
-    Docs, notebook, glass, spacious, and home layouts.
+    Render pages with Fumadocs layouts.
   </Card>
   <Card href="/docs/plugins" title="Plugins">
     Search, sitemap, RSS, OG images, and more.
   </Card>
-  <Card href="/docs/config" title="Configurations">
+  <Card href="/docs/config" title="Configuration">
     All options in press.config.tsx.
   </Card>
   <Card href="/docs/deployment" title="Deployment">
-    Build the app and deploy it to your hosting platform.
+    Build the site and deploy it to your hosting platform.
   </Card>
 </Cards>

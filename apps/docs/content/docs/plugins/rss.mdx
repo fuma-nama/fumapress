@@ -1,22 +1,20 @@
 ---
 title: RSS
-description: Generate an RSS feed for your app.
+description: Generate an RSS feed for your site.
 ---
 
 ## Usage
 
 This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). It serves a `/rss.xml` feed of your pages, newest first, and links it from the document head so feed readers can discover it.
 
-To customize it, add the plugin with options, it takes priority over the preset:
+To customize it, add the plugin with options. It takes priority over the preset:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { rssPlugin } from "fumapress/plugins/rss";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code ++]
   .plugins(
     rssPlugin({
@@ -24,20 +22,19 @@ export default defineConfig({
       description: "Updates from my documentation",
       language: "en-us",
     }),
-  );
+  )
+  .config({ site: { baseUrl: "https://example.com" } });
 ```
 
-`title` defaults to `site.name`. Set `site.baseUrl` so item links and the feed's self link resolve to absolute URLs.
-
-On [Astro](/docs/astro), import `rssPlugin` from `@fumapress/core/plugins/rss`.
+`title` defaults to `site.name`. Set [`site.baseUrl`](/docs/config#site) so item links and the feed's self link resolve to absolute URLs.
 
 ## Options
 
 ### `getItem`
 
-Controls how a page becomes a feed item. Pages are dated with the creation date from your content source (e.g. the `date` frontmatter with Fumadocs MDX), falling back to the last modified date, **undated pages are excluded**.
+Controls how a page becomes a feed item. Pages are dated with the creation date from your content source (the `date` frontmatter with Fumadocs MDX). Undated pages are excluded.
 
-Override it to change titles, add categories, or filter pages, return `undefined` to exclude one:
+Override it to change titles, add categories, or filter pages. Return `undefined` to exclude one:
 
 ```tsx title="press.config.tsx"
 rssPlugin({
@@ -94,28 +91,36 @@ The route path, defaults to `/rss.xml`.
 
 ## Custom Feeds
 
-For additional feeds, the `buildRSS` function serializes a channel to XML, serve it from your own [API route](/docs/routing):
+For additional feeds, the `buildRSS` function serializes a channel to XML. Serve it from an [API route](/docs/plugins/authoring#api-routes) of a plugin in your config:
 
-```ts title="src/pages/_api/blog/rss.xml.ts"
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
 import { buildRSS } from "fumapress/plugins/rss";
 
-export async function GET() {
-  return new Response(
-    buildRSS({
-      title: "My Blog",
-      link: "https://example.com/blog",
-      description: "Posts from my blog",
-      items: [
-        {
-          title: "Hello World",
-          link: "https://example.com/blog/hello-world",
-          pubDate: new Date("2026-08-29"),
-        },
-      ],
-    }),
-    {
-      headers: { "Content-Type": "application/rss+xml" },
-    },
-  );
-}
+export default createPress(content).plugins({
+  name: "blog-rss",
+  apiRoutes() {
+    return [
+      {
+        path: "/blog/rss.xml",
+        GET: () =>
+          new Response(
+            buildRSS({
+              title: "My Blog",
+              link: this.absoluteUrl("/blog"),
+              description: "Posts from my blog",
+              items: [
+                {
+                  title: "Hello World",
+                  link: this.absoluteUrl("/blog/hello-world"),
+                  pubDate: new Date("2026-08-29"),
+                },
+              ],
+            }),
+            { headers: { "Content-Type": "application/rss+xml" } },
+          ),
+      },
+    ];
+  },
+});
 ```

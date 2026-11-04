@@ -6,19 +6,13 @@ icon: Rocket
 
 ## What is Fumapress?
 
-Fumapress is a **[React](https://react.dev) site generator** powered by [Fumadocs](https://fumadocs.dev), as compared to Fumadocs, it manages more features such as routing, while being more opinionated.
-
-It is perfect if you want a beautiful, flexible docs, without revealing too much complexity.
-
-Under the hood, the app is still a [Waku](https://waku.gg) app, you can easily transition to a full Fumadocs app without heavy migration. Fumapress also runs on [Astro](/docs/astro), with the same config and plugins.
+Fumapress is a React site generator on [Fumadocs](https://fumadocs.dev) that owns routing, layouts and plugins, running on [Waku](https://waku.gg) by default and also on [Astro](/docs/astro).
 
 ## Getting Started
 
-The steps below set up Fumapress on Waku, see [Astro](/docs/astro) for Astro.
-
 ### Automatic Installation
 
-Create a new Fumapress app.
+Create a new Fumapress site.
 
 ```npm
 npm create fumapress
@@ -42,19 +36,16 @@ import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 
-// the config file for Vite
 export default defineConfig({
   plugins: [press(), fumadocsMdx(), tailwindcss()],
 });
 ```
 
 ```tsx tab="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+import { createPress } from "fumapress";
+import { metaSchema, pageSchema } from "fumapress/schema";
 import { defineDocs } from "fumadocs-mdx/macro";
 
-// see https://fumadocs.dev/docs/mdx
 const docs = defineDocs({
   dir: "content",
   docs: {
@@ -70,14 +61,39 @@ const docs = defineDocs({
   },
 });
 
-export default defineConfig({
-  content: docs.toFumadocsSource(),
+export default createPress(docs.toFumadocsSource()).config({
   site: {
-    name: "Fumapress",
+    name: "My Docs",
+    // the URL where your site is deployed, needed for SEO features like sitemap:
+    // baseUrl: "https://example.com",
   },
-})
-  // use different content sources
-  .adapters(fumadocsMdx());
+  head: [
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    {
+      tag: "link",
+      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+    },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+      },
+    },
+  ],
+});
+```
+
+```css tab="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+
+@theme {
+  --font-mono: "JetBrains Mono", monospace;
+  --default-font-family: "Geist", sans-serif;
+}
 ```
 
 ```json tab="tsconfig.json"
@@ -102,7 +118,7 @@ export default defineConfig({
 }
 ```
 
-Set the package type and scripts, the app must be an ES module:
+Set the package type and scripts. The site must be an ES module:
 
 ```json title="package.json"
 {

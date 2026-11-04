@@ -1,6 +1,6 @@
 ---
 title: Feedback
-description: Collect feedback from your Fumapress app.
+description: Collect feedback from your Fumapress site.
 ---
 
 ## Installation
@@ -12,13 +12,11 @@ npm i @fumapress/feedback
 Add the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { feedbackPlugin } from "@fumapress/feedback";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code highlight:10]
   .plugins(
     feedbackPlugin({
@@ -29,12 +27,11 @@ export default defineConfig({
         // ...
       },
     }),
-  );
+  )
+  .config({/* ... */});
 ```
 
-It works on [Astro](/docs/astro) too, in the `plugins` of `@fumapress/astro/config`.
-
-The `onPageFeedbackAction` & `onTextFeedbackAction` options receive the user feedback on the server, at `/api/feedback/page` and `/api/feedback/text`. These routes need a server, so they are not compatible with `mode: "static"`. You can define the flow afterwards (e.g. storing that in your analytics platform):
+The `onPageFeedbackAction` and `onTextFeedbackAction` options receive the user feedback on the server, at `/api/feedback/page` and `/api/feedback/text`. These routes need a server, so they are not compatible with `mode: "static"`:
 
 ```tsx title="press.config.tsx"
 feedbackPlugin({
@@ -49,28 +46,28 @@ feedbackPlugin({
 });
 ```
 
-To send feedback from the browser instead, like to the API of an analytics service, export the action from a `'use client'` module. It runs without routes, so it works with `mode: "static"`:
+To send feedback from the browser instead, export the action from a `'use client'` module. It runs without routes, so it works with `mode: "static"`:
 
-```ts tab="lib/feedback.ts"
+```ts tab="src/feedback.ts"
 "use client";
-import type { PageFeedback } from "@fumapress/feedback/schema";
+import type { ActionResponse, PageFeedback } from "@fumapress/feedback/schema";
 
-export async function onPageFeedbackAction({ opinion, url, message }: PageFeedback) {
-  await analytics.track("page-feedback", { opinion, url, message });
+export async function onPageFeedbackAction(feedback: PageFeedback): Promise<ActionResponse> {
+  await fetch("https://feedback.acme.dev", { method: "POST", body: JSON.stringify(feedback) });
   return {};
 }
 ```
 
 ```tsx tab="press.config.tsx"
 import { feedbackPlugin } from "@fumapress/feedback";
-import { onPageFeedbackAction } from "./lib/feedback";
+import { onPageFeedbackAction } from "./src/feedback";
 
 feedbackPlugin({ onPageFeedbackAction });
 ```
 
-The returned `githubUrl`/`emailSent` tells the UI where the feedback went, the payload and response types are exported from `@fumapress/feedback/schema`.
+The returned `githubUrl`/`emailSent` tells the UI where the feedback went. The payload and response types are exported from `@fumapress/feedback/schema`.
 
-Finally, initialize the `src/app.css` file and add the following:
+Import the CSS preset:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -81,14 +78,14 @@ Finally, initialize the `src/app.css` file and add the following:
 @import "@fumapress/feedback/css/preset.css";
 ```
 
-### GitHub integration
+### GitHub Integration
 
 <Callout type="warn" title="Prefer other platforms if possible">
-  GitHub is not an analytics platform, it does not offer features like spam filtering.
+  GitHub is not an analytics platform. It does not offer features like spam filtering.
 </Callout>
 
 1. Create your own GitHub App and obtain its app ID and private key.
-2. Store them as **private** environment variables, **do not** share it.
+2. Store them as **private** environment variables. Do not share them.
 
    ```dotenv
    GITHUB_APP_ID=...
@@ -96,7 +93,7 @@ Finally, initialize the `src/app.css` file and add the following:
    ```
 
    <Callout>
-     You can also use stronger methods like Key Vault, see [GitHub
+     You can also use stronger methods like Key Vault. See [GitHub
      docs](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)
      for managing private keys.
    </Callout>
@@ -104,33 +101,31 @@ Finally, initialize the `src/app.css` file and add the following:
 3. Use the integration plugin:
 
    ```tsx title="press.config.tsx"
-   import { defineConfig } from "fumapress";
+   import { createPress } from "fumapress";
    // [!code ++]
    import { githubFeedbackPlugin } from "@fumapress/feedback/github";
 
-   export default defineConfig({
-     // ...
-   })
+   export default createPress(content)
      // [!code highlight:12]
      .plugins(
        githubFeedbackPlugin({
          appId: process.env.GITHUB_APP_ID!,
          privateKey: process.env.GITHUB_PRIVATE_KEY!,
-         // your repository info, e.g.
          storage: {
            owner: "fuma-nama",
            repo: "fumapress",
            category: "Feedback",
          },
        }),
-     );
+     )
+     .config({/* ... */});
    ```
 
-   Create a `Feedback` category in your GitHub Discussions, the bot will forward user feedbacks in the specified category.
+   Create a `Feedback` category in your GitHub Discussions. The bot forwards user feedback in the specified category.
 
-### Email integration
+### Email Integration
 
-Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays on the server; the browser only calls your app’s feedback routes.
+Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays on the server; the browser only calls your site's feedback routes.
 
 <Callout type="warn" title="Protect your inbox">
   Email is easy to abuse. Combine this with your own rate limiting, bot checks, or IP rules using
@@ -148,30 +143,57 @@ Messages are sent with [Resend](https://resend.com) over HTTP. The API key stays
 4. Use the email plugin:
 
    ```tsx title="press.config.tsx"
-   import { defineConfig } from "fumapress";
+   import { createPress } from "fumapress";
    // [!code ++]
    import { emailFeedbackPlugin } from "@fumapress/feedback/email";
 
-   export default defineConfig({
-     // ...
-   })
+   export default createPress(content)
      // [!code highlight:9]
      .plugins(
        emailFeedbackPlugin({
          apiKey: process.env.RESEND_API_KEY!,
          from: "Docs <feedback@yourdomain.com>",
          to: "team@yourdomain.com",
-         // optional: subject lines become `${subjectPrefix} /path`
          subjectPrefix: "[Docs feedback]",
        }),
-     );
+     )
+     .config({/* ... */});
    ```
 
    `to` may be a single address or an array.
 
-`feedbackPlugin()` and both integrations accept a `beforeRequest` hook that runs before each feedback request on the server. Return a `Response` to reject it (e.g. for rate limiting).
+`feedbackPlugin()` and both integrations accept a `beforeRequest` hook that runs before each feedback request on the server. Return a `Response` to reject it (for example, for rate limiting).
 
 <Callout type="warn" title="Use only one feedback plugin">
   `feedbackPlugin()`, `githubFeedbackPlugin()` and `emailFeedbackPlugin()` all register
   `/api/feedback/page` and `/api/feedback/text`. Enabling more than one causes conflicts.
 </Callout>
+
+## Custom Layouts
+
+`renderDefault()` places the feedback widget below the page. With your own [`renderPage`](/docs/layouts#render-page), place `props.footer.feedback` yourself:
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import type { app } from "../../press.config";
+
+export function Docs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  footer,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+        {footer.feedback}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+```

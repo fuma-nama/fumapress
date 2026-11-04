@@ -8,15 +8,14 @@ description: Generate Open Graph images for your documentation pages.
 This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). Add it yourself to configure it:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { takumiPlugin } from "fumapress/plugins/takumi";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(docs.toFumadocsSource())
   // [!code ++]
-  .plugins(takumiPlugin());
+  .plugins(takumiPlugin())
+  .config({ site: { name: "Acme" } });
 ```
 
 The plugin creates a `.webp` Open Graph image for every content page with [Takumi](https://takumi.kane.tw), and adds the matching metadata:
@@ -30,16 +29,12 @@ The plugin creates a `.webp` Open Graph image for every content page with [Takum
 
 The default image shows the page title, description, and site name.
 
-On [Astro](/docs/astro), import `takumiPlugin` from `@fumapress/core/plugins/takumi`. Install `takumi-js` yourself, and import `googleFonts()` and `fontFromUrl()` from `takumi-js/helpers`.
-
 <Callout type='warn'>
 
 Set `site.baseUrl` in your config to make `og:image` resolve to an absolute URL.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-
-export default defineConfig({
+export default createPress(docs.toFumadocsSource()).config({
   site: {
     // [!code ++]
     baseUrl: "https://press.fumadocs.dev",
@@ -51,73 +46,62 @@ export default defineConfig({
 
 ## Options
 
-### `generate`
+### `getImage`
 
-Customize the image of a page, `this` is the app context:
+Customize the image of a page. `this` is the site context:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { takumiPlugin } from "fumapress/plugins/takumi";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  takumiPlugin({
-    generate(page) {
-      return {
-        node: (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              padding: 80,
-              background: "#111",
-              color: "white",
-            }}
-          >
-            <p>{this.siteConfig.name}</p>
-            <h1>{page.data.title}</h1>
-          </div>
-        ),
-        // image response options of this page
-        options: {
-          quality: 80,
-        },
-      };
-    },
-  }),
-);
+takumiPlugin({
+  getImage(page) {
+    return {
+      node: (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: 80,
+            background: "#111",
+            color: "white",
+          }}
+        >
+          <p>{this.siteConfig.name}</p>
+          <h1>{page.data.title}</h1>
+        </div>
+      ),
+      options: { quality: 80 },
+    };
+  },
+});
 ```
+
+### `path`
+
+The base route for generated images. Defaults to `/` in static mode and `/_takumi` in dynamic mode.
 
 ### `options`
 
-Image response options shared by every image, the ones returned from `generate()` override them per page.
+Image response options shared by every image. The ones returned from `getImage()` override them per page.
 
-Anything resolved once belongs here. `googleFonts()` downloads the font files on every call, so create the promise at module scope instead of inside `generate()`:
+Values resolved once belong here. `googleFonts()` downloads the font files on every call, so create the promise at module scope instead of inside `getImage()`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
 import { googleFonts, takumiPlugin } from "fumapress/plugins/takumi";
 
 const fonts = googleFonts([{ name: "Geist", weight: [500, 800] }]);
 
-export default defineConfig({
-  // ...
-}).plugins(
-  takumiPlugin({
-    options: { fonts },
-  }),
-);
+takumiPlugin({
+  options: { fonts },
+});
 ```
 
-`fontFromUrl()` does the same for a self-hosted font file. Both come from `takumi-js` through `fumapress/plugins/takumi`, don't install `takumi-js` yourself: a second copy renders with mismatched versions.
+`fontFromUrl()` does the same for a self-hosted font file. `fumapress/plugins/takumi` re-exports both from the `takumi-js` copy the plugin renders with.
 
 ### `width` / `height`
 
-The image dimensions, defaulting to `1200x630`. They are applied to the rendered image and the `og:image` meta tags, the response format is always `webp`.
+The image dimensions, defaulting to `1200x630`. They are applied to the rendered image and the `og:image` meta tags. The response format is always `webp`.
 
 ```tsx title="press.config.tsx"
 takumiPlugin({ width: 1600, height: 840 });
@@ -125,32 +109,32 @@ takumiPlugin({ width: 1600, height: 840 });
 
 ## Route Images
 
-Route images and the WebAssembly build below are Waku only.
+Waku only. Pages in `src/pages` get an image from `ogImage` in their route config:
 
-Pages outside your content, like the ones in `src/pages`, get an image from their route config:
-
-```tsx title="src/pages/about.tsx"
-import type { RouteConfig } from "fumapress";
+```tsx title="src/pages/pricing.tsx"
+import type { WakuRouteConfig } from "fumapress";
 
 export function getConfig() {
-  return {
-    takumiOptions: { title: "About", description: "Who we are" },
-  } satisfies RouteConfig;
+  return { render: "static", ogImage: { title: "Pricing" } } satisfies WakuRouteConfig;
 }
 ```
 
-The image is prerendered as `/about.webp` with the default template, and the page receives the same `og:image` meta tags as a content page. Pass `node` to draw it yourself, and `options` for the image response options of this route.
+The image is prerendered as `/pricing.webp` with the default template, and the page receives the same `og:image` meta tags as a content page. Pass `node` to draw it yourself, and `options` for the image response options of this route.
 
-For routes with slugs, a function receives the route params, `lang` included with [i18n](/docs/internationalization), and `this` is the app context:
+For routes with slugs, a function receives the route params:
 
-```tsx title="src/pages/tags/[tag].tsx"
-import type { RouteConfig } from "fumapress";
+```tsx title="src/pages/showcase/[slug].tsx"
+import type { WakuRouteConfig } from "fumapress";
 
 export function getConfig() {
   return {
-    staticPaths: ["react", "vue"],
-    takumiOptions: ({ tag }) => ({ node: <TagImage tag={tag} /> }),
-  } satisfies RouteConfig;
+    render: "static",
+    staticPaths: Object.keys(items),
+    ogImage(params) {
+      const item = items[params.slug as string];
+      return { title: item?.title, description: item?.description };
+    },
+  } satisfies WakuRouteConfig;
 }
 ```
 
@@ -158,7 +142,7 @@ A static page gets a prerendered `.webp` file next to it, one per entry of `stat
 
 ## WebAssembly
 
-Takumi renders with its native Rust addon on Node.js and Bun, and with WebAssembly on other runtimes. When the machine building your site can't load the native addon, like Cloudflare Workers Builds, pass the WebAssembly build instead:
+Waku only. Takumi renders with its native Rust addon on Node.js and Bun, and with WebAssembly on other runtimes. When the machine building your site cannot load the native addon, like Cloudflare Workers Builds, pass the WebAssembly build instead:
 
 ```tsx title="press.config.tsx"
 import { takumiPlugin } from "fumapress/plugins/takumi";
@@ -173,4 +157,4 @@ takumiPlugin({
 });
 ```
 
-It is the `takumi-js` of `fumapress` again, and the binary is only bundled when you import it.
+The binary is only bundled when you import it.

@@ -6,30 +6,15 @@ icon: Server
 
 ## Overview
 
-Fumapress supports a special routing model on top of the file-based routing model from [Waku](https://waku.gg).
+Three kinds of pages:
 
-**Content files** are usually `.md` or `.mdx` files, they are useful for:
+- **Content pages** from your Markdown or MDX files, rendered by `ui.renderPage`.
+- **Plugin pages** added by plugins, like the blog index or `/llms.txt`.
+- **Your own pages** in `src/pages`, for landing pages and custom screens (Waku only).
 
-- Documentation pages.
-- Blog pages.
+## Content Pages
 
-**File-based routes** are `.tsx` files with a renderer & route config (see [Page](https://waku.gg/#pages)), they are useful for:
-
-- Landing page.
-- Other custom pages with its own renderer & metadata.
-
-**Plugins** can also generate routes, which is useful for advanced use cases like:
-
-- Generating blog routes from content sources.
-- Making custom pages to be reusable (as a plugin).
-
-On Astro, your pages are Astro routes, see [Routing](/docs/astro/routing).
-
-### With Content Files
-
-Content pages are generated from the `content` option configured in `press.config.tsx`.
-
-For the [Fumadocs MDX adapter](/docs/adapters/mdx), each Markdown/MDX file under the collection directory becomes a page:
+Content pages are generated from the source passed to `createPress`. For the [Fumadocs MDX](/docs/adapters/mdx) content source, each file under the collection directory becomes a page:
 
 | File                           | URL                 |
 | ------------------------------ | ------------------- |
@@ -37,34 +22,32 @@ For the [Fumadocs MDX adapter](/docs/adapters/mdx), each Markdown/MDX file under
 | `content/docs/routing.mdx`     | `/docs/routing`     |
 | `content/blog/introducing.mdx` | `/blog/introducing` |
 
-The file path will decide its actual pathname & appearance on sidebar, see [Page Tree & Page Slugs](https://fumadocs.dev/docs/page-conventions) for available syntax.
-
-The pathname generation can be customized from source configuration. For example, `baseDir` adds a directory name in generated URLs:
+`baseDir` adds a directory prefix to generated URLs:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs", docs: { async: true } });
 
-export default defineConfig({
-  content: docs.toFumadocsSource({
-    // all pages will locate under `docs/`
-    baseDir: "docs",
-  }),
+export default createPress(docs.toFumadocsSource({ baseDir: "docs" })).config({
+  site: { name: "Acme" },
 });
 ```
 
-Fumapress renders these pages with the configured `renderPage` layout. You can customize it in your press config, or let plugins override how certain pages are rendered.
+The file path decides the URL and its appearance on the sidebar. See [Page Tree and Page Slugs](https://fumadocs.dev/docs/page-conventions) for the available syntax.
 
-If you use other content sources (e.g. a CMS), consult the [adapters](/docs/adapters) documentation instead.
+Content pages are rendered by `ui.renderPage`. See [Layouts](/docs/layouts) for customizing them. For other content sources, see [Content Sources](/docs/adapters).
 
-### File-based Routing
+## Plugin Pages
 
-Fumapress also reads route files from `src/pages`. This is a good fit for landing pages, dashboards, or other custom screens that do not belong to a content collection.
+Plugins add views and API routes. The blog plugin creates the blog index, tag pages, and post pages. The sitemap plugin serves `/sitemap.xml`. Your own page at the same path wins over a plugin's.
+
+See [Views](/docs/plugins/authoring#views) for creating views in a plugin.
+
+## File-based Routing
+
+Waku only. Route files in `src/pages` follow Waku's file-based routing conventions:
 
 | File                       | Route         |
 | -------------------------- | ------------- |
@@ -73,80 +56,85 @@ Fumapress also reads route files from `src/pages`. This is a good fit for landin
 | `src/pages/blog/index.tsx` | `/blog`       |
 | `src/pages/_layout.tsx`    | Shared layout |
 
-For detailed Waku route conventions, see [Waku File-based Routing](https://waku.gg/#routing).
+Export `getConfig()` to configure a route with `WakuRouteConfig`:
 
-To create a page:
+```tsx title="src/pages/pricing.tsx"
+import type { WakuRouteConfig, WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
 
-```tsx title="src/pages/about.tsx"
-export default function Page() {
+export function getConfig() {
+  return { render: "static", ogImage: { title: "Pricing" } } satisfies WakuRouteConfig;
+}
+
+export default function Pricing({ lang }: WakuRouteProps<typeof app>) {
+  return <main lang={lang}>Free forever.</main>;
+}
+```
+
+- `render`: `"static"` (default) or `"dynamic"`.
+- `staticPaths`: the paths of a static page with slugs.
+- `autoI18n`: defaults to `true`. Set `false` to keep a single copy at its own path, rendered in the default language.
+- `ogImage`: the [OG image](/docs/plugins/takumi#route-images) of the page.
+
+Props are typed with `WakuRouteProps<typeof app, "/showcase/[slug]">`:
+
+```tsx title="src/pages/showcase/[slug].tsx"
+import type { WakuRouteConfig, WakuRouteProps } from "fumapress";
+import type { app } from "../../../press.config";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getConfig() {
+  return {
+    render: "static",
+    staticPaths: Object.keys(items),
+    ogImage(params) {
+      const item = items[params.slug as string];
+      return { title: item?.title, description: item?.description };
+    },
+  } satisfies WakuRouteConfig;
+}
+
+export default function Showcase({ slug, lang }: WakuRouteProps<typeof app, "/showcase/[slug]">) {
+  const item = items[slug];
+  if (!item) return null;
   return (
-    <main>
-      <h1>About</h1>
-      <p>This page is rendered from a route file.</p>
+    <main lang={lang}>
+      <title>{item.title}</title>
+      {item.description}
     </main>
   );
 }
 ```
 
-You can export `getConfig()` to configure the route:
+When i18n is enabled, a file-based page is registered once per language under the language prefix and with a `lang` prop. See [Internationalization](/docs/internationalization#routing) for the URL structure.
 
-```tsx title="src/pages/dashboard.tsx"
-import type { RouteConfig } from "fumapress";
+### Layouts
 
-export async function getConfig() {
-  return {
-    render: "dynamic",
-  } satisfies RouteConfig;
-}
+`_layout.tsx` wraps the pages of its folder with a layout, like the [Home Layout](/docs/layouts/home#your-own-pages).
 
-export default function Page() {
-  return <main>Dashboard</main>;
-}
-```
+### Not Found
 
-Plugins read their own settings from it too, like `takumiOptions` for the [Open Graph image](/docs/plugins/takumi#route-images) of the page.
+`src/pages/404.tsx` renders your own 404 page. It wins over a plugin's `/404` view.
 
-A static page with slugs declares its `staticPaths` there as well:
+```tsx title="src/pages/404.tsx"
+import { getPressContext } from "fumapress";
+import type { app } from "../../press.config";
 
-```tsx title="src/pages/tags/[tag].tsx"
-import type { RouteConfig } from "fumapress";
-
-export async function getConfig() {
-  return {
-    staticPaths: ["react", "vue"],
-  } satisfies RouteConfig;
-}
-
-export default function Page({ tag }: { tag: string }) {
-  return <main>{tag}</main>;
+export default function NotFound() {
+  return <main>Not found on {getPressContext<typeof app>().siteConfig.name}</main>;
 }
 ```
 
-When i18n is enabled, a file-based page is registered once per language, under the language prefix and with a `lang` prop (e.g. `/about` becomes `/en/about` and `/cn/about`). Disable that with `autoI18n: false` to keep a single copy at its own path, rendered as the default language:
+### API Routes
 
-```tsx title="src/pages/privacy.tsx"
-import type { RouteConfig } from "fumapress";
-
-export async function getConfig() {
-  return {
-    autoI18n: false,
-  } satisfies RouteConfig;
-}
-
-export default function Page() {
-  return <main>Privacy Policy</main>;
-}
-```
-
-See [Internationalization](/docs/internationalization#routing) for the URL structure.
-
-For file-based API routes, place files under `src/pages/_api`. Export handlers named after HTTP methods (`GET`, `POST`, etc.):
+Place files under `src/pages/_api`. Export handlers named after HTTP methods (`GET`, `POST`, etc.):
 
 ```ts title="src/pages/_api/version.ts"
 export async function GET() {
-  return Response.json({
-    version: "1.0.0",
-  });
+  return Response.json({ version: "1.0.0" });
 }
 ```
 
@@ -154,9 +142,7 @@ Or a default export to handle all methods:
 
 ```ts title="src/pages/_api/version.ts"
 export default async function handler(req: Request) {
-  return Response.json({
-    version: "1.0.0",
-  });
+  return Response.json({ version: "1.0.0" });
 }
 ```
 
@@ -164,80 +150,13 @@ API routes are dynamic by default. Under `mode: "static"` they are prerendered i
 
 <Callout type='warn'>
 
-Fumapress still creates the default catch-all route for content pages, so avoid defining a file-based route and a content page with the same URL.
+Fumapress creates the default catch-all route for content pages. Avoid defining a file-based route and a content page with the same URL.
 
 </Callout>
 
-### With Plugins
-
-Plugins can create pages, layouts, API routes, and slices with `createPages()`. This is useful when a feature needs routes that are derived from config or content instead of individual files.
-
-`createPages()` is Waku only, plugins for both runtimes add API routes with [`routes()`](/docs/plugins).
-
-```tsx title="press.config.tsx"
-import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
-
-function changelogPlugin<C extends AppShape>(): PressPlugin<C> {
-  return {
-    name: "changelog",
-    async createPages({ createPage }) {
-      createPage({
-        path: "/changelog",
-        component() {
-          return <main>Changelog</main>;
-        },
-      });
-    },
-  };
-}
-
-export default defineConfig({
-  // ...
-}).plugins(changelogPlugin());
-```
-
-Inside plugin hooks, `this` is the Fumapress app context. You can access the content loader, resolved config, i18n config, and other runtime data:
-
-```tsx title="press.config.tsx"
-import { defineConfig, type AppShape, type PressPlugin } from "fumapress";
-
-function allDocsPlugin<C extends AppShape>(): PressPlugin<C> {
-  return {
-    name: "all-docs",
-    async createPages({ createPage }) {
-      const source = await this.getLoader();
-      const pages = source.getPages();
-
-      createPage({
-        path: "/all-docs",
-        component() {
-          return (
-            <ul>
-              {pages.map((page) => (
-                <li key={page.url}>
-                  <a href={page.url}>{page.data.title}</a>
-                </li>
-              ))}
-            </ul>
-          );
-        },
-      });
-    },
-  };
-}
-
-export default defineConfig({
-  // ...
-}).plugins(allDocsPlugin());
-```
-
-With i18n, pass `lang` to register a page under a language, see [Internationalization](/docs/internationalization#routing).
-
-A plugin can also work with the pages of your app and other plugins: `configureRoutes()` runs after every page is created, with them in `fns.getRoutes()`. Derive routes from them, like the Markdown version of each page, or add head tags to a page with `route.meta`.
-
 ## Client
 
-Import navigation helpers from `fumapress/client`.
+Waku only. Import navigation helpers from `fumapress/client`.
 
 ### `<Link>`
 
@@ -248,7 +167,7 @@ import { Link } from "fumapress/client";
 
 <Link href="/about">About</Link>;
 
-// /* skip scrolling to the top */
+// skip scrolling to the top
 return (
   <Link href="/docs" scroll={false}>
     Docs
@@ -302,9 +221,9 @@ The router also exposes:
 
 Inside a `<Link>`, `useNavigationStatus().pending` is `true` while its navigation is in progress.
 
-### Server Redirects
+## Server Redirects
 
-On the server, use `redirect` to redirect to another route:
+Waku only. On the server, use `redirect` to redirect to another route:
 
 ```tsx title="src/pages/old-docs.tsx"
 import { redirect } from "fumapress/router";

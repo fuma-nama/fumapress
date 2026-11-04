@@ -7,74 +7,68 @@ description: The default layout, with sidebar and table of contents.
 
 See [Fumadocs Docs Layout](https://fumadocs.dev/docs/ui/layouts/docs) and [Docs Page](https://fumadocs.dev/docs/ui/layouts/page) for the available props.
 
-On Astro, it is the default page, customize it with a [page module](/docs/astro/layouts#page-module).
+The built-in UI (`renderDefault()`) uses this layout for content pages. To customize it, compose `DocsLayout` and `DocsPage` from `fumadocs-ui/layouts/docs` and `fumadocs-ui/layouts/docs/page` with `pageData`:
 
-Fumapress uses it by default. To customize it, create the layout and pass it to `renderPage`:
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot, type RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  MarkdownCopyButton,
+  ViewOptionsPopover,
+} from "fumadocs-ui/layouts/docs/page";
+import type { app } from "../../press.config";
 
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createDocsLayoutPage } from "fumapress/layouts/docs";
-
-const DocsLayout = createDocsLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // ...
-  renderPage: (props) => <DocsLayout {...props} />,
-});
-
-export default config;
+export function Docs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  actions,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        <div className="flex gap-2">
+          {pageData.markdownUrl && <MarkdownCopyButton markdownUrl={pageData.markdownUrl} />}
+          <ViewOptionsPopover markdownUrl={pageData.markdownUrl} githubUrl={pageData.githubUrl} />
+          {Object.values(actions)}
+        </div>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
 ```
 
-## Options
+## Page Data
 
-### `render`
+`pageData` is available on every content page:
 
-Return `pageProps`, `layoutProps`, `markdownUrl`, `lastModified`, or a custom `body` for each page:
+- `title`: the page title.
+- `description`: the page description.
+- `toc`: the table of contents entries.
+- `full`: whether the page uses the full width.
+- `lastModified`: the last modified date, when enabled on the content source.
+- `markdownUrl`: the URL to its Markdown content, for LLMs.
+- `githubUrl`: the URL to view its source file, when `site.git` is configured.
+- `url`: the URL of the page.
 
-```tsx title="press.config.tsx"
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  async render(page) {
-    return {
-      pageProps: {
-        tableOfContent: { style: "clerk" },
-      },
-    };
-  },
-});
+## Sidebar
+
+`selectTreeRoot(tree, "docs")` scopes the sidebar to the `docs` folder of the page tree. Pass the `baseDir` of a [content collection](/docs/collections). Nested paths like `"docs/guides"` work too. It throws listing the available folders when the path does not match.
+
+```tsx
+import { selectTreeRoot } from "fumapress";
+
+<DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
 ```
 
-### `treeRoot`
+## Page Actions
 
-Use a folder as the sidebar root instead of the whole page tree, such as the `baseDir` of a [content collection](/docs/collections). Nested paths like `docs/guides` work too.
-
-```tsx title="press.config.tsx"
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  treeRoot: "docs",
-});
-```
-
-### Interceptors
-
-`renderLayout`, `renderPage`, `renderBody`, and `renderPageActions` wrap `<DocsLayout />`, `<DocsPage />`, the body, and the page actions. Each receives the resolved props and a `next` function rendering the original component, return your own node to replace it:
-
-```tsx title="press.config.tsx"
-const DocsLayout = createDocsLayoutPage<typeof config.$context>({
-  renderPage({ props, next }) {
-    return next({
-      ...props,
-      children: (
-        <>
-          {props.children}
-          <Comments />
-        </>
-      ),
-    });
-  },
-  // hide the page actions
-  renderPageActions: () => null,
-});
-```
-
-### `inherit`
-
-Set `inherit: { layoutProps: false }` to stop merging `defaultLayoutProps`.
+The page area between the title and the body is where actions go: `MarkdownCopyButton`, `ViewOptionsPopover`, and plugin actions like `actions.ai`. See [Page Actions and Footers](/docs/layouts#page-actions-and-footers).

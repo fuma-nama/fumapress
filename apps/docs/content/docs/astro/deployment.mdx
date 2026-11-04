@@ -16,7 +16,7 @@ Without an adapter, the site is static (`mode: "static"`). Deploy `dist/` to any
 - The output of plugins, like `sitemap.xml`, `llms.txt` and Open Graph images.
 - The search index at `/api/search`, downloaded by the search dialog.
 
-Plugins that need a server fail the build with an error, like the [OpenAPI](/docs/plugins/openapi) proxy and [MCP](/docs/plugins/mcp).
+Plugins that need a server fail the build with an error: the [OpenAPI](/docs/plugins/openapi) proxy, [AI](/docs/plugins/ai), [MCP](/docs/plugins/mcp) and [Feedback](/docs/plugins/feedback) server actions.
 
 For a sub-path like `https://user.github.io/repo/`, set the `site` and `base` of Astro:
 
@@ -36,19 +36,40 @@ export default defineConfig({
 With an [adapter](https://docs.astro.build/en/guides/on-demand-rendering), pages are still prerendered (`mode: "default"`), and the routes of plugins that need a server render on request, like `/api/search`:
 
 ```js title="astro.config.mjs"
+// @ts-check
 import { defineConfig } from "astro/config";
 import node from "@astrojs/node";
 import press from "@fumapress/astro";
 
 export default defineConfig({
+  site: "https://acme.dev",
   adapter: node({ mode: "standalone" }),
-  integrations: [press()],
+  integrations: [press({ components: "./src/components/mdx.tsx" })],
 });
 ```
 
 Start the server with `NODE_ENV=production node dist/server/entry.mjs`. Without it, React runs its development build on the server.
 
-With `output: "server"`, pages render on request too (`mode: "dynamic"`), for content sources that change after the build, like a CMS. Requests preferring Markdown, like the ones of AI agents, get the [Markdown of pages](/docs/plugins/llms.txt#autoredirect) at the same URL.
+With `output: "server"`, pages render on request too (`mode: "dynamic"`), for content sources that change after the build. Requests preferring Markdown, like the ones of AI agents, get the [Markdown of pages](/docs/plugins/llms.txt#autoredirect) at the same URL.
+
+Plugins like AI, Feedback and MCP register their server routes through the press config. Add them with `.plugins()`:
+
+```tsx title="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import { aiPlugin } from "@fumapress/ai";
+import { feedbackPlugin } from "@fumapress/feedback";
+import { onPageFeedbackAction } from "./src/feedback";
+
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+})
+  .plugins(aiPlugin({ model: "openai/gpt-5" }), feedbackPlugin({ onPageFeedbackAction }))
+  .config({});
+```
 
 ### Build Plugins
 

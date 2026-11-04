@@ -13,8 +13,6 @@
     "@base-ui/react": "^1.8.0",
     "@fumapress/ai": "workspace:*",
     "@fumapress/blog": "workspace:*",
-    "@fumapress/notion": "workspace:*",
-    "@fumapress/obsidian": "workspace:*",
     "@fumapress/tegami": "workspace:*",
     "@fumari/sponsors": "0.1.1",
     "@paper-design/shaders-react": "^0.0.81",
@@ -32,11 +30,14 @@
     "shiki": "^4.4.3"
   },
   "devDependencies": {
+    "@fumadocs/notion": "^0.2.5",
+    "@fumadocs/sanity": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "fumadocs-obsidian": "^1.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.0"

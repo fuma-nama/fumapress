@@ -5,60 +5,44 @@ description: Add built-in full-text search with ZBSearch (formerly Orama).
 
 ## Installation
 
-This plugin is included in `fumapress`.
+This plugin is included in `fumapress`. It creates a search API at `/api/search` and enables the search dialog instead of the default [FlexSearch](/docs/plugins/flexsearch) from the [recommended preset](/docs/config#preset).
 
-Enable the plugin in your Fumapress config, it replaces the default FlexSearch from the [recommended preset](/docs/config#preset):
+In static mode, the search index is generated as static data, downloaded by the dialog and searched in the browser. See [Search](/docs/search) for the overall search setup.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(docs.toFumadocsSource())
   // [!code ++]
-  .plugins(oramaSearchPlugin());
+  .plugins(oramaSearchPlugin())
+  .config({ site: { name: "Acme" } });
 ```
 
-The plugin creates a search API at `/api/search` and enables the search dialog in the docs provider.
-In static mode, the search index is generated as static data.
-
-On [Astro](/docs/astro), import `oramaSearchPlugin` from `@fumapress/core/plugins/orama-search`.
+Listing it takes the place of the preset's default. Two search plugins are an error naming both.
 
 ## Options
 
 ### `buildIndex`
 
-By default, the plugin uses structured data from your configured adapters.
-Define `buildIndex` to customize the index fields:
+Customize the index fields. `this` is the site context. By default, the plugin uses structured data from the content source.
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  oramaSearchPlugin({
-    buildIndex(page) {
-      return {
-        id: page.url,
-        title: page.data.title,
-        description: page.data.description,
-        url: page.url,
-        structuredData: page.data.structuredData,
-        tag: page.path.split("/")[0],
-      };
-    },
-  }),
-);
+oramaSearchPlugin({
+  buildIndex(page) {
+    return {
+      id: page.url,
+      title: page.data.title,
+      description: page.data.description,
+      url: page.url,
+      structuredData: page.data.structuredData,
+      tag: page.path.split("/")[0],
+    };
+  },
+});
 ```
 
-The returned index must include `structuredData`. If your content source does not expose structured data,
-add it with a content adapter or provide it from your own page data.
+The returned index must include `structuredData`. If your content source does not expose structured data, provide it from your own page data.
 
-<Callout type="warn">
-  Enable only one search plugin at a time. `oramaSearchPlugin()` and `flexsearchPlugin()` both
-  create `/api/search`.
-</Callout>
+The engine options of Fumadocs [Orama search](https://fumadocs.dev/docs/headless/search/orama) are passed through.

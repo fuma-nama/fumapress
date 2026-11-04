@@ -1,6 +1,6 @@
 ---
 title: Internationalization
-description: Internationalize your Fumapress app.
+description: Internationalize your Fumapress site.
 icon: Languages
 ---
 
@@ -8,186 +8,161 @@ import { File, Files, Folder } from "fumadocs-ui/components/files";
 
 ## Setup
 
-To configure internationalization, define an i18n config:
+Pass an i18n config to `createPress`:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { defineI18n } from "fumadocs-core/i18n";
-import { uiTranslations } from "fumadocs-ui/i18n";
-import { fumapressTranslations } from "fumapress/i18n";
+import { zhTW } from "@fumapress/language/zh-tw";
 
 const docs = defineDocs({
   dir: "content/docs",
   docs: { async: true },
 });
 
-// [!code ++:4]
 const i18n = defineI18n({
-  languages: ["cn", "en"],
+  languages: ["en", "zh"],
   defaultLanguage: "en",
 });
 
-// [!code ++]
-const translations = i18n
-  // [!code ++:3]
-  .translations()
-  .extend(uiTranslations())
-  .extend(fumapressTranslations());
+export const app = createPress({ docs: docs.toFumadocsSource() }, { i18n });
 
-export default defineConfig({
-  content: docs.toFumadocsSource(),
-  // [!code ++]
-  translations,
+export default app.config({
+  ui: {
+    translations: i18n.translations().preset("zh", zhTW()),
+  },
 });
 ```
 
-On [Astro](/docs/astro), import `defineConfig` from `@fumapress/astro/config` and leave out `fumapressTranslations()`, it holds the strings of the blog plugin.
+## Translations
 
-You can add translations to UI like:
+`i18n.translations()` creates the translations config. Use `.preset()` with a [language pack](#using-language-packs) to add all strings for a language, or `.add()` for individual keys:
 
-```tsx
-const translations = i18n
-  .translations()
-  .extend(uiTranslations())
-  .extend(fumapressTranslations())
-  // [!code ++:10]
-  .add({
-    en: { displayName: "English" },
-    cn: {
-      displayName: "Chinese",
-      "Search(search dialog)": "搜尋文檔",
-      "Blog(blog)": "博客",
-      "All Tags(blog tags page)": "全部标签",
-    },
-  });
+```tsx title="press.config.tsx"
+import { zhTW } from "@fumapress/language/zh-tw";
+
+export default app.config({
+  ui: {
+    translations: i18n
+      .translations()
+      .preset("zh", zhTW())
+      .add({
+        en: { displayName: "English" },
+        zh: {
+          displayName: "Chinese",
+          "Search(search dialog)": "搜尋文檔",
+          "Blog(blog)": "博客",
+          "All Tags(blog tags page)": "全部标签",
+        },
+      }),
+  },
+});
 ```
 
-If you have other integrations and want to add translations for them, include them via `extend()` like:
+Plugins bring their own translations.
 
-```tsx
-import { openapiTranslations } from "fumadocs-openapi/i18n";
-import { aiTranslations } from "@fumapress/ai/i18n";
-import { feedbackTranslations } from "@fumapress/feedback/i18n";
-
-const translations = i18n
-  .translations()
-  .extend(uiTranslations())
-  .extend(fumapressTranslations())
-  // [!code ++:3]
-  .extend(openapiTranslations())
-  .extend(feedbackTranslations())
-  .extend(aiTranslations());
-```
+<Callout title="Learn More">
+  See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for the full
+  translations API.
+</Callout>
 
 ### Using Language Packs
 
-The official language pack extends `@fumadocs/language` and adds translations for Fumapress.
+The official language pack adds translations for Fumapress and its integrations.
 
 ```npm
 npm i @fumapress/language
 ```
 
 ```tsx title="press.config.tsx"
-import { zhCN } from "@fumapress/language/zh-cn";
+import { zhTW } from "@fumapress/language/zh-tw";
 
-const translations = i18n
-  .translations()
-  // add Simplified Chinese translations to `cn` locale [!code ++]
-  .preset("cn", zhCN());
+const translations = i18n.translations().preset("zh", zhTW());
 ```
 
 Available presets:
 
-- `zhCN`
-- `zhTW`
-
-When using a language pack, you do not need to include integrations with `extend()` unless you want to override the default translations.
-
-<Callout title="Learn More">
-  See [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for adding
-  translations.
-</Callout>
+- `zhCN` from `@fumapress/language/zh-cn`
+- `zhTW` from `@fumapress/language/zh-tw`
 
 ### Writing Content
 
-Add Markdown/JSON files for different languages by appending `.{locale}` to your file name, like:
+Add Markdown/JSON files for different languages by appending `.{locale}` to your file name:
 
 <Files>
   <Folder name="content" defaultOpen>
     <File name="meta.json" />
-    <File name="meta.cn.json" />
+    <File name="meta.zh.json" />
     <File name="get-started.mdx" />
-    <File name="get-started.cn.mdx" />
+    <File name="get-started.zh.mdx" />
   </Folder>
 </Files>
 
 ### Fallback Pages
 
-Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/cn/get-started` exists even when only `get-started.mdx` does. Inherited pages are served but not advertised: they get `noindex` with a canonical link to the source page, and the sitemap, RSS feed, `llms-full.txt` and Takumi images skip them.
+Locales without a translation of a page inherit the file of the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language), so `/zh/get-started` exists even when only `get-started.mdx` does. Inherited pages are served but not advertised: they get `noindex` with a canonical link to the source page, and the sitemap, RSS feed, `llms-full.txt` and Takumi images skip them.
 
 ## Routing
 
-Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale` in your i18n config:
+Every language is served under its own URL prefix, and `page.url` includes it. To drop the prefix of the default language, set `hideLocale`:
 
 ```tsx title="press.config.tsx"
 const i18n = defineI18n({
-  languages: ["cn", "en"],
+  languages: ["en", "zh"],
   defaultLanguage: "en",
-  // [!code ++]
   hideLocale: "default-locale",
 });
 ```
 
 | Source                     | `hideLocale: "never"` (default) | `hideLocale: "default-locale"` |
 | -------------------------- | ------------------------------- | ------------------------------ |
-| `content/docs/index.mdx`   | `/en`, `/cn`                    | `/`, `/cn`                     |
-| `content/docs/setup.mdx`   | `/en/setup`, `/cn/setup`        | `/setup`, `/cn/setup`          |
-| `src/pages/about.tsx`      | `/en/about`, `/cn/about`        | `/about`, `/cn/about`          |
-| Blog index (plugin routes) | `/en/blog`, `/cn/blog`          | `/blog`, `/cn/blog`            |
+| `content/docs/index.mdx`   | `/en`, `/zh`                    | `/`, `/zh`                     |
+| `content/docs/setup.mdx`   | `/en/setup`, `/zh/setup`        | `/setup`, `/zh/setup`          |
+| `src/pages/about.tsx`      | `/en/about`, `/zh/about`        | `/about`, `/zh/about`          |
+| Blog index (plugin routes) | `/en/blog`, `/zh/blog`          | `/blog`, `/zh/blog`            |
 | Not found page             | `/404`, in the URL's language   | `/404`, in the URL's language  |
 | `/`                        | redirects to `/en`              | the index page of `en`         |
 
 Without a page at `/en`, like with content under a `baseDir`, `/` and the navbar title go to the first page of `en` instead.
 
+Set `site.hreflang` to map language codes that are not BCP 47 tags:
+
+```tsx title="press.config.tsx"
+export default app.config({
+  site: { hreflang: { zh: "zh-Hant" } },
+  // ...
+});
+```
+
 ### File-based Pages
 
-On Astro, create your pages with a `lang` param, see [Internationalization](/docs/astro/routing#internationalization).
-
-Pages and layouts in `src/pages` are registered once per language, under its prefix and with a `lang` prop:
+Waku only. Pages and layouts in `src/pages` are registered once per language, under its prefix. `WakuRouteProps<typeof app>` gives the `lang` prop:
 
 ```tsx title="src/pages/about.tsx"
-export default function Page({ lang }: { lang: string }) {
-  return <h1>{lang === "cn" ? "关于" : "About"}</h1>;
+import type { WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export default function Page({ lang }: WakuRouteProps<typeof app>) {
+  return <h1>{lang === "zh" ? "关于" : "About"}</h1>;
 }
 ```
 
-With `autoI18n: false`, a page is registered once at its own path (e.g. `/privacy`) and rendered as the default language, root layout included. See [Routing](/docs/routing#file-based-routing) for route config.
+With `autoI18n: false`, a page is registered once at its own path and rendered as the default language. See [Routing](/docs/routing#file-based-routing) for route config.
 
 ### In Plugins and Layouts
 
-Build language-aware links with `localizePath()` from the app context, it adds the prefix unless `hideLocale` hides it:
+Build language-aware links with `this.localizePath()` from the site context. It adds the prefix unless `hideLocale` hides it:
 
-```tsx
-const ctx = getPressContext();
+```tsx title="src/layout.tsx"
+import type { UIOptions } from "fumapress";
+import type { app } from "../press.config";
 
-ctx.localizePath("cn", "/blog"); // "/cn/blog"
-ctx.localizePath("en", "/blog"); // "/blog" with `hideLocale: "default-locale"`, otherwise "/en/blog"
-```
-
-A plugin that creates its own pages registers one per language with `createPage()`: `path` is prefixed for `lang`, the page gets it as a prop, and the pages sharing a `path` link each other as translations:
-
-```tsx title="press.config.tsx"
-import type { PressPlugin } from "fumapress";
-
-const plugin: PressPlugin = {
-  name: "changelog",
-  createPages({ createPage }) {
-    for (const lang of this.i18nConfig?.languages ?? [undefined]) {
-      createPage({ path: "/changelog", lang, component: ChangelogPage });
-    }
-  },
+export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+  return {
+    links: [{ url: this.localizePath(lang, "/blog"), text: lang === "zh" ? "部落格" : "Blog" }],
+  };
 };
 ```
 
-Without `lang`, the page is served without prefix as the default language.
+Views are registered once per language automatically and linked as translations. See [Views](/docs/plugins/authoring#views).

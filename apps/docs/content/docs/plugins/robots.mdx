@@ -1,33 +1,30 @@
 ---
 title: robots.txt
-description: Generate a robots.txt file for your app.
+description: Generate a robots.txt file for your site.
 ---
 
 ## Usage
 
-This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). It serves a `/robots.txt` that allows all crawlers, with a `Sitemap` entry when the [sitemap plugin](/docs/plugins/sitemap) is enabled.
+This plugin is included in `fumapress` and enabled by default through the [recommended preset](/docs/config#preset). It serves a `/robots.txt` that allows all crawlers, with a `Sitemap` entry when the [sitemap plugin](/docs/plugins/sitemap) provides its path.
 
-To customize it, add the plugin with options, it takes priority over the preset:
+To customize it, add the plugin with options. It takes priority over the preset:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { robotsPlugin } from "fumapress/plugins/robots";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code ++]
-  .plugins(robotsPlugin());
+  .plugins(robotsPlugin())
+  .config({/* ... */});
 ```
-
-On [Astro](/docs/astro), import `robotsPlugin` from `@fumapress/core/plugins/robots`.
 
 ## Options
 
 ### `rules`
 
-Rules are written as one section per entry, defaults to allowing everything:
+Rules are written as one section per entry. Defaults to allowing everything:
 
 ```tsx title="press.config.tsx"
 robotsPlugin({

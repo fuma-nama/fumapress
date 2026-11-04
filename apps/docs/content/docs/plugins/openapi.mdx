@@ -1,6 +1,6 @@
 ---
 title: OpenAPI
-description: Build API documentations with Fumapress.
+description: Build API documentation with Fumapress.
 ---
 
 ## Installation
@@ -9,7 +9,7 @@ description: Build API documentations with Fumapress.
 npm i fumadocs-openapi shiki
 ```
 
-Import the CSS preset in `src/app.css`:
+Import the CSS preset:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -23,68 +23,47 @@ Import the CSS preset in `src/app.css`:
 Configure the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { defineDocs } from "fumadocs-mdx/macro";
-// [!code ++:3]
-import path from "node:path";
+// [!code ++:2]
 import { createOpenAPI } from "fumadocs-openapi/server";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import openapiPlugin from "fumadocs-openapi/press";
 
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
+const docs = defineDocs({ dir: "content/docs" });
 
 // [!code ++:4]
 const openapi = createOpenAPI({
   // path or URL to your OpenAPI spec
-  input: [path.resolve("./openapi.json")],
+  input: ["./openapi.yaml"],
 });
 
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    // [!code ++]
-    openapi: await openapi.staticSource(),
-  },
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  openapi: await openapi.staticSource({ baseDir: "docs/api" }),
 })
-  // fumapress plugin [!code ++]
-  .plugins(openapiPlugin({ server: openapi }));
+  // [!code ++]
+  .plugins(openapiPlugin({ server: openapi }))
+  .config({/* ... */});
 ```
 
-Update the path/URL to your OpenAPI spec (e.g. `./openapi.json`), the API pages will be automatically generated based on your spec.
-
-On [Astro](/docs/astro), import `openapiPlugin` from `fumadocs-openapi/plugin`.
+Update the path to your OpenAPI spec. API pages are generated from the spec.
 
 ## Options
 
-You can see [Fumadocs OpenAPI](https://www.fumadocs.dev/docs/integrations/openapi) for details of advanced options.
+See [Fumadocs OpenAPI](https://www.fumadocs.dev/docs/integrations/openapi) for details of advanced options.
 
 ### `openapi.staticSource()`
 
-It support a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/openapi/generate-files).
+It supports a subset of options from [`generateFiles()`](https://www.fumadocs.dev/docs/integrations/openapi/generate-files).
 
 <Callout title="How to customize its output file structure?">
 
-It accepts a `baseDir` option. For example, the following will generate all API pages under the `(openapi)` folder:
+It accepts a `baseDir` option. For example, the following generates all API pages under the `(openapi)` folder:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { defineDocs } from "fumadocs-mdx/macro";
-
-const docs = defineDocs({
-  dir: "content/docs",
-  docs: { async: true },
-});
-
-export default defineConfig({
-  content: {
-    docs: docs.toFumadocsSource(),
-    openapi: await openapi.staticSource({
-      // [!code highlight]
-      baseDir: "(openapi)",
-    }),
-  },
+openapi.staticSource({
+  baseDir: "(openapi)",
 });
 ```
 
@@ -104,47 +83,39 @@ export const OpenAPIPage = createOpenAPIPage();
 And import it from the OpenAPI plugin:
 
 ```tsx title="press.config.tsx"
-// [!code ++]
 import { OpenAPIPage } from "./src/components/openapi";
 
-export default defineConfig({
-  // ...
-}).plugins(
-  openapiPlugin({
-    server: openapi,
-    // [!code ++]
-    ClientAPIPage: OpenAPIPage,
-  }),
-);
+openapiPlugin({
+  server: openapi,
+  // [!code ++]
+  ClientAPIPage: OpenAPIPage,
+});
 ```
 
 ### Proxy Server
 
-To create the [Proxy Server](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy), define `proxyUrl` in `createOpenAPI()` and pass `allowedOrigins` to the plugin:
+To create the [Proxy Server](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy), define `proxyUrl` in `createOpenAPI()` and pass `createProxy` to the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import openapiPlugin from "fumadocs-openapi/press";
 
 const openapi = createOpenAPI({
+  input: ["./openapi.yaml"],
   // [!code ++]
   proxyUrl: "/_proxy",
 });
 
-export default defineConfig({
-  // ...
-}).plugins(
-  openapiPlugin({
-    server: openapi,
-    // [!code ++:4]
-    createProxy: {
-      // important: set a list of allowed origins for proxied requests
-      allowedOrigins: ["https://example.com"],
-    },
-  }),
-);
+openapiPlugin({
+  server: openapi,
+  // [!code ++:4]
+  createProxy: {
+    allowedOrigins: ["https://example.com"],
+  },
+});
 ```
+
+Pass `createProxy: true` to enable the proxy without restricting origins.
 
 <Callout type="warn" title="Security">
 

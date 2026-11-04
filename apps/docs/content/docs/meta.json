@@ -9,6 +9,7 @@
     "collections",
     "deployment",
     "internationalization",
+    "search",
     "migrate",
     "astro",
     "---Reference---",

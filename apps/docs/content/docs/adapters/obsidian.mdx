@@ -3,86 +3,91 @@ title: Obsidian
 description: Render an Obsidian vault directly with Fumapress.
 ---
 
-The `@fumapress/obsidian` package connects the runtime source from `fumadocs-obsidian` to Fumapress. Vault notes are compiled in memory without generating intermediate MDX files, and the renderer stays on the server.
-
-Supported Obsidian syntax includes wikilinks and embeds, callouts, block IDs, and comments.
+Vault notes are compiled in memory without generating intermediate MDX files, and the renderer stays on the server. Supported Obsidian syntax includes wikilinks and embeds, callouts, block IDs and comments.
 
 ## Installation
 
-Install the integration:
-
 ```npm
-npm i @fumapress/obsidian
+npm i fumadocs-obsidian
 ```
 
 Import its Tailwind source after the Fumadocs UI styles:
 
 ```css title="src/app.css"
-@import "@fumapress/obsidian/css/preset.css";
+@import "fumadocs-obsidian/css/preset.css";
 ```
 
 ## Configuration
 
 For a runnable project, see [`examples/obsidian`](https://github.com/fuma-nama/fumapress/tree/main/examples/obsidian).
 
-Create the vault source once, pass its dynamic source to Fumapress, and register `obsidianPlugin()` with the same source:
+Create the vault source, pass it to `createPress`, and register `obsidianPlugin()`:
 
 ```tsx title="press.config.tsx"
-import { obsidian, obsidianPlugin } from "@fumapress/obsidian";
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
+import { obsidian } from "fumadocs-obsidian";
+import obsidianPlugin from "fumadocs-obsidian/press";
 
 const vault = obsidian({
   dir: "public/vault",
-  // Map attachments to URLs served from the public directory.
   url: (file) => `/vault/${file}`,
 });
 
-export default defineConfig({
-  content: vault.dynamicSource(),
-}).plugins(obsidianPlugin(vault));
+export default createPress(vault.dynamicSource())
+  .plugins(obsidianPlugin({ vault }))
+  .config({
+    site: { name: "My Vault" },
+  });
 ```
 
 `page.data.load()` compiles a note at most once per vault snapshot. Media files are mapped to URLs and are not read into memory. Ambiguous wikilinks resolve like Obsidian: notes take precedence over attachments, then the shortest path wins.
 
 ### Development Watching
 
-The Fumapress plugin registers the vault with Vite in development. Add its Vite companion to receive file changes and reload the page:
+`localContentPlugin()` watches the vault in the dev server and reloads the page on changes. `watchWithVite()` connects the vault to it:
 
-```ts title="vite.config.ts"
+```ts tab="vite.config.ts"
 import { defineConfig } from "vite";
-import { obsidianVitePlugin } from "@fumapress/obsidian/vite";
+import { localContentPlugin } from "fumadocs-obsidian/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import press from "fumapress/vite";
 
 export default defineConfig({
-  plugins: [press(), obsidianVitePlugin(), tailwindcss()],
+  plugins: [press(), localContentPlugin(), tailwindcss()],
 });
+```
+
+```tsx tab="press.config.tsx"
+import { watchWithVite } from "fumadocs-obsidian/dev/vite";
+
+// [!code ++]
+if (import.meta.env.DEV) watchWithVite(vault);
 ```
 
 Because wikilinks and aliases can create cross-file dependencies, a vault change invalidates the source snapshot. Only changed files are read from disk again.
 
-Set `watch: false` when another process owns invalidation:
-
-```tsx
-obsidianPlugin(vault, { watch: false });
-```
-
 ## Rendering
 
-The plugin supplies Fumadocs MDX components, Obsidian callout components, and relative-link resolution. Add or replace components through `components`:
+The plugin supplies Fumadocs UI MDX components, Obsidian callout components and relative-link resolution. Pass Fumadocs UI defaults and add or replace components through `components`:
 
 ```tsx title="press.config.tsx"
-obsidianPlugin(vault, {
+import defaultMdxComponents from "fumadocs-ui/mdx";
+
+obsidianPlugin({
+  vault,
   components: {
+    ...defaultMdxComponents,
     img: (props) => <img {...props} className="rounded-xl" />,
   },
 });
 ```
 
-The same compiled representation supplies the page body, table of contents, structured search data, and plain text for LLM exports.
+The same compiled representation supplies the page body, table of contents, structured search data and plain text for LLM exports.
 
-<auto-type-table type="import('@fumapress/obsidian').ObsidianPluginOptions" />
+## Options
+
+<auto-type-table type="import('fumadocs-obsidian/press').ObsidianPluginOptions" />
 
 ## Vault Schema
 
-The source accepts Standard Schema validators for frontmatter and `meta.json` files. It also supports additional remark and rehype plugins for syntax such as Mermaid and math. See the [Fumadocs Obsidian integration guide](https://www.fumadocs.dev/docs/integrations/obsidian) for the complete source configuration.
+The source accepts Standard Schema validators for frontmatter and `meta.json` files. It also supports additional remark and rehype plugins for syntax such as Mermaid and math. See the [Fumadocs Obsidian integration](https://fumadocs.dev/docs/integrations/obsidian) for the complete source configuration.

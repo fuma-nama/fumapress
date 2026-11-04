@@ -7,75 +7,63 @@ description: Expose your documentation as LLM-friendly text files.
 
 This plugin is included in `fumapress`.
 
-Enable the plugin in your Fumapress config:
+Enable the plugin:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 // [!code ++]
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
-export default defineConfig({
-  // ...
-})
+export default createPress(content)
   // [!code ++]
-  .plugins(llmsPlugin());
+  .plugins(llmsPlugin())
+  .config({/* ... */});
 ```
 
 The plugin creates:
 
 - `/llms.txt`: an index of your documentation pages.
 - `/llms-full.txt`: a combined text export of all pages.
-- `/*.md`: a markdown version for each page.
+- `/*.md`: a Markdown version for each page.
 
-It also adds the markdown URL to docs pages, so layouts can show a "Copy Markdown" or markdown link when supported.
+It also adds the Markdown URL to docs pages, so layouts can show a "Copy Markdown" link when supported.
 
-On [Astro](/docs/astro), import `llmsPlugin` from `@fumapress/core/plugins/llms.txt`. Enable `includeProcessedMarkdown` of `press()` for the processed Markdown of pages, otherwise they use their source files.
+### Fumadocs MDX
+
+To include the processed Markdown of pages (after remark/rehype), enable `postprocess.includeProcessedMarkdown`:
+
+```tsx title="press.config.tsx"
+const docs = defineDocs({
+  dir: "content/docs",
+  docs: { postprocess: { includeProcessedMarkdown: true } },
+});
+```
+
+Without it, pages use their source files.
 
 ## Options
 
 ### `getLLMText`
 
-By default, the plugin asks your configured adapters for each page's plain text content.
-If your content source does not expose text through an adapter, define `getLLMText` manually:
+Controls how each page appears in `/llms-full.txt`. Return `undefined` to exclude a page:
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-
-export default defineConfig({
-  // ...
-}).plugins(
-  llmsPlugin({
-    getLLMText(page) {
-      return `# ${page.data.title} (${this.absoluteUrl(page.url)})
+llmsPlugin({
+  getLLMText(page) {
+    return `# ${page.data.title} (${this.absoluteUrl(page.url)})
 
 ${page.data.description ?? ""}`;
-    },
-  }),
-);
+  },
+});
 ```
-
-Return `undefined` from `getLLMText` to exclude a page from `/llms-full.txt`.
 
 ### `routes`
 
-This option is Waku only.
-
-By default, only pages of your content source get a Markdown version. With `routes: "all"`, every
-page created with `createPage()` gets one too, like `src/pages/index.tsx` or blog pages:
+By default, only pages of your content source get a Markdown version. With `routes: "all"`, every page route with a Markdown form gets `<page>.md` and an llms.txt entry. Your own pages define their Markdown with [`fumapress/markdown`](/docs/markdown):
 
 ```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-
-export default defineConfig({
-  // ...
-}).plugins(llmsPlugin({ routes: "all" }));
+llmsPlugin({ routes: "all" });
 ```
-
-A page defines its Markdown form by calling `asMarkdown()` from [`fumapress/markdown`](/docs/markdown), pages that
-don't respond 404. Static pages are pre-rendered into `.md` files, so they work in static mode too.
-Dynamic pages are rendered on request, so their Markdown can change over time like the page itself.
 
 ```tsx title="src/pages/index.tsx"
 import { asMarkdown, md } from "fumapress/markdown";
@@ -95,7 +83,7 @@ Welcome! Read the [docs](/docs).
 
 ### `autoRedirect`
 
-When a request prefers Markdown in its `Accept` header (e.g. from an AI agent), the plugin serves the page's Markdown version at the original URL. Enabled by default, ignored in static mode since it requires a server:
+When a request prefers Markdown in its `Accept` header (for example, from an AI agent), the plugin serves the page's Markdown version at the original URL. Enabled by default; ignored in static mode since it requires a server:
 
 ```tsx title="press.config.tsx"
 llmsPlugin({ autoRedirect: false });

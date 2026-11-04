@@ -6,7 +6,7 @@ icon: Cog
 
 ## Integration
 
-`press()` takes the options of the Fumadocs integration, plus the modules of your UI:
+`press()` takes the options of the [Fumadocs integration](https://fumadocs.dev/docs/manual-installation/astro#options), like `collections`, `includeProcessedMarkdown` and `rehypeCodeOptions`, plus the MDX components module:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -17,82 +17,38 @@ export default defineConfig({
     press({
       // the MDX components, defaults to `fumadocs-ui/mdx`
       components: "./src/components/mdx.tsx",
-      // the layout module: `Provider`, `SearchDialog` and `useSearch`
-      layout: "./src/components/layout.tsx",
-      // the page module, its default export renders docs pages
-      page: "./src/components/docs.tsx",
     }),
   ],
 });
 ```
 
-See [Layouts](/docs/astro/layouts) for the `layout` and `page` modules. The Markdown options, like `collections`, `includeProcessedMarkdown` and `rehypeCodeOptions`, are the [options of `@fumadocs/astro`](https://fumadocs.dev/docs/manual-installation/astro#options).
+See [MDX Components](/docs/astro/content#mdx-components) for the components module.
 
 ## Press Config
 
-`defineConfig()` of `@fumapress/astro/config` takes the [main config](/docs/config#main-config) of Fumapress:
+`createPress` from `@fumapress/astro/config` takes the same stages as on Waku: `createPress(content, options).plugins(...).config({...})`.
 
 ```tsx title="press.config.tsx"
 import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
-import { defineConfig } from "@fumapress/astro/config";
-import { linkValidationPlugin } from "@fumapress/core/plugins/link-validation";
+import { createPress } from "@fumapress/astro/config";
+import { llmsPlugin } from "@fumapress/astro/plugins/llms.txt";
 
-export default defineConfig({
-  content: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-  site: {
-    name: "My Docs",
-    git: {
-      user: "acme",
-      repo: "docs",
-      branch: "main",
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+)
+  .plugins(llmsPlugin({ routes: "all" }))
+  .config({
+    site: {
+      name: "My Docs",
+      git: { user: "acme", repo: "docs", branch: "main" },
     },
-  },
-  plugins: [linkValidationPlugin()],
-});
+  });
 ```
 
-It runs on the server of Astro, before your pages render: it can `await` your collections, and the callbacks of plugins receive the site as `this`.
+It runs on the server of Astro before your pages render. It can `await` your collections, and the callbacks of plugins receive the site context as `this`.
 
-The Waku options are not available: `meta` (use [`head`](#head)), `renderPage`, `renderRoot` and `renderNotFound` (see [Layouts](/docs/astro/layouts) and [Routing](/docs/astro/routing)), and `.adapters()`. Plugins go in `plugins` instead of `.plugins()`.
-
-### Plugins
-
-The plugins of Fumapress are the same on Astro, imported from the package owning them:
-
-- The plugins of `fumapress/plugins/*`, like sitemap and link validation, are at `@fumapress/core/plugins/*`.
-- Integrations of Fumadocs export them from their `plugin` subpath, like `fumadocs-openapi/plugin`.
-
-Each plugin page names its Astro import. Plugins built on Waku hooks, like [Blog](/docs/plugins/blog) and [Feedback](/docs/plugins/feedback), are Waku only.
-
-### Head
-
-`head()` returns the tags in `<head>` of every page, and of content pages with `page`:
-
-```tsx title="press.config.tsx"
-import { defineConfig } from "@fumapress/astro/config";
-
-export default defineConfig({
-  // ...
-  // [!code ++:13]
-  head({ page }) {
-    if (page) return;
-
-    return [
-      { tag: "link", attrs: { rel: "icon", href: this.withBase("/favicon.ico") } },
-      {
-        tag: "link",
-        attrs: {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap",
-        },
-      },
-    ];
-  },
-});
-```
-
-Tags are rendered as given, `this.withBase()` adds the `base` of Astro to your own paths.
+Waku-only options are type errors on Astro: `ui.renderRoot`, image optimizer plugins and the `waku` hooks of plugins. See [Config](/docs/config) for every shared option.
 
 ### Render Mode
 
@@ -104,7 +60,7 @@ The [render mode](/docs/config#render-mode) follows your Astro config:
 | an adapter                     | `default` |
 | an adapter, `output: "server"` | `dynamic` |
 
-Set `mode: "static"` to build without server routes while keeping an adapter. `default` and `dynamic` without an adapter fail with an error, see [Deployment](/docs/astro/deployment).
+Set `mode: "static"` to build without server routes while keeping an adapter. `default` and `dynamic` without an adapter fail with an error. See [Deployment](/docs/astro/deployment).
 
 ### Site URL
 
@@ -139,6 +95,5 @@ Without the file, the default styles are used: Tailwind CSS, the `neutral` theme
 @import "tailwindcss";
 @import "fumadocs-ui/css/black.css";
 @import "fumadocs-ui/css/preset.css";
+@import "@fumapress/astro/css/preset.css";
 ```
-
-Plugin pages show the `src/app.css` of Waku, leave out `fumapress/css/preset.css` on Astro.

@@ -7,20 +7,29 @@ description: The docs layout with a navbar above the content.
 
 See [Fumadocs Notebook Layout](https://fumadocs.dev/docs/ui/layouts/notebook) for the available props.
 
-On Astro, render `DocsLayout` of `fumadocs-ui/layouts/notebook` in your [page module](/docs/astro/layouts#page-module).
+Swap the imports of the Docs Layout for `fumadocs-ui/layouts/notebook` and `fumadocs-ui/layouts/notebook/page`:
 
-```tsx title="press.config.tsx"
-import { defineConfig } from "fumapress";
-import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot, type RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
 
-const NotebookLayout = createNotebookLayoutPage<typeof config.$context>();
-
-const config = defineConfig({
-  // ...
-  renderPage: (props) => <NotebookLayout {...props} />,
-});
-
-export default config;
+export function Notebook({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
 ```
 
-It accepts the same [options](/docs/layouts/docs#options) as the docs layout.
+It takes the same page data and slots as the [Docs Layout](/docs/layouts/docs).

@@ -6,7 +6,7 @@ icon: Server
 
 ## Overview
 
-Fumapress adds routes to your Astro app:
+Fumapress adds routes to your Astro site:
 
 | Route                  | Serves                                                                                       |
 | ---------------------- | -------------------------------------------------------------------------------------------- |
@@ -21,7 +21,7 @@ With i18n and `hideLocale: "never"`, `/` redirects to the default language, unle
 
 ## Your Pages
 
-`HomeLayout.astro` renders your page with the navbar of [`defaultLayoutProps`](/docs/astro/layouts#layout-props), and the head tags of Fumapress:
+`HomeLayout.astro` renders your page with the navbar of [`ui.baseOptions`](/docs/layouts#base-options), and the head tags of Fumapress:
 
 ```astro title="src/pages/index.astro"
 ---
@@ -36,48 +36,91 @@ import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
 </HomeLayout>
 ```
 
-It takes `title`, `description`, `lang` and `notFound`, which renders the not found page of Fumadocs UI. Content of its `head` slot goes into `<head>`.
+It takes `title`, `description`, `lang`, `alternates` and `notFound` (which renders the not found page of Fumadocs UI). Content of its `head` slot goes into `<head>`.
 
 ### Reading Content
 
-`getPressContext()` returns the site, like on [Waku](/docs/basics#read-content-from-code):
+`getPressContext()` from `@fumapress/astro/runtime` returns the site context. Export `app` from your press config to type it:
 
-```astro title="src/pages/all.astro"
+```tsx title="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import { blogPlugin } from "@fumapress/blog";
+
+export const app = createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
+    baseDir: "blog",
+  }),
+}).plugins(blogPlugin({ source: "blog" }));
+
+export default app.config({ site: { name: "Acme" } });
+```
+
+```astro title="src/pages/index.astro"
 ---
+import { createElement } from "react";
 import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import ReactContent from "@fumapress/astro/components/ReactContent.astro";
 import { getPressContext } from "@fumapress/astro/runtime";
+import { getBlogPosts } from "@fumapress/blog";
+import { Stars } from "../components/stars";
+import type { app } from "../../press.config";
 
-const ctx = getPressContext();
-const source = await ctx.getLoader();
+const ctx = getPressContext<typeof app>();
+const posts = await getBlogPosts(ctx);
 ---
 
-<HomeLayout title="All Pages">
+<HomeLayout title={ctx.siteConfig.name} description="The docs of Acme.">
+  <h1>{ctx.siteConfig.name}</h1>
   <ul>
-    {
-      source.getPages().map((page) => (
-        <li>
-          <a href={ctx.withBase(page.url)}>{page.data.title}</a>
-        </li>
-      ))
-    }
+    {posts.slice(0, 3).map((post) => <li><a href={post.page.url}>{post.page.data.title}</a></li>)}
   </ul>
+  <ReactContent node={createElement(Stars, { initial: 42 })} />
 </HomeLayout>
 ```
 
-Page URLs don't include the `base` of Astro, `withBase()` adds it.
+Page URLs don't include the `base` of Astro. `ctx.withBase()` adds it. See [Basics](/docs/basics#read-content-from-code).
 
 Your pages are in the sitemap when their URL has no params. Add the others with the `additionalEntries` option of the [sitemap plugin](/docs/plugins/sitemap#additionalentries).
 
+Your own pages give no Markdown for `llms.txt` with `routes: "all"`. See [llms.txt](/docs/plugins/llms.txt#autoredirect).
+
+### API Routes
+
+Your Astro API routes can read the site context:
+
+```ts title="src/pages/api/status.ts"
+import type { APIRoute } from "astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+import type { app } from "../../../press.config";
+
+export const prerender = false;
+
+export const GET: APIRoute = async () => {
+  const ctx = getPressContext<typeof app>();
+  const pages = (await ctx.getLoader()).getPages();
+  return Response.json({
+    name: ctx.siteConfig.name,
+    url: ctx.absoluteUrl("/"),
+    pages: pages.length,
+  });
+};
+```
+
 ### Rendering Content
 
-A collection of `press()` that you leave out of `content` has no docs pages. Render its entries on your pages instead, and pass `getProviderData(Astro)` to `<Content />` so it renders with links and your [MDX components](/docs/astro/content#mdx-components) like docs pages:
+A collection of `press()` that you leave out of `createPress` has no docs pages. Render its entries on your pages instead, and pass `getProviderData(Astro)` to `<Content />` so it renders with links and your [MDX components](/docs/astro/content#mdx-components):
 
 ```js tab="astro.config.mjs"
 press({
   collections: {
     docs: { dir: "content/docs" },
     // [!code ++]
-    pages: { dir: "content/pages" },
+    guides: { dir: "content/guides" },
   },
 });
 ```
@@ -85,24 +128,31 @@ press({
 ```ts tab="src/content.config.ts"
 export const collections = {
   // ...
-  // [!code ++]
-  pages: defineCollection({ loader: pageLoader("pages") }),
+  // [!code ++:2]
+  guides: defineCollection({ loader: pageLoader("guides") }),
+  guidesMeta: defineCollection({ loader: metaLoader("guides") }),
 };
 ```
 
-```astro tab="src/pages/changelog.astro"
+```astro tab="src/pages/guides/[slug].astro"
 ---
-import { getEntry, render } from "astro:content";
+import { getCollection, render } from "astro:content";
 import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
 import { getProviderData } from "@fumapress/astro/runtime";
+import type { app } from "../../../press.config";
 
-const entry = await getEntry("pages", "changelog.mdx");
-if (!entry) throw new Error("missing changelog");
+export async function getStaticPaths() {
+  const guides = await getCollection("guides");
+  return guides.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
 const { Content } = await render(entry);
+const provider = getProviderData<typeof app>(Astro);
 ---
 
-<HomeLayout title="Changelog">
-  <Content provider={getProviderData(Astro)} />
+<HomeLayout title={entry.data.title}>
+  <Content provider={provider} />
 </HomeLayout>
 ```
 

@@ -3,5 +3,5 @@
   "description": "Fumapress on Astro",
   "icon": "Orbit",
   "root": true,
-  "pages": ["index", "configuration", "content", "layouts", "routing", "deployment"]
+  "pages": ["index", "configuration", "content", "routing", "deployment"]
 }
