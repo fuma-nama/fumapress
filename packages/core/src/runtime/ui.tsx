@@ -70,12 +70,12 @@ export function HomeShell({
 }) {
   return (
     <HomeLayout {...baseOptions}>
-      <main
+      <div
         data-fd-home-layout-container=""
         className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto"
       >
         {children}
-      </main>
+      </div>
     </HomeLayout>
   );
 }

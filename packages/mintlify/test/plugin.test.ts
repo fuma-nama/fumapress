@@ -141,7 +141,7 @@ describe("mintlifyPlugin", () => {
     expect(route?.path).toBe("/404");
     const view = await route?.view({}, env);
     expect(view?.props).toEqual({ title: "Not found", description: "Try **searching**." });
-    expect(view?.node).toMatchObject({ type: "main" });
+    expect(view?.node).toMatchObject({ type: "div" });
   });
 
   it("redirects the 404 page home by default", async () => {

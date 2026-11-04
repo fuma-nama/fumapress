@@ -1,6 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import type { DefaultPageProps } from "@fumapress/core/runtime";
+import { HomeShell } from "@fumapress/core/runtime/ui";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { DefaultNotFound } from "fumadocs-ui/layouts/home/not-found";
 
@@ -10,7 +11,13 @@ export interface HomeProps extends Pick<DefaultPageProps, "baseOptions"> {
   children?: ReactNode;
 }
 
-/** the default UI of views, pages of plugins and `HomeLayout.astro` */
+/** the default UI of `HomeLayout.astro`, the not found page in the built-in `HomeShell` like on Waku */
 export function Home({ baseOptions, notFound, children }: HomeProps) {
-  return <HomeLayout {...baseOptions}>{notFound ? <DefaultNotFound /> : children}</HomeLayout>;
+  if (notFound)
+    return (
+      <HomeShell baseOptions={baseOptions}>
+        <DefaultNotFound />
+      </HomeShell>
+    );
+  return <HomeLayout {...baseOptions}>{children}</HomeLayout>;
 }

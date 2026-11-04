@@ -48,7 +48,7 @@ export function notFoundView(
         props,
         title: props.title,
         node: (
-          <main
+          <div
             style={{
               display: "flex",
               flexDirection: "column",
@@ -76,7 +76,7 @@ export function notFoundView(
             >
               Back to home
             </a>
-          </main>
+          </div>
         ),
       };
     },
