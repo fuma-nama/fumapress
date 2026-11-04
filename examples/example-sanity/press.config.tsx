@@ -6,7 +6,7 @@ import { tabsComponents } from "@/components/sanity/tabs";
 import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
 import { PortableText } from "@portabletext/react";
 import { createClient } from "@sanity/client";
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
 const sanityClient = createClient({
   projectId: process.env.SANITY_STUDIO_PROJECT_ID,
@@ -37,11 +37,13 @@ const sanityIntegration = fumapressSanity({
   },
 });
 
-export default defineConfig({
-  content: sanityIntegration.dynamicSource(),
+export default createPress(sanityIntegration.dynamicSource(), {
   loaderOptions: { alwaysRevalidate: true },
-  mode: "dynamic",
-  site: {
-    name: "Sanity Example",
-  },
-}).plugins(sanityPlugin(sanityIntegration));
+})
+  .plugins(sanityPlugin(sanityIntegration))
+  .config({
+    mode: "dynamic",
+    site: {
+      name: "Sanity Example",
+    },
+  });

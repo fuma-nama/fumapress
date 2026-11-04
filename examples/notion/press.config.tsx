@@ -1,6 +1,6 @@
 import { fumapressNotion, notionPlugin } from "@fumapress/notion";
 import { Client } from "@notionhq/client";
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
@@ -9,8 +9,8 @@ const notion = fumapressNotion({
   dataSourceId: getEnv("NOTION_DATA_SOURCE_ID"),
 });
 
-export default defineConfig({
-  content: notion.dynamicSource({
+export default createPress(
+  notion.dynamicSource({
     properties: {
       title: "Name",
       slug: "Slug",
@@ -23,12 +23,15 @@ export default defineConfig({
       },
     },
   }),
-  loaderOptions: { alwaysRevalidate: true },
-  mode: "dynamic",
-  site: {
-    name: "Notion Example",
-  },
-}).plugins(notionPlugin(notion), llmsPlugin(), flexsearchPlugin());
+  { loaderOptions: { alwaysRevalidate: true } },
+)
+  .plugins(notionPlugin(notion), llmsPlugin(), flexsearchPlugin())
+  .config({
+    mode: "dynamic",
+    site: {
+      name: "Notion Example",
+    },
+  });
 
 function getEnv(name: "NOTION_TOKEN" | "NOTION_DATA_SOURCE_ID"): string {
   const value = process.env[name];

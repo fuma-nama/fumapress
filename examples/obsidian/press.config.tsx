@@ -1,19 +1,21 @@
 import { obsidian, obsidianPlugin } from "@fumapress/obsidian";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 
 const vault = obsidian({
   dir: "public/vault",
   url: (file) => `/vault/${file}`,
 });
 
-export default defineConfig({
-  content: vault.dynamicSource(),
+export default createPress(vault.dynamicSource(), {
   loaderOptions: {
     plugins: [lucideIconsPlugin()],
   },
-  site: {
-    baseUrl: "https://example.com",
-    name: "Obsidian Example",
-  },
-}).plugins(obsidianPlugin(vault));
+})
+  .plugins(obsidianPlugin(vault))
+  .config({
+    site: {
+      baseUrl: "https://example.com",
+      name: "Obsidian Example",
+    },
+  });

@@ -13,7 +13,6 @@
     "@astrojs/react": "^7.1.1",
     "@fumadocs/astro": "^0.2.0",
     "@fumapress/astro": "workspace:*",
-    "@fumapress/core": "workspace:*",
     "astro": "^7.4.2",
     "fumadocs-core": "^16.17.11",
     "fumadocs-openapi": "^12.5.9",
