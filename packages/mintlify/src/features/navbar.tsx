@@ -1,6 +1,6 @@
 import type { LinkItemType } from "fumadocs-ui/layouts/shared";
 import type { ReactNode } from "react";
-import { renderMintlifyIcon } from "../icons";
+import { loadMintlifyIcons, renderMintlifyIcon } from "../icons";
 import type { MintlifyDocsJson, MintlifyNavbarLink } from "../schema";
 import { renderSocialIcon } from "./socials";
 
@@ -11,7 +11,7 @@ function navbarLinkLabel(link: MintlifyNavbarLink): string {
   return link.href;
 }
 
-async function navbarLinkIcon(link: MintlifyNavbarLink): Promise<ReactNode> {
+function navbarLinkIcon(link: MintlifyNavbarLink): ReactNode {
   if (link.icon) return renderMintlifyIcon(link.icon);
   if (link.type === "github" || link.type === "discord") return renderSocialIcon(link.type);
 }
@@ -20,8 +20,9 @@ async function navbarLinkIcon(link: MintlifyNavbarLink): Promise<ReactNode> {
 export async function buildNavbarLinks(docs: MintlifyDocsJson): Promise<LinkItemType[]> {
   const links: LinkItemType[] = [];
 
+  await loadMintlifyIcons(docs.navbar?.links);
   for (const link of docs.navbar?.links ?? []) {
-    const icon = await navbarLinkIcon(link);
+    const icon = navbarLinkIcon(link);
     const label = navbarLinkLabel(link);
 
     if (!link.label && icon) {

@@ -27,6 +27,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch --clean false",
+    "test": "vitest",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
@@ -41,32 +42,23 @@
     "fumadocs-core": "^16.16.2",
     "fumadocs-openapi": "^12.3.0",
     "fumadocs-ui": "^16.16.2",
-    "fumapress": "workspace:*",
-    "hono": "^4.13.9",
     "react": "^19.3.0",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
-    "waku": "1.0.0-rc.1"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "*",
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
-    "fumapress": "workspace:^",
-    "hono": "*",
-    "react": "*",
-    "waku": "*"
+    "react": "*"
   },
   "peerDependenciesMeta": {
     "@fumadocs/asyncapi": {
       "optional": true
     },
     "fumadocs-openapi": {
-      "optional": true
-    },
-    "hono": {
       "optional": true
     }
   }

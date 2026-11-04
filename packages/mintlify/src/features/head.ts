@@ -1,11 +1,11 @@
-import { Fragment, type ReactNode } from "react";
+import type { HeadTag } from "fumadocs-core/framework/plugin";
 import type {
   MintlifyBanner,
   MintlifyDocsJson,
   MintlifyFontDetail,
   MintlifyFonts,
 } from "../schema";
-import { renderIntegrations } from "./integrations";
+import { integrationTags } from "./integrations";
 
 function normalizeFonts(fonts: MintlifyFonts): {
   heading?: MintlifyFontDetail;
@@ -136,36 +136,40 @@ export function buildThemeCss(docs: MintlifyDocsJson): string {
 }
 
 function googleFontsHref(fonts: MintlifyFontDetail[]): string | undefined {
-  const families = fonts
-    .filter((font) => !font.source)
-    .map(
-      (font) =>
-        `family=${encodeURIComponent(font.family).replace(/%20/g, "+")}${
-          font.weight ? `:wght@${font.weight}` : ":wght@400;500;600;700"
-        }`,
-    );
-
-  if (families.length === 0) return;
-  return `https://fonts.googleapis.com/css2?${[...new Set(families)].join("&")}&display=swap`;
-}
-
-export function buildRootHead(docs: MintlifyDocsJson): ReactNode {
-  const nodes: ReactNode[] = [];
-
-  nodes.push(<style dangerouslySetInnerHTML={{ __html: buildThemeCss(docs) }} />);
-
-  // ---- favicon ----
-  const favicon = docs.favicon;
-  if (typeof favicon === "string") {
-    nodes.push(<link rel="icon" href={favicon} />);
-  } else if (favicon) {
-    nodes.push(
-      <link rel="icon" href={favicon.light} media="(prefers-color-scheme: light)" />,
-      <link rel="icon" href={favicon.dark} media="(prefers-color-scheme: dark)" />,
+  const families = new Set<string>();
+  for (const font of fonts) {
+    if (font.source) continue;
+    families.add(
+      `family=${encodeURIComponent(font.family).replace(/%20/g, "+")}${
+        font.weight ? `:wght@${font.weight}` : ":wght@400;500;600;700"
+      }`,
     );
   }
 
-  // ---- fonts ----
+  if (families.size === 0) return;
+  return `https://fonts.googleapis.com/css2?${[...families].join("&")}&display=swap`;
+}
+
+/** head tags of every page: theme CSS, favicon, fonts, description, `seo.metatags` and integrations */
+export function buildRootHead(docs: MintlifyDocsJson): HeadTag[] {
+  const tags: HeadTag[] = [{ tag: "style", children: buildThemeCss(docs) }];
+
+  const favicon = docs.favicon;
+  if (typeof favicon === "string") {
+    tags.push({ tag: "link", attrs: { rel: "icon", href: favicon } });
+  } else if (favicon) {
+    tags.push(
+      {
+        tag: "link",
+        attrs: { rel: "icon", href: favicon.light, media: "(prefers-color-scheme: light)" },
+      },
+      {
+        tag: "link",
+        attrs: { rel: "icon", href: favicon.dark, media: "(prefers-color-scheme: dark)" },
+      },
+    );
+  }
+
   const fonts = docs.fonts;
   if (fonts) {
     const { heading, body } = normalizeFonts(fonts);
@@ -174,34 +178,26 @@ export function buildRootHead(docs: MintlifyDocsJson): ReactNode {
     );
 
     if (href) {
-      nodes.push(
-        <link rel="preconnect" href="https://fonts.googleapis.com" />,
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />,
-        <link rel="stylesheet" href={href} />,
+      tags.push(
+        { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+        {
+          tag: "link",
+          attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "anonymous" },
+        },
+        { tag: "link", attrs: { rel: "stylesheet", href } },
       );
     }
   }
 
-  // ---- description ----
   if (docs.description) {
-    nodes.push(<meta name="description" content={docs.description} />);
+    tags.push({ tag: "meta", attrs: { name: "description", content: docs.description } });
   }
 
-  // ---- seo.metatags ----
-  if (docs.seo?.metatags) {
-    for (const [key, value] of Object.entries(docs.seo.metatags)) {
-      if (/^(og|article|fb|profile|book|music|video):/.test(key)) {
-        nodes.push(<meta property={key} content={value} />);
-      } else {
-        nodes.push(<meta name={key} content={value} />);
-      }
-    }
+  for (const [key, content] of Object.entries(docs.seo?.metatags ?? {})) {
+    const name = /^(og|article|fb|profile|book|music|video):/.test(key) ? "property" : "name";
+    tags.push({ tag: "meta", attrs: { [name]: key, content } });
   }
 
-  // ---- integrations ----
-  if (docs.integrations) {
-    nodes.push(renderIntegrations(docs.integrations));
-  }
-
-  return nodes.map((node, i) => <Fragment key={i}>{node}</Fragment>);
+  if (docs.integrations) tags.push(...integrationTags(docs.integrations));
+  return tags;
 }

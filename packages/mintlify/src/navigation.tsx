@@ -5,7 +5,6 @@ import type {
   MintlifyAnchor,
   MintlifyDropdown,
   MintlifyGroup,
-  MintlifyIcon,
   MintlifyMenuItem,
   MintlifyNavEntry,
   MintlifyNavigation,
@@ -64,10 +63,6 @@ function versionFolderSlug(version: string) {
     .toLowerCase()
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-");
-}
-
-async function icon(value: MintlifyIcon | undefined): Promise<ReactNode> {
-  return renderMintlifyIcon(value);
 }
 
 function withTag(name: string, tag: string | undefined): ReactNode {
@@ -175,16 +170,16 @@ function buildExternalPage(name: ReactNode, href: string, icon?: ReactNode): Ite
   };
 }
 
-async function buildGroupFolder(
+function buildGroupFolder(
   group: MintlifyGroup,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Promise<Folder | undefined> {
+): Folder | undefined {
   if (group.hidden) return undefined;
 
   const children: Node[] = [];
   for (const entry of group.pages ?? []) {
-    const node = await buildNavEntry(entry, pageIndex, options);
+    const node = buildNavEntry(entry, pageIndex, options);
     if (node) children.push(node);
   }
 
@@ -194,7 +189,7 @@ async function buildGroupFolder(
     $id: nextId("group"),
     type: "folder",
     name: withTag(group.group, group.tag),
-    icon: await icon(group.icon),
+    icon: renderMintlifyIcon(group.icon),
     defaultOpen: group.expanded,
     children,
     $ref: { folder: normalizeMintPath(group.root ?? group.group) },
@@ -208,11 +203,11 @@ async function buildGroupFolder(
   return folder;
 }
 
-async function buildNavEntry(
+function buildNavEntry(
   entry: MintlifyNavEntry,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Promise<Node | undefined> {
+): Node | undefined {
   if (typeof entry === "string") {
     const page = findPage(entry, pageIndex, options);
     if (page) return page;
@@ -228,19 +223,19 @@ async function buildNavEntry(
   return buildGroupFolder(entry, pageIndex, options);
 }
 
-async function buildSection(
+function buildSection(
   name: ReactNode,
   container: NavigationSection,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
   icon?: ReactNode,
   href?: string,
-): Promise<Node | undefined> {
+): Node | undefined {
   if (href) {
     return buildExternalPage(name, href, icon);
   }
 
-  const children = await buildNavigationChildren(container, pageIndex, options);
+  const children = buildNavigationChildren(container, pageIndex, options);
   if (children.length === 0) return undefined;
 
   const folder: Folder = {
@@ -258,23 +253,23 @@ async function buildSection(
   return folder;
 }
 
-async function buildNavigationChildren(
+function buildNavigationChildren(
   container: NavigationSection,
   pageIndex: Map<string, Item>,
   options: PageMatchOptions,
-): Promise<Node[]> {
+): Node[] {
   const nodes: Node[] = [];
 
   if (container.pages) {
     for (const entry of container.pages) {
-      const node = await buildNavEntry(entry, pageIndex, options);
+      const node = buildNavEntry(entry, pageIndex, options);
       if (node) nodes.push(node);
     }
   }
 
   if (container.groups) {
     for (const group of container.groups) {
-      const node = await buildGroupFolder(group, pageIndex, options);
+      const node = buildGroupFolder(group, pageIndex, options);
       if (node) nodes.push(node);
     }
   }
@@ -282,12 +277,12 @@ async function buildNavigationChildren(
   if (container.menu) {
     for (const item of container.menu) {
       if (item.hidden) continue;
-      const node = await buildSection(
+      const node = buildSection(
         item.item,
         item,
         pageIndex,
         options,
-        await icon(item.icon),
+        renderMintlifyIcon(item.icon),
         item.href,
       );
       if (node) nodes.push(node);
@@ -297,12 +292,12 @@ async function buildNavigationChildren(
   if (container.tabs) {
     for (const tab of container.tabs) {
       if (tab.hidden) continue;
-      const node = await buildSection(
+      const node = buildSection(
         tab.tab,
         tab,
         pageIndex,
         options,
-        await icon(tab.icon),
+        renderMintlifyIcon(tab.icon),
         tab.href,
       );
       if (node) nodes.push(node);
@@ -312,12 +307,12 @@ async function buildNavigationChildren(
   if (container.anchors) {
     for (const anchor of container.anchors) {
       if (anchor.hidden) continue;
-      const node = await buildSection(
+      const node = buildSection(
         anchor.anchor,
         anchor,
         pageIndex,
         options,
-        await icon(anchor.icon),
+        renderMintlifyIcon(anchor.icon),
         anchor.href,
       );
       if (node) nodes.push(node);
@@ -327,12 +322,12 @@ async function buildNavigationChildren(
   if (container.dropdowns) {
     for (const dropdown of container.dropdowns) {
       if (dropdown.hidden) continue;
-      const node = await buildSection(
+      const node = buildSection(
         dropdown.dropdown,
         dropdown,
         pageIndex,
         options,
-        await icon(dropdown.icon),
+        renderMintlifyIcon(dropdown.icon),
         dropdown.href,
       );
       if (node) nodes.push(node);
@@ -342,12 +337,12 @@ async function buildNavigationChildren(
   if (container.products) {
     for (const product of container.products) {
       if (product.hidden) continue;
-      const node = await buildSection(
+      const node = buildSection(
         product.name ?? product.product,
         product,
         pageIndex,
         options,
-        await icon(product.icon),
+        renderMintlifyIcon(product.icon),
         product.href,
       );
       if (node) nodes.push(node);
@@ -382,11 +377,11 @@ export function resolveNavigationContainer(
   return container;
 }
 
-async function buildVersionRootFolder(
+function buildVersionRootFolder(
   version: MintlifyVersionNav,
   pageIndex: Map<string, Item>,
   options: ResolveNavigationOptions,
-): Promise<Folder | undefined> {
+): Folder | undefined {
   if (version.hidden) return undefined;
 
   const matchOptions: PageMatchOptions = {
@@ -394,7 +389,7 @@ async function buildVersionRootFolder(
     version: version.version,
   };
 
-  const children = await buildNavigationChildren(version, pageIndex, matchOptions);
+  const children = buildNavigationChildren(version, pageIndex, matchOptions);
   if (children.length === 0) return undefined;
 
   return {
@@ -408,11 +403,11 @@ async function buildVersionRootFolder(
   };
 }
 
-export async function buildPageTreeFromNavigation(
+export function buildPageTreeFromNavigation(
   navigation: MintlifyNavigation,
   pageIndex: Map<string, Item>,
   options: ResolveNavigationOptions = {},
-): Promise<Node[]> {
+): Node[] {
   nodeId = 0;
   const container = resolveNavigationContainer(navigation, options);
   const matchOptions: PageMatchOptions = { docsDir: options.docsDir };
@@ -420,7 +415,7 @@ export async function buildPageTreeFromNavigation(
   if (container.versions?.length) {
     const folders: Folder[] = [];
     for (const version of container.versions) {
-      const node = await buildVersionRootFolder(version, pageIndex, options);
+      const node = buildVersionRootFolder(version, pageIndex, options);
       if (node) folders.push(node);
     }
     return folders;

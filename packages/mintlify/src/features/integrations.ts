@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import type { HeadTag } from "fumadocs-core/framework/plugin";
 import type { MintlifyIntegrations } from "../schema";
 
 /**
@@ -7,20 +7,25 @@ import type { MintlifyIntegrations } from "../schema";
  * Only script-based integrations are supported, they are injected into `<head>`.
  */
 
-function inline(code: string): ReactNode {
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
+function inline(code: string): HeadTag {
+  return { tag: "script", children: code };
 }
 
-export function renderIntegrations(integrations: MintlifyIntegrations): ReactNode {
-  const nodes: ReactNode[] = [];
+/** a script of `src`, boolean attributes take their name as the value: React drops empty strings */
+function external(attrs: Record<string, string>): HeadTag {
+  return { tag: "script", attrs };
+}
+
+export function integrationTags(integrations: MintlifyIntegrations): HeadTag[] {
+  const nodes: HeadTag[] = [];
 
   if (integrations.ga4) {
     const id = integrations.ga4.measurementId;
     nodes.push(
-      <script
-        async
-        src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`}
-      />,
+      external({
+        async: "async",
+        src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`,
+      }),
       inline(
         `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(id)});`,
       ),
@@ -39,32 +44,32 @@ export function renderIntegrations(integrations: MintlifyIntegrations): ReactNod
   if (integrations.plausible) {
     const { domain, server = "plausible.io" } = integrations.plausible;
     nodes.push(
-      <script
-        defer
-        data-domain={domain}
-        src={`https://${server.replace(/^https?:\/\//, "")}/js/script.js`}
-      />,
+      external({
+        defer: "defer",
+        "data-domain": domain,
+        src: `https://${server.replace(/^https?:\/\//, "")}/js/script.js`,
+      }),
     );
   }
 
   if (integrations.fathom) {
     nodes.push(
-      <script
-        src="https://cdn.usefathom.com/script.js"
-        data-site={integrations.fathom.siteId}
-        defer
-      />,
+      external({
+        src: "https://cdn.usefathom.com/script.js",
+        "data-site": integrations.fathom.siteId,
+        defer: "defer",
+      }),
     );
   }
 
   if (integrations.pirsch) {
     nodes.push(
-      <script
-        defer
-        src="https://api.pirsch.io/pa.js"
-        id="pianjs"
-        data-code={integrations.pirsch.id}
-      />,
+      external({
+        defer: "defer",
+        src: "https://api.pirsch.io/pa.js",
+        id: "pianjs",
+        "data-code": integrations.pirsch.id,
+      }),
     );
   }
 
@@ -86,7 +91,7 @@ export function renderIntegrations(integrations: MintlifyIntegrations): ReactNod
           ? "https://api-in.mixpanel.com"
           : undefined;
     nodes.push(
-      <script async src="https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js" />,
+      external({ async: "async", src: "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js" }),
       inline(
         `window.addEventListener('load',function(){if(window.mixpanel)mixpanel.init(${JSON.stringify(projectToken)}${apiHost ? `,{api_host:${JSON.stringify(apiHost)}}` : ""});});`,
       ),
@@ -95,7 +100,10 @@ export function renderIntegrations(integrations: MintlifyIntegrations): ReactNod
 
   if (integrations.amplitude) {
     nodes.push(
-      <script async src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz" />,
+      external({
+        async: "async",
+        src: "https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz",
+      }),
       inline(
         `window.addEventListener('load',function(){if(window.amplitude)amplitude.init(${JSON.stringify(integrations.amplitude.apiKey)});});`,
       ),
@@ -146,7 +154,11 @@ export function renderIntegrations(integrations: MintlifyIntegrations): ReactNod
 
   if (integrations.logrocket) {
     nodes.push(
-      <script async src="https://cdn.logrocket.io/LogRocket.min.js" crossOrigin="anonymous" />,
+      external({
+        async: "async",
+        src: "https://cdn.logrocket.io/LogRocket.min.js",
+        crossorigin: "anonymous",
+      }),
       inline(
         `window.addEventListener('load',function(){if(window.LogRocket)window.LogRocket.init(${JSON.stringify(integrations.logrocket.appId)});});`,
       ),
@@ -162,5 +174,5 @@ export function renderIntegrations(integrations: MintlifyIntegrations): ReactNod
     );
   }
 
-  return nodes.map((node, i) => <Fragment key={i}>{node}</Fragment>);
+  return nodes;
 }
