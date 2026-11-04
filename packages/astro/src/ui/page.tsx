@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from "react";
 import { type Context, type PageAlternate, type View } from "@fumapress/core";
 import { mergeHead, pageLinks, pathLocale, renderPage, wrapSlot } from "@fumapress/core/runtime";
 import { mergeI18n } from "@fumapress/core/runtime/ui";
-import type { HeadTag } from "fumadocs-core/framework/plugin";
+import type { HeadTag } from "@fumapress/core";
 import { deserializePageTree } from "fumadocs-core/source/client";
 import type { Page } from "fumadocs-core/source";
 import { getPageTreeFile } from "../content-source";

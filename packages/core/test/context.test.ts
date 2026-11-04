@@ -5,8 +5,7 @@ import { createElement, isValidElement, type ReactElement, type ReactNode } from
 import { defineI18n, type I18nConfig } from "fumadocs-core/i18n";
 import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type Context } from "@/context";
-import type { HeadTag } from "fumadocs-core/framework/plugin";
-import type { AppShape, PageRoute, Plugin, PresetEntry } from "@/plugin";
+import type { AppShape, HeadTag, PageRoute, Plugin, PresetEntry } from "@/plugin";
 import {
   createPress,
   renderPage,

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import type { ApiRoute, HeadTag, RouteParams } from "fumadocs-core/framework/plugin";
+import type { ApiRoute, RouteParams } from "fumadocs-core/framework/plugin";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
 import { fallbackOrigin, joinPaths, type Context } from "../context";
-import type { AppShape, Awaitable, PageRoute, Plugin } from "../plugin";
+import type { AppShape, Awaitable, HeadTag, PageRoute, Plugin } from "../plugin";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T

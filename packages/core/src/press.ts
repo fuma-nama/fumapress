@@ -14,6 +14,7 @@ import {
   type Declared,
   type DocsPageData,
   type HeadEnv,
+  type HeadTag,
   type LangEnv,
   type MergedTypes,
   type NamedSlot,
@@ -96,9 +97,7 @@ export interface PressConfig<C extends AppShape, T extends PluginTypes> {
   preset?: readonly PresetEntry<Plugin<C, any>>[];
   site?: SiteConfig;
   /** tags of every page, and of a page with `page` (or `route` and `path` on framework pages); yours win over the plugins' by key */
-  head?:
-    | Framework.HeadTag[]
-    | ((this: Context<C>, env: HeadEnv<C>) => Awaitable<Framework.HeadTag[] | undefined>);
+  head?: HeadTag[] | ((this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>);
   ui?: UIOptionsOf<C, T>;
 }
 

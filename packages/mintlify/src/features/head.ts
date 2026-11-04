@@ -1,4 +1,4 @@
-import type { HeadTag } from "fumadocs-core/framework/plugin";
+import type { HeadTag } from "@fumapress/core";
 import type {
   MintlifyBanner,
   MintlifyDocsJson,

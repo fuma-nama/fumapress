@@ -2,7 +2,6 @@ import { isValidElement } from "react";
 import {
   methods,
   type ApiRoute,
-  type HeadTag,
   type PageBody,
   type PluginContext,
   type PluginLoaderOptions,
@@ -20,6 +19,7 @@ import {
   type CapabilityAPI,
   type DocsPageData,
   type HeadEnv,
+  type HeadTag,
   type LangEnv,
   type PageEnv,
   type PageRoute,

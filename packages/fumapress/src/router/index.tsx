@@ -7,6 +7,7 @@ import {
   type AppShape,
   type Awaitable,
   type Context,
+  type HeadTag,
   type PageRoute,
   type Plugin,
   type PluginInfo,
@@ -31,7 +32,6 @@ import {
 } from "@fumapress/core/runtime";
 import { HomeShell, mergeI18n, renderDefault, siteI18n } from "@fumapress/core/runtime/ui";
 import { methods, type ApiRoute, type RouteHandler } from "fumadocs-core/framework/plugin";
-import type { HeadTag } from "fumadocs-core/framework/plugin";
 import { renderRoute } from "fumadocs-core/server";
 import {
   unstable_formatRouterRequest,

@@ -96,16 +96,16 @@ export type CollectTypes<P extends readonly unknown[]> =
 export interface RuntimeHooks<in C extends AppShape> {}
 
 /**
- * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, views and slots.
+ * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, views, slots, head tags and the build.
  *
  * Hooks are properties, so `this` and pages are checked contravariantly: a plugin for any site fits every site. A plugin is a
  * generic factory typed by the site (`myPlugin<C extends AppShape>(options: MyOptions<NoInfer<C>>): Plugin<C, MyTypes>`).
  */
 export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes = {}>
-  extends
-    Omit<Framework.Plugin<InferLoaderConfig<C>, Context<C>, DocsPageData>, "head" | "build">,
-    RuntimeHooks<C> {
+  extends Framework.Plugin<InferLoaderConfig<C>, Context<C>, DocsPageData>, RuntimeHooks<C> {
   readonly "~types"?: T;
+  /** runs after the content loader is created */
+  configure?: (this: Context<C>) => Awaitable<void>;
   /** at most one plugin per capability; a listed plugin providing a preset entry's capability replaces that entry in place */
   provides?: readonly Declared<T, "provides">[];
   /** read by others with `this.getCapability(capability)`; complete at creation, a value of the site is a function of its context */
@@ -139,7 +139,7 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
     page: C["page"],
     body: Framework.PageBody | undefined,
   ) => Awaitable<PageView<Declared<T, "pages">> | undefined>;
-  head?: (this: Context<C>, env: HeadEnv<C>) => Awaitable<Framework.HeadTag[] | undefined>;
+  head?: (this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>;
   slots?: (this: Context<C>, env: PageEnv<C>) => Awaitable<SlotItem<T>[] | undefined>;
   /** merged under the site's `ui.baseOptions`, over the defaults */
   baseOptions?: (this: Context<C>, env: LangEnv<C>) => Awaitable<Partial<BaseOptions> | undefined>;
@@ -311,8 +311,19 @@ export function recommendedPreset<C extends AppShape = AppShape>(): PresetEntry<
   ];
 }
 
+/** a tag in `<head>`, rendered in order */
+export interface HeadTag {
+  tag: "title" | "meta" | "link" | "script" | "style";
+  /** HTML attributes, like `hreflang` */
+  attrs?: Record<string, string>;
+  /** text content, for `title`, `script` and `style` */
+  children?: string;
+}
+
 /** the build output of a site, with the links of its prerendered pages */
-export interface PressBuildOutput extends Framework.BuildOutput {
+export interface PressBuildOutput {
+  /** write a file to the output directory, `path` is relative to it, without the base path */
+  emitFile: (path: string, content: string | Uint8Array) => Promise<void>;
   links: { href: string; fromPathname: string }[];
   /** request a page of the built site */
   fetch: (request: Request) => Awaitable<Response>;
