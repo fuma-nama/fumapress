@@ -164,10 +164,23 @@ export function blogPlugin<
     : [options.source as S];
   const isPost = (page: C["page"]): page is Post => source.includes(page.type as S);
 
-  /** the posts of `lang` newest first, their tags and how to resolve a post */
+  type LoaderOutput = Awaited<ReturnType<Context<C>["getLoader"]>>;
+  // a content change replaces the loader output, every post and tag view reads the same collection
+  const collections = new WeakMap<LoaderOutput, Map<C["lang"], ReturnType<typeof derive>>>();
+
   async function collect(ctx: Context<C>, lang: C["lang"]) {
+    const loader = await ctx.getLoader();
+    let byLang = collections.get(loader);
+    if (!byLang) collections.set(loader, (byLang = new Map()));
+    let collection = byLang.get(lang);
+    if (!collection) byLang.set(lang, (collection = derive(ctx, loader, lang)));
+    return collection;
+  }
+
+  /** the posts of `lang` newest first, their tags and how to resolve a post */
+  async function derive(ctx: Context<C>, loader: LoaderOutput, lang: C["lang"]) {
     const pending: Promise<{ page: Post; date?: Date; tags: string[] }>[] = [];
-    for (const page of (await ctx.getLoader()).getPages(lang)) {
+    for (const page of loader.getPages(lang)) {
       if (!isPost(page)) continue;
       pending.push(
         Promise.all([ctx.getPageCreatedAt(page), options.getTags?.call(ctx, page)]).then(
