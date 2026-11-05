@@ -22,7 +22,7 @@ export interface IslandData {
   /** the island tree, see {@link IslandNode} */
   tree: string;
   /** static HTML, or Astro content rendered with the provider of the island; slot `s0` is the first */
-  slots: (string | AstroComponentFactory)[];
+  slots: (string | AstroSlot)[];
   /** the URLs of the page tree files in the island, the island fetches them */
   pageTrees: string[];
 }
@@ -37,10 +37,16 @@ class Tree {
   constructor(readonly nodes: IslandNode[]) {}
 }
 
-interface AstroContentProps {
-  /** like `<Content />` of a collection page, it receives the `provider` prop; without it, the default slot of `Island.astro`, the children of its Astro component */
-  component?: AstroComponentFactory;
+/** Astro content in a slot of the island */
+export interface AstroSlot {
+  /** like `<Content />` of a collection page, it receives the `provider` and `links` props */
+  component: AstroComponentFactory;
+  /** the URLs of its relative links, for the `a` of its MDX components */
+  links?: Map<string, string>;
 }
+
+/** without `component`, the default slot of `Island.astro`, the children of its Astro component */
+type AstroContentProps = Partial<AstroSlot>;
 
 /** Astro content in React content, like the body of a collection page: Astro renders it into a slot of the island */
 export function AstroContent(_props: AstroContentProps): null {
@@ -119,8 +125,8 @@ async function serialize(
   }
   if (!isValidElement<ElementProps>(node)) return;
   if (isAstroContent(node)) {
-    const { component } = node.props;
-    out.push(component ? slot(slots, component) : new Slot("children"));
+    const { component, links } = node.props;
+    out.push(component ? slot(slots, { component, links }) : new Slot("children"));
     return;
   }
 

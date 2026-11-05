@@ -15,12 +15,12 @@ const { tree, slots, provider, persist } = Astro.props;
 
 <PressIsland client:load tree={tree} transition:persist={persist}>
   {
-    slots.map((Content, i) =>
-      typeof Content === "string" ? (
-        <Fragment slot={`s${i}`} set:html={Content} />
+    slots.map((content, i) =>
+      typeof content === "string" ? (
+        <Fragment slot={`s${i}`} set:html={content} />
       ) : (
         <Fragment slot={`s${i}`}>
-          <Content provider={provider} />
+          <content.component provider={provider} links={content.links} />
         </Fragment>
       ),
     )

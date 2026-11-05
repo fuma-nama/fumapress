@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type FC, type PropsWithChildren, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { parse } from "devalue";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -24,7 +24,7 @@ vi.mock("astro:transitions/client", () => ({ navigate() {} }));
 vi.mock("astro:config/client", () => ({ base: "/", trailingSlash: "ignore" }));
 
 const { getHomeLayout, getPage } = await import("@/ui/page");
-const { ContentProvider } = await import("@/ui/content");
+const { ContentProvider, withProvider } = await import("@/ui/content");
 const { Link } = await import("@/ui/link");
 const { Provider } = await import("@/ui/provider");
 const astro = {
@@ -275,4 +275,23 @@ describe("head tags", () => {
     const { head } = await getHomeLayout(astro, { title: "Blog" });
     expect(head.some((tag) => tag.attrs?.rel === "alternate")).toBe(false);
   });
+});
+
+it("gives the links of collection pages the URLs from the server", () => {
+  const { a: A, wrapper: Wrapper } = withProvider({
+    a: ({ href }) => <a href={href} data-custom="" />,
+    wrapper: ({ children }) => <main>{children}</main>,
+  }) as { a: (props: { href: string }) => ReactNode; wrapper: FC<PropsWithChildren<object>> };
+
+  const links = new Map([["./other.mdx", "/other"]]);
+  expect(
+    renderToString(
+      <Wrapper {...{ links }}>
+        <A href="./other.mdx" />
+        <A href="./missing.mdx" />
+      </Wrapper>,
+    ),
+  ).toBe(
+    '<main><a href="/other" data-custom=""></a><a href="./missing.mdx" data-custom=""></a></main>',
+  );
 });

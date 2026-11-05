@@ -62,12 +62,22 @@ it("renders collection pages as their `<Content />`, dated by the `date` frontma
     date: "2026-11-04",
     getText: async () => "",
     load: async () => ({ body: Content, toc: [] }),
+    extractedReferences: [
+      { href: "./guide/other.mdx#usage" },
+      { href: "./missing.mdx" },
+      { href: "https://example.com" },
+    ],
   };
-  const ctx = await site({ "post.mdx": data });
-  const [page] = (await ctx.getLoader()).getPages();
-  const body = await ctx.getPageBody(page!);
+  const ctx = await site({ "post.mdx": data, "guide/other.mdx": { title: "Other" } });
+  const page = (await ctx.getLoader()).getPage(["post"])!;
+  const body = await ctx.getPageBody(page);
 
   expect(isValidElement(body?.node) && body.node.type).toBe(AstroContent);
   expect(body?.node).toHaveProperty("props.component", Content);
-  expect(await ctx.getPageCreatedAt(page!)).toEqual(new Date("2026-11-04"));
+  // only what the browser can't resolve itself
+  expect(body?.node).toHaveProperty(
+    "props.links",
+    new Map([["./guide/other.mdx#usage", "/guide/other#usage"]]),
+  );
+  expect(await ctx.getPageCreatedAt(page)).toEqual(new Date("2026-11-04"));
 });

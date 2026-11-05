@@ -142,7 +142,7 @@ describe("press island", () => {
       </Card>,
     );
 
-    expect(island.slots).toEqual([Content, Content]);
+    expect(island.slots).toEqual([{ component: Content }, { component: Content }]);
     expect(render(island)).toBe(
       '<section data-card=""><h3><astro-slot name="s0"></astro-slot></h3><astro-slot name="s1"></astro-slot></section>',
     );

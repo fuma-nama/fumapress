@@ -82,16 +82,22 @@ function toDate(value: unknown): Date | undefined {
 /**
  * Pages of Astro content collections, and of runtime content sources whose `page.data.load()` returns a renderer: Local Markdown, Local HTML, Obsidian and Python.
  *
- * Collection pages render as their `<Content />`. Runtime sources render with the MDX components, with relative links resolved. It is a default of the runtime, the last layer: the plugins of content sources like Obsidian and your plugins override it.
+ * Collection pages render as their `<Content />`, with the URLs of the relative links in their `extractedReferences`. Runtime sources render with the MDX components, with relative links resolved. It is a default of the runtime, the last layer: the plugins of content sources like Obsidian and your plugins override it.
  */
 export function contentSourcePlugin(): Plugin {
   return {
     name: "astro:content-source",
     async getPageBody(page) {
-      if (isCollectionPage(page.data))
-        return {
-          node: createElement(AstroContent, { component: (await page.data.load()).body }),
-        };
+      const { data } = page;
+      if (isCollectionPage(data)) {
+        const [{ body }, loader] = await Promise.all([data.load(), this.getLoader()]);
+        const links = new Map<string, string>();
+        for (const { href } of data.extractedReferences ?? []) {
+          const url = loader.resolveHref(href, page);
+          if (url !== href) links.set(href, url);
+        }
+        return { node: createElement(AstroContent, { component: body, links }) };
+      }
       const rendered = await render(this, page);
       if (rendered) return { node: rendered.body };
     },
