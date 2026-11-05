@@ -8,14 +8,19 @@ import sanityPlugin from "@fumadocs/sanity/press";
 import { createClient } from "@sanity/client";
 import { createPress } from "fumapress";
 
-const source = createSanitySource({
-  client: createClient({
-    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
-    dataset: process.env.SANITY_STUDIO_DATASET,
-    apiVersion: "2024-12-04",
-  }),
-  docType: "docs",
-});
+const projectId = process.env.SANITY_STUDIO_PROJECT_ID;
+if (!projectId) console.warn("SANITY_STUDIO_PROJECT_ID is not set, the docs are empty.");
+
+const source = projectId
+  ? createSanitySource({
+      client: createClient({
+        projectId,
+        dataset: process.env.SANITY_STUDIO_DATASET,
+        apiVersion: "2024-12-04",
+      }),
+      docType: "docs",
+    })
+  : { files: [] };
 
 export default createPress(source, {
   loaderOptions: { alwaysRevalidate: true },
