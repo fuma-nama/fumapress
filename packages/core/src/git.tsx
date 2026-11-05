@@ -1,11 +1,13 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
 import type { Context, SiteConfig } from "./context";
 import type { BaseOptions } from "./press";
 
 export type GitProvider = "github" | "gitlab" | "bitbucket";
 
 type GitInfo = NonNullable<Context["siteConfig"]["git"]>;
+
+// not imports: Cloudflare Workers without `nodejs_compat` have neither, and files of pages have no links there
+const fs = globalThis.process?.getBuiltinModule?.("node:fs");
+const path = globalThis.process?.getBuiltinModule?.("node:path");
 
 const instances: Record<GitProvider, string> = {
   github: "https://github.com",
@@ -38,8 +40,9 @@ export function resolveGit(git: NonNullable<SiteConfig["git"]>): GitInfo {
 }
 
 function findRootDir(): string {
+  if (!fs || !path) return "/";
   let dir = process.cwd();
-  while (!existsSync(path.join(dir, ".git"))) {
+  while (!fs.existsSync(path.join(dir, ".git"))) {
     const parent = path.dirname(dir);
     if (parent === dir) return process.cwd();
     dir = parent;
@@ -53,6 +56,7 @@ function getRepoUrl(git: GitInfo): string {
 
 /** the URL of a file on the git provider, `undefined` for files outside the repository */
 export function getFileUrl(git: GitInfo, absolutePath: string): string | undefined {
+  if (!path) return;
   const file = path.relative(git.rootDir, absolutePath).replaceAll(path.sep, "/");
   if (file.startsWith("../") || path.isAbsolute(file)) return;
   const repo = getRepoUrl(git);

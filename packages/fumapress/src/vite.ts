@@ -200,8 +200,12 @@ function core(options: WakuPressOptions = {}): Plugin {
         : undefined;
 
       const adapter = options.adapter ?? getDefaultAdapter();
+      // the `node` platform of Rolldown calls `createRequire(import.meta.url)` on import, Workers have neither
+      const worker = { build: { rolldownOptions: { platform: "neutral" as const } } };
 
       return {
+        environments:
+          adapter === "waku/adapters/cloudflare" ? { rsc: worker, ssr: worker } : undefined,
         define: {
           // baked into the bundle: runtime env vars are unreliable across platforms (e.g. Cloudflare Workers)
           "import.meta.env.FUMAPRESS_PLATFORM": JSON.stringify(
