@@ -697,11 +697,14 @@ const reactProps = new Map([
 /** head tags as React elements, React hoists them into `<head>` */
 function renderHeadTags(tags: HeadTag[]): ReactNode[] {
   const out: ReactNode[] = [];
-  for (const [key, { tag, attrs, children }] of tags.entries()) {
-    const props: Record<string, unknown> = { key };
+  for (const [index, { tag, attrs, children }] of tags.entries()) {
+    const props: Record<string, unknown> = { key: index };
     for (const name in attrs) props[reactProps.get(name) ?? name] = attrs[name];
-    // React hoists stylesheets into `<head>` only with a precedence
-    if (tag === "link" && attrs?.rel === "stylesheet") props.precedence ??= "default";
+    if (tag === "link" && attrs?.rel === "stylesheet") {
+      // React hoists stylesheets into `<head>` only with a precedence, and can't update another `<link>` into one
+      props.precedence ??= "default";
+      props.key = attrs.href;
+    }
     if (tag === "title") {
       out.push(createElement(tag, props, children));
       continue;

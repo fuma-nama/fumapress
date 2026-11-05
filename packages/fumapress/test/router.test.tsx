@@ -48,7 +48,7 @@ vi.mock("waku/server", () => ({
   serializeRsc: async (value: unknown) => new TextEncoder().encode(JSON.stringify(value)),
 }));
 vi.mock("@vitejs/plugin-rsc/rsc", () => ({
-  registerClientReference: (value: object, id: string, name: string) =>
+  registerClientReference: (value: object) =>
     Object.defineProperty(value, "$$typeof", { value: Symbol.for("react.client.reference") }),
 }));
 
@@ -158,6 +158,26 @@ describe("createPages", () => {
     };
     const rendered = (await element.type(element.props)) as { props: { children: unknown[] } };
     expect(rendered.props.children[2]).toBe("en:undefined:guide");
+  });
+
+  it("keys stylesheets in head by URL, pages have other tags before them", async () => {
+    const stylesheet: Plugin = {
+      name: "stylesheet",
+      head: () => [{ tag: "link", attrs: { rel: "stylesheet", href: "/a.css" } }],
+    };
+    await routes([stylesheet], undefined, prefixed);
+    const content = route("/en/[...slugs]");
+    const element = (content.component as FC<{ slugs: string[] }>)({ slugs: ["guide"] }) as {
+      type: FC<{ slugs: string[]; lang: string }>;
+      props: { slugs: string[]; lang: string };
+    };
+    const rendered = (await element.type(element.props)) as {
+      props: { children: { type: FC<object>; props: object }[] };
+    };
+    const head = rendered.props.children[0]!;
+    const tags = (await head.type(head.props)) as unknown as { key: string; props: object }[];
+    const link = tags.find((tag) => "precedence" in tag.props);
+    expect(link?.key).toBe("/a.css");
   });
 
   it("routes the root of a language rendered on request, unless your own page has it", async () => {
