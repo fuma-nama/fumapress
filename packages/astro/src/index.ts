@@ -45,6 +45,7 @@ export default function press({
   let outDir = "";
   let routes: typeof Generated.routes = [];
   let onDemand: RegExp[] = [];
+  let prerendered404 = false;
   let devUrl: string | undefined;
   let server: ViteDevServer | undefined;
 
@@ -75,6 +76,7 @@ export default function press({
           };
           const modules: Record<string, string | ((environment: string) => string)> = {
             "virtual:fumapress/astro": (environment) => `export const adapter = ${adapter};
+export const staticNotFound = ${adapter && config.trailingSlash === "always" && prerendered404};
 export const defaultMode = ${JSON.stringify(mode)};
 export const routes = ${JSON.stringify(routes)};
 export const prerender = ${environment === "prerender"};
@@ -143,9 +145,11 @@ export default withProvider(components);`;
         "astro:routes:resolved"(params) {
           routes = [];
           onDemand = [];
+          prerendered404 = false;
           for (const route of params.routes) {
             if (route.origin !== "project") continue;
             if (!route.isPrerendered) onDemand.push(route.patternRegex);
+            if (route.pattern === "/404") prerendered404 = route.isPrerendered;
             if (route.type === "page" && !/^\/(404|500)$/.test(route.pattern))
               routes.push({
                 path: route.pattern,

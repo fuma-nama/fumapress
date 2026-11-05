@@ -85,8 +85,16 @@ export async function pageStaticPaths(ctx: RuntimeContext, adapter: boolean) {
   return paths;
 }
 
-/** the static paths of `[...fumapressFile]`, the routes rendered at build time */
-export async function fileStaticPaths(ctx: RuntimeContext, adapter: boolean) {
+/**
+ * The static paths of `[...fumapressFile]`, the routes rendered at build time.
+ *
+ * @param staticNotFound - URLs with a file extension match no catch-all route of Astro, they land on a 404 page that doesn't run the middleware
+ */
+export async function fileStaticPaths(
+  ctx: RuntimeContext,
+  adapter: boolean,
+  staticNotFound = false,
+) {
   const paths: {
     params: { fumapressFile?: string };
     props: { GET: RouteHandler; params: RouteParams };
@@ -96,6 +104,10 @@ export async function fileStaticPaths(ctx: RuntimeContext, adapter: boolean) {
       if (!adapter)
         throw new Error(
           `[Fumapress] the route "${route.path}" renders on request, add an adapter to Astro.`,
+        );
+      if (staticNotFound && /\.[^/]+$/.test(route.path))
+        throw new Error(
+          `[Fumapress] Astro serves your 404 page at "${route.path}": with \`trailingSlash: "always"\`, routes rendered on request with a file extension need a 404 page rendered on request. Add \`export const prerender = false\` to your 404 page.`,
         );
       continue;
     }

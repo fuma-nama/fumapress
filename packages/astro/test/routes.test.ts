@@ -49,6 +49,12 @@ describe("static routes", () => {
     await expect(fileStaticPaths(ctx, false)).rejects.toThrow(
       'the route "/api/search" renders on request, add an adapter to Astro.',
     );
+    // the search route has no file extension, Astro redirects it to a catch-all route
+    await expect(fileStaticPaths(ctx, true, true)).resolves.toEqual(paths);
+    const file = await site({ routes: ({ createApi }) => createApi({ path: "/feed.json" }) });
+    await expect(fileStaticPaths(file, true, true)).rejects.toThrow(
+      'Astro serves your 404 page at "/feed.json"',
+    );
   });
 
   it("render the pages and the root redirect", async () => {

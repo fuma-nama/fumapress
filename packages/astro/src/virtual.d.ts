@@ -10,6 +10,8 @@ declare module "virtual:fumapress/config" {
 declare module "virtual:fumapress/astro" {
   /** Astro has an adapter, routes can render on request */
   export const adapter: boolean;
+  /** a server with `trailingSlash: "always"` and your own prerendered 404 page */
+  export const staticNotFound: boolean;
   /** the mode without `mode` in the config: `static` without an adapter, `dynamic` with `output: 'server'` */
   export const defaultMode: import("@fumapress/core").BuildMode;
   /** your page routes from `astro:routes:resolved` */
