@@ -95,6 +95,7 @@ export type CollectTypes<P extends readonly unknown[]> =
  * the members of runtimes' own APIs, each named by its runtime (`C["runtime"]`): `fumapress` declares `waku` by declaration
  * merging. Another runtime's site refuses them: by `C` for a typed plugin, as an unknown key for a literal.
  */
+// oxlint-disable-next-line no-unused-vars -- merged declarations keep the same type parameters
 export interface RuntimeHooks<in C extends AppShape> {}
 
 /**
