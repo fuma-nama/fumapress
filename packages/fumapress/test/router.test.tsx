@@ -99,7 +99,7 @@ const files: VirtualFile[] = [
 function site(
   plugins: Plugin<AppShape, any>[] = [],
   i18n?: I18nConfig,
-  mode: "static" | "default" = "static",
+  mode: "static" | "default" | "dynamic" = "static",
 ) {
   return createPress({ files }, { i18n: i18n as never })
     .plugins(...plugins)
@@ -115,7 +115,7 @@ async function routes(
   plugins: Plugin<AppShape, any>[] = [],
   own: (this: Context, fns: WakuRouteFns) => Awaitable<void> = () => {},
   i18n?: I18nConfig,
-  mode?: "static" | "default",
+  mode?: "static" | "default" | "dynamic",
 ) {
   const router = await createRouter(site(plugins, i18n, mode));
   router.createPages(own);
@@ -158,6 +158,27 @@ describe("createPages", () => {
     };
     const rendered = (await element.type(element.props)) as { props: { children: unknown[] } };
     expect(rendered.props.children[2]).toBe("en:undefined:guide");
+  });
+
+  it("routes the root of a language rendered on request, unless your own page has it", async () => {
+    await routes([], undefined, prefixed, "dynamic");
+    expect(paths("page")).toEqual(expect.arrayContaining(["/cn", "/en"]));
+
+    const root = recorded.routes.find((route) => route.kind === "page" && route.path === "/cn");
+    const element = (root!.component as FC)({}) as unknown as {
+      props: { slugs: string[]; lang: string };
+    };
+    expect(element.props).toEqual({ slugs: [], lang: "cn" });
+
+    await routes(
+      [],
+      ({ createPage }) => createPage({ path: "/", lang: "cn", component: Page }),
+      hidden,
+      "dynamic",
+    );
+    const roots = paths("page").filter((path) => path === "/cn");
+    expect(roots).toEqual(["/cn"]);
+    expect(paths("page")).not.toContain("/(default)");
   });
 
   it("keeps plugin layouts in route groups, your own pages win, two plugins on one path fail", async () => {

@@ -569,6 +569,18 @@ export async function createRouter(
               staticPaths: slugsByLang.get(lang) ?? [],
               component: ({ slugs }) => <ContentPage slugs={slugs} lang={lang} />,
             });
+            // a wildcard route of Waku needs a segment after its prefix
+            if (
+              defaultRender === "dynamic" &&
+              base !== DEFAULT_GROUP &&
+              !served.some((route) => route.path === base) &&
+              !views.some(({ route }) => route.path === base)
+            )
+              waku.createPage({
+                render: "dynamic",
+                path: base as "/",
+                component: () => <ContentPage slugs={[]} lang={lang} />,
+              });
           }
 
           // Waku renders `/404` for every unknown URL: in the language of its prefix, rendered on request outside static
