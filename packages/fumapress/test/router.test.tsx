@@ -43,6 +43,15 @@ const recorded = vi.hoisted(() => {
   });
 });
 
+// React Flight needs the `react-server` condition
+vi.mock("waku/server", () => ({
+  serializeRsc: async (value: unknown) => new TextEncoder().encode(JSON.stringify(value)),
+}));
+vi.mock("@vitejs/plugin-rsc/rsc", () => ({
+  registerClientReference: (value: object, id: string, name: string) =>
+    Object.defineProperty(value, "$$typeof", { value: Symbol.for("react.client.reference") }),
+}));
+
 vi.mock("waku", () => ({
   createPages(fn: (fns: unknown) => Promise<unknown>) {
     recorded.pending = fn(recorded.fns());

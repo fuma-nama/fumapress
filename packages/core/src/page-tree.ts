@@ -15,6 +15,16 @@ export function selectTreeRoot(tree: PageTree.Root, path: string): PageTree.Root
   );
 }
 
+const rootChildren = new WeakMap<PageTree.Folder, PageTree.Node[]>();
+
+/** the children of `folder` as the root of a page tree, with its index page */
+export function getRootChildren(folder: PageTree.Folder): PageTree.Node[] {
+  if (!folder.index) return folder.children;
+  let children = rootChildren.get(folder);
+  if (!children) rootChildren.set(folder, (children = [folder.index, ...folder.children]));
+  return children;
+}
+
 function scope(root: PageTree.Root, path: string): PageTree.Root | undefined {
   for (const folder of folders(root.children)) {
     // unlike `$id`, `$ref` is not prefixed on localized and fallback trees
@@ -22,7 +32,7 @@ function scope(root: PageTree.Root, path: string): PageTree.Root | undefined {
 
     return {
       ...root,
-      children: folder.index ? [folder.index, ...folder.children] : folder.children,
+      children: getRootChildren(folder),
       fallback: root.fallback && scope(root.fallback, path),
     };
   }

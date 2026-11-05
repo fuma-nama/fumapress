@@ -19,3 +19,4 @@ export {
   rootRedirect,
 } from "../routes";
 export { wrapSlot } from "../plugin";
+export { getRootChildren } from "../page-tree";

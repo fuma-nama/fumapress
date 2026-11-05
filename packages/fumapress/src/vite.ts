@@ -221,6 +221,14 @@ function core(options: WakuPressOptions = {}): Plugin {
         optimizeDeps: out && { include: out.include, exclude: out.framework },
       };
     },
+    transform: {
+      // the client module loader of `@vitejs/plugin-rsc` is set on import
+      filter: { id: /\/waku\/dist\/lib\/vite-entries\/entry\.(browser|ssr)\.js/ },
+      handler(code, id) {
+        const file = fileURLToPath(new URL("./router/page-tree.client.js", import.meta.url));
+        return `import "@vitejs/plugin-rsc/${id.includes("entry.ssr") ? "ssr" : "browser"}";\nimport ${JSON.stringify(file)};\n${code}`;
+      },
+    },
     async resolveId(source, _importer, options) {
       if (source === "virtual:fumapress-core/config") {
         return this.resolve("/press.config", undefined, options);

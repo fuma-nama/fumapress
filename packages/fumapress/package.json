@@ -19,7 +19,9 @@
     "cli.js"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/router/page-tree.client.js"
+  ],
   "exports": {
     ".": "./dist/index.js",
     "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
@@ -59,6 +61,7 @@
   },
   "dependencies": {
     "@fumapress/core": "workspace:^",
+    "@vitejs/plugin-rsc": "^0.5.33",
     "flexsearch": "^0.8.212",
     "lucide-react": "^1.47.0",
     "takumi-js": "^2.14.0",

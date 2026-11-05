@@ -53,6 +53,7 @@ import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
+import { getPageTreeFiles, pageTreePlugin } from "@/router/page-tree";
 import {
   recommendedPreset,
   setPressContext,
@@ -164,7 +165,11 @@ export async function createRouter(
     {
       base: import.meta.env.BASE_URL,
       preset: recommendedPreset,
-      defaults: [...renderers, { name: "waku:ui-translations", translations: uiTranslations() }],
+      defaults: [
+        ...renderers,
+        { name: "waku:ui-translations", translations: uiTranslations() },
+        pageTreePlugin(),
+      ],
       signal: controller.signal,
       isClientReference: (value) =>
         (typeof value === "function" || (typeof value === "object" && value !== null)) &&
@@ -184,7 +189,8 @@ export async function createRouter(
     return out === "/" && i18n ? DEFAULT_GROUP : out;
   }
 
-  function render(target: RenderTarget) {
+  async function render(target: RenderTarget) {
+    await getPageTreeFiles(ctx);
     return renderPage(ctx, press, target, renderDefault);
   }
 
