@@ -82,9 +82,13 @@ export function linkValidationPlugin<C extends AppShape = AppShape>(
       );
 
       const diagnostics: Diagnostic[] = [];
+      // renderers can render a component more than once
+      const reported = new Set<string>();
       for (const link of links) {
         const info = hrefMap.get(link.href);
-        if (!info) continue;
+        const key = `${link.fromPathname} ${link.href}`;
+        if (!info || reported.has(key)) continue;
+        reported.add(key);
 
         diagnostics.push({
           severity: "error",

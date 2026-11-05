@@ -51,6 +51,18 @@ describe("report", () => {
     await expect(build()).rejects.toThrow('\nIn "/docs": link "/missing" not-found');
   });
 
+  it("reports a link rendered more than once on a page once", async () => {
+    const [link] = broken.links;
+    const { build, emitted } = await runBuild({
+      ...broken,
+      links: [link!, link!, { ...link!, fromPathname: "/other" }],
+      plugin: { report: "json" },
+    });
+    await build();
+
+    expect(diagnostics(emitted).map((item) => item.fromPathname)).toEqual(["/docs", "/other"]);
+  });
+
   it("does not write a diagnostics file by default", async () => {
     const { build, emitted } = await runBuild({ links: ok });
 
