@@ -1,10 +1,12 @@
-import { createElement, type ComponentType, type ReactNode } from "react";
+import { createElement, type ComponentType, type ReactElement, type ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { Meta, Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import type { Context, InferLoaderConfig } from "./context";
-import type { BaseOptions, ProviderProps } from "./press";
+import type { Context } from "./context";
+import type { HeadEnv, HeadTag } from "./head";
+import type { BaseOptions, InferI18nConfig, ProviderProps } from "./press";
+import type { PageRoute, RouteFns } from "./routes";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -19,6 +21,14 @@ export interface AppShape {
   runtime: string;
 }
 
+/** the config of the content loader of a site */
+export type InferLoaderConfig<C extends AppShape> = {
+  i18n: InferI18nConfig<C["lang"]>;
+  meta: C["meta"];
+  page: C["page"];
+  source: C["source"];
+};
+
 /** the env of per-language options and hooks */
 export interface LangEnv<C extends AppShape> {
   lang: C["lang"];
@@ -27,15 +37,6 @@ export interface LangEnv<C extends AppShape> {
 /** the env of per-page hooks; `layout.wrapper` and site-wide tags without `page` */
 export interface PageEnv<C extends AppShape> {
   page?: C["page"];
-}
-
-/** `head` runs twice per page: site-wide (`{}`), then the page's own call (`{ page }`, or `{ route, path }` on page routes, with `view` on views) */
-export interface HeadEnv<C extends AppShape> extends PageEnv<C> {
-  route?: PageRoute<C>;
-  /** the rendered path of `route`, with the language prefix, without the base path */
-  path?: string;
-  /** the content of a view at `path`, its `title` and `description` are the page's own */
-  view?: View<any>;
 }
 
 /** the named slots: the slot id is the `renderPage` prop holding their items by name */
@@ -118,7 +119,7 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
   /**
    * routes derived from the final page routes of `lang` (those rendered in `lang`, your own pages without a language in the
    * default one), called once per language: API routes like their Markdown or images, and views like a print page. A path
-   * has one route (principle 2); your own page wins (principle 3).
+   * has one route, your own page wins.
    */
   deriveRoutes?: (
     this: Context<C>,
@@ -183,69 +184,6 @@ export type View<V> = V extends unknown
     }[keyof V & string]
   : never;
 
-/** `[name]` params are strings, `[...name]` params are arrays of segments */
-export type RouteParams = Record<string, string | string[]>;
-
-/** a web-standard handler, return a 404 response for paths without content */
-export type RouteHandler = (
-  request: Request,
-  context: { params: RouteParams },
-) => Awaitable<Response>;
-
-/** an API route, its handlers are named by method, `ALL` handles every method */
-export interface ApiRoute extends Partial<Record<Framework.Method | "ALL", RouteHandler>> {
-  /**
-   * URL pattern without the base path, like `/llms.txt` or `/api/[...slugs]`.
-   *
-   * Params are written as `[name]`, and `[...name]` for the rest of the path.
-   */
-  path: string;
-
-  /**
-   * - `dynamic`: handle requests on the server.
-   * - `static`: generate the `GET` response at build time, `mode: "dynamic"` handles it on request.
-   *
-   * @defaultValue "dynamic"
-   */
-  render?: "static" | "dynamic";
-
-  /** the params of each static page, in the order of the path, required when a static path has params */
-  staticPaths?: string[] | string[][];
-}
-
-/** what plugins create in `routes` and `deriveRoutes`, before the hook returns */
-export interface RouteFns<C extends AppShape = AppShape, V = any> extends Framework.RouteFns {
-  createApi(route: ApiRoute): void;
-  /**
-   * a page of the plugin, `ui.renderPage` renders it as `props.type`. Without `lang`, it is created in the languages the hook
-   * covers: every language in `routes`, `env.lang` in `deriveRoutes`.
-   */
-  createView(route: ViewRoute<V, C["lang"]> & { lang?: C["lang"] }): void;
-}
-
-/**
- * `path` without the language prefix; the site prefixes it and links the views of other languages at the same `path`. A view
- * rendered on request (`render: "dynamic"`) gets the request; a static one has none to read.
- */
-export type ViewRoute<V = any, Lang extends string | undefined = string | undefined> = Pick<
-  ApiRoute,
-  "path" | "staticPaths"
-> &
-  (
-    | {
-        /** prerendered; `mode: "dynamic"` renders it on request, still without the request */
-        render?: "static";
-        view(params: RouteParams, env: { lang: Lang }): Awaitable<View<V> | undefined>;
-      }
-    | {
-        render: "dynamic";
-        view(
-          params: RouteParams,
-          env: { lang: Lang; request: Request },
-        ): Awaitable<View<V> | undefined>;
-      }
-  );
-
 /** a content page rendered by the plugin owning it: `node` is `props.children` of `ui.renderPage` */
 export type PageView<Pg> = Pg extends unknown
   ? { [K in keyof Pg & string]: { props: Pg[K]; node: ReactNode } }[keyof Pg & string]
@@ -270,29 +208,6 @@ interface SlotBase {
 export type SlotItem<T extends PluginTypes = PluginTypes> =
   | { [K in NamedSlot]: SlotBase & { slot: K; name: Declared<T, K> } }[NamedSlot]
   | (SlotBase & { slot: "body.wrapper" | "layout.wrapper" });
-
-/** a route rendering pages: your own page, a view, or a page of a runtime hook; read-only, every plugin reads the same list */
-export interface PageRoute<C extends AppShape = AppShape> {
-  /** URL pattern, with the language prefix and without the base path */
-  readonly path: string;
-  readonly lang?: C["lang"];
-  readonly render: "static" | "dynamic";
-  /** the pages of a static route, or the ones a dynamic route lists in `staticPaths` */
-  readonly pages: readonly {
-    /** URL path, with the language prefix and without the base path */
-    readonly path: string;
-    readonly params: RouteParams;
-    /** the page in every language it exists in, itself included */
-    readonly translations: { lang: C["lang"]; path: string }[];
-  }[];
-  /** `getConfig()` of a Waku route file, `{}` on Astro */
-  readonly options: Readonly<RouteOptions>;
-  /** the Markdown of a page of the route, when the framework renders it (Waku: `asMarkdown()`) */
-  markdown?(path: string, params: RouteParams): Promise<string | undefined>;
-}
-
-/** options of a page route, the `getConfig()` of a Waku route file; plugin packages declare their keys by declaration merging */
-export interface RouteOptions {}
 
 /** the API of each capability, from `this.getCapability(capability)`; plugin modules add theirs by declaration merging */
 export interface CapabilityAPI {
@@ -357,15 +272,6 @@ export function recommendedPreset<C extends AppShape = AppShape>(): PresetEntry<
   ];
 }
 
-/** a tag in `<head>`, rendered in order */
-export interface HeadTag {
-  tag: "title" | "meta" | "link" | "script" | "style";
-  /** HTML attributes, like `hreflang` */
-  attrs?: Record<string, string>;
-  /** text content, for `title`, `script` and `style` */
-  children?: string;
-}
-
 /** the build output of a site, with the links of its prerendered pages */
 export interface PressBuildOutput {
   /** write a file to the output directory, `path` is relative to it, without the base path */
@@ -395,4 +301,67 @@ export function wrapSlot(items: SlotItem[] = [], children: ReactNode): ReactNode
     (out, { component, props }) => createElement(component, props, out),
     children,
   );
+}
+
+/** the items of a named slot by name; `getSlots()` rejects two items of one name */
+export function namedItems(items: SlotItem[] = []): Partial<Record<string, ReactElement>> {
+  const out: Partial<Record<string, ReactElement>> = {};
+  for (const item of items) {
+    if ("name" in item) out[item.name] = createElement(item.component, item.props);
+  }
+  return out;
+}
+
+export type AnyPlugin = Plugin<AppShape, any>;
+
+/** plugin names in errors */
+export function nameOf(plugin: PluginInfo): string {
+  return plugin.name ? `"${plugin.name}"` : "an unnamed plugin";
+}
+
+/** `key` of `owners` has one owner, `conflict` names both */
+export function takeKey<K, O>(owners: Map<K, O>, key: K, owner: O, conflict: (first: O) => string) {
+  const first = owners.get(key);
+  if (first !== undefined) throw new Error(`[Fumapress] ${conflict(first)}`);
+  owners.set(key, owner);
+}
+
+function isList(option: PluginOption<AnyPlugin>): option is readonly PluginOption<AnyPlugin>[] {
+  return Array.isArray(option);
+}
+
+export function flatten(
+  options: readonly PluginOption<AnyPlugin>[],
+  out: AnyPlugin[] = [],
+): AnyPlugin[] {
+  for (const option of options) {
+    if (isList(option)) flatten(option, out);
+    else if (option) out.push(option);
+  }
+  return out;
+}
+
+/** the layers in order: your plugins, the preset (where a listed plugin providing an entry's capability takes its place), the runtime's defaults */
+export async function resolveLayers(
+  listed: AnyPlugin[],
+  preset: readonly PresetEntry<AnyPlugin>[],
+  defaults: AnyPlugin[],
+): Promise<AnyPlugin[][]> {
+  const placed = new Set<AnyPlugin>();
+  const loading: Awaitable<AnyPlugin>[] = [];
+  for (const entry of preset) {
+    let replaced = false;
+    for (const plugin of listed) {
+      if (!plugin.provides?.includes(entry.provides)) continue;
+      replaced = true;
+      if (placed.has(plugin)) continue;
+      placed.add(plugin);
+      loading.push(plugin);
+    }
+    if (!replaced) loading.push(entry.load());
+  }
+
+  const own: AnyPlugin[] = [];
+  for (const plugin of listed) if (!placed.has(plugin)) own.push(plugin);
+  return [own, await Promise.all(loading), defaults];
 }

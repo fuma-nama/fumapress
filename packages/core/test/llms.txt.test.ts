@@ -1,24 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiRoute } from "@/plugin";
-import type { I18nConfig } from "fumadocs-core/i18n";
-import type { VirtualFile } from "fumadocs-core/source";
-import { pressContext, type TestSite } from "./harness";
+import type { ApiRoute, PageRouteInput } from "@/routes";
+import { i18n, page, pressContext, type TestSite } from "./harness";
 import { llmsPlugin, type LLMsOptions } from "@/plugins/llms.txt";
 
-const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
-
-function page(path: string): VirtualFile {
-  return { type: "page", path, data: { title: `Title of ${path}` } };
-}
+const titled = (path: string) => page(path, { title: `Title of ${path}` });
 
 /** `docs/basics` is translated, `docs/only-en` falls back to English in `cn`, `docs/empty` has no text */
 const content: TestSite["content"] = {
   files: [
-    page("index.mdx"),
-    page("docs/basics.mdx"),
-    page("docs/basics.cn.mdx"),
-    page("docs/only-en.mdx"),
-    page("docs/empty.mdx"),
+    titled("index.mdx"),
+    titled("docs/basics.mdx"),
+    titled("docs/basics.cn.mdx"),
+    titled("docs/only-en.mdx"),
+    titled("docs/empty.mdx"),
   ],
 };
 
@@ -26,7 +20,6 @@ function createSite(config: Partial<TestSite> = {}, options?: LLMsOptions, base 
   return pressContext(
     {
       content,
-      preset: [],
       site: { baseUrl: "https://example.com" },
       ...config,
       plugins: [
@@ -44,8 +37,16 @@ function createSite(config: Partial<TestSite> = {}, options?: LLMsOptions, base 
 function fetchRoute(routes: ApiRoute[], path: string) {
   const route = routes.find((item) => item.path === path);
   if (!route?.GET) throw new Error(`missing route ${path}`);
-  return route.GET(new Request(`https://example.com${path}`), { params: {} });
+  return route.GET(request(path), { params: {} });
 }
+
+async function readRoute(routes: ApiRoute[], path: string) {
+  return (await fetchRoute(routes, path)).text();
+}
+
+const accept = { headers: { Accept: "text/markdown" } };
+const request = (path: string, init?: RequestInit) =>
+  new Request(`https://example.com${path}`, init);
 
 const html = vi.fn(
   async () => new Response("<html></html>", { headers: { "Content-Type": "text/html" } }),
@@ -75,22 +76,20 @@ describe("llmsPlugin", () => {
     await expect(res.text()).resolves.toBe(
       "# Title of docs/basics.cn.mdx (https://example.com/cn/docs/basics)\n\nText of docs/basics.cn.mdx",
     );
-    await expect((await fetchRoute(routes, "/en/docs/empty.md")).text()).resolves.toBe("");
+    await expect(readRoute(routes, "/en/docs/empty.md")).resolves.toBe("");
   });
 
   it("names the root file `/index.md`", async () => {
     const routes = await (await createSite()).getApiRoutes();
 
     expect(routes.map((route) => route.path)).toContain("/index.md");
-    await expect((await fetchRoute(routes, "/index.md")).text()).resolves.toContain(
-      "Text of index.mdx",
-    );
+    await expect(readRoute(routes, "/index.md")).resolves.toContain("Text of index.mdx");
   });
 
   it("lists pages in llms.txt and renders them in llms-full.txt without fallback pages", async () => {
     const routes = await (await createSite({ i18n })).getApiRoutes();
-    const index = await (await fetchRoute(routes, "/llms.txt")).text();
-    const full = await (await fetchRoute(routes, "/llms-full.txt")).text();
+    const index = await readRoute(routes, "/llms.txt");
+    const full = await readRoute(routes, "/llms-full.txt");
 
     expect(index).toContain("[Title of docs/basics.mdx](https://example.com/en/docs/basics)");
     expect(index).toContain("[Title of docs/basics.cn.mdx](https://example.com/cn/docs/basics)");
@@ -100,22 +99,18 @@ describe("llmsPlugin", () => {
     expect(full).not.toContain("docs/empty.mdx");
   });
 
-  it("links pages under the base path", async () => {
-    const sites = [
-      [
-        await createSite({ site: { baseUrl: "https://example.com/repo" } }, {}, "/repo/"),
-        "https://example.com/repo",
-      ],
-      [await createSite({ site: {} }, {}, "/repo/"), "/repo"],
-    ] as const;
-    for (const [ctx, prefix] of sites) {
-      const routes = await ctx.getApiRoutes();
-      const index = await (await fetchRoute(routes, "/llms.txt")).text();
-      const full = await (await fetchRoute(routes, "/llms-full.txt")).text();
+  it.each([
+    ["`site.baseUrl`", { baseUrl: "https://example.com/repo" }, "https://example.com/repo"],
+    ["the base path alone", {}, "/repo"],
+  ])("links pages under the base path with %s", async (_, site, prefix) => {
+    const routes = await (await createSite({ site }, {}, "/repo/")).getApiRoutes();
 
-      expect(index).toContain(`[Title of docs/basics.mdx](${prefix}/docs/basics)`);
-      expect(full).toContain(`# Title of docs/basics.mdx (${prefix}/docs/basics)`);
-    }
+    await expect(readRoute(routes, "/llms.txt")).resolves.toContain(
+      `[Title of docs/basics.mdx](${prefix}/docs/basics)`,
+    );
+    await expect(readRoute(routes, "/llms-full.txt")).resolves.toContain(
+      `# Title of docs/basics.mdx (${prefix}/docs/basics)`,
+    );
   });
 
   it("serves Markdown from the middleware in dynamic mode", async () => {
@@ -126,19 +121,12 @@ describe("llmsPlugin", () => {
       ["/llms.txt", "dynamic"],
       ["/llms-full.txt", "dynamic"],
     ]);
-    const md = await ctx.handleRequest(
-      new Request("https://example.com/repo/docs/basics.md"),
-      html,
-    );
-    await expect(md.text()).resolves.toContain("Text of docs/basics.mdx");
-    const root = await ctx.handleRequest(new Request("https://example.com/repo/index.md"), html);
-    await expect(root.text()).resolves.toContain("Text of index.mdx");
+    const serve = async (path: string) =>
+      (await ctx.handleRequest(request(`/repo${path}`), html)).text();
 
-    const empty = await ctx.handleRequest(
-      new Request("https://example.com/repo/docs/empty.md"),
-      html,
-    );
-    await expect(empty.text()).resolves.toBe("");
+    await expect(serve("/docs/basics.md")).resolves.toContain("Text of docs/basics.mdx");
+    await expect(serve("/index.md")).resolves.toContain("Text of index.mdx");
+    await expect(serve("/docs/empty.md")).resolves.toBe("");
 
     html.mockClear();
     for (const url of [
@@ -155,54 +143,38 @@ describe("llmsPlugin", () => {
     const notFound = async () => new Response(null, { status: 404 });
     /** serves rewrites like a framework, other paths are HTML */
     const next = async (rewrite?: string) =>
-      rewrite
-        ? ctx.handleRequest(new Request(`https://example.com/repo${rewrite}`), notFound)
-        : html();
-    const accept = { headers: { Accept: "text/markdown" } };
+      rewrite ? ctx.handleRequest(request(`/repo${rewrite}`), notFound) : html();
 
-    const res = await ctx.handleRequest(
-      new Request("https://example.com/repo/docs/basics/", accept),
-      next,
-    );
+    const res = await ctx.handleRequest(request("/repo/docs/basics/", accept), next);
     await expect(res.text()).resolves.toContain("Text of docs/basics.mdx");
     expect(res.headers.get("Vary")).toBe("Accept");
     expect(res.headers.get("Cache-Control")).toBe("private");
 
-    for (const request of [
-      new Request("https://example.com/repo/blog", accept),
-      new Request("https://example.com/repo/docs/basics"),
-    ]) {
-      const rendered = await ctx.handleRequest(request, next);
+    for (const input of [request("/repo/blog", accept), request("/repo/docs/basics")]) {
+      const rendered = await ctx.handleRequest(input, next);
       expect(rendered.headers.get("Content-Type")).toBe("text/html");
       expect(rendered.headers.get("Vary")).toBe("Accept");
     }
 
     // only HTML, and the headers of responses like `Response.redirect()` are immutable
     const redirect = Response.redirect("https://example.com/repo/docs/other", 307);
-    const redirected = await ctx.handleRequest(
-      new Request("https://example.com/repo/docs/basics"),
-      async () => redirect,
-    );
+    const redirected = await ctx.handleRequest(request("/repo/docs/basics"), async () => redirect);
     expect(redirected).toBe(redirect);
   });
 
   it("leaves requests alone in static mode and without `autoRedirect`", async () => {
-    const accept = { headers: { Accept: "text/markdown" } };
     const sites = [
       await createSite({ mode: "static" }),
       await createSite({}, { autoRedirect: false }),
     ];
     for (const ctx of sites) {
-      const res = await ctx.handleRequest(
-        new Request("https://example.com/docs/basics", accept),
-        html,
-      );
+      const res = await ctx.handleRequest(request("/docs/basics", accept), html);
       expect(res.headers.get("Vary")).toBeNull();
     }
 
     const post = await (
       await createSite({ mode: "dynamic" })
-    ).handleRequest(new Request("https://example.com/docs/basics.md", { method: "POST" }), html);
+    ).handleRequest(request("/docs/basics.md", { method: "POST" }), html);
     expect(post.headers.get("Content-Type")).toBe("text/html");
   });
 
@@ -228,81 +200,62 @@ describe("llmsPlugin", () => {
     );
     const routes = await ctx.getApiRoutes();
 
-    await expect((await fetchRoute(routes, "/docs/empty.md")).text()).resolves.toBe(
-      "custom /docs/empty",
-    );
-    await expect((await fetchRoute(routes, "/index.md")).text()).resolves.toBe("");
+    await expect(readRoute(routes, "/docs/empty.md")).resolves.toBe("custom /docs/empty");
+    await expect(readRoute(routes, "/index.md")).resolves.toBe("");
   });
 });
 
 describe('routes: "all"', () => {
+  const allRoutes = (routes: PageRouteInput[]) =>
+    pressContext(
+      { content, mode: "default", plugins: [llmsPlugin({ routes: "all" })] },
+      { routes },
+    );
+
   it("serves the Markdown of page routes: prerendered for static ones, mirrored for dynamic ones", async () => {
     const markdown = vi.fn(async (path: string) => (path === "/blank" ? undefined : `# ${path}`));
-    const own = (path: string, render: "static" | "dynamic") => ({
-      path,
-      render,
-      options: {},
-      pages: render === "static" ? [{ path, translations: [], params: {} }] : [],
-      markdown,
-    });
-    const ctx = await pressContext(
-      {
-        content,
-        mode: "default",
-        plugins: [llmsPlugin({ routes: "all" })],
-      },
-      {
-        routes: [
-          { route: own("/about", "static") },
-          { route: own("/blank", "static") },
-          { route: own("/status", "dynamic") },
-        ],
-      },
-    );
+    const own = (path: string, render: "static" | "dynamic") => ({ path, render, markdown });
+    const ctx = await allRoutes([
+      own("/about", "static"),
+      own("/blank", "static"),
+      own("/status", "dynamic"),
+    ]);
     const routes = await ctx.getApiRoutes();
 
-    await expect((await fetchRoute(routes, "/about.md")).text()).resolves.toBe("# /about");
+    await expect(readRoute(routes, "/about.md")).resolves.toBe("# /about");
     expect(routes.some((route) => route.path === "/blank.md")).toBe(false);
-    expect(routes.find((route) => route.path === "/_llms.txt/status")?.render).toBe("dynamic");
+    const mirror = routes.find((route) => route.path === "/_llms.txt/[...path]");
+    expect(mirror?.render).toBe("dynamic");
 
     // `/status.md` misses its static route, the mirror renders it
     const next = vi.fn(async (rewrite?: string) =>
-      rewrite === "/_llms.txt/status"
-        ? new Response("# /status", { headers: { "Content-Type": "text/markdown" } })
-        : new Response(null, { status: 404 }),
+      rewrite === undefined
+        ? new Response(null, { status: 404 })
+        : mirror!.GET!(request(`${rewrite}`), { params: {} }),
     );
-    const response = await ctx.handleRequest(new Request("https://example.com/status.md"), next);
+    const response = await ctx.handleRequest(request("/status.md"), next);
     await expect(response.text()).resolves.toBe("# /status");
+    // a static page and the root have no mirror of their own
+    for (const url of ["/about.md", "/index.md"])
+      expect((await ctx.handleRequest(request(`${url}`), next)).status).toBe(404);
   });
 
   it("serves the mirrors only through the `<page>.md` URLs, a rewrite re-enters the middleware", async () => {
-    const ctx = await pressContext(
-      { content, mode: "default", plugins: [llmsPlugin({ routes: "all" })] },
-      {
-        routes: [
-          {
-            route: {
-              path: "/admin/[x]",
-              render: "dynamic",
-              options: {},
-              pages: [],
-              markdown: async () => "secret",
-            },
-          },
-        ],
-      },
-    );
+    const ctx = await allRoutes([
+      { path: "/admin/[x]", render: "dynamic", markdown: async () => "secret" },
+    ]);
     const serve = async (url: string): Promise<Response> =>
-      ctx.handleRequest(new Request(`https://example.com${url}`), async (rewrite) =>
+      ctx.handleRequest(request(`${url}`), async (rewrite) =>
         rewrite === undefined
-          ? url.startsWith("/_llms.txt/")
+          ? url.startsWith("/_llms.txt")
             ? new Response("secret", { headers: { "Content-Type": "text/markdown" } })
             : new Response(null, { status: 404 })
           : serve(rewrite),
       );
 
-    expect((await serve("/_llms.txt/admin/s")).status).toBe(404);
+    expect((await serve("/_llms.txt/admin/s.md")).status).toBe(404);
+    expect((await serve("/_llms.txt")).status).toBe(404);
     await expect((await serve("/admin/s.md")).text()).resolves.toBe("secret");
-    expect((await serve("/_llms.txt/admin/s")).status).toBe(404);
+    expect((await serve("/_llms.txt/admin/s.md")).status).toBe(404);
   });
 });

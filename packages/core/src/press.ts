@@ -1,30 +1,28 @@
-import { createElement, Fragment, type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { _Internal, LoaderOptions, SourceUnion } from "fumadocs-core/source";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
-import type { Context, InferI18nConfig, SiteConfig } from "./context";
-import {
-  wrapSlot,
-  type AppShape,
-  type Awaitable,
-  type CollectTypes,
-  type Declared,
-  type DocsPageData,
-  type HeadEnv,
-  type HeadTag,
-  type LangEnv,
-  type MergedTypes,
-  type NamedSlot,
-  type Plugin,
-  type PluginOption,
-  type PluginTypes,
-  type PresetEntry,
-  type SlotItem,
-  type UnknownKeys,
-  type View,
+import type { Context } from "./context";
+import type { GitProvider } from "./git";
+import type { HeadEnv, HeadTag } from "./head";
+import type {
+  AppShape,
+  Awaitable,
+  CollectTypes,
+  Declared,
+  DocsPageData,
+  LangEnv,
+  MergedTypes,
+  NamedSlot,
+  Plugin,
+  PluginOption,
+  PluginTypes,
+  PresetEntry,
+  UnknownKeys,
+  View,
 } from "./plugin";
 
 export type InferAppShape<
@@ -38,6 +36,40 @@ export type InferAppShape<
   source: I extends Record<infer K, SourceUnion> ? K : undefined;
   runtime: Runtime;
 };
+
+/** the i18n config of a site with the languages `Lang`, plugins for any site (`string | undefined`) get either */
+export type InferI18nConfig<Lang extends string | undefined> = [Lang] extends [undefined]
+  ? undefined
+  : [Lang] extends [string]
+    ? I18nConfig<Lang>
+    : I18nConfig | undefined;
+
+export interface SiteConfig {
+  /** full URL of the site with the base path, like `https://example.com/docs`, for metadata like canonical URLs */
+  baseUrl?: string;
+
+  /**
+   * `hreflang` values by language, for language codes that are not BCP 47 language tags.
+   *
+   * @example { cn: "zh-Hans" }
+   */
+  hreflang?: Record<string, string>;
+
+  name?: string;
+
+  git?: {
+    /** @defaultValue "github" */
+    provider?: GitProvider;
+    /** base URL of a self-hosted instance, like `https://gitlab.example.com` */
+    url?: string;
+    /** the user or organisation (group on GitLab) that owns the repo */
+    user: string;
+    repo: string;
+    branch: string;
+    /** the root directory of the repo */
+    rootDir?: string;
+  };
+}
 
 /** the pages of the source key `K` */
 export type SourcePage<C extends AppShape, K extends C["source"]> = Extract<C["page"], { type: K }>;
@@ -244,69 +276,3 @@ export type DefaultPageProps = RenderPageBase<AppShape> & { type: string | undef
 /** what the runtime renders: a content page, or the view a plugin returned */
 export type RenderTarget<C extends AppShape = AppShape> = LangEnv<C> &
   ({ page: C["page"]; view?: undefined } | { view: View<any>; page?: undefined });
-
-/**
- * The page of `ui.renderPage`, or of `renderDefault` without it. Runtimes call it for content pages and views, with their
- * default UI as `renderDefault`.
- */
-export function renderPage<C extends AppShape>(
-  ctx: Context<C>,
-  press: Press<C, any>,
-  target: RenderTarget<C>,
-  renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-): Promise<PageNode>;
-
-export async function renderPage(
-  ctx: Context,
-  press: Press,
-  target: RenderTarget,
-  renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-): Promise<PageNode> {
-  const { lang } = target;
-  const [loader, baseOptions] = await Promise.all([ctx.getLoader(), ctx.getBaseOptions({ lang })]);
-  const base = {
-    lang,
-    tree: loader.getPageTree(lang),
-    baseOptions,
-    renderDefault: () => renderDefault.call(ctx, props),
-  };
-  let props: DefaultPageProps;
-
-  if (target.view) {
-    const { type, props: viewProps, node } = target.view;
-    props = { ...viewProps, ...base, type, children: createElement(Fragment, null, node) };
-  } else {
-    const { page } = target;
-    const [pageData, body, slots] = await Promise.all([
-      ctx.getPageData(page),
-      ctx.getPageBody(page),
-      ctx.getSlots({ page }),
-    ]);
-    const node = wrapSlot(slots["body.wrapper"], body?.node);
-    const view = await ctx.getPageView(page, body && { node });
-    props = {
-      ...view?.props,
-      ...base,
-      type: page.type,
-      page,
-      slugs: page.slugs,
-      pageData,
-      body: createElement(Fragment, null, node),
-      actions: namedItems(slots.actions),
-      footer: namedItems(slots.footer),
-      children: view && createElement(Fragment, null, view.node),
-    };
-  }
-
-  const { renderPage } = press["~press"].config.ui ?? {};
-  return renderPage ? renderPage.call(ctx, props) : renderDefault.call(ctx, props);
-}
-
-/** the items of a named slot by name; `getSlots()` rejects two items of one name */
-function namedItems(items: SlotItem[] = []): Partial<Record<string, ReactElement>> {
-  const out: Partial<Record<string, ReactElement>> = {};
-  for (const item of items) {
-    if ("name" in item) out[item.name] = createElement(item.component, item.props);
-  }
-  return out;
-}

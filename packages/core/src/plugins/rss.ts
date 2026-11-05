@@ -1,6 +1,7 @@
 import { js2xml, type ElementCompact } from "xml-js";
-import { fallbackOrigin, type Context } from "../context";
+import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { fallbackOrigin } from "../routes";
 
 /**
  * An `<item>` entry of the RSS feed.

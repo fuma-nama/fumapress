@@ -16,7 +16,7 @@ async function runBuild(options: {
   const { links, missing = [], plugin } = options;
   const emitted = new Map<string, string | Uint8Array>();
   const ctx = await pressContext(
-    { content: { files: [] }, preset: [], plugins: [linkValidationPlugin(plugin)] },
+    { content: { files: [] }, plugins: [linkValidationPlugin(plugin)] },
     { base: "/" },
   );
   const build = () =>
@@ -41,68 +41,53 @@ function diagnostics(
   return (JSON.parse(emitted.get(path) as string) as DiagnosticsFile).diagnostics;
 }
 
-describe("report: throw (default)", () => {
-  it("fails the build and names the broken link", async () => {
-    const { build } = await runBuild({
-      links: [{ href: "/missing", fromPathname: "/docs" }],
-      missing: ["/missing"],
-    });
+const ok = [{ href: "/ok", fromPathname: "/docs" }];
+const broken = { links: [{ href: "/missing", fromPathname: "/docs" }], missing: ["/missing"] };
+
+describe("report", () => {
+  it("fails the build and names the broken link by default", async () => {
+    const { build } = await runBuild(broken);
 
     await expect(build()).rejects.toThrow('\nIn "/docs": link "/missing" not-found');
   });
 
-  it("does not write a diagnostics file", async () => {
-    const { build, emitted } = await runBuild({ links: [{ href: "/ok", fromPathname: "/docs" }] });
+  it("does not write a diagnostics file by default", async () => {
+    const { build, emitted } = await runBuild({ links: ok });
 
     await build();
 
     expect(emitted.size).toBe(0);
   });
-});
 
-describe("report: json", () => {
-  it("writes pretty diagnostics without failing the build", async () => {
+  it('writes pretty diagnostics without failing the build on "json"', async () => {
     const { build, emitted } = await runBuild({
-      links: [
-        { href: "/missing", fromPathname: "/docs" },
-        { href: "/missing", fromPathname: "/blog" },
-      ],
-      missing: ["/missing"],
+      links: [...broken.links, { href: "/missing", fromPathname: "/blog" }],
+      missing: broken.missing,
       plugin: { report: "json" },
     });
 
     await expect(build()).resolves.not.toThrow();
-    const file: DiagnosticsFile = {
-      diagnostics: [
-        {
-          severity: "error",
-          rule: "link-validation/not-found",
-          message: 'link "/missing" not-found',
-          fromPathname: "/docs",
-          href: "/missing",
-        },
-        {
-          severity: "error",
-          rule: "link-validation/not-found",
-          message: 'link "/missing" not-found',
-          fromPathname: "/blog",
-          href: "/missing",
-        },
-      ],
-    };
+    const diagnostic = (fromPathname: string): DiagnosticsFile["diagnostics"][number] => ({
+      severity: "error",
+      rule: "link-validation/not-found",
+      message: 'link "/missing" not-found',
+      fromPathname,
+      href: "/missing",
+    });
+    const file: DiagnosticsFile = { diagnostics: [diagnostic("/docs"), diagnostic("/blog")] };
     expect(emitted.get("fumapress-diagnostics.json")).toBe(JSON.stringify(file, null, 2));
   });
 
-  it("emits an empty list when everything resolves, so a clean run is distinguishable from no run", async () => {
-    const { build, emitted } = await runBuild({
-      links: [{ href: "/ok", fromPathname: "/docs" }],
-      plugin: { report: "json" },
-    });
+  // an empty list makes a clean run distinguishable from no run
+  it.each(["json", "both"] as const)(
+    'emits an empty list when everything resolves on "%s"',
+    async (report) => {
+      const { build, emitted } = await runBuild({ links: ok, plugin: { report } });
 
-    await build();
-
-    expect(diagnostics(emitted)).toEqual([]);
-  });
+      await expect(build()).resolves.not.toThrow();
+      expect(diagnostics(emitted)).toEqual([]);
+    },
+  );
 
   it("honours a custom diagnostics path", async () => {
     const { build, emitted } = await runBuild({
@@ -114,28 +99,12 @@ describe("report: json", () => {
 
     expect(emitted.has("checks/links.json")).toBe(true);
   });
-});
 
-describe("report: both", () => {
-  it("writes diagnostics and then fails the build", async () => {
-    const { build, emitted } = await runBuild({
-      links: [{ href: "/missing", fromPathname: "/docs" }],
-      missing: ["/missing"],
-      plugin: { report: "both" },
-    });
+  it('writes diagnostics and then fails the build on "both"', async () => {
+    const { build, emitted } = await runBuild({ ...broken, plugin: { report: "both" } });
 
     await expect(build()).rejects.toThrow("not-found");
     expect(diagnostics(emitted)).toHaveLength(1);
-  });
-
-  it("succeeds when no link is broken", async () => {
-    const { build, emitted } = await runBuild({
-      links: [{ href: "/ok", fromPathname: "/docs" }],
-      plugin: { report: "both" },
-    });
-
-    await expect(build()).resolves.not.toThrow();
-    expect(emitted.has("fumapress-diagnostics.json")).toBe(true);
   });
 });
 

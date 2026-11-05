@@ -1,5 +1,5 @@
-import type { Context, SiteConfig } from "./context";
-import type { BaseOptions } from "./press";
+import type { Context } from "./context";
+import type { BaseOptions, SiteConfig } from "./press";
 
 export type GitProvider = "github" | "gitlab" | "bitbucket";
 

@@ -1,20 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { I18nConfig } from "fumadocs-core/i18n";
-import type { PageData, VirtualFile } from "fumadocs-core/source";
-import { pressContext, type TestSite } from "./harness";
+import { i18n, page, pressContext, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { buildRSS, rssPlugin, type RSSOptions } from "@/plugins/rss";
-
-function page(file: string, data: PageData & { date?: string } = {}): VirtualFile {
-  return { type: "page", path: file, data: { title: file, ...data } };
-}
 
 /** dates from the frontmatter, like content sources resolve them */
 const dates: Plugin = {
   getPageCreatedAt: (page) => ("date" in page.data ? new Date(String(page.data.date)) : undefined),
 };
-
-const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
 function createSite(options?: RSSOptions, config: Partial<TestSite> = {}) {
   return pressContext(
@@ -27,7 +19,6 @@ function createSite(options?: RSSOptions, config: Partial<TestSite> = {}) {
           page("blog/new.cn.mdx", { title: "New (cn)", date: "2026-02-01" }),
         ],
       },
-      preset: [],
       site: { name: "Site", baseUrl: "https://example.com/docs" },
       plugins: [dates, rssPlugin(options)],
       ...config,

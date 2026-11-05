@@ -1,9 +1,34 @@
 import { describe, expect, it } from "vitest";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
-import { pressContext } from "./harness";
-import type { RuntimeRoute } from "@/context";
-import { compareRoutes, expandRoute, getHomeUrl, matchRoute, rootRedirect } from "@/routes";
+import { i18n, page, pressContext } from "./harness";
+import {
+  compareRoutes,
+  expandRoute,
+  getHomeUrl,
+  matchPageRoute,
+  matchRoute,
+  rootRedirect,
+  type PageRoute,
+  type PageRouteInput,
+} from "@/routes";
+
+describe("matchPageRoute", () => {
+  const route = (path: string): PageRoute => ({ path, render: "dynamic", pages: [], options: {} });
+  const routes = [route("/a/[...rest]"), route("/a/[id]"), route("/a/b"), route("/other")];
+
+  it("takes the most specific match, with its params", () => {
+    expect(matchPageRoute(routes, "/a/b")?.route.path).toBe("/a/b");
+    expect(matchPageRoute(routes, "/a/c")).toEqual({ route: routes[1], params: { id: "c" } });
+    expect(matchPageRoute(routes, "/a/c/d")?.route.path).toBe("/a/[...rest]");
+    expect(matchPageRoute(routes, "/none")).toBeUndefined();
+  });
+
+  it("only takes the routes it accepts", () => {
+    const accepts = (item: PageRoute) => item.path !== "/a/b";
+    expect(matchPageRoute(routes, "/a/b", accepts)?.route.path).toBe("/a/[id]");
+  });
+});
 
 describe("expandRoute", () => {
   it("lists a page per entry of `staticPaths`, without route groups", () => {
@@ -53,8 +78,6 @@ describe("matchRoute", () => {
 });
 
 describe("getHomeUrl and rootRedirect", () => {
-  const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
-  const page = (path: string): VirtualFile => ({ type: "page", path, data: { title: path } });
   const docs: VirtualFile[] = [
     {
       type: "meta",
@@ -71,17 +94,9 @@ describe("getHomeUrl and rootRedirect", () => {
     config: I18nConfig | null = i18n,
     frameworkPages: string[] = [],
   ) {
-    const routes: RuntimeRoute[] = [];
-    for (const path of frameworkPages)
-      routes.push({
-        route: {
-          path,
-          render: "static",
-          pages: [{ path, translations: [], params: {} }],
-          options: {},
-        },
-      });
-    return pressContext({ content: { files }, preset: [], i18n: config ?? undefined }, { routes });
+    const routes: PageRouteInput[] = [];
+    for (const path of frameworkPages) routes.push({ path, render: "static" });
+    return pressContext({ content: { files }, i18n: config ?? undefined }, { routes });
   }
 
   it("finds the home of a language, or its first page", async () => {

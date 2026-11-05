@@ -1,15 +1,12 @@
 export {
   recommendedPreset,
-  type ApiRoute,
   type AppShape,
   type Awaitable,
   type Capability,
   type CapabilityAPI,
   type DocsPageData,
-  type HeadTag,
   type LangEnv,
   type MergedTypes,
-  type PageRoute,
   type PageView,
   type Plugin,
   type PluginInfo,
@@ -18,13 +15,9 @@ export {
   type PresetEntry,
   type PressBuildOutput,
   type ProviderAPI,
-  type RouteHandler,
-  type RouteOptions,
-  type RouteParams,
   type RuntimeHooks,
   type SlotItem,
   type View,
-  type ViewRoute,
 } from "./plugin";
 export {
   createPress,
@@ -40,11 +33,22 @@ export {
   type PressContext,
   type ProviderProps,
   type RenderPageProps,
+  type SiteConfig,
   type SourcePage,
   type UIOptions,
 } from "./press";
-export type { Context, PageAlternate, SiteConfig } from "./context";
-export { getHomeUrl, stripBase } from "./routes";
+export type { Context } from "./context";
+export type { HeadTag, PageAlternate } from "./head";
+export {
+  getHomeUrl,
+  stripBase,
+  type ApiRoute,
+  type PageRoute,
+  type RouteHandler,
+  type RouteOptions,
+  type RouteParams,
+  type ViewRoute,
+} from "./routes";
 export { selectTreeRoot } from "./page-tree";
 export type { SitemapAPI } from "./plugins/sitemap";
 export type { OGImageAPI } from "./plugins/takumi";

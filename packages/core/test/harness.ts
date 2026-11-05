@@ -1,7 +1,16 @@
-import type { _Internal } from "fumadocs-core/source";
-import { createPressContext, type PressRuntime, type RuntimeRoute } from "@/context";
+import type { I18nConfig } from "fumadocs-core/i18n";
+import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
+import { createPressContext, type PressRuntime } from "@/context";
+import type { PageRouteInput } from "@/routes";
 import type { AppShape, Plugin, PluginOption } from "@/plugin";
 import { createPress, type ContentOptions, type PressConfig } from "@/press";
+
+export const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
+
+/** a content page titled by its path */
+export function page(path: string, data?: PageData & Record<string, unknown>): VirtualFile {
+  return { type: "page", path, data: { title: path, ...data } };
+}
 
 /** a site in one object: the content, its options, the plugins and the options of `.config()` */
 export interface TestSite
@@ -21,7 +30,7 @@ export function testPress({ content, i18n, loaderOptions, plugins = [], ...confi
 }
 
 /** the runtime of a test site, serving `routes` */
-export type TestRuntime = Partial<PressRuntime> & { routes?: RuntimeRoute[] };
+export type TestRuntime = Partial<PressRuntime> & { routes?: PageRouteInput[] };
 
 /** the context of a site on a runtime without defaults */
 export async function pressContext(site: TestSite, { routes = [], ...runtime }: TestRuntime = {}) {

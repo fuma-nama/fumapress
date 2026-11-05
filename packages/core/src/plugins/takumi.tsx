@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
-import { fallbackOrigin, joinPaths, type Context } from "../context";
-import type { AppShape, Awaitable, HeadTag, PageRoute, Plugin, RouteParams } from "../plugin";
+import type { Context } from "../context";
+import type { HeadTag } from "../head";
+import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { fallbackOrigin, joinPaths, type PageRoute, type RouteParams } from "../routes";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T

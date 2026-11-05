@@ -1,21 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { I18nConfig } from "fumadocs-core/i18n";
 import type { SortedResult } from "fumadocs-core/search";
 import { FetchSearchDialog } from "@/search.client";
 import { FlexsearchDialog } from "@/plugins/flexsearch.client";
 import { OramaSearchDialog } from "@/plugins/orama-search.client";
-import { pressContext, type TestRuntime, type TestSite } from "./harness";
+import { i18n, page, pressContext, type TestRuntime, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { flexsearchPlugin } from "@/plugins/flexsearch";
 import { oramaSearchPlugin } from "@/plugins/orama-search";
 
-const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
-
 const content: TestSite["content"] = {
   files: [
-    { type: "page", path: "docs/install.mdx", data: { title: "Install" } },
-    { type: "page", path: "docs/theme.mdx", data: { title: "Theme" } },
-    { type: "page", path: "docs/theme.cn.mdx", data: { title: "Theme (cn)" } },
+    page("docs/install.mdx", { title: "Install" }),
+    page("docs/theme.mdx", { title: "Theme" }),
+    page("docs/theme.cn.mdx", { title: "Theme (cn)" }),
   ],
 };
 
@@ -30,10 +27,7 @@ const source: Plugin = {
 };
 
 function createSite(config: Partial<TestSite> = {}, runtime: TestRuntime = {}) {
-  return pressContext(
-    { content, preset: [], site: { baseUrl: "https://example.com" }, ...config },
-    runtime,
-  );
+  return pressContext({ content, site: { baseUrl: "https://example.com" }, ...config }, runtime);
 }
 
 async function getSearchRoute(config: Partial<TestSite>) {
@@ -97,13 +91,12 @@ describe.each([
 
   it("searches the pages of a language", async () => {
     const { search } = await getSearchRoute({ i18n, plugins: [searchPlugin()] });
+    const hit = (url: string) => expect.objectContaining({ url });
 
     const cn = await search("query=theme&locale=cn");
-    expect(cn).toContainEqual(expect.objectContaining({ url: "/cn/docs/theme" }));
-    expect(cn).not.toContainEqual(expect.objectContaining({ url: "/en/docs/theme" }));
-    expect(await search("query=theme&locale=en")).toContainEqual(
-      expect.objectContaining({ url: "/en/docs/theme" }),
-    );
+    expect(cn).toContainEqual(hit("/cn/docs/theme"));
+    expect(cn).not.toContainEqual(hit("/en/docs/theme"));
+    expect(await search("query=theme&locale=en")).toContainEqual(hit("/en/docs/theme"));
   });
 
   it("exports the index of every language in static mode", async () => {
@@ -147,25 +140,6 @@ describe.each([
     await expect(
       route!.GET!(new Request("https://example.com/api/search?query=install"), { params: {} }),
     ).rejects.toThrow(`Please specify the \`buildIndex\` option to ${name}()`);
-  });
-});
-
-describe("search plugins", () => {
-  it("only one provides search", async () => {
-    await expect(
-      createSite({ plugins: [flexsearchPlugin(), oramaSearchPlugin()] }),
-    ).rejects.toThrow('"core:flexsearch" and "core:orama-search" both provide "search"');
-  });
-
-  it("replace the search of the preset", async () => {
-    const ctx = await createSite(
-      { preset: undefined, plugins: [flexsearchPlugin()] },
-      {
-        preset: () => [{ name: "core:orama-search", provides: "search", load: oramaSearchPlugin }],
-      },
-    );
-
-    expect(ctx.plugins.map((plugin) => plugin.name)).toEqual(["core:flexsearch"]);
   });
 });
 

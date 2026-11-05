@@ -1,6 +1,8 @@
 import { js2xml, type ElementCompact } from "xml-js";
-import { fallbackOrigin, pageAlternate, type Context, type PageAlternate } from "../context";
+import type { Context } from "../context";
+import { pageAlternate, type PageAlternate } from "../head";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { fallbackOrigin } from "../routes";
 
 /**
  * How frequently a page is likely to change.
@@ -320,7 +322,9 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
             entries.push(entry);
           }
 
-          for (const route of await this.getRoutes()) {
+          for (const route of await this.getPageRoutes()) {
+            // a not found page isn't a page of the site
+            if (route.path === this.localizePath(route.lang, "/404")) continue;
             for (const page of route.pages) {
               const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;

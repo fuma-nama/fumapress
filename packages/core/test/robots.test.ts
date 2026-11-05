@@ -9,7 +9,6 @@ async function generate(options?: RobotsOptions, sitemap?: string | false) {
   const ctx = await pressContext(
     {
       content,
-      preset: [],
       site: { baseUrl: "https://example.com/repo" },
       plugins: [robotsPlugin(options), sitemap !== false && sitemapPlugin({ path: sitemap })],
     },
