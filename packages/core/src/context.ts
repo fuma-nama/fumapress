@@ -394,12 +394,6 @@ function routeKeys(pattern: string | undefined, pages: readonly { path: string }
   return keys;
 }
 
-/** what the hooks of a plugin create */
-interface CreatedRoutes {
-  api: ApiRoute[];
-  views: (ViewRoute & { lang?: string })[];
-}
-
 interface CollectedRoutes {
   api: ApiRoute[];
   views: RoutedView[];
@@ -655,74 +649,42 @@ export async function createPressContext(
         out.pageRoutes.push(route);
     }
 
-    /** what a hook creates; plugins run in parallel, the routes are added in layer order for stable errors */
-    async function create(
-      plugin: AnyPlugin,
-      run: (fns: RouteFns) => Awaitable<void>,
-    ): Promise<CreatedRoutes> {
-      const created: CreatedRoutes = { api: [], views: [] };
-      let open = true;
-      function check(path: string) {
-        if (!open)
-          throw new Error(
-            `[Fumapress] ${nameOf(plugin)} creates the route "${path}" after its hook returned: await its work in the hook.`,
-          );
-      }
-      await run({
-        createApi(route) {
-          check(route.path);
-          created.api.push(route);
-        },
-        createView(route) {
-          check(route.path);
-          created.views.push(route);
-        },
-      });
-      open = false;
-      return created;
-    }
-
-    function addCreated(plugin: AnyPlugin, { api, views }: CreatedRoutes) {
-      for (const route of api) addApi(plugin, route);
-      for (const route of views) {
+    /** a view without `lang` is created in `langs`, the languages the hook covers */
+    const routeFns = (plugin: AnyPlugin, langs: readonly (string | undefined)[]): RouteFns => ({
+      createApi: (route) => addApi(plugin, route),
+      createView(route) {
         if (route.lang !== undefined) addView(plugin, route, route.lang);
-        else for (const lang of languages) addView(plugin, route, lang);
-      }
-    }
+        else for (const lang of langs) addView(plugin, route, lang);
+      },
+    });
 
-    const createdLists = await Promise.all(
+    await Promise.all(
       plugins.map((plugin) =>
-        routeContext(plugin, (ctx) => create(plugin, (fns) => plugin.routes?.call(ctx, fns))),
+        routeContext(plugin, (ctx) =>
+          Promise.resolve(plugin.routes?.call(ctx, routeFns(plugin, languages))),
+        ),
       ),
     );
-    for (const [i, plugin] of plugins.entries()) addCreated(plugin, createdLists[i]!);
 
     const final = [...out.pageRoutes];
     derive(final);
-    const derived = await Promise.all(
+    await Promise.all(
       plugins.map((plugin) =>
         routeContext(plugin, (ctx) =>
-          create(plugin, (fns) =>
-            Promise.all(
-              languages.map((lang) => {
-                const routes: PageRoute[] = [];
-                for (const route of final)
-                  if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
-                return plugin.deriveRoutes?.call(
-                  ctx,
-                  {
-                    ...fns,
-                    createView: (route) => fns.createView({ ...route, lang: route.lang ?? lang }),
-                  },
-                  { lang, routes: Object.freeze(routes) },
-                );
-              }),
-            ).then(() => undefined),
+          Promise.all(
+            languages.map((lang) => {
+              const routes: PageRoute[] = [];
+              for (const route of final)
+                if ((route.lang ?? defaultLanguage) === lang) routes.push(route);
+              return plugin.deriveRoutes?.call(ctx, routeFns(plugin, [lang]), {
+                lang,
+                routes: Object.freeze(routes),
+              });
+            }),
           ),
         ),
       ),
     ).finally(() => derive());
-    for (const [i, plugin] of plugins.entries()) addCreated(plugin, derived[i]!);
 
     out.api.sort((a, b) => compareRoutes(a.path, b.path));
     out.views.sort((a, b) => compareRoutes(a.route.path, b.route.path));

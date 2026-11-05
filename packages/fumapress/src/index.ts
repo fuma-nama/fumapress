@@ -18,7 +18,6 @@ export type {
 export { selectTreeRoot } from "@fumapress/core";
 export type { BuildMode } from "@fumapress/core";
 export type {
-  ApiRoute,
   AppShape,
   BaseOptions,
   GitProvider,
@@ -28,10 +27,6 @@ export type {
   PressContext,
   ProviderProps,
   RenderPageProps,
-  RouteFns,
-  RouteHandler,
-  RouteParams,
   SiteConfig,
   UIOptions,
-  ViewRoute,
 } from "@fumapress/core";

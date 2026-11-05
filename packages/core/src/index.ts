@@ -18,7 +18,6 @@ export {
   type PresetEntry,
   type PressBuildOutput,
   type ProviderAPI,
-  type RouteFns,
   type RouteHandler,
   type RouteOptions,
   type RouteParams,

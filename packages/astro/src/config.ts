@@ -16,7 +16,6 @@ export function createPress<
 
 export type { BuildMode } from "@fumapress/core";
 export type {
-  ApiRoute,
   AppShape,
   BaseOptions,
   GitProvider,
@@ -26,11 +25,7 @@ export type {
   PressContext,
   ProviderProps,
   RenderPageProps,
-  RouteFns,
-  RouteHandler,
-  RouteParams,
   SiteConfig,
   UIOptions,
-  ViewRoute,
 } from "@fumapress/core";
 export { recommendedPreset, selectTreeRoot } from "@fumapress/core";

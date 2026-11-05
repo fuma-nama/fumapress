@@ -573,23 +573,6 @@ describe("getSlots", () => {
 });
 
 describe("getApiRoutes", () => {
-  it("rejects routes created after their hook returned", async () => {
-    let late: (() => void) | undefined;
-    const ctx = await createSite({
-      plugins: [
-        {
-          name: "late",
-          routes({ createApi }) {
-            late = () => createApi({ path: "/late", GET });
-          },
-        },
-      ],
-    });
-
-    await ctx.getApiRoutes();
-    expect(late).toThrow('"late" creates the route "/late" after its hook returned');
-  });
-
   it("renders on request by default, static routes follow the mode", async () => {
     const config: Partial<TestSite> = {
       plugins: [

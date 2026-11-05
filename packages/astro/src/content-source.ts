@@ -5,9 +5,11 @@ import { NoProcessedMarkdownError, type AstroPageData } from "@fumadocs/astro/so
 import type { Context, Plugin } from "@fumapress/core";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type { Page, PageData } from "fumadocs-core/source";
+import { deserializePageTree } from "fumadocs-core/source/client";
 import type { TOCItemType } from "fumadocs-core/toc";
 import { createRelativeLink } from "fumadocs-ui/mdx";
-import { AstroContent, registerPageTree } from "./island/serialize";
+import { pageTrees } from "./island/island";
+import { AstroContent, pageTreeFiles } from "./island/serialize";
 
 /** the renderer from `load()`, like `MarkdownRenderer` of `@fumadocs/local-md` */
 interface Renderer {
@@ -151,7 +153,10 @@ export function contentSourcePlugin(): Plugin {
         for (const byte of new Uint8Array(hash, 0, 8)) hex += byte.toString(16).padStart(2, "0");
         // by the hash of its content: revalidated content has another URL
         const path = `/_fumapress/page-tree/${lang ?? "default"}.${hex}.json`;
-        registerPageTree(tree, this.withBase(path), serialized);
+        const url = this.withBase(path);
+        pageTreeFiles.set(tree, url);
+        // the island renders the deserialized tree on the server too, like in the browser
+        pageTrees.set(url, deserializePageTree(serialized));
         createApi({
           path,
           render: "static",
