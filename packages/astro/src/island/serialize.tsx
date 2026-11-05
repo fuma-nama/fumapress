@@ -15,7 +15,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { components } from "virtual:fumapress/island";
 import type { IslandNode } from "./island";
-import { getReference } from "./references";
+import { getReference, isFileKey } from "./references";
 
 /** the props of `Island.astro` */
 export interface IslandData {
@@ -27,9 +27,6 @@ export interface IslandData {
   pageTrees: string[];
 }
 
-/** the URLs of page tree files by their page tree: the island gets a page tree by identity from its file, rather than in its props */
-export const pageTreeFiles = new WeakMap<object, string>();
-
 /** a slot of the island rendered by Astro */
 export class Slot {
   constructor(readonly name: string) {}
@@ -40,14 +37,9 @@ class Tree {
   constructor(readonly nodes: IslandNode[]) {}
 }
 
-/** the default slot of `Island.astro`, the children of its Astro component */
-export function AstroSlot(): null {
-  return null;
-}
-
 interface AstroContentProps {
-  /** like `<Content />` of a collection page, it receives the `provider` prop */
-  component: AstroComponentFactory;
+  /** like `<Content />` of a collection page, it receives the `provider` prop; without it, the default slot of `Island.astro`, the children of its Astro component */
+  component?: AstroComponentFactory;
 }
 
 /** Astro content in React content, like the body of a collection page: Astro renders it into a slot of the island */
@@ -90,11 +82,11 @@ export async function serializeIsland(node: ReactNode): Promise<IslandData> {
     const tree = stringify(nodes, {
       slot: (value) => value instanceof Slot && value.name,
       tree: (value) => value instanceof Tree && value.nodes,
-      ref: getReference,
-      pageTree(value) {
-        const url = typeof value === "object" && value !== null && pageTreeFiles.get(value);
-        if (url && !pageTrees.includes(url)) pageTrees.push(url);
-        return url;
+      ref(value) {
+        const reference = getReference(value);
+        if (reference && isFileKey(reference[0]) && !pageTrees.includes(reference[0]))
+          pageTrees.push(reference[0]);
+        return reference;
       },
     });
     return { tree, slots, pageTrees };
@@ -127,15 +119,12 @@ async function serialize(
   }
   if (!isValidElement<ElementProps>(node)) return;
   if (isAstroContent(node)) {
-    out.push(slot(slots, node.props.component));
+    const { component } = node.props;
+    out.push(component ? slot(slots, component) : new Slot("children"));
     return;
   }
 
   const { type, props } = node;
-  if (type === AstroSlot) {
-    out.push(new Slot("children"));
-    return;
-  }
   if (type === Fragment || type === Suspense || type === StrictMode)
     return serialize(props.children, out, slots, pre);
 
@@ -239,13 +228,7 @@ function hostProps(props: Record<string, unknown>): Record<string, unknown> | 0 
 /** a prop of a component in the island: client components are references, elements are island trees */
 async function toIslandProp(value: unknown, slots: IslandData["slots"]): Promise<unknown> {
   if (typeof value === "function") return getReference(value) ? value : unserializable;
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    value instanceof Slot ||
-    pageTreeFiles.has(value)
-  )
-    return value;
+  if (typeof value !== "object" || value === null || value instanceof Slot) return value;
   if (isValidElement(value)) {
     const nodes: IslandNode[] = [];
     await serialize(value, nodes, slots, false);

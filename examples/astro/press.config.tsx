@@ -6,7 +6,7 @@ import openapiPlugin from "fumadocs-openapi/press";
 import { createOpenAPI } from "fumadocs-openapi/server";
 
 const openapi = createOpenAPI({
-  input: ["./openapi.yaml"],
+  input: ["../openapi/scalar.yaml"],
 });
 
 export const app = createPress({

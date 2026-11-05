@@ -1,10 +1,11 @@
 import { trailingSlash } from "astro:config/client";
 import config from "virtual:fumapress/config";
 import { adapter, defaultMode, routes, prerender, siteUrl } from "virtual:fumapress/astro";
-import type { Press } from "@fumapress/core";
+import { stripBase, type Press } from "@fumapress/core";
 import { createPressContext, pathLocale } from "@fumapress/core/runtime";
 import { uiTranslations } from "fumadocs-ui/i18n";
 import { contentSourcePlugin } from "../content-source";
+import { pageTreePlugin } from "../island/page-tree";
 import { getReference } from "../island/references";
 
 const input = config["~press"];
@@ -37,6 +38,7 @@ export const ctx = await createPressContext(press, {
   trailingSlash: trailingSlash === "always",
   defaults: [
     contentSourcePlugin(),
+    pageTreePlugin(),
     { name: "astro:ui-translations", translations: uiTranslations() },
   ],
   signal: controller.signal,
@@ -44,15 +46,13 @@ export const ctx = await createPressContext(press, {
 });
 
 ctx.setRuntimeRoutes(
-  routes.map(({ path, render, pages }) => ({
-    route: {
-      path,
-      lang: pathLocale(ctx, path),
-      render,
-      pages: pages.map((page) => ({ path: page, translations: [], params: {} })),
-      options: {},
-    },
-  })),
+  routes.map(({ path: route, render }) => {
+    // a segment of the URL on Astro, a route group in the paths of core: the encoded form is the same URL
+    const path = route.replaceAll("/(", "/%28");
+    const lang = pathLocale(ctx, path);
+    const pathname = stripBase(path, ctx.localizePath(lang, "/"));
+    return pathname === undefined ? { path, render } : { path: pathname, lang, render };
+  }),
 );
 
 if (import.meta.env.DEV) {

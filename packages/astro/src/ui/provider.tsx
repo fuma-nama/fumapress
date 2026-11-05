@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import type { ProviderProps } from "@fumapress/core";
 import { RootProvider } from "fumadocs-ui/provider/astro";
 import { rootProps, type ProviderData } from "./content";
-import { Link } from "./link";
 
 /** the root provider of pages, with `providerProps` of the site */
 export function Provider({
@@ -17,7 +16,7 @@ export function Provider({
   children: ReactNode;
 }) {
   return (
-    <RootProvider {...props} {...rootProps(provider, Link)}>
+    <RootProvider {...props} {...rootProps(provider)}>
       {children}
     </RootProvider>
   );

@@ -1,74 +1,58 @@
-import { isValidElement } from "react";
+import { isValidElement, type ReactElement } from "react";
+import type { MDXComponents } from "mdx/types";
 import { expect, it, vi } from "vitest";
 import { contentSourcePlugin } from "@/content-source";
-import { pressContext } from "./harness";
+import { pressContext, type TestSite } from "./harness";
 import { AstroContent } from "@/island/serialize";
+import { Link } from "@/ui/link";
 
 // it reads the config of the integration
 vi.mock("@fumadocs/astro/source", () => ({ NoProcessedMarkdownError: class extends Error {} }));
+vi.mock("astro:config/client", () => ({ base: "/", trailingSlash: "ignore" }));
+
+/** a site of pages by path, with the content source plugin */
+function site(pages: Record<string, object>, config: Omit<TestSite, "content"> = {}) {
+  const files = [];
+  for (const [path, data] of Object.entries(pages))
+    files.push({ type: "page" as const, path, data });
+  return pressContext(
+    { content: { docs: { files } }, ...config },
+    { defaults: [contentSourcePlugin()] },
+  );
+}
 
 it("leaves pages to the plugins of their content source", async () => {
   const data = { title: "Home", content: "%% raw %%", load: async () => ({}) };
-  const ctx = await pressContext(
-    {
-      content: { docs: { files: [{ type: "page" as const, path: "index.md", data }] } },
-      plugins: [{ getPageText: () => "rendered" }],
-    },
-    { defaults: [contentSourcePlugin()] },
-  );
+  const ctx = await site({ "index.md": data }, { plugins: [{ getPageText: () => "rendered" }] });
   const [page] = (await ctx.getLoader()).getPages();
 
   expect(await ctx.getPageText(page!)).toBe("rendered");
 });
 
-it("serves the page tree of each language at a URL by its content", async () => {
-  async function treeRoutes(title: string) {
-    const data = { title, load: async () => ({}) };
-    const ctx = await pressContext(
-      {
-        content: { docs: { files: [{ type: "page" as const, path: "index.md", data }] } },
-        i18n: { languages: ["en", "fr"], defaultLanguage: "en" },
-      },
-      { base: "/", defaults: [contentSourcePlugin()] },
-    );
-    const source = await ctx.getLoader();
-    const paths: string[] = [];
-    for (const [i, route] of (await ctx.getApiRoutes()).entries()) {
-      const response = await route.GET!(new Request("http://localhost"), { params: {} });
-      const locale = ["en", "fr"][i];
-      expect(await response.json()).toEqual(
-        await source.serializePageTree(source.getPageTree(locale)),
-      );
-      expect(route.path).toMatch(
-        new RegExp(`^/_fumapress/page-tree/${locale}\\.[0-9a-f]{16}\\.json$`),
-      );
-      paths.push(route.path);
-    }
-    return paths;
-  }
+it("renders pages of runtime sources once, with relative links, and again after a failure", async () => {
+  const render = vi
+    .fn<(components: MDXComponents) => Promise<{ body: string; toc: [] }>>()
+    .mockRejectedValueOnce(new Error("transient"))
+    .mockResolvedValue({ body: "body", toc: [] });
+  const data = {
+    title: "Home",
+    load: async () => ({ structuredData: { headings: [], contents: [] }, render }),
+  };
+  const ctx = await site({ "index.md": data, "guide/other.md": { title: "Other" } });
+  const page = (await ctx.getLoader()).getPage([])!;
 
-  const paths = await treeRoutes("Home");
-  expect(paths).toHaveLength(2);
-  expect(await treeRoutes("Home")).toEqual(paths);
-  expect((await treeRoutes("Other"))[0]).not.toBe(paths[0]);
+  await expect(ctx.getPageBody(page)).rejects.toThrow("transient");
+  expect(await ctx.getPageBody(page)).toEqual({ node: "body" });
+  expect(await ctx.getPageToc(page)).toEqual([]);
+  expect(render).toHaveBeenCalledTimes(2);
 
-  // on request, also a route
-  const ctx = await pressContext(
-    {
-      mode: "dynamic",
-      content: {
-        docs: { files: [{ type: "page" as const, path: "index.md", data: { title: "Home" } }] },
-      },
-      i18n: { languages: ["en", "fr"], defaultLanguage: "en" },
-    },
-    { base: "/docs", defaults: [contentSourcePlugin()] },
-  );
-  const routes = await ctx.getApiRoutes();
-  expect(routes.map((route) => route.render)).toEqual(["dynamic", "dynamic"]);
-  expect(routes.map((route) => route.path)).toEqual(paths);
-  const tree = await routes[1]!.GET!(new Request("http://localhost"), { params: {} });
-  expect(tree.headers.get("Content-Type")).toBe("application/json");
-  expect(tree.headers.get("Cache-Control")).toContain("immutable");
+  const A = render.mock.calls[0]![0].a as (props: {
+    href: string;
+  }) => ReactElement<{ href: string }>;
+  const link = A({ href: "./guide/other.md" });
+  expect(link.props.href).toBe("/guide/other");
+  // without an `a` in the MDX components, links still go through the base path
+  expect(link.type).toBe(Link);
 });
 
 it("renders collection pages as their `<Content />`, dated by the `date` frontmatter", async () => {
@@ -79,12 +63,7 @@ it("renders collection pages as their `<Content />`, dated by the `date` frontma
     getText: async () => "",
     load: async () => ({ body: Content, toc: [] }),
   };
-  const ctx = await pressContext(
-    {
-      content: { docs: { files: [{ type: "page" as const, path: "post.mdx", data }] } },
-    },
-    { base: "/", defaults: [contentSourcePlugin()] },
-  );
+  const ctx = await site({ "post.mdx": data });
   const [page] = (await ctx.getLoader()).getPages();
   const body = await ctx.getPageBody(page!);
 

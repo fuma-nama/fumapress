@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { type AppShape, type Plugin } from "@fumapress/core";
 import { notFoundView, type RuntimeContext } from "@fumapress/core/runtime";
 import { onRequest } from "@/routes/middleware";
-import { fileStaticPaths, pageStaticPaths, pageTarget, serve } from "@/routes/shared";
-import type { PageProps, ViewPage } from "@/routes/shared";
+import { fileStaticPaths, pageStaticPaths, serve, serveApi } from "@/routes/shared";
+import type { ViewPage } from "@/routes/shared";
 import { pressContext, type TestSite } from "./harness";
 
 const runtime = vi.hoisted(() => ({ ctx: undefined as RuntimeContext | undefined }));
@@ -15,6 +15,7 @@ vi.mock("@/routes/context", () => ({
 }));
 
 const docs = { files: [{ type: "page" as const, path: "index.mdx", data: { title: "Home" } }] };
+const i18n = { languages: ["en", "cn"], defaultLanguage: "en" };
 
 function site(plugin: Plugin<AppShape, any>, config: Partial<TestSite> = {}, base = "/") {
   return pressContext({ content: { docs }, plugins: [plugin], ...config }, { base });
@@ -51,10 +52,7 @@ describe("static routes", () => {
   });
 
   it("render the pages and the root redirect", async () => {
-    const ctx = await site(
-      {},
-      { i18n: { languages: ["en", "cn"], defaultLanguage: "en" }, mode: "static" },
-    );
+    const ctx = await site({}, { i18n, mode: "static" });
     const paths = await pageStaticPaths(ctx, false);
 
     expect(paths.map((path) => path.params.fumapressPage)).toEqual(["en", "cn", undefined]);
@@ -98,7 +96,7 @@ describe("server routes", async () => {
     "/sub",
   );
   const request = (path: string, method = "GET") =>
-    serve(ctx, new Request(`http://localhost${path}`, { method })) as Promise<Response>;
+    serveApi(ctx, new Request(`http://localhost${path}`, { method })) as Promise<Response>;
 
   it("dispatch by method", async () => {
     expect(await (await request("/sub/api/1")).json()).toEqual({ id: "1" });
@@ -113,11 +111,10 @@ describe("server routes", async () => {
     expect(response.headers.get("Allow")).toBe("GET, PUT");
   });
 
-  it("leave other paths to the 404 page of Astro", async () => {
+  it("leave other paths to Astro", async () => {
     for (const path of ["/sub/missing", "/other"]) {
-      const response = await request(path);
-      expect(response.status).toBe(404);
-      expect(response.body).toBeNull();
+      expect(await request(path)).toBeUndefined();
+      expect(await serve(ctx, new Request(`http://localhost${path}`))).toBeUndefined();
     }
   });
 
@@ -126,31 +123,22 @@ describe("server routes", async () => {
       createApi({ path: "/api", GET }),
     );
     const once = await site({ routes });
-    for (let i = 0; i < 3; i++) await serve(once, new Request("http://localhost/api"));
+    for (let i = 0; i < 3; i++) await serveApi(once, new Request("http://localhost/api"));
     expect(routes).toHaveBeenCalledTimes(1);
   });
 
   it("render pages in dynamic mode", async () => {
-    const dynamic = await site(
-      {},
-      { mode: "dynamic", i18n: { languages: ["en", "cn"], defaultLanguage: "en" } },
-      "/sub",
-    );
+    const dynamic = await site({}, { mode: "dynamic", i18n }, "/sub");
     const page = await serve(dynamic, new Request("http://localhost/sub/cn/"));
     expect(page).toMatchObject({ page: { url: "/cn" } });
-
-    const redirect = await pageTarget(
-      (await serve(dynamic, new Request("http://localhost/sub"))) as PageProps,
-      new Request("http://localhost/sub"),
-    );
-    expect(redirect).toBeInstanceOf(Response);
-    expect((redirect as Response).status).toBe(302);
-    expect((redirect as Response).headers.get("Location")).toBe("/sub/en");
+    expect(await serve(dynamic, new Request("http://localhost/sub"))).toEqual({
+      redirect: "/sub/en",
+    });
   });
 });
 
 describe("views", () => {
-  const i18n = { languages: ["en", "cn"], defaultLanguage: "en" };
+  const hidden = { ...i18n, hideLocale: "default-locale" as const };
   const view = (node: unknown) => ({ type: "test" as const, props: {}, node: String(node) });
   const views: Plugin<AppShape, { views: { test: {} } }> = {
     routes({ createView }) {
@@ -179,37 +167,33 @@ describe("views", () => {
     return out;
   };
 
-  it("are prerendered at the path of their language, in every `hideLocale` mode", async () => {
-    // the most specific first, `/404` is the 404 page
-    expect(await paths({ i18n })).toEqual([
-      "en/blog",
-      "en/404",
-      "cn/blog",
-      "cn/404",
-      "en/tags/react",
-      "en/tags/vue",
-      "cn/tags/react",
-    ]);
-    expect(await paths({ i18n: { ...i18n, hideLocale: "default-locale" } })).toEqual([
-      "blog",
-      "cn/blog",
-      "cn/404",
-      "cn/tags/react",
-      "tags/react",
-      "tags/vue",
-    ]);
-    expect(await paths({})).toEqual(["blog", "tags/react", "tags/vue"]);
+  it.each([
+    [
+      "prefixed",
+      { i18n },
+      ["en/blog", "en/tags/react", "en/tags/vue", "en/404", "cn/blog", "cn/tags/react", "cn/404"],
+    ],
+    // `/404` of the hidden locale is the 404 page
+    [
+      "hidden default locale",
+      { i18n: hidden },
+      ["blog", "tags/react", "tags/vue", "cn/blog", "cn/tags/react", "cn/404"],
+    ],
+    ["without i18n", {}, ["blog", "tags/react", "tags/vue"]],
+  ])("are prerendered at the path of their language: %s", async (_, config, expected) => {
+    expect(await paths(config)).toEqual(expected);
+  });
+
+  it("need an adapter to render on request", async () => {
     await expect(pageStaticPaths(await site(views), false)).rejects.toThrow(
       'the route "/(app)/live/[id]" renders on request, add an adapter to Astro.',
     );
   });
 
   it("leave `/404` to the 404 page, in the language of its URL", async () => {
-    const ctx = await site(views, { i18n: { ...i18n, hideLocale: "default-locale" } });
-    expect(await paths({ i18n: { ...i18n, hideLocale: "default-locale" } })).toContain("cn/404");
-    expect(await paths({ i18n: { ...i18n, hideLocale: "default-locale" } })).not.toContain("404");
-    expect((await notFoundView(ctx, "cn"))?.route.path).toBe("/cn/404");
-    expect((await notFoundView(ctx, "fr"))?.route.path).toBe("/404");
+    const ctx = await site(views, { i18n: hidden });
+    expect((await notFoundView(ctx, "cn"))?.path).toBe("/cn/404");
+    expect((await notFoundView(ctx, "fr"))?.path).toBe("/404");
   });
 
   it("link the pages of other languages at their path as translations", async () => {
@@ -228,17 +212,16 @@ describe("views", () => {
   it("render on request with their params, every view in `dynamic` mode", async () => {
     const ctx = await site(views, { i18n }, "/sub");
     const request = new Request("http://localhost/sub/en/live/42");
-    const live = (await serve(ctx, request)) as PageProps;
+    const live = (await serve(ctx, request))!;
     expect(live.view?.page).toEqual({
       path: "/en/live/42",
       params: { id: "42" },
       translations: [],
     });
-    expect(await pageTarget(live, request)).toMatchObject({ content: { node: "42" } });
-    expect(await serve(ctx, new Request("http://localhost/sub/cn/blog"))).toBeInstanceOf(Response);
+    expect(await serve(ctx, new Request("http://localhost/sub/cn/blog"))).toBeUndefined();
 
     const dynamic = await site(views, { i18n, mode: "dynamic" });
-    const blog = (await serve(dynamic, new Request("http://localhost/cn/blog/"))) as PageProps;
+    const blog = (await serve(dynamic, new Request("http://localhost/cn/blog/")))!;
     expect(blog.view?.page.path).toBe("/cn/blog");
     expect(blog.view?.page.translations).toHaveLength(2);
   });
@@ -256,11 +239,8 @@ describe("views", () => {
       },
     };
     const ctx = await site(tags, { i18n, mode: "dynamic" });
-    const listed = (await serve(
-      ctx,
-      new Request("http://localhost/cn/tags/%C3%BCber"),
-    )) as PageProps;
-    const other = (await serve(ctx, new Request("http://localhost/cn/tags/%C3%A4"))) as PageProps;
+    const listed = (await serve(ctx, new Request("http://localhost/cn/tags/%C3%BCber")))!;
+    const other = (await serve(ctx, new Request("http://localhost/cn/tags/%C3%A4")))!;
 
     expect(listed.view?.page.path).toBe("/cn/tags/über");
     expect(listed.view?.page.translations).toHaveLength(2);
@@ -270,21 +250,24 @@ describe("views", () => {
       translations: [],
     });
   });
-
-  it("answer 404 without content", async () => {
-    const ctx = await site({
-      routes: ({ createView }) => createView({ path: "/empty", view: () => undefined }),
-    });
-    const [routed] = await ctx.getViewRoutes();
-    const response = await pageTarget(
-      { view: { ...routed!, page: routed!.route.pages[0]! } },
-      new Request("http://localhost/empty"),
-    );
-    expect((response as Response).status).toBe(404);
-  });
 });
 
 describe("middleware", () => {
+  /** the answer of `onRequest` to a request of the site */
+  const request = async (
+    path: string,
+    context: Partial<APIContext> = {},
+    next: () => Promise<Response> = async () => new Response("next"),
+  ) =>
+    (await onRequest(
+      {
+        isPrerendered: false,
+        request: new Request(`http://localhost${path}`),
+        ...context,
+      } as APIContext,
+      next as MiddlewareNext,
+    )) as Response;
+
   it("skips prerendered routes, and rewrites as new requests with the base path", async () => {
     const middleware = vi.fn<NonNullable<Plugin["middleware"]>>((request, next) =>
       request.url.endsWith("/a") ? next("/b") : next(),
@@ -299,57 +282,35 @@ describe("middleware", () => {
       "/sub",
     );
     const next = vi.fn(async () => new Response("next"));
-    const call = async (isPrerendered: boolean, path: string) =>
-      (await onRequest(
-        { isPrerendered, request: new Request(`http://localhost${path}`) } as APIContext,
-        next as MiddlewareNext,
-      )) as Response;
-
-    await call(true, "/sub/a");
+    await request("/sub/a", { isPrerendered: true }, next);
     expect(middleware).not.toHaveBeenCalled();
-    expect(await (await call(false, "/sub/a")).text()).toBe("http://localhost/sub/b");
+    expect(await (await request("/sub/a", {}, next)).text()).toBe("http://localhost/sub/b");
     // the middleware of plugins runs for the rewritten request too
     expect(middleware).toHaveBeenCalledTimes(2);
     expect(next).toHaveBeenCalledTimes(1);
-    expect(await (await call(false, "/sub/c")).text()).toBe("next");
+    expect(await (await request("/sub/c", {}, next)).text()).toBe("next");
     expect(next).toHaveBeenLastCalledWith();
   });
 
-  it("gives files rendered on request the trailing slash of `[...fumapressServer]`, when Astro routes them to the 404 page", async () => {
+  it.each([
+    ["/[...fumapressServer]", "/sub/api/x/", "route"],
+    // a file `[...fumapressServer]` doesn't take with `trailingSlash: "always"`
+    ["/404", "/sub/robots.txt", "route"],
+    ["/404", "/sub/missing", "next"],
+    // your own route replaces the route of a plugin
+    ["/api/x", "/sub/api/x", "next"],
+  ])("on %s, answers %s with the %s", async (routePattern, path, expected) => {
     runtime.ctx = await site(
       {
         routes({ createApi }) {
-          createApi({ path: "/robots.txt", GET });
-          createApi({ path: "/api/x", GET });
-          createApi({ path: "/sitemap.xml", render: "static", GET });
+          createApi({ path: "/api/x", GET: () => new Response("route") });
+          createApi({ path: "/robots.txt", GET: () => new Response("route") });
         },
       },
       {},
       "/sub",
     );
-    const next = vi.fn(async () => new Response("next"));
-    const call = (path: string, routePattern = "/404") =>
-      onRequest(
-        {
-          isPrerendered: false,
-          routePattern,
-          request: new Request(`http://localhost${path}?q=1`),
-        } as APIContext,
-        next as MiddlewareNext,
-      );
-
-    await call("/sub/robots.txt");
-    expect(next).toHaveBeenLastCalledWith(new URL("http://localhost/sub/robots.txt/?q=1"));
-    for (const [path, pattern] of [
-      ["/sub/robots.txt", "/robots.txt"],
-      ["/sub/robots.txt/", "/404"],
-      ["/sub/api/x", "/404"],
-      ["/sub/sitemap.xml", "/404"],
-      ["/robots.txt", "/404"],
-    ] as const) {
-      await call(path, pattern);
-      expect(next).toHaveBeenLastCalledWith();
-    }
+    expect(await (await request(path, { routePattern })).text()).toBe(expected);
   });
 
   it("keeps the request when a rewrite fails", async () => {
@@ -361,12 +322,7 @@ describe("middleware", () => {
       },
     });
     const next = vi.fn(async () => new Response("next"));
-    const response = await onRequest(
-      { isPrerendered: false, request: new Request("http://localhost/own") } as APIContext,
-      next as MiddlewareNext,
-    );
-
-    expect(await (response as Response).text()).toBe("next");
+    expect(await (await request("/own", {}, next)).text()).toBe("next");
     expect(next).toHaveBeenCalledExactlyOnceWith();
   });
 });

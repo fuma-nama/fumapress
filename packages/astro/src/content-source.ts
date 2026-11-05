@@ -5,16 +5,19 @@ import { NoProcessedMarkdownError, type AstroPageData } from "@fumadocs/astro/so
 import type { Context, Plugin } from "@fumapress/core";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type { Page, PageData } from "fumadocs-core/source";
-import { deserializePageTree } from "fumadocs-core/source/client";
 import type { TOCItemType } from "fumadocs-core/toc";
-import { createRelativeLink } from "fumadocs-ui/mdx";
-import { pageTrees } from "./island/island";
-import { AstroContent, pageTreeFiles } from "./island/serialize";
+import { AstroContent } from "./island/serialize";
+import { Link } from "./ui/link";
 
 /** the renderer from `load()`, like `MarkdownRenderer` of `@fumadocs/local-md` */
 interface Renderer {
   structuredData: StructuredData;
-  render: (components: MDXComponents) => Promise<{ body: ReactNode; toc: TOCItemType[] }>;
+  render: (components: MDXComponents) => Promise<RenderedBody>;
+}
+
+interface RenderedBody {
+  body: ReactNode;
+  toc: TOCItemType[];
 }
 
 /** the page data of runtime content sources, like `LocalMarkdownPage` of `@fumadocs/local-md` */
@@ -38,41 +41,35 @@ function isRenderer(value: object): value is Renderer {
   return typeof (value as Partial<Renderer>).render === "function";
 }
 
-const results = new WeakMap<object, Promise<unknown>>();
+/** by page, with a new page when content changes */
+const rendered = new WeakMap<Page, Promise<RenderedBody | undefined>>();
 
-/** `run()` once per `key`, except in dev where content changes */
-function once<T>(key: object, run: () => Promise<T>): Promise<T> {
-  if (import.meta.env.DEV) return run();
-  let result = results.get(key) as Promise<T> | undefined;
-  if (!result) results.set(key, (result = run()));
-  return result;
-}
-
-/** `load()` of a collection page, its body and table of contents */
-function loadOnce(data: AstroPageData) {
-  return once(data, () => data.load());
-}
-
-/** the body of a page from a runtime content source, rendered with the MDX components */
+/** the body of a page from a runtime content source, rendered once with the MDX components */
 function render(ctx: Context, page: Page) {
   const { data } = page;
   if (isCollectionPage(data) || !isPageDataOf<RuntimePageData>(data, "load")) return;
 
-  return once(page, async () => {
-    const renderer = await data.load();
-    // other content sources have `load()` too
-    if (!isRenderer(renderer)) return;
-    const { a: Link } = components;
-    return renderer.render({
-      ...components,
-      // `createRelativeLink()` takes function components, MDX components can be any element type
-      a: createRelativeLink(
-        await ctx.getLoader(),
-        page,
-        Link && ((props) => createElement(Link, props)),
-      ),
-    });
-  });
+  let result = rendered.get(page);
+  if (!result) {
+    const A = components.a ?? Link;
+    result = Promise.all([data.load(), ctx.getLoader()]).then(([renderer, loader]) =>
+      // other content sources have `load()` too
+      !isRenderer(renderer)
+        ? undefined
+        : renderer.render({
+            ...components,
+            a: (props) =>
+              createElement(A, {
+                ...props,
+                href: props.href && loader.resolveHref(props.href, page),
+              }),
+          }),
+    );
+    rendered.set(page, result);
+    // a later render tries again
+    result.catch(() => rendered.delete(page));
+  }
+  return result;
 }
 
 /** a valid date, devalue can't serialize an invalid one */
@@ -93,13 +90,13 @@ export function contentSourcePlugin(): Plugin {
     async getPageBody(page) {
       if (isCollectionPage(page.data))
         return {
-          node: createElement(AstroContent, { component: (await loadOnce(page.data)).body }),
+          node: createElement(AstroContent, { component: (await page.data.load()).body }),
         };
       const rendered = await render(this, page);
       if (rendered) return { node: rendered.body };
     },
     async getPageToc(page) {
-      if (isCollectionPage(page.data)) return (await loadOnce(page.data)).toc;
+      if (isCollectionPage(page.data)) return (await page.data.load()).toc;
       return (await render(this, page))?.toc;
     },
     getPageStructuredData({ data }) {
@@ -140,35 +137,6 @@ export function contentSourcePlugin(): Plugin {
     getPageLastModified({ data }) {
       // from the frontmatter, or `lastModified` of collections
       if ("lastModified" in data) return toDate(data.lastModified);
-    },
-    /** the page trees as files, fetched once by the island rather than in the props of every page */
-    async routes({ createApi }) {
-      const source = await this.getLoader();
-      for (const lang of this.languages) {
-        const tree = source.getPageTree(lang);
-        const serialized = await source.serializePageTree(tree);
-        const json = JSON.stringify(serialized);
-        const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json));
-        let hex = "";
-        for (const byte of new Uint8Array(hash, 0, 8)) hex += byte.toString(16).padStart(2, "0");
-        // by the hash of its content: revalidated content has another URL
-        const path = `/_fumapress/page-tree/${lang ?? "default"}.${hex}.json`;
-        const url = this.withBase(path);
-        pageTreeFiles.set(tree, url);
-        // the island renders the deserialized tree on the server too, like in the browser
-        pageTrees.set(url, deserializePageTree(serialized));
-        createApi({
-          path,
-          render: "static",
-          GET: () =>
-            new Response(json, {
-              headers: {
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=31536000, immutable",
-              },
-            }),
-        });
-      }
     },
   };
 }

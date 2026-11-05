@@ -1,14 +1,20 @@
 import type { AstroGlobal } from "astro";
 import { createElement, type ReactNode } from "react";
-import type { PageAlternate, View } from "@fumapress/core";
-import { mergeHead, pageLinks, pathLocale, renderPage, wrapSlot } from "@fumapress/core/runtime";
+import type { PageAlternate, PageRoute } from "@fumapress/core";
+import {
+  matchPageRoute,
+  mergeHead,
+  pageLinks,
+  pathLocale,
+  wrapSlot,
+  type RenderTarget,
+} from "@fumapress/core/runtime";
 import { mergeI18n } from "@fumapress/core/runtime/ui";
 import type { HeadTag } from "@fumapress/core";
-import type { Page } from "fumadocs-core/source";
-import { AstroSlot, serializeIsland, type IslandData } from "../island/serialize";
-import type { ViewPage } from "../routes/shared";
-import config from "virtual:fumapress/config";
-import { getPressContext, getProviderData } from "../runtime";
+import { AstroContent, serializeIsland, type IslandData } from "../island/serialize";
+import { ctx } from "../routes/context";
+import type { PageProps } from "../routes/shared";
+import { getProviderData } from "../runtime";
 import { ContentProvider, type ProviderData } from "./content";
 import { renderDefault } from "./default";
 import { Home } from "./home";
@@ -18,9 +24,6 @@ type AstroProps = Pick<AstroGlobal, "url" | "params">;
 
 /** the props of `Island.astro` */
 type IslandProps = IslandData & { provider: ProviderData };
-
-/** what `Page.astro` renders: a content page, or a view with the result of its `view()` */
-export type PageTarget = { page: Page } | { view: ViewPage; content: View<any> };
 
 /** a page in `Layout.astro`: its language, head tags and island */
 export interface RenderedPage {
@@ -35,9 +38,6 @@ async function getIsland(
   lang: string | undefined,
   node: ReactNode,
 ): Promise<IslandProps> {
-  const ctx = getPressContext();
-  // `withBase()` gives the URLs of routes rendered on request, like the actions of slots, once the routes are collected
-  await ctx.getRoutes();
   const [slots, { i18n, ...props }] = await Promise.all([
     ctx.getSlots({}),
     ctx.getProviderProps({ lang }),
@@ -64,24 +64,40 @@ export async function getContentIsland(
   return { ...island, provider };
 }
 
-/** a content page or a view, rendered by `ui.renderPage` */
-export async function getPage(astro: AstroProps, target: PageTarget): Promise<RenderedPage> {
-  const ctx = getPressContext();
-  const lang = "page" in target ? target.page.locale : target.view.route.lang;
-  const [node, head] = await Promise.all([
-    renderPage(
-      ctx,
-      config,
-      "page" in target ? { lang, page: target.page } : { lang, view: target.content },
-      renderDefault,
-    ),
-    ctx.getHead(
-      "page" in target
-        ? { page: target.page }
-        : { route: target.view.route, path: target.view.page.path, view: target.content },
-    ),
-  ]);
+async function renderTarget(
+  astro: AstroProps,
+  target: RenderTarget,
+  headTags: Promise<HeadTag[]>,
+): Promise<RenderedPage> {
+  const [node, head] = await Promise.all([ctx.renderPage(target, renderDefault), headTags]);
+  const { lang } = target;
   return { lang, head, island: await getIsland(getProviderData(astro, lang), lang, node) };
+}
+
+/** a content page or a view rendered by `ui.renderPage`, or the response of a redirect, or a 404 for a view without content */
+export async function getPage(
+  astro: AstroProps & Pick<AstroGlobal, "request">,
+  { page, view, redirect }: PageProps,
+): Promise<RenderedPage | Response> {
+  if (redirect !== undefined)
+    return new Response(null, { status: 302, headers: { Location: redirect } });
+  if (page) return renderTarget(astro, { lang: page.locale, page }, ctx.getHead({ page }));
+
+  if (view) {
+    const { params, path } = view.page;
+    const { view: route, lang } = view.route;
+    const content =
+      route?.render === "dynamic"
+        ? await route.view(params, { lang, request: astro.request })
+        : await route?.view(params, { lang });
+    if (content)
+      return renderTarget(
+        astro,
+        { lang, view: content },
+        ctx.getHead({ route: view.route, path, view: content }),
+      );
+  }
+  return new Response(null, { status: 404 });
 }
 
 export interface HomeLayoutOptions {
@@ -98,24 +114,33 @@ export interface HomeLayoutOptions {
 /** your own page in the home layout, its content is the default slot of the island */
 export async function getHomeLayout(
   astro: AstroProps,
-  { title, description, lang, alternates = [], notFound }: HomeLayoutOptions,
+  { title, description, lang, alternates, notFound }: HomeLayoutOptions,
 ): Promise<RenderedPage> {
-  const ctx = getPressContext();
   const provider = getProviderData(astro, lang);
-  const locale = lang ?? pathLocale(ctx, provider.pathname);
+  const path = provider.pathname;
+  const locale = lang ?? pathLocale(ctx, path);
+  const matched = matchPageRoute(await ctx.getPageRoutes(), path)?.route;
+  // `hreflang` links only come from `alternates`
+  const route: PageRoute = {
+    path,
+    lang: locale,
+    render: "static",
+    options: {},
+    ...matched,
+    pages: [],
+  };
   const [baseOptions, head] = await Promise.all([
     ctx.getBaseOptions({ lang: locale }),
-    ctx.getHead({}),
+    ctx.getHead(notFound ? {} : { route, path }),
   ]);
   const island = await getIsland(
     provider,
     locale,
-    createElement(Home, { baseOptions, notFound, children: createElement(AstroSlot) }),
+    createElement(Home, { baseOptions, notFound, children: createElement(AstroContent) }),
   );
   const own: HeadTag[] = [];
   if (title) own.push({ tag: "title", children: title });
   if (description) own.push({ tag: "meta", attrs: { name: "description", content: description } });
-  const tags = mergeHead([own, head]);
-  if (!notFound) tags.push(...pageLinks(ctx, provider.pathname, alternates));
-  return { lang: locale, head: tags, island };
+  const links = alternates && !notFound ? pageLinks(ctx, path, alternates) : undefined;
+  return { lang: locale, head: mergeHead([own, head, links]), island };
 }

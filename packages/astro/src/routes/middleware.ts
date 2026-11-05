@@ -1,8 +1,11 @@
 import type { MiddlewareHandler } from "astro";
 import { ctx } from "./context";
-import { serve, serverFileUrl } from "./shared";
+import { serve, serveApi } from "./shared";
 
-/** the `middleware` of plugins, for requests served on demand */
+/** where Astro routes the requests of plugins, your own routes go first: `/404` has the files `[...fumapressServer]` doesn't take with `trailingSlash: "always"` */
+const pressRoutes = new Set(["/404", "/[...fumapressServer]"]);
+
+/** the `middleware` and the routes of plugins, for requests served on demand */
 export const onRequest: MiddlewareHandler = (context, next) => {
   if (context.isPrerendered) return next();
   // a rewrite is a new request through the middleware of plugins, like on Waku: `next(path)` of Astro skips the middleware, and keeps the rewritten route when its response fails
@@ -10,16 +13,15 @@ export const onRequest: MiddlewareHandler = (context, next) => {
     ctx.handleRequest(request, async (rewrite) => {
       if (rewrite !== undefined)
         return handle(new Request(new URL(ctx.withBase(rewrite), request.url), request));
-      if (request === context.request) {
-        // a file Astro's patterns don't take, it routes the request to the 404 page
-        const file =
-          context.routePattern === "/404"
-            ? await serverFileUrl(ctx, new URL(request.url))
-            : undefined;
-        return file ? next(file) : next();
+      const rewritten = request !== context.request;
+      if (rewritten || pressRoutes.has(context.routePattern)) {
+        const response = await serveApi(ctx, request);
+        if (response) return response;
       }
-      const response = await serve(ctx, request);
-      return response instanceof Response ? response : context.rewrite(request);
+      if (!rewritten) return next();
+      return (await serve(ctx, request))
+        ? context.rewrite(request)
+        : new Response(null, { status: 404 });
     });
   return handle(context.request);
 };

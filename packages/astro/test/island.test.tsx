@@ -2,15 +2,9 @@ import { createElement, forwardRef, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { createIsland, pageTrees } from "@/island/island";
-import { registerReference } from "@/island/references";
-import {
-  AstroContent,
-  AstroSlot,
-  pageTreeFiles,
-  serializeIsland,
-  type IslandData,
-} from "@/island/serialize";
+import { createIsland } from "@/island/island";
+import { registerPageTree, registerReference } from "@/island/references";
+import { AstroContent, serializeIsland, type IslandData } from "@/island/serialize";
 import * as client from "./fixtures/client";
 import { Box, Card, components } from "./fixtures/components";
 
@@ -114,8 +108,7 @@ describe("press island", () => {
 
   it("gets page trees from their file by identity", async () => {
     const tree: PageTree.Root = { name: "Docs", children: [] };
-    pageTreeFiles.set(tree, "/tree.json");
-    pageTrees.set("/tree.json", { name: "Served", children: [] });
+    registerPageTree(tree, "/tree.json", { name: "Served", children: [] });
     const island = await serializeIsland(<client.TreeName tree={tree} />);
 
     expect(island.pageTrees).toEqual(["/tree.json"]);
@@ -129,10 +122,10 @@ describe("press island", () => {
     );
   });
 
-  it("renders the children of the Astro component at `AstroSlot`", async () => {
+  it("renders the children of the Astro component at `AstroContent`", async () => {
     const island = await serializeIsland(
       <Card title="wrapper">
-        <AstroSlot />
+        <AstroContent />
       </Card>,
     );
 

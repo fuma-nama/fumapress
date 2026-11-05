@@ -2,9 +2,8 @@
 import type { ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { navigate } from "astro:transitions/client";
-import type { Framework } from "fumadocs-core/framework";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/astro";
-import { ContentLink, toHref } from "./link";
+import { Link, toHref } from "./link";
 
 /*
  * Compiled MDX imports this module through the MDX components, it never imports the layout module or the runtime.
@@ -18,11 +17,12 @@ function go(url: string) {
   return navigate(toHref(url));
 }
 
-/** the props of `RootProvider` from the data of the server, `Link` adds the base path */
-export function rootProps(
-  { pathname, params, i18n }: ProviderData,
-  Link: Framework["Link"],
-): Omit<RootProviderProps, "children"> {
+/** the props of `RootProvider` from the data of the server */
+export function rootProps({
+  pathname,
+  params,
+  i18n,
+}: ProviderData): Omit<RootProviderProps, "children"> {
   return { pathname, params, i18n, navigate: go, components: { Link } };
 }
 
@@ -37,11 +37,7 @@ export function ContentProvider({
   children: ReactNode;
 }) {
   return (
-    <RootProvider
-      {...rootProps(provider, ContentLink)}
-      theme={{ enabled: false }}
-      search={{ enabled: false }}
-    >
+    <RootProvider {...rootProps(provider)} theme={{ enabled: false }} search={{ enabled: false }}>
       {children}
     </RootProvider>
   );

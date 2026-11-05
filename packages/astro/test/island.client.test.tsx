@@ -3,9 +3,9 @@ import { act } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { expect, it, vi } from "vitest";
-import { createIsland, pageTrees } from "@/island/island";
-import { modules, registerReference } from "@/island/references";
-import { pageTreeFiles, serializeIsland } from "@/island/serialize";
+import { createIsland } from "@/island/island";
+import { modules, registerPageTree, registerReference } from "@/island/references";
+import { serializeIsland } from "@/island/serialize";
 import * as client from "./fixtures/client";
 import registry from "./fixtures/client-references";
 import { components } from "./fixtures/components";
@@ -90,10 +90,10 @@ it("hydrates when client component modules load at different times", async () =>
 it("fetches a page tree again after a failed fetch", async () => {
   registerReference("client", client);
   const tree = { name: "Docs", children: [] };
-  pageTreeFiles.set(tree, "/retry.json");
+  registerPageTree(tree, "/retry.json", tree);
   const island = await serializeIsland(<client.TreeName tree={tree} />);
   // the browser has the page tree of no page yet
-  pageTrees.clear();
+  modules.delete("/retry.json");
   const fetch = vi
     .spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(new Response(null, { status: 503 }))

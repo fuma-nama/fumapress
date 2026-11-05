@@ -12,10 +12,8 @@ declare module "virtual:fumapress/astro" {
   export const adapter: boolean;
   /** the mode without `mode` in the config: `static` without an adapter, `dynamic` with `output: 'server'` */
   export const defaultMode: import("@fumapress/core").BuildMode;
-  /** your page routes from `astro:routes:resolved`, with the paths of their pages */
-  export const routes: (Pick<import("@fumapress/core").PageRoute, "path" | "render"> & {
-    pages: string[];
-  })[];
+  /** your page routes from `astro:routes:resolved` */
+  export const routes: Pick<import("@fumapress/core").PageRoute, "path" | "render">[];
   /** in the bundle of prerendered routes, it renders the pages of the build in its process */
   export const prerender: boolean;
   /** `site` with `base`, the address of the development server in dev */

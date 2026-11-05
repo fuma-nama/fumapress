@@ -1,32 +1,44 @@
 import { createElement } from "react";
+import { renderToString } from "react-dom/server";
 import { parse } from "devalue";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { type AppShape, type Plugin, type Press } from "@fumapress/core";
-import { pageAlternate, type RuntimeContext } from "@fumapress/core/runtime";
+import type { AppShape, Plugin } from "@fumapress/core";
+import type { RuntimeContext } from "@fumapress/core/runtime";
 import { registerReference } from "@/island/references";
 import * as client from "./fixtures/client";
-import { pressContext, testPress, type TestSite } from "./harness";
+import { pressContext, type TestSite } from "./harness";
 import { contentSourcePlugin } from "@/content-source";
+import { pageTreePlugin } from "@/island/page-tree";
 
-const runtime = vi.hoisted(() => ({
-  ctx: undefined as RuntimeContext | undefined,
-  press: undefined as Press | undefined,
+const runtime = vi.hoisted(() => ({ ctx: undefined as RuntimeContext | undefined }));
+vi.mock("@/routes/context", () => ({
+  get ctx() {
+    return runtime.ctx;
+  },
 }));
 vi.mock("@/runtime", () => ({
-  getPressContext: () => runtime.ctx,
   getProviderData: () => ({ pathname: "/cn/blog", params: {} }),
-}));
-vi.mock("virtual:fumapress/config", () => ({
-  get default() {
-    return runtime.press;
-  },
 }));
 vi.mock("@fumadocs/astro/source", () => ({ NoProcessedMarkdownError: class extends Error {} }));
 vi.mock("astro:transitions/client", () => ({ navigate() {} }));
 vi.mock("astro:config/client", () => ({ base: "/", trailingSlash: "ignore" }));
 
 const { getHomeLayout, getPage } = await import("@/ui/page");
-const astro = { url: new URL("http://localhost/cn/blog"), params: {} };
+const { ContentProvider } = await import("@/ui/content");
+const { Link } = await import("@/ui/link");
+const { Provider } = await import("@/ui/provider");
+const astro = {
+  url: new URL("http://localhost/cn/blog"),
+  params: {},
+  request: new Request("http://localhost/cn/blog"),
+};
+
+/** a page rendered by `getPage()`, not a response */
+async function renderedPage(props: Parameters<typeof getPage>[1]) {
+  const page = await getPage(astro, props);
+  if (page instanceof Response) throw new Error(`the response of a page: ${page.status}`);
+  return page;
+}
 const docs = {
   files: [
     { type: "page" as const, path: "index.mdx", data: { title: "Home", load: async () => ({}) } },
@@ -40,8 +52,11 @@ async function site(plugin: Plugin<AppShape, any> = {}, config: Partial<TestSite
     plugins: [plugin],
     ...config,
   };
-  runtime.press = testPress(options);
-  runtime.ctx = await pressContext(options, { defaults: [contentSourcePlugin()] });
+  runtime.ctx = await pressContext(options, {
+    defaults: [contentSourcePlugin(), pageTreePlugin()],
+  });
+  // like the static paths or the routing of a request, before pages render
+  await runtime.ctx.getPageRoutes();
   return runtime.ctx;
 }
 
@@ -50,7 +65,6 @@ function islandTree(tree: string): unknown {
   return parse(tree, {
     ref: ([, name]: [string, string]) => name,
     slot: String,
-    pageTree: String,
     tree: (nodes: unknown) => nodes,
   });
 }
@@ -101,7 +115,7 @@ describe("pages", () => {
       api: { DocsLayout: client.TestLayout },
     } as Plugin<AppShape, { provides: "ai-chat" }>);
     const [page] = (await ctx.getLoader()).getPages();
-    const { island } = await getPage(astro, { page: page! });
+    const { island } = await renderedPage({ page: page! });
 
     expect(island.tree).toContain('"DefaultDocs"');
     expect(JSON.stringify(islandTree(island.tree))).toContain('"layout":"TestLayout"');
@@ -110,7 +124,7 @@ describe("pages", () => {
   it("render the default UI with the page tree as a file, preloaded", async () => {
     const ctx = await site();
     const [page] = (await ctx.getLoader()).getPages();
-    const { head, island } = await getPage(astro, { page: page! });
+    const { head, island } = await renderedPage({ page: page! });
 
     expect(island.tree).toContain('"DefaultDocs"');
     expect(island.pageTrees).toHaveLength(1);
@@ -130,7 +144,7 @@ describe("pages", () => {
       },
     );
     const [page] = (await ctx.getLoader()).getPages();
-    const { tree, pageTrees } = (await getPage(astro, { page: page! })).island;
+    const { tree, pageTrees } = (await renderedPage({ page: page! })).island;
 
     expect(tree.indexOf('"Frame"')).toBeGreaterThan(-1);
     expect(tree.indexOf('"default"')).toBeGreaterThan(tree.indexOf('"Frame"'));
@@ -144,10 +158,9 @@ describe("pages", () => {
       routes: ({ createView }) => createView({ path: "/test", view: () => view }),
     };
     const ctx = await site(views);
-    const [routed] = await ctx.getViewRoutes();
-    const { head, island } = await getPage(astro, {
-      view: { ...routed!, page: routed!.route.pages[0]! },
-      content: view,
+    const [route] = await ctx.getPageRoutes();
+    const { head, island } = await renderedPage({
+      view: { route: route!, page: route!.pages[0]! },
     });
 
     expect(island.tree).toContain('"HomeShell"');
@@ -161,22 +174,105 @@ describe("pages", () => {
   });
 });
 
+describe("links", () => {
+  it("are recorded for the `build` of plugins, in the providers of pages and of content", () => {
+    globalThis.FUMAPRESS_BUILD = { links: [] };
+    const provider = { pathname: "/from", params: {} };
+    const children = createElement(Link, { href: "/missing" });
+    renderToString(createElement(Provider, { provider, props: {}, children }));
+    renderToString(createElement(ContentProvider, { provider, children }));
+    const { links } = globalThis.FUMAPRESS_BUILD;
+    globalThis.FUMAPRESS_BUILD = undefined;
+
+    const link = { href: "/missing", fromPathname: "/from" };
+    expect(links).toEqual([link, link]);
+  });
+});
+
+describe("responses", () => {
+  it("redirect, and answer 404 for a view without content", async () => {
+    const ctx = await site({
+      routes: ({ createView }) => createView({ path: "/empty", view: () => undefined }),
+    });
+    const [route] = await ctx.getPageRoutes();
+    const empty = await getPage(astro, { view: { route: route!, page: route!.pages[0]! } });
+    const redirect = await getPage(astro, { redirect: "/sub/en" });
+
+    expect((empty as Response).status).toBe(404);
+    expect((redirect as Response).status).toBe(302);
+    expect((redirect as Response).headers.get("Location")).toBe("/sub/en");
+    expect(((await getPage(astro, {})) as Response).status).toBe(404);
+  });
+
+  it("render a dynamic view with the request", async () => {
+    const view = vi.fn(() => ({ type: "test" as const, props: {}, node: "live" }));
+    const ctx = await site({
+      routes: ({ createView }) => createView({ path: "/live/[id]", render: "dynamic", view }),
+    });
+    const [route] = await ctx.getPageRoutes();
+    const page = { path: "/live/42", params: { id: "42" }, translations: [] };
+    const { island } = await renderedPage({ view: { route: route!, page } });
+
+    expect(island.tree).toContain('"live"');
+    expect(view).toHaveBeenCalledWith(page.params, { lang: undefined, request: astro.request });
+  });
+});
+
 describe("head tags", () => {
+  it("run the `head` of the page with its route, your tags winning by key", async () => {
+    const head = vi.fn<NonNullable<Plugin["head"]>>(() => undefined);
+    await site(
+      { head },
+      {
+        head: ({ path }) => [
+          { tag: "link", attrs: { rel: "canonical", href: `https://site.example${path}` } },
+        ],
+      },
+    );
+    const { head: tags } = await getHomeLayout(astro, { description: "About" });
+
+    expect(head).toHaveBeenCalledWith(expect.objectContaining({ path: "/cn/blog" }));
+    expect(tags.filter((tag) => tag.attrs?.rel === "canonical")).toEqual([
+      { tag: "link", attrs: { rel: "canonical", href: "https://site.example/cn/blog" } },
+    ]);
+    expect(tags).toContainEqual({ tag: "meta", attrs: { name: "description", content: "About" } });
+  });
+
+  it("have no links on a not found page, with its title", async () => {
+    await site();
+    const { head: tags } = await getHomeLayout(astro, { title: "Gone", notFound: true });
+
+    expect(tags).toContainEqual({ tag: "title", children: "Gone" });
+    expect(tags.some((tag) => tag.tag === "link")).toBe(false);
+  });
+
   it("link the translations of your page", async () => {
-    const ctx = await site();
+    await site();
     const { head } = await getHomeLayout(astro, {
       title: "Blog",
-      alternates: [pageAlternate(ctx, "en", "/en/blog"), pageAlternate(ctx, "cn", "/cn/blog")],
+      alternates: [
+        { lang: "en", hreflang: "en", href: "https://example.com/en/blog" },
+        { lang: "cn", hreflang: "zh-Hant", href: "https://example.com/cn/blog" },
+      ],
     });
 
-    expect(head).toContainEqual({ tag: "title", children: "Blog" });
-    expect(head).toContainEqual({
+    const link = (rel: string, href: string, hreflang?: string) => ({
       tag: "link",
-      attrs: { rel: "canonical", href: "https://example.com/cn/blog" },
+      attrs: { rel, ...(hreflang && { hreflang }), href },
     });
-    expect(head).toContainEqual({
-      tag: "link",
-      attrs: { rel: "alternate", hreflang: "en", href: "https://example.com/en/blog" },
-    });
+    for (const tag of [
+      { tag: "title", children: "Blog" },
+      link("canonical", "https://example.com/cn/blog"),
+      link("alternate", "https://example.com/en/blog", "en"),
+      link("alternate", "https://example.com/cn/blog", "zh-Hant"),
+      link("alternate", "https://example.com/en/blog", "x-default"),
+    ])
+      expect(head).toContainEqual(tag);
+  });
+
+  it("link no translations without `alternates`", async () => {
+    await site();
+    const { head } = await getHomeLayout(astro, { title: "Blog" });
+    expect(head.some((tag) => tag.attrs?.rel === "alternate")).toBe(false);
   });
 });

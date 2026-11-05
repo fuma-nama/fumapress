@@ -24,24 +24,24 @@ async function load(config: Partial<TestSite>, astro: Partial<AstroValues> = {})
 }
 
 const build: Plugin = { build() {} };
+const view = (path: string, type: string, lang?: string) => ({
+  lang,
+  path,
+  view: () => ({ type, props: {}, node: "" }),
+});
 
 afterEach(() => {
   globalThis.FUMAPRESS_BUILD = undefined;
 });
 
 describe("mode", () => {
-  it("is static without an adapter, default with one, dynamic with `output: 'server'`", async () => {
-    expect((await load({})).getPressContext().mode).toBe("static");
-    expect((await load({}, { adapter: true, defaultMode: "default" })).getPressContext().mode).toBe(
-      "default",
-    );
-    expect((await load({}, { adapter: true, defaultMode: "dynamic" })).getPressContext().mode).toBe(
-      "dynamic",
-    );
-    expect(
-      (await load({ mode: "static" }, { adapter: true, defaultMode: "dynamic" })).getPressContext()
-        .mode,
-    ).toBe("static");
+  it.each<[string, Partial<TestSite>, Partial<AstroValues>, string]>([
+    ["static without an adapter", {}, {}, "static"],
+    ["default with an adapter", {}, { adapter: true, defaultMode: "default" }, "default"],
+    ["dynamic with `output: 'server'`", {}, { adapter: true, defaultMode: "dynamic" }, "dynamic"],
+    ["yours over Astro's", { mode: "static" }, { adapter: true, defaultMode: "dynamic" }, "static"],
+  ])("is %s", async (_, config, astro, expected) => {
+    expect((await load(config, astro)).getPressContext().mode).toBe(expected);
   });
 
   it("needs an adapter to render on request", async () => {
@@ -73,70 +73,77 @@ describe("build hooks", () => {
   });
 });
 
-describe("provider data", () => {
+it("has the path of pages in the provider data", async () => {
+  const { getProviderData } = await load({});
   const astro = { url: new URL("http://localhost/docs/page/"), params: {} };
-
-  it("has the path of pages", async () => {
-    const { getProviderData } = await load({});
-    expect(getProviderData(astro)).toEqual({ pathname: "/docs/page", params: {} });
-  });
+  expect(getProviderData(astro)).toEqual({ pathname: "/docs/page", params: {} });
 });
 
-describe("framework routes", () => {
-  it("are your pages, then the views", async () => {
-    const { getPressContext } = await load(
-      {
-        i18n: { languages: ["en", "cn"], defaultLanguage: "en" },
-        plugins: [
-          {
-            routes({ createView }) {
-              for (const lang of this.languages)
-                createView({
-                  lang,
-                  path: "/blog",
-                  view: () => ({ type: "blog", props: {}, node: "" }),
-                });
-            },
+it("makes your pages framework routes, before the views", async () => {
+  const { getPressContext } = await load(
+    {
+      i18n: { languages: ["en", "cn"], defaultLanguage: "en" },
+      plugins: [
+        {
+          routes({ createView }) {
+            for (const lang of this.languages) createView(view("/blog", "blog", lang));
           },
-        ],
-      },
-      {
-        routes: [
-          { path: "/about", render: "static", pages: ["/about"] },
-          { path: "/cn/about", render: "static", pages: ["/cn/about"] },
-          { path: "/users/[id]", render: "dynamic", pages: [] },
-        ],
-      },
-    );
-    const routes = await getPressContext().getRoutes();
-    expect(routes.map(({ path, lang, render }) => [path, lang, render])).toEqual([
-      ["/about", "en", "static"],
-      ["/cn/about", "cn", "static"],
-      ["/users/[id]", "en", "dynamic"],
-      ["/en/blog", "en", "static"],
-      ["/cn/blog", "cn", "static"],
-    ]);
-    expect(routes[0]!.pages).toEqual([{ path: "/about", translations: [], params: {} }]);
-  });
+        },
+      ],
+    },
+    {
+      routes: [
+        { path: "/about", render: "static" },
+        { path: "/cn/about", render: "static" },
+        { path: "/users/[id]", render: "dynamic" },
+      ],
+    },
+  );
+  const routes = await getPressContext().getPageRoutes();
+  expect(routes.map(({ path, lang, render }) => [path, lang, render])).toEqual([
+    // outside the prefixes of the languages
+    ["/about", undefined, "static"],
+    ["/cn/about", "cn", "static"],
+    ["/users/[id]", undefined, "dynamic"],
+    ["/en/blog", "en", "static"],
+    ["/cn/blog", "cn", "static"],
+  ]);
+  expect(routes[1]!.pages).toEqual([
+    { path: "/cn/about", translations: [{ lang: "cn", path: "/cn/about" }], params: {} },
+  ]);
 });
 
-describe("plugins of Waku", () => {
-  it("are reported in development", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const waku = { name: "my-waku-plugin", waku: {} } as Plugin;
-    await load({ plugins: [waku] });
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("my-waku-plugin"));
-    warn.mockRestore();
-  });
+it("keeps the URL segment of your pages in parenthesized folders, in the sitemap and in path conflicts", async () => {
+  const { getPressContext } = await load(
+    { plugins: [{ routes: ({ createView }) => createView(view("/y", "y")) }] },
+    {
+      routes: [
+        { path: "/(x)/y", render: "static" },
+        { path: "/(x)/[id]", render: "dynamic" },
+      ],
+    },
+  );
+  const routes = await getPressContext().getPageRoutes();
+  expect(routes.map(({ path }) => path)).toEqual(["/%28x)/y", "/%28x)/[id]", "/y"]);
+  expect(routes.map(({ pages }) => pages.map((page) => page.path))).toEqual([
+    ["/%28x)/y"],
+    [],
+    ["/y"],
+  ]);
 });
 
-describe("client references", () => {
-  it("are the exports of `'use client'` modules in the registry", async () => {
-    const { getPressContext } = await load({});
-    const { registerReference } = await import("@/island/references");
-    const Client = () => null;
-    registerReference("client", { Client });
-    expect(getPressContext().isClientReference(Client)).toBe(true);
-    expect(getPressContext().isClientReference(() => null)).toBe(false);
-  });
+it("takes the exports of `'use client'` modules in the registry as client references", async () => {
+  const { getPressContext } = await load({});
+  const { registerReference } = await import("@/island/references");
+  const Client = () => null;
+  registerReference("client", { Client });
+  expect(getPressContext().isClientReference(Client)).toBe(true);
+  expect(getPressContext().isClientReference(() => null)).toBe(false);
+});
+
+it("reports plugins of Waku in development", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  await load({ plugins: [{ name: "my-waku-plugin", waku: {} } as Plugin] });
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining("my-waku-plugin"));
+  warn.mockRestore();
 });

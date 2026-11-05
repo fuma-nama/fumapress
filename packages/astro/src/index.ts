@@ -2,11 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
-import type { Connect, DevEnvironment, Plugin, RunnableDevEnvironment } from "vite";
+import type { Connect, DevEnvironment, Plugin, RunnableDevEnvironment, ViteDevServer } from "vite";
 import fumadocs, { type CollectionConfig, type FumadocsOptions } from "@fumadocs/astro";
-import { stripBase } from "@fumapress/core";
+import { stripBase, type BuildMode } from "@fumapress/core";
 import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/runtime/vite";
-import type { BuildMode } from "@fumapress/core";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
 import type * as Routes from "./routes/shared";
@@ -48,6 +47,7 @@ export default function press({
   let routes: typeof Generated.routes = [];
   let onDemand: RegExp[] = [];
   let devUrl: string | undefined;
+  let server: ViteDevServer | undefined;
 
   return [
     fumadocs({ ...options, collections: contentCollections }),
@@ -157,9 +157,20 @@ export default withProvider(components);`;
               routes.push({
                 path: route.pattern,
                 render: route.isPrerendered ? "static" : "dynamic",
-                pages: route.pathname ? [route.pathname] : [],
               });
           }
+          // a page added in dev, the runtime has them in its generated module
+          const ssr = server?.environments.ssr;
+          const id = "virtual:fumapress/astro";
+          const generated = ssr?.moduleGraph.getModuleById(id);
+          if (generated) {
+            ssr?.moduleGraph.invalidateModule(generated);
+            // only its importers run again, other pages may be deleted
+            ssr?.hot.send({ type: "full-reload", triggeredBy: id });
+          }
+        },
+        "astro:server:setup"(params) {
+          server = params.server;
         },
         "astro:server:start"({ address }) {
           devUrl = `http://localhost:${address.port}${basePath}`;

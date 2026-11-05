@@ -1,10 +1,9 @@
 import { parse } from "devalue";
 import { createElement, Fragment, Suspense, use, type ComponentType, type ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
-import type * as PageTree from "fumadocs-core/page-tree";
 import { deserializePageTree, type SerializedPageTree } from "fumadocs-core/source/client";
 import registry from "virtual:fumapress/client-references";
-import { modules, type ClientReference } from "./references";
+import { isFileKey, modules, type ClientReference } from "./references";
 import type { Slot } from "./serialize";
 
 export interface PressIslandProps {
@@ -30,50 +29,32 @@ export type IslandNode =
       ...children: IslandNode[],
     ];
 
-/** the imports of client component modules in the browser, by key */
+/** the loads of client references in the browser, by key; forgotten when they fail: a later render (like after a navigation) tries again */
 const loading = new Map<string, Promise<void>>();
 
-/** page trees by the URL of their file: set by the server, fetched once in the browser */
-export const pageTrees = new Map<string, PageTree.Root>();
-const fetching = new Map<string, Promise<void>>();
-
-/** `promise`, forgotten by `cache` when it fails: a later render (like after a navigation) tries again */
-function retryable(cache: Map<string, Promise<void>>, key: string, promise: Promise<void>) {
-  const out = promise.catch((error: unknown) => {
-    cache.delete(key);
-    throw error;
-  });
-  cache.set(key, out);
-  return out;
+async function fetchPageTree(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`[Fumapress] failed to fetch the page tree ${url}: ${res.status}`);
+  const serialized: SerializedPageTree = await res.json();
+  return { tree: deserializePageTree(serialized) };
 }
 
-function fetchPageTree(url: string): Promise<void> {
-  return (
-    fetching.get(url) ??
-    retryable(
-      fetching,
-      url,
-      fetch(url).then(async (res) => {
-        if (!res.ok)
-          throw new Error(`[Fumapress] failed to fetch the page tree ${url}: ${res.status}`);
-        const serialized: SerializedPageTree = await res.json();
-        pageTrees.set(url, deserializePageTree(serialized));
-      }),
-    )
-  );
-}
-
-/** import a client component module in the browser into `modules` */
+/** import a client component module in the browser into `modules`, or fetch a file */
 function load(key: string): Promise<void> {
   const promise = loading.get(key);
   if (promise) return promise;
-  const importer = registry[key];
-  if (importer)
-    return retryable(
-      loading,
-      key,
-      importer().then((module) => void modules.set(key, module)),
+  const importer = isFileKey(key) ? () => fetchPageTree(key) : registry[key];
+  if (importer) {
+    const out = importer().then(
+      (module) => void modules.set(key, module),
+      (error: unknown) => {
+        loading.delete(key);
+        throw error;
+      },
     );
+    loading.set(key, out);
+    return out;
+  }
 
   // the dev server discovers client components as it renders them, the registry of this page lags behind
   if (import.meta.hot) location.reload();
@@ -104,9 +85,9 @@ export function createIsland(components: MDXComponents) {
     return createElement(tagName, props || null, ...children.map(toReact));
   }
 
-  /** client references are the exports of their modules, it suspends until the missing modules and page trees are loaded */
+  /** client references are the exports of their modules, it suspends until the missing modules are loaded */
   function IslandTree({ tree, ...slots }: PressIslandProps) {
-    // the browser's imports and fetches, done or not: React replays a suspended render with the promises of the last
+    // the browser's loads, done or not: React replays a suspended render with the promises of the last
     // one by position, so a finished one left out would stand in for the next unfinished one
     const promises = new Set<Promise<void>>();
     let missing = false;
@@ -121,14 +102,8 @@ export function createIsland(components: MDXComponents) {
         if (module) return module[name];
         missing = true;
       },
-      pageTree: (url: string) => {
-        const tree = pageTrees.get(url);
-        if (!tree || fetching.has(url)) promises.add(fetchPageTree(url));
-        if (tree) return tree;
-        missing = true;
-      },
     });
-    // the imports run in parallel, they all started while parsing
+    // they run in parallel, they all started while parsing
     for (const promise of promises) use(promise);
     return createElement(Fragment, null, ...nodes.map(toReact));
   }

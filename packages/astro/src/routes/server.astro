@@ -1,11 +1,11 @@
 ---
-import Page from "../ui/Page.astro";
+import Layout from "../ui/Layout.astro";
+import { getPage } from "../ui/page.js";
 import { ctx } from "./context.js";
-import { pageTarget, serve } from "./shared.js";
+import { serve } from "./shared.js";
 
-const result = await serve(ctx, Astro.request);
-const target = result instanceof Response ? result : await pageTarget(result, Astro.request);
-if (target instanceof Response) return target;
+const page = await getPage(Astro, (await serve(ctx, Astro.request)) ?? {});
+if (page instanceof Response) return page;
 ---
 
-<Page {...target} />
+<Layout {...page} />
