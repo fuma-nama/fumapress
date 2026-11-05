@@ -350,6 +350,8 @@ import asyncapiPlugin from "@fumadocs/asyncapi/press";
 
 `@fumapress/notion`, `@fumapress/sanity`, `@fumapress/obsidian` and `@fumapress/graphql` are removed. Use the Fumadocs `/press` plugins: `notionPlugin({ notion, ...options })` of `@fumadocs/notion/press`, `sanityPlugin({ components })` of `@fumadocs/sanity/press`, `obsidianPlugin({ vault, components })` of `fumadocs-obsidian/press` and `graphqlPlugin({ server })` of `@fumadocs/graphql/press`.
 
+To replace the Notion renderer, override `getPageBody` of the plugin object: `{ ...notionPlugin({ notion }), getPageBody }`.
+
 ### Feedback
 
 Drop `"use server"` from the action. A plain function becomes the `/api/feedback/page` route. A `'use client'` function runs in the browser, which works on static sites. Place `footer.feedback` in custom pages.
