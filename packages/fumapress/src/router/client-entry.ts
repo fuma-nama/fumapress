@@ -23,6 +23,10 @@ async function decode(url: string) {
   return createFromFetch(Promise.resolve(res));
 }
 
+// Waku's router throws on its base path without the trailing slash, where hosts like Cloudflare redirect it
+if (!import.meta.env.SSR && `${location.pathname}/` === import.meta.env.BASE_URL)
+  history.replaceState(null, "", import.meta.env.BASE_URL + location.search + location.hash);
+
 const modules = new Map<string, Promise<unknown>>();
 const load = globalThis.__vite_rsc_client_require__;
 

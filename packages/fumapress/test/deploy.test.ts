@@ -48,6 +48,19 @@ test("caches hashed assets under the base path", async () => {
   );
 });
 
+test("serves the base path from the generated Wrangler configs", async () => {
+  mkdirSync("dist/server");
+  writeFileSync("dist/server/wrangler.json", JSON.stringify(generated));
+  await run({ FUMAPRESS_BASE_PATH: "/docs/" });
+
+  const assets = { ...generated.assets, base_path: "/docs" };
+  expect(JSON.parse(readFileSync("wrangler.jsonc", "utf-8"))).toEqual({ ...generated, assets });
+  expect(JSON.parse(readFileSync("dist/server/wrangler.json", "utf-8"))).toEqual({
+    ...generated,
+    assets,
+  });
+});
+
 test("keeps the project's own _headers", async () => {
   writeFileSync("dist/public/_headers", "/*\n  X-Custom: 1\n");
   await run();

@@ -226,10 +226,10 @@ function core(options: WakuPressOptions = {}): Plugin {
       };
     },
     transform: {
-      // the client module loader of `@vitejs/plugin-rsc` is set on import
+      // runs before Waku's entries, after `@vitejs/plugin-rsc` sets its client module loader on import
       filter: { id: /\/waku\/dist\/lib\/vite-entries\/entry\.(browser|ssr)\.js/ },
       handler(code, id) {
-        const file = fileURLToPath(new URL("./router/page-tree.client.js", import.meta.url));
+        const file = fileURLToPath(new URL("./router/client-entry.js", import.meta.url));
         return `import "@vitejs/plugin-rsc/${id.includes("entry.ssr") ? "ssr" : "browser"}";\nimport ${JSON.stringify(file)};\n${code}`;
       },
     },

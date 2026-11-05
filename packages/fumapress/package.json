@@ -20,7 +20,7 @@
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/router/page-tree.client.js"
+    "./dist/router/client-entry.js"
   ],
   "exports": {
     ".": "./dist/index.js",

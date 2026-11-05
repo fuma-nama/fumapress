@@ -13,7 +13,7 @@ const wranglerConfigs = ["wrangler.toml", "wrangler.json", "wrangler.jsonc"];
 
 /**
  * Post-build step for Cloudflare and Netlify: cache hashed assets, serve pages at their slashless
- * URLs, and serve `404.html` for unknown URLs on Cloudflare static assets.
+ * URLs, and on Cloudflare static assets serve the base path and `404.html` for unknown URLs.
  */
 export default async function buildEnhancer(
   build: (utils: unknown, options: BuildOptions) => Promise<void>,
@@ -48,8 +48,14 @@ function postBuild(
     });
   }
 
-  if (serverless || hadWranglerConfig || !existsSync("wrangler.jsonc")) return;
-  const config = JSON.parse(readFileSync("wrangler.jsonc", "utf-8"));
-  config.assets.not_found_handling = "404-page";
-  writeFileSync("wrangler.jsonc", JSON.stringify(config, null, 2) + "\n");
+  // the generated Wrangler configs, Waku regenerates the one of the built Worker
+  const configs = [path.join(distDir, "server", "wrangler.json")];
+  if (!hadWranglerConfig) configs.push("wrangler.jsonc");
+  for (const file of configs) {
+    if (!existsSync(file)) continue;
+    const config = JSON.parse(readFileSync(file, "utf-8"));
+    if (FUMAPRESS_BASE_PATH !== "/") config.assets.base_path = FUMAPRESS_BASE_PATH.slice(0, -1);
+    if (!serverless) config.assets.not_found_handling = "404-page";
+    writeFileSync(file, JSON.stringify(config, null, 2) + "\n");
+  }
 }

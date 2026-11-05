@@ -8,7 +8,7 @@ const files = new WeakMap<PageTree.Root, Promise<string>>();
 
 /**
  * A tree in the payload of every page makes the output of a site quadratic to its pages. Its node lists become client
- * references to a file wherever Flight meets them: the client gets them back like a client module (`page-tree.client.ts`),
+ * references to a file wherever Flight meets them: the client gets them back like a client module (`client-entry.ts`),
  * the server still has the same arrays.
  */
 async function createFile(ctx: Context, tree: PageTree.Root, lang: string | undefined) {

@@ -11,7 +11,7 @@ export default defineConfig({
     "src/router/index.tsx",
     "src/router/fs.tsx",
     "src/router/deploy.enhancer.ts",
-    "src/router/page-tree.client.ts",
+    "src/router/client-entry.ts",
     "src/adapters/**",
     "src/plugins/*",
     "src/plugins/image/{cloudflare,vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
@@ -21,7 +21,7 @@ export default defineConfig({
   dts: true,
   exports: {
     bin: false,
-    exclude: ["router/page-tree.client"],
+    exclude: ["router/client-entry"],
     customExports: {
       "./css/preset.css": "./css/preset.css",
       "./css/default.css": "./css/default.css",
