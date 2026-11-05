@@ -1,16 +1,11 @@
 "use client";
 import { useTreePath } from "fumadocs-ui/contexts/tree";
 import { Card, Cards } from "fumadocs-ui/components/card";
-import type * as PageTree from "fumadocs-core/page-tree";
 
 /** the pages of the current page's folder */
 export function DocsCategory() {
   const path = useTreePath();
-  let folder: PageTree.Folder | undefined;
-  for (let i = path.length - 1; i >= 0 && !folder; i--) {
-    const node = path[i]!;
-    if (node.type === "folder") folder = node;
-  }
+  const folder = path.findLast((node) => node.type === "folder");
   if (!folder) return null;
 
   return (

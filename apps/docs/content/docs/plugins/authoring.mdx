@@ -65,7 +65,7 @@ export default createPress({ docs: docs.toFumadocsSource() })
 
 ## Views
 
-`createView()` in the `routes` hook registers pages rendered in the [Home Layout](https://fumadocs.dev/docs/ui/layouts/home). A view is created in every language and receives its `lang`. Set `lang` to create it in one language, like a path that differs per language. The site prefixes `path` with the language segment and links the pages of other languages as translations. `ui.renderPage` renders each view as `props.type`.
+`createView()` in the `routes` hook registers pages rendered in the [Home Layout](https://fumadocs.dev/docs/ui/layouts/home). A view is created in every language and receives its `lang`. Set `lang` to create it in one language, like a path that differs per language. The site prefixes `path` with the language segment and links the pages of other languages as translations. `ui.renderPage` receives each view as `props.type`, like the [Overview](#overview), with its `node` as `props.children`.
 
 ```tsx title="acme/index.tsx"
 import type { AppShape, Plugin } from "@fumapress/core";
@@ -109,61 +109,25 @@ export function showcasePlugin<C extends AppShape = AppShape>(options: {
 }
 ```
 
-The site renders the view with `ui.renderPage`:
-
-```tsx title="press.config.tsx"
-import { createPress } from "fumapress";
-
-export default createPress({ docs: docs.toFumadocsSource() })
-  .plugins(showcasePlugin({ items: [{ name: "Fumapress", url: "https://press.fumadocs.dev" }] }))
-  .config({
-    ui: {
-      renderPage(props) {
-        const { renderDefault } = props;
-        switch (props.type) {
-          case "showcase.index":
-            return (
-              <section>
-                {props.items.length} sites
-                {props.children}
-              </section>
-            );
-          default:
-            return renderDefault();
-        }
-      },
-    },
-  });
-```
-
 A view rendered on request (`render: "dynamic"`) receives the request. Return `undefined` for a 404:
 
 ```tsx title="acme/index.tsx"
-import type { AppShape, Plugin } from "@fumapress/core";
-
-type AccountTypes = { views: { "acme.account": { user: string } } };
-
-export function accountPlugin<C extends AppShape = AppShape>(): Plugin<C, AccountTypes> {
-  return {
-    name: "acme:account",
-    routes({ createView }) {
-      createView({
-        path: "/account",
-        render: "dynamic",
-        view(_params, { request }) {
-          const user = /session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
-          if (!user) return;
-          return {
-            type: "acme.account",
-            props: { user },
-            node: <p>Signed in as {user}</p>,
-            title: "Account",
-          };
-        },
-      });
+routes({ createView }) {
+  createView({
+    path: "/account",
+    render: "dynamic",
+    view(_params, { request }) {
+      const user = /session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
+      if (!user) return;
+      return {
+        type: "acme.account",
+        props: { user },
+        node: <p>Signed in as {user}</p>,
+        title: "Account",
+      };
     },
-  };
-}
+  });
+},
 ```
 
 ## API Routes
@@ -189,36 +153,27 @@ A static site can't serve routes handled on the server, and the build fails nami
 `deriveRoutes(fns, { lang, routes })` creates a route per page from the final page routes of a language. Use it for print pages or per-page Markdown:
 
 ```tsx title="acme/index.tsx"
-import type { AppShape, Plugin } from "@fumapress/core";
-
-type PrintTypes<P> = { views: { print: { page: P } } };
-
-export function printPlugin<C extends AppShape = AppShape>(): Plugin<C, PrintTypes<C["page"]>> {
-  return {
-    name: "acme:print",
-    async deriveRoutes({ createView }, { lang }) {
-      const loader = await this.getLoader();
-      createView({
-        path: "/print/[...slugs]",
-        staticPaths: loader.getPages(lang).map((page) => page.slugs),
-        view: async ({ slugs }) => {
-          const page = loader.getPage(slugs as string[], lang);
-          if (!page) return;
-          const body = await this.getPageBody(page);
-          return {
-            type: "print",
-            props: { page },
-            node: body?.node,
-            title: page.data.title,
-          };
-        },
-      });
+async deriveRoutes({ createView }, { lang }) {
+  const loader = await this.getLoader();
+  createView({
+    path: "/print/[...slugs]",
+    staticPaths: loader.getPages(lang).map((page) => page.slugs),
+    view: async ({ slugs }) => {
+      const page = loader.getPage(slugs as string[], lang);
+      if (!page) return;
+      const body = await this.getPageBody(page);
+      return {
+        type: "print",
+        props: { page },
+        node: body?.node,
+        title: page.data.title,
+      };
     },
-  };
-}
+  });
+},
 ```
 
-The path has no language prefix; the site adds it. A view without `lang` is created in the language of the call.
+The path has no language prefix; the site adds it. A view without `lang` is created in the language of the call. Type its props with `C["page"]`: `Plugin<C, { views: { print: { page: C["page"] } } }>`.
 
 ## Page Views
 
@@ -231,35 +186,17 @@ See [Blog](/docs/plugins/blog) for a complete example. For the rendering hooks (
 `slots({ page })` adds UI to layouts. Named slots (`actions` and `footer`) appear in `ui.renderPage` as `props.actions[name]` and `props.footer[name]`. Wrapper slots (`body.wrapper` and `layout.wrapper`) receive their content as `children`. `order` controls nesting: lower is outer.
 
 ```tsx title="acme/index.tsx"
-import type { AppShape, Plugin } from "@fumapress/core";
-import { ShowcaseAction } from "./action";
-
-export type ShowcaseTypes = {
-  views: { "showcase.index": { items: ShowcaseItem[] } };
-  actions: "showcase";
-};
-
-export function showcasePlugin<C extends AppShape = AppShape>(options: {
-  items: ShowcaseItem[];
-  path?: string;
-}): Plugin<C, ShowcaseTypes> {
-  const path = options.path ?? "/showcase";
-  return {
-    name: "acme:showcase",
-    // ...
-    slots({ page }) {
-      if (!page) return;
-      return [
-        {
-          slot: "actions",
-          name: "showcase",
-          component: ShowcaseAction,
-          props: { href: this.withBase(path) },
-        },
-      ];
+slots({ page }) {
+  if (!page) return;
+  return [
+    {
+      slot: "actions",
+      name: "showcase",
+      component: ShowcaseAction,
+      props: { href: this.withBase(path) },
     },
-  };
-}
+  ];
+},
 ```
 
 The `props` of a client component must be serializable.
@@ -280,39 +217,22 @@ baseOptions({ lang }) {
 
 ## Head Tags
 
-`head({ page, route, path, view })` adds tags to `<head>`. The site-wide call has no `page`, `route` or `path`. Per-page calls include them. The site's tags win over plugins' by key.
-
-```tsx title="acme/index.tsx"
-head({ page, route }) {
-  if (page || route) return;
-  return [{ tag: "meta", attrs: { name: "generator", content: "acme" } }];
-},
-```
+`head({ page, route, path, view })` adds tags to `<head>`, like the `generator` tag of the [Overview](#overview). The site-wide call has no `page`, `route` or `path`. Per-page calls include them. The site's tags win over plugins' by key.
 
 ## Middleware
 
 `middleware(request, next)` runs before routes on the server. Call `next()` to continue, or `next(path)` to serve another path instead. Middleware requires a server; it does not apply to static deployments.
 
 ```tsx title="acme/index.tsx"
-import type { AppShape, Plugin } from "fumapress";
-
-function guardPlugin<C extends AppShape = AppShape>(options: {
-  prefix: string;
-  token: string;
-}): Plugin<C> {
-  return {
-    name: "acme:guard",
-    async middleware(request, next) {
-      const { pathname } = new URL(request.url);
-      if (
-        pathname.startsWith(this.withBase(options.prefix)) &&
-        request.headers.get("authorization") !== `Bearer ${options.token}`
-      )
-        return new Response("Unauthorized", { status: 401 });
-      return next();
-    },
-  };
-}
+async middleware(request, next) {
+  const { pathname } = new URL(request.url);
+  if (
+    pathname.startsWith(this.withBase(options.prefix)) &&
+    request.headers.get("authorization") !== `Bearer ${options.token}`
+  )
+    return new Response("Unauthorized", { status: 401 });
+  return next();
+},
 ```
 
 ## Capabilities
@@ -369,65 +289,42 @@ type AcmeTypes = {
 
 ## Waku Hooks
 
-Waku only. `WakuPlugin<C>` adds hooks under `waku` for the Waku router and server. `C` extends `WakuAppShape`, so Astro sites refuse the plugin by type.
+Waku only. `WakuPlugin<C>` adds hooks under `waku` for the Waku router and server. `C` extends `WakuAppShape`, so Astro sites refuse the plugin by type. An [inline plugin](/docs/plugins#inline-plugins) can set them too.
 
-`waku.createPages` creates pages and layouts with `createPage`, `createLayout` and `createSlice`. Each is registered once per language with `lang`:
+`waku.createPages` creates pages and layouts with `createPage` and `createLayout`, each registered once per language with `lang`. `createSlice`, `createApi`, `createInterceptor` and `createRoot` are Waku's own.
 
 ```tsx title="acme/index.tsx"
 import type { ReactNode } from "react";
-import { Slice } from "waku/router/client";
 import type { WakuAppShape, WakuPlugin } from "fumapress";
 
-export interface ShowcaseOptions {
+export function showcasePlugin<C extends WakuAppShape = WakuAppShape>(options: {
   items: Record<string, { title: string }>;
   analyticsId: string;
-}
-
-function ShowcaseLayout({ children }: { children: ReactNode }) {
-  return <section data-showcase="">{children}</section>;
-}
-
-async function Stars() {
-  const response = await fetch("https://api.github.com/repos/fuma-nama/fumadocs");
-  return <span>{response.status}</span>;
-}
-
-export function showcasePlugin<C extends WakuAppShape = WakuAppShape>(
-  options: ShowcaseOptions,
-): WakuPlugin<C> {
+}): WakuPlugin<C> {
   return {
     name: "acme:showcase",
-    routes: ({ createApi }) => createApi({ path: "/acme/ping", GET: () => new Response("pong") }),
     waku: {
-      createPages({ createSlice, createLayout, createPage }) {
-        createSlice({ id: "acme-stars", render: "dynamic", component: Stars });
+      createPages({ createLayout, createPage }) {
         for (const lang of this.languages) {
           createLayout({
             path: "/(showcase)",
             lang,
             render: "static",
-            component: ShowcaseLayout,
+            component: ({ children }: { children: ReactNode }) => <section>{children}</section>,
           });
           createPage({
             path: "/(showcase)/showcase/[item]",
             lang,
             render: "static",
             staticPaths: Object.keys(options.items),
-            slices: ["acme-stars"],
-            component: ({ item }: { item: string }) => (
-              <main>
-                <h1>{options.items[item]?.title}</h1>
-                <Slice id="acme-stars" lazy fallback={null} />
-              </main>
-            ),
+            component: ({ item }: { item: string }) => <h1>{options.items[item]?.title}</h1>,
           });
         }
       },
       honoMiddleware() {
         return async (c, next) => {
           await next();
-          const kv: { put(key: string, value: string): Promise<void> } | undefined = c.env?.ACME_KV;
-          await kv?.put(`hit:${c.req.path}`, options.analyticsId);
+          c.header("x-analytics-id", options.analyticsId);
         };
       },
       unstable_serverEntry(entry) {
@@ -442,29 +339,4 @@ export function showcasePlugin<C extends WakuAppShape = WakuAppShape>(
     },
   };
 }
-```
-
-Inline Waku hooks in the site config:
-
-```tsx title="press.config.tsx"
-import { createPress } from "fumapress";
-
-export const app = createPress({ docs: docs.toFumadocsSource() }, { i18n }).plugins(
-  showcasePlugin({ items: { fumadocs: { title: "Fumadocs" } }, analyticsId: "a1" }),
-  {
-    name: "site:waku",
-    waku: {
-      createPages({ createPage }) {
-        createPage({
-          path: "/status",
-          lang: "zh",
-          render: "dynamic",
-          component: () => <main>OK</main>,
-        });
-      },
-    },
-  },
-);
-
-export default app.config({ mode: "dynamic" });
 ```

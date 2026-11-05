@@ -85,7 +85,7 @@ export default createPress({ docs: docs.toFumadocsSource() }).config({
 
 ## Search Providers
 
-A search provider is a plugin with `provides: ["search"]`. It returns its dialog and options from `providerProps({ lang })`, and adds its own API routes. Listing it takes the place of the preset's FlexSearch.
+A search provider is a plugin with `provides: ["search"]`. It returns its dialog and options from `providerProps({ lang })`, and adds its own API routes. Listing it takes the place of the preset's FlexSearch. Its dialog has the parts of the [Custom Dialog](#custom-dialog) on the hook of the provider.
 
 ```tsx tab="acme/index.ts"
 import type { AppShape, Plugin } from "@fumapress/core";
@@ -115,41 +115,15 @@ export function acmeSearchPlugin<C extends AppShape = AppShape>(options: {
 ```tsx tab="acme/client.tsx"
 "use client";
 import { useFetchSearch, type FetchOptions } from "fumadocs-core/search/client/fetch";
-import {
-  SearchDialog,
-  SearchDialogContent,
-  SearchDialogHeader,
-  SearchDialogInput,
-  SearchDialogList,
-  SearchDialogOverlay,
-  type SharedProps,
-} from "fumadocs-ui/components/dialog/search";
+import { SearchDialog, type SharedProps } from "fumadocs-ui/components/dialog/search";
 
 export function AcmeSearchDialog({ api, locale, ...props }: SharedProps & FetchOptions) {
   return (
     <SearchDialog {...props} {...useFetchSearch({ api, locale })}>
-      <SearchDialogOverlay />
-      <SearchDialogContent>
-        <SearchDialogHeader>
-          <SearchDialogInput />
-        </SearchDialogHeader>
-        <SearchDialogList />
-      </SearchDialogContent>
+      {/* the dialog parts */}
     </SearchDialog>
   );
 }
-```
-
-```tsx tab="press.config.tsx"
-import { createPress } from "fumapress";
-import { defineDocs } from "fumadocs-mdx/macro";
-import { acmeSearchPlugin } from "./acme";
-
-const docs = defineDocs({ dir: "content/docs" });
-
-export default createPress({ docs: docs.toFumadocsSource() })
-  .plugins(acmeSearchPlugin({ index: "docs" }))
-  .config({ mode: "dynamic" });
 ```
 
 See [Capabilities](/docs/plugins/authoring#capabilities) for declaring what a plugin provides.

@@ -25,3 +25,11 @@ packages:
 - Refactored: removed the layout factories of `fumapress/layouts/*`, `fumapress/adapters/mdx`, `fumapress/plugins/blog` and `fumapress/i18n` (use `@fumapress/blog`), `renderNotFound`, `AppContext`, `this.data`, `preinit`, `configureRoutes` and plugin `renderPage`.
 - `selectTreeRoot(tree, "docs")` replaces the `treeRoot` option of the layouts: pass it to the `tree` of your layout in `ui.renderPage`.
 - `fumapress/css/preset.css` no longer includes the blog styles, import `@fumapress/blog/css/preset.css` with `@fumapress/blog`.
+- Without a home page, the navbar title goes to the first page of the language, and so does `/` with i18n.
+- 2000-page builds work, and client navigation sends only the page.
+- Lists of the tree in `ui.renderPage` are read-only: change them in `pageTree.transformers` of the loader.
+- Sites with a Worker start on Cloudflare with the generated Wrangler config, also with `@cloudflare/vite-plugin`, and render Open Graph images on request, including pages added after the build.
+- A `basePath` works on Cloudflare, which needs Wrangler 4.148 or later, and on Netlify. Its root opened without a trailing slash hydrates on every host.
+- `.md` files from `fumapress start` are served as `text/markdown`, and `Accept: text/markdown` also serves the Markdown of prerendered pages.
+- `staticPaths` works on static API routes in `src/pages/_api`.
+- With `mode: "dynamic"`, a language root like `/cn` renders its page instead of a 404.

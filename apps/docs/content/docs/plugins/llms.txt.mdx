@@ -83,7 +83,7 @@ Welcome! Read the [docs](/docs).
 
 ### `autoRedirect`
 
-When a request prefers Markdown in its `Accept` header (for example, from an AI agent), the plugin serves the page's Markdown version at the original URL. Enabled by default; ignored in static mode since it requires a server:
+When a request prefers Markdown in its `Accept` header (for example, from an AI agent), the plugin serves the page's Markdown version at the original URL. Enabled by default; ignored in static mode since it requires a server. Vercel, Netlify and Cloudflare serve prerendered pages before your server, so there it only applies to pages rendered on request:
 
 ```tsx title="press.config.tsx"
 llmsPlugin({ autoRedirect: false });

@@ -26,27 +26,7 @@ See [MDX Components](/docs/astro/content#mdx-components) for the components modu
 
 ## Press Config
 
-`createPress` from `@fumapress/astro/config` takes the same stages as on Waku: `createPress(content, options).plugins(...).config({...})`.
-
-```tsx title="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
-import { llmsPlugin } from "@fumapress/astro/plugins/llms.txt";
-
-export default createPress(
-  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-)
-  .plugins(llmsPlugin({ routes: "all" }))
-  .config({
-    site: {
-      name: "My Docs",
-      git: { user: "acme", repo: "docs", branch: "main" },
-    },
-  });
-```
-
-It runs on the server of Astro before your pages render. It can `await` your collections, and the callbacks of plugins receive the site context as `this`.
+`createPress` from `@fumapress/astro/config` takes the same stages as on Waku: `createPress(content, options).plugins(...).config({...})`. It runs on the server of Astro before your pages render. It can `await` your collections, and the callbacks of plugins receive the site context as `this`.
 
 Waku-only options are type errors on Astro: `ui.renderRoot`, image optimizer plugins and the `waku` hooks of plugins. See [Config](/docs/config) for every shared option.
 

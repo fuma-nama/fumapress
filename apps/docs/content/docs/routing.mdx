@@ -72,7 +72,7 @@ export default function Pricing({ lang }: WakuRouteProps<typeof app>) {
 ```
 
 - `render`: `"static"` (default) or `"dynamic"`.
-- `staticPaths`: the paths of a static page with slugs.
+- `staticPaths`: the paths of a static page or API route with slugs.
 - `autoI18n`: defaults to `true`. Set `false` to keep a single copy at its own path, rendered in the default language.
 - `ogImage`: the [OG image](/docs/plugins/takumi#route-images) of the page.
 
@@ -146,7 +146,7 @@ export default async function handler(req: Request) {
 }
 ```
 
-API routes are dynamic by default. Under `mode: "static"` they are prerendered instead, which supports only a single `GET` handler.
+API routes are dynamic by default. Under `mode: "static"` they are prerendered instead, which supports only a single `GET` handler. Set `render` and `staticPaths` in `getConfig()` to prerender a route with slugs.
 
 <Callout type='warn'>
 

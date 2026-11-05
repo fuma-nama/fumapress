@@ -6,27 +6,7 @@ icon: Library
 
 ## Content Collections [#collections]
 
-Docs are MDX files of Astro content collections. `pageLoader()` and `metaLoader()` of `@fumadocs/astro` load the content directory. `toFumadocsSource()` turns them into a content source:
-
-```ts tab="src/content.config.ts"
-import { defineCollection } from "astro:content";
-import { metaLoader, pageLoader } from "@fumadocs/astro/loaders";
-
-export const collections = {
-  docs: defineCollection({ loader: pageLoader() }),
-  meta: defineCollection({ loader: metaLoader() }),
-};
-```
-
-```tsx tab="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
-
-export default createPress(
-  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-).config({});
-```
+Docs are MDX files of Astro content collections. `pageLoader()` and `metaLoader()` of `@fumadocs/astro` load the content directory, and `toFumadocsSource()` turns them into a content source. See [Getting Started](/docs/astro#manual-installation) for the files.
 
 Pages and `meta.json` files follow the [Fumadocs conventions](https://fumadocs.dev/docs/page-conventions), and the loaders validate frontmatter with `pageSchema` of `fumadocs-core/source/schema`. Add fields with a `schema` of your own:
 
@@ -152,25 +132,6 @@ Feedback server actions work through routes on Astro. Client actions, like calli
 
 ## Other Sources
 
-Other content sources join the `createPress` call like collections. Their plugins render them. For example, the pages of OpenAPI:
-
-```tsx title="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
-import { createOpenAPI } from "fumadocs-openapi/server";
-import openapiPlugin from "fumadocs-openapi/press";
-
-const openapi = createOpenAPI({ input: ["./openapi.yaml"] });
-
-export default createPress({
-  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
-    baseDir: "docs",
-  }),
-  openapi: await openapi.staticSource({ baseDir: "docs/api" }),
-})
-  .plugins(openapiPlugin({ server: openapi }))
-  .config({});
-```
+Other content sources join the `createPress` call like collections, and their plugins render them, like the pages of [OpenAPI](/docs/plugins/openapi).
 
 Sources whose pages render Markdown at runtime, like [Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md), need no plugin. They render with your MDX components, and relative links are resolved. Notion and Sanity render with the default exports of `@fumadocs/notion/press` and `@fumadocs/sanity/press`. See [Content Sources](/docs/adapters).

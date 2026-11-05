@@ -6,14 +6,7 @@ icon: Server
 
 ## Overview
 
-Fumapress adds routes to your Astro site:
-
-| Route                  | Serves                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------- |
-| `[...fumapressPage]`   | The content pages, prerendered.                                                              |
-| `[...fumapressFile]`   | The prerendered routes of plugins, like `llms.txt`, `sitemap.xml` and Open Graph images.     |
-| `[...fumapressServer]` | With an adapter: the routes of plugins rendered on request, and the pages in `dynamic` mode. |
-| `404`                  | The not found page, unless you have a `src/pages/404.astro`.                                 |
+Fumapress adds catch-all routes for the content pages and the routes of plugins to your Astro site, and a `404` route unless you have a `src/pages/404.astro`. [Deployment](/docs/astro/deployment) covers which of them render on request.
 
 The routes of `src/pages` are yours. Routes without params take priority over the catch-all routes of Fumapress. Avoid a page and a content file at the same URL: Astro warns about the collision.
 
@@ -43,19 +36,7 @@ It takes `title`, `description`, `lang`, `alternates` and `notFound` (which rend
 `getPressContext()` from `@fumapress/astro/runtime` returns the site context. Export `app` from your press config to type it:
 
 ```tsx title="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
-import { blogPlugin } from "@fumapress/blog";
-
-export const app = createPress({
-  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
-    baseDir: "docs",
-  }),
-  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
-    baseDir: "blog",
-  }),
-}).plugins(blogPlugin({ source: "blog" }));
+export const app = createPress(/* ... */).plugins(blogPlugin({ source: "blog" }));
 
 export default app.config({ site: { name: "Acme" } });
 ```
@@ -113,28 +94,9 @@ export const GET: APIRoute = async () => {
 
 ### Rendering Content
 
-A collection of `press()` that you leave out of `createPress` has no docs pages. Render its entries on your pages instead, and pass `getProviderData(Astro)` to `<Content />` so it renders with links and your [MDX components](/docs/astro/content#mdx-components):
+A collection of `press()` that you leave out of `createPress` has no docs pages. Add it to `collections` and `src/content.config.ts` like in [Multiple Collections](/docs/astro/content#multiple-collections), then render its entries on your pages. Pass `getProviderData(Astro)` to `<Content />` so it renders with links and your [MDX components](/docs/astro/content#mdx-components):
 
-```js tab="astro.config.mjs"
-press({
-  collections: {
-    docs: { dir: "content/docs" },
-    // [!code ++]
-    guides: { dir: "content/guides" },
-  },
-});
-```
-
-```ts tab="src/content.config.ts"
-export const collections = {
-  // ...
-  // [!code ++:2]
-  guides: defineCollection({ loader: pageLoader("guides") }),
-  guidesMeta: defineCollection({ loader: metaLoader("guides") }),
-};
-```
-
-```astro tab="src/pages/guides/[slug].astro"
+```astro title="src/pages/guides/[slug].astro"
 ---
 import { getCollection, render } from "astro:content";
 import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
@@ -189,19 +151,9 @@ With an adapter, the page of Fumapress renders in the language of the URL prefix
 
 ## Internationalization
 
-[i18n](/docs/internationalization) works like on Waku: content pages and the routes of plugins get the language prefixes. Your pages are not copied for each language. Create them with a `lang` param:
+[i18n](/docs/internationalization) works like on Waku: content pages and the routes of plugins get the language prefixes. Your pages are not copied for each language. Create them with a `lang` param, and share the `i18n` config of your press config from a module:
 
-```ts tab="src/lib/i18n.ts"
-import { defineI18n } from "fumadocs-core/i18n";
-
-export const i18n = defineI18n({
-  languages: ["cn", "en"],
-  defaultLanguage: "en",
-  hideLocale: "default-locale",
-});
-```
-
-```astro tab="src/pages/[...lang]/about.astro"
+```astro title="src/pages/[...lang]/about.astro"
 ---
 import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
 import { i18n } from "../../lib/i18n";
@@ -218,7 +170,7 @@ export function getStaticPaths() {
 </HomeLayout>
 ```
 
-With `hideLocale: "default-locale"`, the default language has no prefix. Use the same `i18n` in your press config. `HomeLayout.astro` reads the language from the URL prefix unless you pass `lang`.
+With `hideLocale: "default-locale"`, the default language has no prefix. `HomeLayout.astro` reads the language from the URL prefix unless you pass `lang`.
 
 ## Base Path
 

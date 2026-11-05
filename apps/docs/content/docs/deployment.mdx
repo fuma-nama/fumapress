@@ -118,7 +118,7 @@ With your own Wrangler config, the build reuses its `name` and compatibility set
 npx wrangler deploy
 ```
 
-[OG images](/docs/plugins/takumi) are static files: the Worker can't load the native addon of Takumi, so with `mode: "dynamic"` the build writes the image of every page it knows. Pages added later have no image until the next build.
+With `mode: "dynamic"`, the Worker renders [OG images](/docs/plugins/takumi) with the WebAssembly build of Takumi.
 
 Image optimization uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/). Enable it on your zone. Workers Builds does not expose the site URL, so set `site.baseUrl`:
 

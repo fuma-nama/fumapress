@@ -269,6 +269,15 @@ import { blogPlugin } from "@fumapress/blog";
 blogPlugin({ source: "blog" });
 ```
 
+`source` names a key of the content source. A site whose `isBlog` selects posts out of one source, by path or frontmatter, splits its content into one source per key. The same goes for `isChangelog` of [Tegami](#tegami-changelog).
+
+```tsx title="press.config.tsx"
+export const app = createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+}).plugins(blogPlugin({ source: "blog" }));
+```
+
 `layouts` of the blog plugin are refactored into `renderPage` cases. The types are `blog`, `blog.index`, `blog.tags` and `blog.tag`.
 
 ```tsx title="src/ui/layout.tsx"
@@ -339,7 +348,7 @@ import asyncapiPlugin from "@fumadocs/asyncapi/press";
 
 ### Notion, Sanity, Obsidian
 
-`@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian` are deprecated. Use the Fumadocs `/press` plugins (`fumadocs-obsidian/press`, etc.) with the same options. `@fumapress/graphql` is deprecated for `@fumadocs/graphql/press`.
+`@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian` are deprecated. Use the Fumadocs `/press` plugins: `notionPlugin({ notion, ...options })` of `@fumadocs/notion/press`, `sanityPlugin({ components })` of `@fumadocs/sanity/press` and `obsidianPlugin({ vault, components })` of `fumadocs-obsidian/press`. `@fumapress/graphql` is deprecated for `@fumadocs/graphql/press`, with the same options.
 
 ### Feedback
 
