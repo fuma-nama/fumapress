@@ -7,7 +7,7 @@ import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure"
 import type { Page, PageData } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import { AstroContent } from "./island/serialize";
-import { Link } from "./ui/link";
+import { Link, linkHref } from "./ui/link";
 
 /** the renderer from `load()`, like `MarkdownRenderer` of `@fumadocs/local-md` */
 interface Renderer {
@@ -42,10 +42,18 @@ function isRenderer(value: object): value is Renderer {
 }
 
 /** the `a` of MDX components, with relative links resolved to the URLs of their pages */
-async function relativeLink(ctx: Context, page: Page, Link: NonNullable<MDXComponents["a"]>) {
+async function relativeLink(
+  ctx: Context,
+  page: Page,
+  Link: NonNullable<MDXComponents["a"]>,
+  toUrl = (url: string) => url,
+) {
   const loader = await ctx.getLoader();
   return (props: ComponentProps<"a">) =>
-    createElement(Link, { ...props, href: props.href && loader.resolveHref(props.href, page) });
+    createElement(Link, {
+      ...props,
+      href: props.href && toUrl(loader.resolveHref(props.href, page)),
+    });
 }
 
 /** by page, with a new page when content changes */
@@ -87,7 +95,11 @@ export function contentSourcePlugin(): Plugin {
     name: "astro:content-source",
     async getPageBody(page) {
       if (isCollectionPage(page.data)) {
-        const [{ body }, a] = await Promise.all([page.data.load(), relativeLink(this, page, "a")]);
+        // Astro renders it, outside of the provider of `Link`
+        const [{ body }, a] = await Promise.all([
+          page.data.load(),
+          relativeLink(this, page, components.a ?? "a", (url) => linkHref(url, page.url)),
+        ]);
         return { node: createElement(AstroContent, { component: body, components: { a } }) };
       }
       const rendered = await render(this, page);

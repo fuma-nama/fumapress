@@ -17,10 +17,13 @@ export function toHref(href: string): string {
   return end === -1 ? path : path + href.slice(end);
 }
 
-/** a link of the site, prerendering records it for the `build` of plugins like link validation */
-export function Link({ href = "#", prefetch: _prefetch, ...props }: LinkProps) {
-  const pathname = usePathname();
+/** the URL of a link of the site, prerendering records it for the `build` of plugins like link validation */
+export function linkHref(href: string, fromPathname: string): string {
   const url = toHref(href);
-  globalThis.FUMAPRESS_BUILD?.links.push({ href: url, fromPathname: pathname });
-  return <a href={url} {...props} />;
+  globalThis.FUMAPRESS_BUILD?.links.push({ href: url, fromPathname });
+  return url;
+}
+
+export function Link({ href = "#", prefetch: _prefetch, ...props }: LinkProps) {
+  return <a href={linkHref(href, usePathname())} {...props} />;
 }
