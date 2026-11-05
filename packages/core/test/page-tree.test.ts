@@ -1,6 +1,6 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import { expect, test } from "vitest";
-import { selectTreeRoot, setTreeSelector } from "@/page-tree";
+import { selectTreeRoot } from "@/page-tree";
 
 function page(url: string): PageTree.Item {
   return { type: "page", name: url, url };
@@ -53,12 +53,4 @@ test("throws on unknown paths with the available folders", () => {
   expect(() => selectTreeRoot(tree, "guides")).toThrow(
     'folder "guides" is not in the page tree, available folders: docs, docs/guides, blog',
   );
-});
-
-test("selects through the selector of a replaced tree", () => {
-  const tree: PageTree.Root = { name: "root", children: [] };
-  const selected: PageTree.Root = { name: "selected", children: [] };
-  setTreeSelector(tree, (path) => (path === "docs" ? selected : tree));
-
-  expect(selectTreeRoot(tree, "docs")).toBe(selected);
 });

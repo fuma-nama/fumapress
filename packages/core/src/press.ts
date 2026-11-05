@@ -254,8 +254,6 @@ export function renderPage<C extends AppShape>(
   press: Press<C, any>,
   target: RenderTarget<C>,
   renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-  /** replaces the page tree in the props, for runtimes that serialize it another way */
-  getTree?: (tree: PageTree.Root, lang: C["lang"]) => Awaitable<PageTree.Root>,
 ): Promise<PageNode>;
 
 export async function renderPage(
@@ -263,14 +261,12 @@ export async function renderPage(
   press: Press,
   target: RenderTarget,
   renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-  getTree?: (tree: PageTree.Root, lang: string | undefined) => Awaitable<PageTree.Root>,
 ): Promise<PageNode> {
   const { lang } = target;
   const [loader, baseOptions] = await Promise.all([ctx.getLoader(), ctx.getBaseOptions({ lang })]);
-  const tree = loader.getPageTree(lang);
   const base = {
     lang,
-    tree: getTree ? await getTree(tree, lang) : tree,
+    tree: loader.getPageTree(lang),
     baseOptions,
     renderDefault: () => renderDefault.call(ctx, props),
   };

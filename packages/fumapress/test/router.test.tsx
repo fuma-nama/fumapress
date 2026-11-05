@@ -43,11 +43,6 @@ const recorded = vi.hoisted(() => {
   });
 });
 
-// React Flight needs the `react-server` condition
-vi.mock("waku/server", () => ({
-  serializeRsc: async (value: unknown) => new TextEncoder().encode(JSON.stringify(value)),
-}));
-
 vi.mock("waku", () => ({
   createPages(fn: (fns: unknown) => Promise<unknown>) {
     recorded.pending = fn(recorded.fns());
@@ -152,10 +147,8 @@ describe("createPages", () => {
       type: FC<{ slugs: string[]; lang: string }>;
       props: { slugs: string[]; lang: string };
     };
-    const rendered = (await element.type(element.props)) as {
-      props: { children: (unknown & { props?: { children: unknown } })[] };
-    };
-    expect(rendered.props.children[2]!.props!.children).toBe("en:undefined:guide");
+    const rendered = (await element.type(element.props)) as { props: { children: unknown[] } };
+    expect(rendered.props.children[2]).toBe("en:undefined:guide");
   });
 
   it("keeps plugin layouts in route groups, your own pages win, two plugins on one path fail", async () => {

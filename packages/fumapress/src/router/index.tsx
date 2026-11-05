@@ -52,9 +52,7 @@ import type { MiddlewareHandler } from "hono";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
 import { decodePathname, joinPaths } from "@/lib/pathname";
-import { PageTreeFiles } from "@/components/page-tree";
 import { PressProvider, type PressProviderProps } from "@/components/provider";
-import { createPageTreeFiles } from "@/router/page-tree";
 import {
   recommendedPreset,
   setPressContext,
@@ -186,14 +184,8 @@ export async function createRouter(
     return out === "/" && i18n ? DEFAULT_GROUP : out;
   }
 
-  const pageTrees = createPageTreeFiles(ctx);
-
-  async function render(target: RenderTarget) {
-    return (
-      <PageTreeFiles>
-        {await renderPage(ctx, press, target, renderDefault, pageTrees.getTree)}
-      </PageTreeFiles>
-    );
+  function render(target: RenderTarget) {
+    return renderPage(ctx, press, target, renderDefault);
   }
 
   async function Root({ lang, children }: { lang?: string; children: ReactNode }) {
@@ -290,9 +282,6 @@ export async function createRouter(
 
     out.push(({ app }) => async (c, next) => {
       const { raw } = c.req;
-      const treeFile = await pageTrees.handleRequest(raw);
-      if (treeFile) return treeFile;
-
       const route = unstable_parseRouterRequest(raw);
       let request = raw;
       // RSC requests of client navigations, the query is undefined when the router's params are in the body
@@ -368,9 +357,6 @@ export async function createRouter(
         if (plugins.some((plugin) => plugin.build)) global.LINK_SSG_CONTEXT = { links };
         await build(utils, ...args);
         global.LINK_SSG_CONTEXT = undefined;
-
-        for (const [path, bytes] of pageTrees.getFiles())
-          await utils.emitFile(`public${path}`, new Response(await bytes).body!);
 
         await ctx.build({
           links,
