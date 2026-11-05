@@ -45,6 +45,12 @@ function createContext(tree: PageTree.Root, base = "/site/") {
   } as unknown as Context;
 }
 
+function revalidated() {
+  const tree = createTree();
+  tree.children.pop();
+  return tree;
+}
+
 function idOf(nodes: object) {
   return references.get(nodes)?.replace(/^.*#/, "");
 }
@@ -85,9 +91,35 @@ describe("page tree files", () => {
     const ctx = createContext(createTree());
     expect(await getPageTreeFiles(ctx)).toEqual(await getPageTreeFiles(ctx));
 
-    const other = createTree();
-    other.children.pop();
-    expect(await getPageTreeFiles(createContext(other))).not.toEqual(await getPageTreeFiles(ctx));
+    expect(await getPageTreeFiles(createContext(revalidated()))).not.toEqual(
+      await getPageTreeFiles(ctx),
+    );
+  });
+
+  it("keeps the last two files of a language, for renders in flight", async () => {
+    const stored = () => [...globalThis.PAGE_TREE_FILES!.keys()].sort();
+    const url = (file: string | undefined) => `/site/_fumapress/page-tree/${file}`;
+    const version = async (count: number, languages: unknown[] = [undefined]) => {
+      const tree = createTree();
+      tree.children.length = count;
+      const [file] = await getPageTreeFiles({ ...createContext(tree), languages } as never);
+      return url(file);
+    };
+
+    const first = await version(2);
+    expect(await version(2)).toBe(first);
+    expect(stored()).toEqual([first]);
+
+    const second = await version(1);
+    expect(stored()).toEqual([first, second].sort());
+
+    // the first again is the last one, the second is the one before it
+    await version(2);
+    const third = await version(0);
+    expect(stored()).toEqual([first, third].sort());
+
+    const cn = await version(1, ["cn"]);
+    expect(stored()).toEqual([first, third, cn].sort());
   });
 
   it("serves the files, and revalidated ones when the site has a server", async () => {
@@ -114,9 +146,8 @@ describe("page tree files", () => {
       404,
     );
 
-    tree = createTree();
-    tree.children.pop();
-    const [revalidated] = await getPageTreeFiles(ctx as never);
-    expect((await onRequest!.GET!(request(revalidated!), { params: {} })).status).toBe(200);
+    tree = revalidated();
+    const [next] = await getPageTreeFiles(ctx as never);
+    expect((await onRequest!.GET!(request(next!), { params: {} })).status).toBe(200);
   });
 });

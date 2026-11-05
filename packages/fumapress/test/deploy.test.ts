@@ -36,6 +36,7 @@ async function run(options: Partial<BuildOptions> = {}, cloudflare = true) {
     DIST_PUBLIC: "public",
     serverless: true,
     FUMAPRESS_BASE_PATH: "/",
+    FUMAPRESS_PLATFORM: "cloudflare",
     ...options,
   });
 }
@@ -46,6 +47,17 @@ test("caches hashed assets under the base path", async () => {
   expect(readFileSync("dist/public/_headers", "utf-8")).toBe(
     "/docs/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n",
   );
+});
+
+test("puts the files of Netlify under the base path, except the ones it reads by name", async () => {
+  mkdirSync("dist/public/assets");
+  writeFileSync("dist/public/assets/a.js", "");
+  writeFileSync("dist/public/404.html", "");
+  await run({ FUMAPRESS_BASE_PATH: "/repo/docs/", FUMAPRESS_PLATFORM: "netlify" }, false);
+
+  expect(existsSync("dist/public/repo/docs/assets/a.js")).toBe(true);
+  expect(existsSync("dist/public/404.html")).toBe(true);
+  expect(existsSync("dist/public/_headers")).toBe(true);
 });
 
 test("serves the base path from the generated Wrangler configs", async () => {

@@ -96,6 +96,7 @@ export function fsRouterFn(
             path: apiPath,
             render: renderMode,
             method: "GET",
+            staticPaths: config?.staticPaths,
             handler: mod.GET!.bind(this),
             unstable_sourceFile: srcPath,
           });

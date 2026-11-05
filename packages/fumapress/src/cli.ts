@@ -160,12 +160,8 @@ function createServerRestartHandler(strictPort: boolean) {
     restartInFlight = true;
     try {
       console.log("Restarting server with fresh plugin configuration...");
-      const previousUrls = server.resolvedUrls;
       await server.close();
-      const newServer = await startDevServer(host, port, strictPort, true);
-      if (previousUrls) {
-        server.resolvedUrls = newServer.resolvedUrls;
-      }
+      await startDevServer(host, port, strictPort, true);
     } finally {
       restartInFlight = false;
     }

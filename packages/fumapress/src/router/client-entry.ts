@@ -30,7 +30,10 @@ if (!import.meta.env.SSR && `${location.pathname}/` === import.meta.env.BASE_URL
 const modules = new Map<string, Promise<unknown>>();
 const load = globalThis.__vite_rsc_client_require__;
 
-/** page tree files are client modules of Flight, see `page-tree.ts` */
+/**
+ * page tree files are client modules of Flight, see `page-tree.ts`. Flight loads client modules through this global and
+ * `@vitejs/plugin-rsc` has no API to add one; if it renames the global, every page fails in dev and CI.
+ */
 globalThis.__vite_rsc_client_require__ = (id) => {
   if (!id.startsWith("page-tree:")) return load(id);
   // development adds a cache tag
@@ -38,6 +41,12 @@ globalThis.__vite_rsc_client_require__ = (id) => {
   if (import.meta.env.SSR) preload(url, { as: "fetch", crossOrigin: "anonymous" });
 
   let module = modules.get(url);
-  if (!module) modules.set(url, (module = decode(url)));
+  if (!module) {
+    // the server drops the files of old content
+    if (import.meta.env.SSR)
+      for (const key of modules.keys())
+        if (!globalThis.PAGE_TREE_FILES?.has(key)) modules.delete(key);
+    modules.set(url, (module = decode(url)));
+  }
   return module;
 };

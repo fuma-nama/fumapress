@@ -25,18 +25,16 @@ function createFetchResult(cacheControl: string, body = new Uint8Array([1, 2, 3]
   return {
     body,
     contentType: "image/jpeg",
-    policy: new CachePolicy(
-      { url: sourceUrl, method: "GET", headers: { accept: "image/*" } },
-      {
-        status: 200,
-        headers: {
-          "cache-control": cacheControl,
-          date: "Wed, 01 Jan 2026 00:00:00 GMT",
-        },
+    policy: new CachePolicy(cacheRequest, {
+      status: 200,
+      headers: {
+        "cache-control": cacheControl,
+        date: "Wed, 01 Jan 2026 00:00:00 GMT",
       },
-    ),
+    }),
   };
 }
+
 describe("image optimization params", () => {
   it("parses valid query params", () => {
     const url = new URL("/_img?src=%2Flogo.png&width=640&quality=80", "https://localhost");
@@ -47,126 +45,77 @@ describe("image optimization params", () => {
     });
   });
 
-  it("matches remote patterns", () => {
-    const url = "https://cdn.example.com/assets/photo.jpg";
-    expect(
-      validateImageSrc(
-        resolveImageConfig({
-          allowedHosts: [{ hostname: /cdn\.example\.com/, pathname: /^\/assets/ }],
-        }),
-        url,
-      ).allowed,
-    ).toBe(true);
-    expect(
-      validateImageSrc(resolveImageConfig({ allowedHosts: [{ hostname: /evil\.com/ }] }), url)
-        .allowed,
-    ).toBe(false);
+  const photo = "https://cdn.example.com/assets/photo.jpg";
+  const inQuery = (src: string) => `https://localhost/_img?src=${src}&width=640`;
+
+  it.each([
+    [
+      "allows a matching host and path pattern",
+      { allowedHosts: [{ hostname: /cdn\.example\.com/, pathname: /^\/assets/ }] },
+      photo,
+    ],
+    ["allows a configured host", { allowedHosts: ["cdn.example.com"] }, photo],
+  ])("%s", (_, options, src) => {
+    expect(validateImageSrc(resolveImageConfig(options), src)).toEqual({ allowed: true });
   });
 
-  it("rejects invalid src values", () => {
-    const config = resolveImageConfig();
-    expect(
-      validateImageSrc(
-        config,
-        new URL("/_img?src=//evil.com/a.png&width=640", "https://localhost").href,
-      ),
-    ).toMatchInlineSnapshot(`
-      {
-        "allowed": false,
-        "reason": "Image URL "https://localhost/_img?src=//evil.com/a.png&width=640" is not in allowedHosts",
-      }
-    `);
-    expect(
-      validateImageSrc(
-        config,
-        new URL("/_img?src=javascript:alert(1)&width=640", "https://localhost").href,
-      ),
-    ).toMatchInlineSnapshot(`
-      {
-        "allowed": false,
-        "reason": "Image URL "https://localhost/_img?src=javascript:alert(1)&width=640" is not in allowedHosts",
-      }
-    `);
-  });
-
-  it("blocks remote src without allowed hosts", () => {
-    const result = validateImageSrc(resolveImageConfig(), "https://cdn.example.com/a.png");
-    expect(result.allowed).toBe(false);
-  });
-
-  it("allows remote src when host is configured", () => {
-    const result = validateImageSrc(
-      resolveImageConfig({
-        allowedHosts: ["cdn.example.com"],
-      }),
-      "https://cdn.example.com/a.png",
-    );
-    expect(result.allowed).toBe(true);
+  it.each([
+    ["rejects another host pattern", { allowedHosts: [{ hostname: /evil\.com/ }] }, photo],
+    ["rejects remote src without allowed hosts", undefined, photo],
+    ["rejects a protocol-relative src", undefined, inQuery("//evil.com/a.png")],
+    ["rejects a javascript: src", undefined, inQuery("javascript:alert(1)")],
+  ])("%s", (_, options, src) => {
+    expect(validateImageSrc(resolveImageConfig(options), src)).toEqual({
+      allowed: false,
+      reason: `Image URL "${src}" is not in allowedHosts`,
+    });
   });
 });
 
 describe("readResponseBodyWithLimit", () => {
-  it("rejects bodies larger than the limit while streaming", async () => {
-    const response = new Response(new Uint8Array(10), {
-      headers: { "Content-Type": "image/jpeg" },
-    });
-
-    expect(await readResponseBodyWithLimit(response, 5)).toBe("too-large");
-  });
-
-  it("rejects when Content-Length exceeds the limit", async () => {
-    const response = new Response(null, {
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Length": "10",
-      },
-    });
-
-    expect(await readResponseBodyWithLimit(response, 5)).toBe("too-large");
+  it.each([
+    ["while streaming", new Uint8Array(10), {}],
+    ["when Content-Length exceeds the limit", null, { "Content-Length": "10" }],
+  ])("rejects bodies larger than the limit %s", async (_, body, headers) => {
+    expect(await readResponseBodyWithLimit(new Response(body, { headers }), 5)).toBe("too-large");
   });
 
   it("reads bodies within the limit", async () => {
     const data = new Uint8Array([1, 2, 3, 4]);
-    const response = new Response(data, {
-      headers: { "Content-Type": "image/jpeg" },
-    });
-
-    const body = await readResponseBodyWithLimit(response, 64);
+    const body = await readResponseBodyWithLimit(new Response(data), 64);
     if (body === "too-large") throw new Error("unexpected");
     expect(new Uint8Array(body)).toEqual(data);
   });
 });
 
 describe("image cache", () => {
+  const optimizeKey = (width: number) =>
+    getOptimizeCacheKey({ src: "/hero.png", width, quality: 75 });
+
   it("stores source entries with an empty optimize map", () => {
     const cache = new ImageOptimizationCache();
     const result = createFetchResult("public, max-age=60");
-
     const entry = cache.set(sourceUrl, result);
 
-    expect(entry).toEqual({
-      ...result,
-      optimized: new Map(),
-    });
+    expect(entry).toEqual({ ...result, optimized: new Map() });
     expect(cache.readCache(sourceUrl, cacheRequest)).toBe(entry);
   });
 
-  it("invalidates source and nested optimize entries together", () => {
+  it("keeps optimize variants on the source entry, invalidating them together", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
     const cache = new ImageOptimizationCache();
-    const optimizeKey = getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 });
     const entry = cache.set(sourceUrl, createFetchResult("public, max-age=60"))!;
-    entry.optimized.set(optimizeKey, {
-      body: new Uint8Array([4, 5, 6]),
-      contentType: "image/jpeg",
-    });
+    const small = { body: new Uint8Array([2]), contentType: "image/jpeg" };
+    const large = { body: new Uint8Array([3]), contentType: "image/jpeg" };
+    entry.optimized.set(optimizeKey(640), small);
+    entry.optimized.set(optimizeKey(1280), large);
 
-    expect(cache.readCache(sourceUrl, cacheRequest)?.optimized.get(optimizeKey)).toEqual({
-      body: new Uint8Array([4, 5, 6]),
-      contentType: "image/jpeg",
-    });
+    const cached = cache.readCache(sourceUrl, cacheRequest);
+    expect(cached?.body).toBe(entry.body);
+    expect(cached?.optimized.get(optimizeKey(640))).toEqual(small);
+    expect(cached?.optimized.get(optimizeKey(1280))).toEqual(large);
 
     vi.advanceTimersByTime(60_000);
     expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
@@ -174,28 +123,9 @@ describe("image cache", () => {
     vi.useRealTimers();
   });
 
-  it("keeps multiple optimize variants on the same source entry", () => {
-    const cache = new ImageOptimizationCache();
-    const entry = cache.set(sourceUrl, createFetchResult("public, max-age=60"))!;
-    const key640 = getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 });
-    const key1280 = getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 });
-
-    entry.optimized.set(key640, { body: new Uint8Array([2]), contentType: "image/jpeg" });
-    entry.optimized.set(key1280, { body: new Uint8Array([3]), contentType: "image/jpeg" });
-
-    const cached = cache.readCache(sourceUrl, cacheRequest);
-    expect(cached?.body).toBe(entry.body);
-    expect(cached?.optimized.get(key640)?.body).toEqual(new Uint8Array([2]));
-    expect(cached?.optimized.get(key1280)?.body).toEqual(new Uint8Array([3]));
-  });
-
   it("builds optimize keys from width and quality", () => {
-    expect(getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 })).toBe(
-      `640${String.fromCharCode(0)}75`,
-    );
-    expect(getOptimizeCacheKey({ src: "/hero.png", width: 1280, quality: 75 })).not.toBe(
-      getOptimizeCacheKey({ src: "/hero.png", width: 640, quality: 75 }),
-    );
+    expect(optimizeKey(640)).toBe(`640${String.fromCharCode(0)}75`);
+    expect(optimizeKey(1280)).toBe(`1280${String.fromCharCode(0)}75`);
   });
 
   it("does not store no-store or no-cache responses", () => {
@@ -208,55 +138,50 @@ describe("image cache", () => {
 });
 
 describe("Cloudflare image URLs", () => {
-  it("builds cdn-cgi transformation URLs", () => {
+  it.each([
+    ["/hero.png", 640, "/cdn-cgi/image/width=640,quality=80,format=auto/hero.png"],
+    [
+      "https://cdn.example.com/photo.jpg",
+      1280,
+      "/cdn-cgi/image/width=1280,quality=80,format=auto/https://cdn.example.com/photo.jpg",
+    ],
+  ])("builds cdn-cgi transformation URLs of %s", (src, width, expected) => {
     const provider = createCloudflareProvider(resolveCloudflareImageConfig({ qualities: [80] }));
-
-    expect(provider.buildImageUrl({ src: "/hero.png", width: 640, quality: 80 })).toBe(
-      "/cdn-cgi/image/width=640,quality=80,format=auto/hero.png",
-    );
-    expect(
-      provider.buildImageUrl({
-        src: "https://cdn.example.com/photo.jpg",
-        width: 1280,
-        quality: 80,
-      }),
-    ).toBe("/cdn-cgi/image/width=1280,quality=80,format=auto/https://cdn.example.com/photo.jpg");
+    expect(provider.buildImageUrl({ src, width, quality: 80 })).toBe(expected);
   });
 });
 
 describe("Image URLs", () => {
-  it("generates srcset entries", () => {
+  it.each([
+    [
+      "one entry for a requested quality",
+      { deviceSizes: [640, 1280], quality: 80 },
+      75,
+      {
+        src: "/_img?src=%2Fhero.png&width=1280&quality=75",
+        srcSet: "/_img?src=%2Fhero.png&width=1280&quality=75 1x",
+      },
+    ],
+    [
+      "1x and 2x entries with the default quality",
+      { quality: 80 },
+      undefined,
+      {
+        src: "/_img?src=%2Fhero.png&width=3840&quality=80",
+        srcSet:
+          "/_img?src=%2Fhero.png&width=1920&quality=80 1x, /_img?src=%2Fhero.png&width=3840&quality=80 2x",
+      },
+    ],
+  ])("generates srcset: %s", (_, options, quality, expected) => {
     expect(
       generateImageAttributes(
-        createProvider(resolveImageConfig({ deviceSizes: [640, 1280], quality: 80 })),
+        createProvider(resolveImageConfig(options)),
         "/hero.png",
-        75,
+        quality,
         1280,
         undefined,
       ),
-    ).toMatchInlineSnapshot(`
-      {
-        "sizes": undefined,
-        "src": "/_img?src=%2Fhero.png&width=1280&quality=75",
-        "srcSet": "/_img?src=%2Fhero.png&width=1280&quality=75 1x",
-      }
-    `);
-
-    expect(
-      generateImageAttributes(
-        createProvider(resolveImageConfig({ quality: 80 })),
-        "/hero.png",
-        undefined,
-        1280,
-        undefined,
-      ),
-    ).toMatchInlineSnapshot(`
-      {
-        "sizes": undefined,
-        "src": "/_img?src=%2Fhero.png&width=3840&quality=80",
-        "srcSet": "/_img?src=%2Fhero.png&width=1920&quality=80 1x, /_img?src=%2Fhero.png&width=3840&quality=80 2x",
-      }
-    `);
+    ).toStrictEqual({ sizes: undefined, ...expected });
   });
 });
 
@@ -265,14 +190,13 @@ describe("image optimization redirects", () => {
   function mockRedirect(location: string) {
     const seen: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const url = String(input);
-      seen.push(url);
-      if (seen.length === 1) {
-        return Promise.resolve(new Response(null, { status: 302, headers: { location } }));
-      }
-      return Promise.resolve(new Response(null, { status: 404 }));
+      seen.push(String(input));
+      return Promise.resolve(
+        seen.length === 1
+          ? new Response(null, { status: 302, headers: { location } })
+          : new Response(null, { status: 404 }),
+      );
     });
-
     return seen;
   }
 
@@ -311,22 +235,13 @@ describe("image optimization redirects", () => {
   });
 });
 
-describe("vercel image config", () => {
-  it("keeps the options written to the build output", () => {
-    const config = resolveVercelImageConfig({
-      domains: ["avatars.githubusercontent.com"],
-      remotePatterns: [{ hostname: "cdn.example" }],
-      localPatterns: [{ pathname: "/assets/**" }],
-      formats: ["image/webp"],
-      minimumCacheTTL: 60,
-    });
-
-    expect(config).toMatchObject({
-      domains: ["avatars.githubusercontent.com"],
-      remotePatterns: [{ hostname: "cdn.example" }],
-      localPatterns: [{ pathname: "/assets/**" }],
-      formats: ["image/webp"],
-      minimumCacheTTL: 60,
-    });
-  });
+it("keeps the Vercel options written to the build output", () => {
+  const options = {
+    domains: ["avatars.githubusercontent.com"],
+    remotePatterns: [{ hostname: "cdn.example" }],
+    localPatterns: [{ pathname: "/assets/**" }],
+    formats: ["image/webp" as const],
+    minimumCacheTTL: 60,
+  };
+  expect(resolveVercelImageConfig(options)).toMatchObject(options);
 });

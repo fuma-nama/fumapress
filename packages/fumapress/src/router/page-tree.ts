@@ -5,6 +5,8 @@ import type { Context, Plugin } from "@fumapress/core";
 import { getRootChildren } from "@fumapress/core/runtime";
 
 const files = new WeakMap<PageTree.Root, Promise<string>>();
+/** the file URLs of each language, oldest first: a render in flight while the content changes reads the one before the last */
+const kept = new Map<string | undefined, Set<string>>();
 
 /**
  * A tree in the payload of every page makes the output of a site quadratic to its pages. Its node lists become client
@@ -12,27 +14,16 @@ const files = new WeakMap<PageTree.Root, Promise<string>>();
  * the server still has the same arrays.
  */
 async function createFile(ctx: Context, tree: PageTree.Root, lang: string | undefined) {
-  /** the exports of the file: Flight writes a list in another list once */
+  /** the exports of the file: serialized before they become references, Flight writes a list in another list once */
   const lists: Record<string, PageTree.Node[]> = {};
-  const references: [nodes: PageTree.Node[], name: string][] = [];
 
   function addList(nodes: PageTree.Node[], name: string) {
-    const list: PageTree.Node[] = [];
     for (const [i, node] of nodes.entries()) {
-      if (node.type !== "folder") {
-        list.push(node);
-        continue;
-      }
-      const children = addList(node.children, `${name}.${i}`);
-      list.push({ ...node, children });
-      if (node.index) {
-        lists[`${name}.${i}+`] = [node.index, ...children];
-        references.push([getRootChildren(node), `${name}.${i}+`]);
-      }
+      if (node.type !== "folder") continue;
+      addList(node.children, `${name}.${i}`);
+      if (node.index) lists[`${name}.${i}+`] = getRootChildren(node);
     }
-    lists[name] = list;
-    references.push([nodes, name]);
-    return list;
+    lists[name] = nodes;
   }
   addList(tree.children, "c");
   if (tree.fallback) addList(tree.fallback.children, "f");
@@ -44,8 +35,20 @@ async function createFile(ctx: Context, tree: PageTree.Root, lang: string | unde
   const file = `${lang ?? "default"}.${hex}.txt`;
   const url = ctx.withBase(`/_fumapress/page-tree/${file}`);
 
-  (globalThis.PAGE_TREE_FILES ??= new Map()).set(url, bytes);
-  for (const [nodes, name] of references) {
+  const stored = (globalThis.PAGE_TREE_FILES ??= new Map());
+  stored.set(url, bytes);
+  let urls = kept.get(lang);
+  if (!urls) kept.set(lang, (urls = new Set()));
+  urls.delete(url);
+  urls.add(url);
+  if (urls.size > 2) {
+    const [oldest] = urls;
+    urls.delete(oldest!);
+    stored.delete(oldest!);
+  }
+
+  for (const name in lists) {
+    const nodes = lists[name]!;
     if ("$$typeof" in nodes) continue;
     registerClientReference(nodes, `page-tree:${url}`, name);
     // changes wouldn't reach the client, they belong in `pageTree.transformers` of the loader

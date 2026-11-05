@@ -9,7 +9,6 @@ import {
   type Awaitable,
   type Context,
   type HeadTag,
-  type PageRoute,
   type Plugin,
   type PluginInfo,
   type Press,
@@ -18,20 +17,17 @@ import {
   type RouteOptions,
 } from "@fumapress/core";
 import {
-  createLocalizer,
   createPressContext,
-  expandRoute,
   matchRoute,
   methods,
   notFoundView,
   pathLocale,
-  renderPage,
   rootRedirect,
   wrapSlot,
+  type PageRouteInput,
+  type ServedRoute,
   type PressInput,
   type RenderTarget,
-  type RoutedView,
-  type RuntimeRoute,
 } from "@fumapress/core/runtime";
 import { HomeShell, mergeI18n, renderDefault, siteI18n } from "@fumapress/core/runtime/ui";
 import { renderRoute } from "fumadocs-core/server";
@@ -52,7 +48,7 @@ import type { MiddlewareHandler } from "hono";
 import stylesInline from "virtual:root.css?inline";
 import stylesHref from "virtual:root.css?url";
 import { decodePathname, joinPaths } from "@/lib/pathname";
-import { PressProvider, type PressProviderProps } from "@/components/provider";
+import { PressProvider } from "@/components/provider";
 import { getPageTreeFiles, pageTreePlugin } from "@/router/page-tree";
 import {
   recommendedPreset,
@@ -181,7 +177,10 @@ export async function createRouter(
   const { plugins } = ctx;
   const defaultRender = ctx.mode === "default" ? "static" : ctx.mode;
   const i18n = ctx.i18nConfig;
-  const localize = createLocalizer(ctx);
+  const siteLocale = i18n && {
+    defaultLanguage: i18n.defaultLanguage,
+    hideLocale: i18n.hideLocale,
+  };
 
   /** the route prefix of a language, pages outside any language join the default group */
   function langBase(lang?: string): string {
@@ -191,25 +190,27 @@ export async function createRouter(
 
   async function render(target: RenderTarget) {
     await getPageTreeFiles(ctx);
-    return renderPage(ctx, press, target, renderDefault);
+    return ctx.renderPage(target, renderDefault);
   }
 
   async function Root({ lang, children }: { lang?: string; children: ReactNode }) {
     const [slots, base] = await Promise.all([ctx.getSlots({}), ctx.getProviderProps({ lang })]);
-    const props: PressProviderProps = {
-      ...base,
-      i18n: mergeI18n(siteI18n(ctx, { lang }), base.i18n),
-      children: wrapSlot(slots["layout.wrapper"], children),
-    };
-    if (i18n?.hideLocale === "default-locale") props.hiddenLocale ??= i18n.defaultLanguage;
-
+    const merged = mergeI18n(siteI18n(ctx, { lang }), base.i18n);
+    const body = (
+      <PressProvider
+        {...base}
+        // the URLs of the site decide where the language switch goes, with your own `i18n` too
+        i18n={merged && i18n ? { locale: lang, ...merged, ...siteLocale } : merged}
+      >
+        {wrapSlot(slots["layout.wrapper"], children)}
+      </PressProvider>
+    );
     const head = (
       <>
         {styleTag}
         {config.meta?.root?.call(ctx)}
       </>
     );
-    const body = <PressProvider {...props} />;
     if (config.ui?.renderRoot)
       return config.ui.renderRoot.call(ctx, { lang, head, children: body });
 
@@ -242,19 +243,21 @@ export async function createRouter(
   }
 
   /** `path` as the router passes it, encoded */
-  async function viewPage({ route, view }: RoutedView<WakuAppShape>, path: string) {
+  async function viewPage(route: ServedRoute<WakuAppShape>, path: string) {
+    const { view, lang } = route;
     const params = matchRoute(route.path, path);
     const out =
+      view &&
       params &&
       (await (view.render === "dynamic"
-        ? view.view(params, { lang: route.lang, request: unstable_getRequest() })
-        : view.view(params, { lang: route.lang })));
+        ? view.view(params, { lang, request: unstable_getRequest() })
+        : view.view(params, { lang })));
     if (!out) unstable_notFound();
 
     return (
       <>
         <Head tags={ctx.getHead({ route, path: decodePathname(path), view: out })} />
-        {await render({ lang: route.lang, view: out })}
+        {await render({ lang, view: out })}
       </>
     );
   }
@@ -288,6 +291,12 @@ export async function createRouter(
 
     out.push(({ app }) => async (c, next) => {
       const { raw } = c.req;
+      const { pathname, search } = new URL(raw.url);
+      // Waku's router throws on paths outside of its base path, the base path without its trailing slash included
+      const path = stripBase(pathname, ctx.withBase("/"));
+      if (path === undefined) return c.notFound();
+      if (path === "/" && !pathname.endsWith("/")) return c.redirect(`${pathname}/${search}`, 308);
+
       const route = unstable_parseRouterRequest(raw);
       let request = raw;
       // RSC requests of client navigations, the query is undefined when the router's params are in the body
@@ -349,6 +358,7 @@ export async function createRouter(
         entry.buildOptions = {
           ...entry.buildOptions,
           FUMAPRESS_BASE_PATH: import.meta.env.WAKU_CONFIG_BASE_PATH,
+          FUMAPRESS_PLATFORM: platform,
         };
         entry.buildEnhancers = [
           ...(entry.buildEnhancers ?? []),
@@ -356,7 +366,27 @@ export async function createRouter(
         ];
       }
 
-      const { build } = entry;
+      const { build, fetch } = entry;
+      const llms = plugins.find((plugin) => plugin.provides?.some((name) => name === "llms"));
+      entry.fetch = (raw, ...args) => {
+        const { pathname } = new URL(raw.url);
+        const serve = async (rewrite?: string) => {
+          const request =
+            rewrite === undefined ? raw : new Request(new URL(ctx.withBase(rewrite), raw.url), raw);
+          const response = await fetch(request, ...args);
+          // static files of adapters with a server have no Markdown type
+          return response.headers.get("Content-Type") === "application/octet-stream" &&
+            (rewrite ?? pathname).endsWith(".md")
+            ? withHeader(response, "Content-Type", "text/markdown; charset=utf-8")
+            : response;
+        };
+        // adapters with a server serve static files before middleware, so the plugin negotiates here too. `.md` URLs stay
+        // with the whole chain: the plugin answers them on request, before the plugins after it
+        return llms?.middleware && raw.method === "GET" && !pathname.endsWith(".md")
+          ? llms.middleware.call(ctx, raw, serve)
+          : serve();
+      };
+
       entry.build = async (utils, ...args) => {
         const links: PressBuildOutput["links"] = [];
         // only read by the `build` of plugins, like link validation
@@ -374,39 +404,12 @@ export async function createRouter(
               new Response(typeof content === "string" ? content : content.slice()).body!,
             ),
         });
-
-        // Workers can't load the native addon of Takumi, and serve static assets before the Worker
-        if (platform === "cloudflare" && ctx.mode === "dynamic") {
-          for (const { path, staticPaths } of await ctx.getApiRoutes()) {
-            for (const { pathname } of expandRoute(path, staticPaths).pages) {
-              if (!pathname.endsWith(".webp")) continue;
-              const url = new URL(ctx.withBase(pathname), "http://localhost");
-              const response = await entry.fetch(new Request(url));
-              if (response.ok) await utils.emitFile(`public${pathname}`, response.body!);
-            }
-          }
-        }
       };
 
       let out: WakuServerEntry = entry;
-      /** `buildOptions` keys by the layer that set them */
-      const setters = new Map<string, string>();
-      for (const key in entry.buildOptions) setters.set(key, "Fumapress");
       for (let i = plugins.length - 1; i >= 0; i--) {
-        const plugin = plugins[i]!;
-        const hook = plugin.waku?.unstable_serverEntry;
-        if (!hook) continue;
-        const next = hook.call(ctx, out);
-        const name = plugin.name ? `the plugin "${plugin.name}"` : "a plugin";
-        for (const key in next.buildOptions) {
-          const setter = setters.get(key);
-          if (setter && setter !== name && next.buildOptions[key] !== out.buildOptions?.[key])
-            throw new Error(
-              `[Fumapress] ${name} overwrites the build option "${key}" of ${setter}: an inner layer's value has one writer.`,
-            );
-          setters.set(key, setter ?? name);
-        }
-        out = next;
+        const hook = plugins[i]!.waku?.unstable_serverEntry;
+        if (hook) out = hook.call(ctx, out);
       }
       return out as AdapterServerEntry;
     };
@@ -416,25 +419,12 @@ export async function createRouter(
     createPages(fsRoutes) {
       return createPages(async (waku) => {
         /** your own pages and the pages of plugins, core picks the ones served */
-        const runtimeRoutes: RuntimeRoute<WakuAppShape>[] = [];
+        const runtimeRoutes: PageRouteInput<WakuAppShape>[] = [];
         /** registers the Waku page of a route, once core picked it */
-        const registers = new Map<PageRoute<WakuAppShape>, () => void>();
-        /** layout paths and slice ids, by their owner */
-        const owners = new Map<string, string>();
-        const own = "your own pages";
-
-        /** a layout or slice has one owner: your own wins over a plugin's, two plugins are an error naming both */
-        function claim(key: string, owner: string): boolean {
-          const other = owners.get(key);
-          if (other === undefined || other === owner) {
-            owners.set(key, owner);
-            return true;
-          }
-          if (other === own) return false;
-          throw new Error(
-            `[Fumapress] ${other} and ${owner} both create the ${key}: a layout path or slice id has one owner.`,
-          );
-        }
+        const registers = new Map<object, (route: ServedRoute<WakuAppShape>) => void>();
+        /** your own win over the ones of plugins, Waku refuses two plugins on one */
+        const ownLayouts = new Set<string>();
+        const ownSlices = new Set<string>();
 
         function createPage(plugin: PluginInfo | undefined, page: WakuPageOptions) {
           const {
@@ -448,22 +438,20 @@ export async function createRouter(
             unstable_sourceFile,
             ...options
           } = page;
-          const { pattern, pages } = expandRoute(path, staticPaths, exactPath);
           const Page = component as FC<WakuRouteProps>;
-          const routePages: PageRoute["pages"][number][] = [];
-          for (const { pathname, params } of pages)
-            routePages.push({ ...localize(lang, withoutGroups(pathname)), params });
-          const route: PageRoute<WakuAppShape> = {
-            path: ctx.localizePath(lang, withoutGroups(pattern)),
+          const input: PageRouteInput<WakuAppShape> = {
+            path,
             lang,
             render,
-            pages: routePages,
+            staticPaths,
+            exactPath,
             options,
+            plugin,
             markdown: (path, params) =>
               renderRoute(createElement(Page, { ...params, path, lang } as WakuRouteProps)),
           };
-          runtimeRoutes.push({ route, plugin });
-          registers.set(route, () =>
+          runtimeRoutes.push(input);
+          registers.set(input, (route) =>
             waku.createPage({
               render,
               path: joinPaths(langBase(lang), path),
@@ -482,11 +470,12 @@ export async function createRouter(
         }
 
         function createLayout(
-          owner: string,
+          plugin: PluginInfo | undefined,
           { path, lang, component, render = defaultRender, unstable_sourceFile }: WakuLayoutOptions,
         ) {
           const fullPath = joinPaths(langBase(lang), path);
-          if (!claim(`layout ${fullPath}`, owner)) return;
+          if (!plugin) ownLayouts.add(fullPath);
+          else if (ownLayouts.has(fullPath)) return;
           const Layout = component as FC<{ lang?: string }>;
           waku.createLayout({
             render,
@@ -499,9 +488,9 @@ export async function createRouter(
         await fsRoutes.call(ctx, {
           ...waku,
           createPage: (page) => createPage(undefined, page),
-          createLayout: (layout) => createLayout(own, layout),
+          createLayout: (layout) => createLayout(undefined, layout),
           createSlice(slice) {
-            if ("id" in slice) claim(`slice ${slice.id}`, own);
+            if ("id" in slice) ownSlices.add(slice.id);
             waku.createSlice(slice);
           },
         });
@@ -509,143 +498,84 @@ export async function createRouter(
         for (const plugin of plugins) {
           const hook = plugin.waku?.createPages;
           if (!hook) continue;
-          const owner = plugin.name ? `the plugin "${plugin.name}"` : "a plugin";
           await hook.call(ctx, {
             createPage: (page) => createPage(plugin, page),
             createLayout(layout) {
-              if (!/^\/\([^/)]+\)/.test(layout.path))
+              if (!/^\/\([^/)]+\)/.test(layout.path)) {
+                const owner = plugin.name ? `the plugin "${plugin.name}"` : "a plugin";
                 throw new Error(
                   `[Fumapress] ${owner} creates a layout at "${layout.path}": plugin layouts go in a route group like "/(name)", the site owns its other pages.`,
                 );
-              createLayout(owner, layout);
+              }
+              createLayout(plugin, layout);
             },
             createSlice(slice) {
-              if (!("id" in slice) || claim(`slice ${slice.id}`, owner)) waku.createSlice(slice);
+              if (!("id" in slice) || !ownSlices.has(slice.id)) waku.createSlice(slice);
             },
             createInterceptor: waku.createInterceptor,
           });
         }
 
         ctx.setRuntimeRoutes(runtimeRoutes);
-        const [served, views, apiRoutes] = await Promise.all([
-          ctx.getRoutes(),
-          ctx.getViewRoutes(),
-          ctx.getApiRoutes(),
-        ]);
+        const [served, apiRoutes] = await Promise.all([ctx.getPageRoutes(), ctx.getApiRoutes()]);
         let hasNotFound = false;
         for (const route of served) {
-          registers.get(route)?.();
+          const { view, input } = route;
           // with i18n, the views at `/404` are rendered by the 404 page in the language of the URL
-          if (route.path === "/404" && (!i18n || registers.has(route))) hasNotFound = true;
-        }
-
-        for (const routed of views) {
-          const { route, view } = routed;
+          if (route.path === "/404" && (!i18n || !view)) hasNotFound = true;
+          if (input) registers.get(input)?.(route);
           // the view of the default language at `/404` with a hidden locale, the 404 page renders it
-          if (i18n && route.path === "/404") continue;
+          if (!view || (i18n && route.path === "/404")) continue;
           waku.createPage({
             render: route.render,
             path: joinPaths(langBase(route.lang), view.path),
             staticPaths: view.staticPaths,
-            component: (props: WakuRouteProps) => viewPage(routed, props.path),
+            component: (props: WakuRouteProps) => viewPage(route, props.path),
           } as never);
         }
 
         for (const route of apiRoutes) createApiRoute(waku.createApi, route);
 
-        const pages = (await ctx.getLoader()).getPages();
-        if (i18n) {
-          const slugsByLang = new Map<string, string[][]>();
-          for (const page of pages) {
-            const slugs = slugsByLang.get(page.locale!);
-            if (slugs) slugs.push(page.slugs);
-            else slugsByLang.set(page.locale!, [page.slugs]);
-          }
-          const createLangRoot = (path: string, lang: string) =>
-            waku.createLayout({
-              render: defaultRender,
-              path,
-              component: ({ children }) => <Root lang={lang}>{children}</Root>,
-            });
+        const slugsByLang = new Map<string | undefined, string[][]>();
+        for (const page of (await ctx.getLoader()).getPages()) {
+          const slugs = slugsByLang.get(page.locale);
+          if (slugs) slugs.push(page.slugs);
+          else slugsByLang.set(page.locale, [page.slugs]);
+        }
+        const createLangRoot = (path: string, lang: string) =>
+          waku.createLayout({
+            render: defaultRender,
+            path,
+            component: ({ children }) => <Root lang={lang}>{children}</Root>,
+          });
 
-          waku.createRoot({ render: defaultRender, component: Fragment });
-          // pages outside of any language (e.g. `autoI18n: false`) still need a root layout
-          if (i18n.hideLocale !== "default-locale")
-            createLangRoot(DEFAULT_GROUP, i18n.defaultLanguage);
-          for (const lang of i18n.languages) {
-            const base = langBase(lang);
-            createLangRoot(base, lang);
-            waku.createPage({
-              render: defaultRender,
-              path: `${base}/[...slugs]` as "/[...slugs]",
-              staticPaths: slugsByLang.get(lang) ?? [],
-              component: ({ slugs }) => <ContentPage slugs={slugs} lang={lang} />,
-            });
-            // a wildcard route of Waku needs a segment after its prefix
-            if (
-              defaultRender === "dynamic" &&
-              base !== DEFAULT_GROUP &&
-              !served.some((route) => route.path === base) &&
-              !views.some(({ route }) => route.path === base)
-            )
-              waku.createPage({
-                render: "dynamic",
-                path: base as "/",
-                component: () => <ContentPage slugs={[]} lang={lang} />,
-              });
-          }
-
-          // Waku renders `/404` for every unknown URL: in the language of its prefix, rendered on request outside static
-          // mode; the `404.html` of static sites is the default language
-          if (!hasNotFound) {
-            waku.createPage({
-              render: ctx.mode === "static" ? "static" : "dynamic",
-              path: "/404",
-              staticPaths: [],
-              component: () => {
-                const route = unstable_parseRouterRequest(unstable_getRequest());
-                const lang =
-                  route?.type === "route" ? pathLocale(ctx, route.path) : i18n.defaultLanguage;
-                return (
-                  <Root lang={lang}>
-                    {notFoundView(ctx, lang).then((view) =>
-                      view ? viewPage(view, view.route.path) : notFoundPage(lang),
-                    )}
-                  </Root>
-                );
-              },
-            });
-          }
-
-          const to = await rootRedirect(ctx);
-          if (to !== undefined) {
-            if (ctx.mode === "static") {
-              waku.createPage({
-                render: "static",
-                path: "/",
-                component: () => <RedirectDocument to={to} />,
-              });
-            } else {
-              waku.createPage({
-                render: "dynamic",
-                path: "/",
-                // the content can change while the server runs
-                component: async () =>
-                  unstable_redirect(await getHomeUrl(ctx, i18n.defaultLanguage)),
-              });
-            }
-          }
-        } else {
-          const staticPaths: string[][] = [];
-          for (const page of pages) staticPaths.push(page.slugs);
-
-          waku.createRoot({ render: defaultRender, component: Root });
+        waku.createRoot({ render: defaultRender, component: i18n ? Fragment : Root });
+        // pages outside of any language (e.g. `autoI18n: false`) still need a root layout
+        if (i18n && i18n.hideLocale !== "default-locale")
+          createLangRoot(DEFAULT_GROUP, i18n.defaultLanguage);
+        for (const lang of ctx.languages) {
+          const base = langBase(lang);
+          if (lang) createLangRoot(base, lang);
           waku.createPage({
             render: defaultRender,
-            path: "/[...slugs]",
-            staticPaths,
-            component: ({ slugs }) => <ContentPage slugs={slugs} />,
+            path: joinPaths(base, "/[...slugs]") as "/[...slugs]",
+            staticPaths: slugsByLang.get(lang) ?? [],
+            component: ({ slugs }) => <ContentPage slugs={slugs} lang={lang} />,
           });
+          // a wildcard route of Waku needs a segment after its prefix
+          if (
+            defaultRender === "dynamic" &&
+            ctx.localizePath(lang, "/") !== "/" &&
+            !served.some((route) => route.path === base)
+          )
+            waku.createPage({
+              render: "dynamic",
+              path: base as "/",
+              component: () => <ContentPage slugs={[]} lang={lang} />,
+            });
+        }
+
+        if (!i18n) {
           if (!hasNotFound)
             waku.createPage({
               render: defaultRender,
@@ -653,6 +583,47 @@ export async function createRouter(
               path: "/404",
               component: () => notFoundPage(undefined),
             });
+          return null as never;
+        }
+
+        // Waku renders `/404` for every unknown URL: in the language of its prefix, rendered on request outside static
+        // mode; the `404.html` of static sites is the default language
+        if (!hasNotFound) {
+          waku.createPage({
+            render: ctx.mode === "static" ? "static" : "dynamic",
+            path: "/404",
+            staticPaths: [],
+            component: () => {
+              const route = unstable_parseRouterRequest(unstable_getRequest());
+              const lang =
+                route?.type === "route" ? pathLocale(ctx, route.path) : i18n.defaultLanguage;
+              return (
+                <Root lang={lang}>
+                  {notFoundView(ctx, lang).then((route) =>
+                    route ? viewPage(route, route.path) : notFoundPage(lang),
+                  )}
+                </Root>
+              );
+            },
+          });
+        }
+
+        const to = await rootRedirect(ctx);
+        if (to !== undefined) {
+          if (ctx.mode === "static") {
+            waku.createPage({
+              render: "static",
+              path: "/",
+              component: () => <RedirectDocument to={to} />,
+            });
+          } else {
+            waku.createPage({
+              render: "dynamic",
+              path: "/",
+              // the content can change while the server runs
+              component: async () => unstable_redirect(await getHomeUrl(ctx, i18n.defaultLanguage)),
+            });
+          }
         }
 
         return null as never;
@@ -665,6 +636,12 @@ export async function createRouter(
   return router;
 }
 
+function withHeader(response: Response, name: string, value: string): Response {
+  const out = new Response(response.body, response);
+  out.headers.set(name, value);
+  return out;
+}
+
 /** the URL of the site on the development server, without `site.baseUrl` */
 function defaultBaseUrl(): string | undefined {
   const platform =
@@ -675,11 +652,6 @@ function defaultBaseUrl(): string | undefined {
     `[Fumapress] "site.baseUrl" is not set${platform}; sitemap and RSS will fall back to relative URLs.`,
   );
   if (import.meta.env.DEV) return joinPaths("http://localhost:3000", import.meta.env.BASE_URL);
-}
-
-/** a Waku page path without its route groups, like `/(acme)/showcase` → `/showcase` */
-function withoutGroups(path: string): string {
-  return path.replace(/\/\([^/)]+\)/g, "") || "/";
 }
 
 /** React props of the HTML attributes that React names differently */

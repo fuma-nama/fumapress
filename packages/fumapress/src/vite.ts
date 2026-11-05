@@ -79,6 +79,7 @@ export default function press(options?: WakuPressOptions): Plugin[] {
     core(options),
     wakuCompat(),
     lucideImports(),
+    takumiOnWorkers(options),
     // see https://github.com/wakujs/waku/issues/2092
     { name: "waku:vite-plugins:fs-router-typegen" },
     {
@@ -174,6 +175,55 @@ function wakuCompat(): Plugin {
           },
         }
       : undefined,
+  };
+}
+
+/**
+ * Workers can only render images with the WebAssembly build of `takumi-js`, and Waku's build imports the same bundle in
+ * Node.js, which can't import WebAssembly modules: each runtime imports its backend on demand.
+ */
+function takumiOnWorkers(options?: WakuPressOptions): Plugin {
+  const virtual = "\0fumapress:takumi-backend:";
+  const entry = "\0fumapress:takumi-wasm:";
+  const wasm = "takumi_wasm_bg.wasm";
+
+  return {
+    name: "fumapress:takumi-workers",
+    enforce: "pre",
+    apply: () => (options?.adapter ?? getDefaultAdapter()) === "waku/adapters/cloudflare",
+    async resolveId(source, importer, resolveOptions) {
+      if (!importer || this.environment.mode !== "build") return;
+      if (source === "#backend" && importer.includes("/takumi-js/"))
+        return virtual + path.dirname(importer);
+
+      if (source === "takumi-js/wasm" && importer.endsWith("/plugins/takumi.wasm.js")) {
+        const real = await this.resolve(source, importer, { ...resolveOptions, skipSelf: true });
+        return real && entry + real.id;
+      }
+
+      if (source === "@takumi-rs/wasm/auto" && importer.endsWith("/backend/wasm.mjs")) {
+        const file = await this.resolve(`@takumi-rs/wasm/${wasm}`, importer, resolveOptions);
+        // `@cloudflare/vite-plugin` handles WebAssembly modules itself
+        if (!file || file.external) return file;
+        this.emitFile({ type: "asset", fileName: `assets/${wasm}`, source: readFileSync(file.id) });
+        return { id: `./${wasm}`, external: true };
+      }
+    },
+    load(id) {
+      if (id.startsWith(entry)) {
+        return `export default globalThis.navigator?.userAgent === "Cloudflare-Workers"
+  ? undefined
+  : () => import(${JSON.stringify(id.slice(entry.length))});`;
+      }
+      if (!id.startsWith(virtual)) return;
+      const dir = id.slice(virtual.length);
+      return `export const loadBackend = async (module) => {
+  const backend = await (globalThis.navigator?.userAgent === "Cloudflare-Workers"
+    ? import(${JSON.stringify(`${dir}/backend/wasm.mjs`)})
+    : import(${JSON.stringify(`${dir}/backend/node.mjs`)}));
+  return backend.loadBackend(module);
+};`;
+    },
   };
 }
 
