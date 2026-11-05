@@ -47,20 +47,6 @@ export async function matchView(ctx: RuntimeContext, path: string): Promise<View
   };
 }
 
-/** whether a route of plugins serves `path` (without the base path), with or without the trailing slash */
-export async function isApiRoute(ctx: RuntimeContext, path: string): Promise<boolean> {
-  const trimmed = path.replace(/(.)\/$/, "$1");
-  for (const route of await ctx.getApiRoutes()) {
-    if (
-      route.render === "dynamic"
-        ? matchRoute(route.path, trimmed)
-        : expandRoute(route.path, route.staticPaths).pages.some((page) => page.pathname === trimmed)
-    )
-      return true;
-  }
-  return false;
-}
-
 /** the static paths of `[...fumapressPage]`, no pages in `dynamic` mode */
 export async function pageStaticPaths(ctx: RuntimeContext, adapter: boolean) {
   const paths: { params: { fumapressPage?: string }; props: PageProps }[] = [];
@@ -122,6 +108,18 @@ export async function fileStaticPaths(ctx: RuntimeContext, adapter: boolean) {
       });
   }
   return paths;
+}
+
+/** the response of the route rendered at build time at the URL of `request` */
+export async function serveFile(
+  ctx: RuntimeContext,
+  request: Request,
+): Promise<Response | undefined> {
+  const path = stripBase(new URL(request.url).pathname, ctx.withBase("/"));
+  if (path === undefined || request.method !== "GET") return;
+  const file = decodeURI(path).slice(1);
+  for (const { params, props } of await fileStaticPaths(ctx, true))
+    if (params.fumapressFile === file) return props.GET(request, { params: props.params });
 }
 
 /** the route rendered on request at `path` (without the base path), with its params */

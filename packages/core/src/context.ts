@@ -113,7 +113,7 @@ export interface PressRuntime<C extends AppShape = AppShape> {
   base: string;
   /**
    * Like `trailingSlash: "always"` of the framework: the paths of `absoluteUrl()` without a file extension end with `/`,
-   * and so do those of `withBase()` outside of `static` mode, where adapters redirect other forms and a `POST` would become a `GET`.
+   * and so do those of `withBase()`, where adapters redirect other forms and a `POST` would become a `GET`. Builds in `static` mode keep the paths of their files.
    */
   trailingSlash?: boolean;
   /** the preset without `preset` in `.config()` @defaultValue recommendedPreset() */
@@ -375,7 +375,8 @@ export async function createPressContext(
     },
     withBase(pathname: string) {
       const url = joinPaths("/", ctx.base, pathname);
-      return pathname === "/" || ctx.mode === "static" ? url : withTrailingSlash(url);
+      // the dev server of the framework has no files
+      return pathname === "/" || (ctx.mode === "static" && !dev) ? url : withTrailingSlash(url);
     },
     absoluteUrl(pathname: string) {
       if (URL.canParse(pathname)) return pathname;

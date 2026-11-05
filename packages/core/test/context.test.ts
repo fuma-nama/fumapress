@@ -1029,10 +1029,25 @@ describe("URLs", () => {
     ["adds it before a query", slash, "/docs?a=b.c", "/repo/docs/?a=b.c"],
     ["adds none to files", slash, "/robots.txt", "/repo/robots.txt"],
     ["adds none to the root, for `stripBase()`", slash, "/", "/repo"],
-    ["adds none in static mode", staticSlash, "/api/search", "/repo/api/search"],
+    ["adds it in static mode in dev", staticSlash, "/api/search", "/repo/api/search/"],
     ["adds none by default", plain, "/api/ai", "/api/ai"],
   ])("withBase %s", async (_, [site, runtime], input, expected) => {
     expect((await createSite(site, runtime)).withBase(input)).toBe(expected);
+  });
+
+  it.each([
+    ["static", "/repo/api/search"],
+    ["dynamic", "/repo/api/search/"],
+  ] as const)("withBase in a build of %s mode gives %s", async (mode, expected) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const { pressContext: buildContext } = await import("./harness");
+    const ctx = await buildContext(
+      { content: { files }, mode },
+      { base: "/repo/", trailingSlash: true },
+    );
+    vi.unstubAllEnvs();
+    expect(ctx.withBase("/api/search")).toBe(expected);
   });
 
   it.each<[string, Site, string, string]>([

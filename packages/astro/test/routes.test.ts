@@ -313,6 +313,29 @@ describe("middleware", () => {
     expect(await (await request(path, { routePattern })).text()).toBe(expected);
   });
 
+  describe("on the 404 page, with a file of a static route", () => {
+    const withFile = () =>
+      site(
+        { routes: ({ createApi }) => createApi({ path: "/a.txt", render: "static", GET }) },
+        {},
+        "/sub",
+      );
+    const onNotFound = { routePattern: "/404", isPrerendered: true };
+
+    it("answers in dev, the way builds serve it", async () => {
+      runtime.ctx = await withFile();
+      expect(await (await request("/sub/a.txt", onNotFound)).text()).toBe("get");
+      expect(await (await request("/sub/b.txt", onNotFound)).text()).toBe("next");
+    });
+
+    it("leaves builds to the file", async () => {
+      runtime.ctx = await withFile();
+      vi.stubEnv("DEV", false);
+      expect(await (await request("/sub/a.txt", onNotFound)).text()).toBe("next");
+      vi.unstubAllEnvs();
+    });
+  });
+
   it("keeps the request when a rewrite fails", async () => {
     runtime.ctx = await site({
       middleware: async (request, next) => {

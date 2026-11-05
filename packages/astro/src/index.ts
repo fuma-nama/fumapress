@@ -2,13 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
-import type { Connect, DevEnvironment, Plugin, RunnableDevEnvironment, ViteDevServer } from "vite";
+import type { DevEnvironment, Plugin, RunnableDevEnvironment, ViteDevServer } from "vite";
 import fumadocs, { type CollectionConfig, type FumadocsOptions } from "@fumadocs/astro";
-import { stripBase, type BuildMode } from "@fumapress/core";
+import type { BuildMode } from "@fumapress/core";
 import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/runtime/vite";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
-import type * as Routes from "./routes/shared";
 import type * as Context from "./routes/context";
 import type * as Generated from "virtual:fumapress/astro";
 
@@ -132,13 +131,6 @@ export default withProvider(components);`;
                   internalModule("ui/default"),
                   internalModule("ui/home"),
                 ]),
-                config.trailingSlash !== "ignore" &&
-                  trailingSlashPlugin(
-                    config.trailingSlash,
-                    basePath || "/",
-                    context,
-                    internalModule("routes/shared"),
-                  ),
                 contentReloadPlugin(context, Object.values(collections), root),
               ],
             },
@@ -277,60 +269,6 @@ function contentReloadPlugin(
       server.watcher.on("add", listener);
       server.watcher.on("change", listener);
       server.watcher.on("unlink", listener);
-    },
-  };
-}
-
-/**
- * In dev, the routes of plugins like `/api/search` match with or without the trailing slash, as their files do in builds.
- *
- * The dev server of Astro rejects other forms than `trailingSlash` before routing, so the URL is rewritten before it.
- */
-function trailingSlashPlugin(
-  trailingSlash: "always" | "never",
-  /** like `withBase('/')` */
-  base: string,
-  /** the module of the runtime context */
-  context: string,
-  routes: string,
-): Plugin {
-  return {
-    name: "@fumapress/astro:trailing-slash",
-    configureServer(server) {
-      const { ssr } = server.environments;
-      if (!isRunnable(ssr)) return;
-      const isRoute = async (path: string) => {
-        const [{ ctx }, { isApiRoute }] = await Promise.all([
-          ssr.runner.import<typeof Context>(context),
-          ssr.runner.import<typeof Routes>(routes),
-        ]);
-        return isApiRoute(ctx, path);
-      };
-
-      const handle: Connect.NextHandleFunction = (req, _res, next) => {
-        const url = new URL(req.url ?? "/", "http://localhost");
-        const { pathname } = url;
-        const path = stripBase(pathname, base);
-        if (
-          path === undefined ||
-          pathname.endsWith("/") === (trailingSlash === "always") ||
-          pathname.startsWith("/@")
-        )
-          return next();
-        isRoute(path)
-          .then((matched) => {
-            if (!matched) return;
-            req.url =
-              (trailingSlash === "always" ? `${pathname}/` : pathname.slice(0, -1)) + url.search;
-          })
-          // the route renders the error
-          .catch(() => undefined)
-          .finally(next);
-      };
-      // Astro adds its middlewares to the front of the stack after the other plugins, this goes before them
-      return () => {
-        server.middlewares.stack.unshift({ route: "", handle });
-      };
     },
   };
 }
