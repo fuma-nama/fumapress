@@ -50,8 +50,7 @@ export default function press({
   let server: ViteDevServer | undefined;
 
   return [
-    // relative links of collection pages resolve from these references
-    fumadocs({ extractLinkReferences: true, ...options, collections: contentCollections }),
+    fumadocs({ ...options, collections: contentCollections }),
     {
       name: "@fumapress/astro",
       hooks: {

@@ -62,11 +62,6 @@ it("renders collection pages as their `<Content />`, dated by the `date` frontma
     date: "2026-11-04",
     getText: async () => "",
     load: async () => ({ body: Content, toc: [] }),
-    extractedReferences: [
-      { href: "./guide/other.mdx#usage" },
-      { href: "./missing.mdx" },
-      { href: "https://example.com" },
-    ],
   };
   const ctx = await site({ "post.mdx": data, "guide/other.mdx": { title: "Other" } });
   const page = (await ctx.getLoader()).getPage(["post"])!;
@@ -74,10 +69,8 @@ it("renders collection pages as their `<Content />`, dated by the `date` frontma
 
   expect(isValidElement(body?.node) && body.node.type).toBe(AstroContent);
   expect(body?.node).toHaveProperty("props.component", Content);
-  // only what the browser can't resolve itself
-  expect(body?.node).toHaveProperty(
-    "props.links",
-    new Map([["./guide/other.mdx#usage", "/guide/other#usage"]]),
-  );
+  const { props } = body!.node as ReactElement<{ components: MDXComponents }>;
+  const A = props.components.a as (props: { href: string }) => ReactElement<{ href: string }>;
+  expect(A({ href: "./guide/other.mdx#usage" }).props.href).toBe("/guide/other#usage");
   expect(await ctx.getPageCreatedAt(page)).toEqual(new Date("2026-11-04"));
 });

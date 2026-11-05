@@ -20,7 +20,7 @@ const { tree, slots, provider, persist } = Astro.props;
         <Fragment slot={`s${i}`} set:html={content} />
       ) : (
         <Fragment slot={`s${i}`}>
-          <content.component provider={provider} links={content.links} />
+          <content.component provider={provider} components={content.components} />
         </Fragment>
       ),
     )

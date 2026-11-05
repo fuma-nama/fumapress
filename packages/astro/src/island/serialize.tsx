@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { AstroComponentFactory } from "astro/runtime/server/index.js";
 import { DevalueError, stringify } from "devalue";
+import type { MDXComponents } from "mdx/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { components } from "virtual:fumapress/island";
@@ -39,10 +40,9 @@ class Tree {
 
 /** Astro content in a slot of the island */
 export interface AstroSlot {
-  /** like `<Content />` of a collection page, it receives the `provider` and `links` props */
+  /** like `<Content />` of a collection page, it receives the `provider` and `components` props */
   component: AstroComponentFactory;
-  /** the URLs of its relative links, for the `a` of its MDX components */
-  links?: Map<string, string>;
+  components?: MDXComponents;
 }
 
 /** without `component`, the default slot of `Island.astro`, the children of its Astro component */
@@ -125,8 +125,8 @@ async function serialize(
   }
   if (!isValidElement<ElementProps>(node)) return;
   if (isAstroContent(node)) {
-    const { component, links } = node.props;
-    out.push(component ? slot(slots, { component, links }) : new Slot("children"));
+    const { component, components } = node.props;
+    out.push(component ? slot(slots, { component, components }) : new Slot("children"));
     return;
   }
 

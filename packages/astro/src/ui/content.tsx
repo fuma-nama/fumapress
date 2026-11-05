@@ -1,5 +1,5 @@
 "use client";
-import { createContext, use, type ComponentProps, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { navigate } from "astro:transitions/client";
 import { RootProvider, type RootProviderProps } from "fumadocs-ui/provider/astro";
@@ -43,37 +43,14 @@ export function ContentProvider({
   );
 }
 
-const LinksContext = createContext<Map<string, string> | undefined>(undefined);
-
-/**
- * The MDX components of a collection, the content renders in `ContentProvider` with the `provider` prop of `<Content />`.
- *
- * They also render in the browser, without the loader: the `links` prop has the URLs of relative links from the server.
- */
+/** the MDX components of a collection, the content renders in `ContentProvider` with the `provider` prop of `<Content />` */
 export function withProvider(components: MDXComponents): MDXComponents {
-  const { wrapper: Wrapper, a: A = Link } = components;
+  const { wrapper: Wrapper } = components;
 
   return {
     ...components,
-    a({ href, ...props }: ComponentProps<"a">) {
-      const url = href && use(LinksContext)?.get(href);
-      return <A {...props} href={url || href} />;
-    },
-    wrapper({
-      provider,
-      links,
-      children,
-      ...props
-    }: {
-      provider?: ProviderData;
-      links?: Map<string, string>;
-      children?: ReactNode;
-    }) {
-      const content = (
-        <LinksContext value={links}>
-          {Wrapper ? <Wrapper {...props}>{children}</Wrapper> : children}
-        </LinksContext>
-      );
+    wrapper({ provider, children, ...props }: { provider?: ProviderData; children?: ReactNode }) {
+      const content = Wrapper ? <Wrapper {...props}>{children}</Wrapper> : children;
       return provider ? <ContentProvider provider={provider}>{content}</ContentProvider> : content;
     },
   };
