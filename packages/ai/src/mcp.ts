@@ -30,10 +30,6 @@ export function mcpPlugin<C extends AppShape = AppShape>(
   return {
     name: "ai:mcp",
     routes({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error("[Fumapress] MCP server is not compatible with static mode");
-      }
-
       const { execute, pageToIndex } = createSearch(options, this);
       // the loader config of a generic app can't be inferred
       const getLoader = this.getLoader as () => Promise<LoaderOutput>;

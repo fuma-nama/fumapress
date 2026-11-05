@@ -58,12 +58,6 @@ export function aiPlugin<C extends AppShape = AppShape>(
       ];
     },
     routes({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error(
-          "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static', its /api/ai endpoint calls the model on the server.",
-        );
-      }
-
       const {
         model,
         beforeRequest,

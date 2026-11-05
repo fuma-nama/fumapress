@@ -35,27 +35,19 @@ export function notFoundView(
       { lang }: { lang: string | undefined },
     ): Promise<View<MintlifyViews>> {
       const home = ctx.withBase(await getHomeUrl(ctx, lang));
-      if (redirect)
-        return {
-          type: "mintlify.404",
-          props,
-          title: props.title,
-          node: (
-            <>
-              {/* React 19 hoists meta tags into <head> */}
-              <meta httpEquiv="refresh" content={`0;url=${home}`} />
-              <script
-                dangerouslySetInnerHTML={{ __html: `location.replace(${JSON.stringify(home)});` }}
-              />
-            </>
-          ),
-        };
-
       return {
         type: "mintlify.404",
         props,
         title: props.title,
-        node: (
+        node: redirect ? (
+          <>
+            {/* React 19 hoists meta tags into <head> */}
+            <meta httpEquiv="refresh" content={`0;url=${home}`} />
+            <script
+              dangerouslySetInnerHTML={{ __html: `location.replace(${JSON.stringify(home)});` }}
+            />
+          </>
+        ) : (
           <div
             style={{
               display: "flex",

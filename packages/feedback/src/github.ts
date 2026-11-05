@@ -78,8 +78,8 @@ export function githubFeedbackPlugin<C extends AppShape = AppShape>(
 
   async function createDiscussionThread(pageId: string, body: string): Promise<ActionResponse> {
     const octokit = await getOctokit();
-    const repo = await getFeedbackRepository();
-    const category = repo.discussionCategories.nodes.find(
+    const repository = await getFeedbackRepository();
+    const category = repository.discussionCategories.nodes.find(
       (category) => category.name === FeedbackCategory,
     );
 
@@ -124,7 +124,7 @@ export function githubFeedbackPlugin<C extends AppShape = AppShape>(
         };
       } = await octokit.graphql(`
                 mutation {
-                  createDiscussion(input: { repositoryId: "${repo.id}", categoryId: "${category.id}", body: ${JSON.stringify(body)}, title: ${JSON.stringify(title)} }) {
+                  createDiscussion(input: { repositoryId: "${repository.id}", categoryId: "${category.id}", body: ${JSON.stringify(body)}, title: ${JSON.stringify(title)} }) {
                     discussion { id, url }
                   }
                 }`);

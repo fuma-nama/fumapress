@@ -73,12 +73,7 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
         route(this, pageApi, pageFeedback, onPageFeedbackAction),
         route(this, textApi, blockFeedback, onTextFeedbackAction),
       ]) {
-        if (!item) continue;
-        if (this.mode === "static")
-          throw new Error(
-            "[@fumapress/feedback] actions other than client functions run on the server, they are not compatible with static mode",
-          );
-        createApi(item);
+        if (item) createApi(item);
       }
     },
     async slots({ page }) {

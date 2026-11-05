@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppShape, Context, View, ViewRoute } from "@fumapress/core";
 import type { Page } from "fumadocs-core/source";
 import { prerender } from "react-dom/static";
@@ -190,6 +190,13 @@ describe("blogPlugin", () => {
       "news/hello.mdx",
     ]);
     expect(await view(pages[4]!)).toMatchObject({ props: { newer: { page: pages[1] } } });
+  });
+
+  it("retries a failed `getTags`", async () => {
+    const getTags = vi.fn<() => undefined>().mockRejectedValueOnce(new Error("timeout"));
+    const { posts } = setup({ getTags, paths: { tags: false } });
+    await expect(posts("en")).rejects.toThrow("timeout");
+    expect(await posts("en")).toHaveLength(2);
   });
 
   it("lists the posts for own pages", async () => {

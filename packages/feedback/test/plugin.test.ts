@@ -1,22 +1,56 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiRoute, Context } from "@fumapress/core";
+import {
+  createPress,
+  type ApiRoute,
+  type AppShape,
+  type Context,
+  type Plugin,
+} from "@fumapress/core";
+import { createPressContext } from "@fumapress/core/runtime";
 import { feedbackPlugin } from "../src/index";
 import { emailFeedbackPlugin } from "../src/email";
+import { githubFeedbackPlugin } from "../src/github";
 import { Feedback, FeedbackText } from "../src/components/feedback/client";
+
+const octokit = vi.hoisted(() => ({ getInstallationOctokit: vi.fn() }));
+vi.mock("octokit", () => ({
+  Octokit: class {},
+  App: class {
+    octokit = { request: async () => ({ data: { id: 1 } }) };
+    getInstallationOctokit = octokit.getInstallationOctokit;
+  },
+}));
+
+const repository = { id: "repo", discussionCategories: { nodes: [{ id: "cat", name: "Docs" }] } };
+const discussion = { id: "thread", title: "Feedback for /docs", url: "https://github.com/thread" };
 
 const action = async () => ({});
 /** a function exported from a `'use client'` module, as the runtime reports it */
 const clientAction = async () => ({});
 const ctx = {
-  mode: "default",
   withBase: (path: string) => `/docs${path}`,
   isClientReference: (value: unknown) => value === clientAction,
 } as unknown as Context;
 
-async function apiRoutes(plugin: ReturnType<typeof feedbackPlugin>, site = ctx) {
+async function apiRoutes(plugin: ReturnType<typeof feedbackPlugin>) {
   const routes: ApiRoute[] = [];
-  await plugin.routes!.call(site, { createApi: (route) => routes.push(route), createView() {} });
+  await plugin.routes!.call(ctx, { createApi: (route) => routes.push(route), createView() {} });
   return routes;
+}
+
+/** the API routes of a real static site */
+async function staticRoutes(plugin: Plugin<AppShape, any>) {
+  const site = await createPressContext(
+    createPress({ files: [] }).plugins(plugin).config({ mode: "static", preset: [] }),
+    {
+      base: "/",
+      defaults: [],
+      signal: new AbortController().signal,
+      isClientReference: ctx.isClientReference,
+    },
+  );
+  site.setRuntimeRoutes([]);
+  return site.getApiRoutes();
 }
 
 describe("feedbackPlugin", () => {
@@ -26,12 +60,14 @@ describe("feedbackPlugin", () => {
       { path: "/api/feedback/page", POST: expect.any(Function) },
       { path: "/api/feedback/text", POST: expect.any(Function) },
     ]);
-    await expect(apiRoutes(plugin, { ...ctx, mode: "static" })).rejects.toThrow(/static mode/);
+    await expect(staticRoutes(plugin)).rejects.toThrow(
+      'the route "/api/feedback/page" of "feedback:main" renders on request',
+    );
   });
 
   it("runs client actions in the browser", async () => {
     const plugin = feedbackPlugin({ onPageFeedbackAction: clientAction });
-    expect(await apiRoutes(plugin, { ...ctx, mode: "static" })).toEqual([]);
+    expect(await staticRoutes(plugin)).toEqual([]);
     expect(await plugin.slots!.call(ctx, { page: {} as never })).toEqual([
       {
         slot: "footer",
@@ -60,11 +96,14 @@ describe("feedbackPlugin", () => {
     ]);
   });
 
-  it("validates request bodies", async () => {
+  it.each([
+    ["a missing field", { url: "http://localhost/docs", opinion: "good" }],
+    ["a bad URL", { url: "/docs", opinion: "good", message: "" }],
+  ])("answers 400 to %s", async (_, body) => {
     const [route] = await apiRoutes(feedbackPlugin({ onPageFeedbackAction: action }));
     const request = new Request("http://localhost/api/feedback/page", {
       method: "POST",
-      body: JSON.stringify({ url: "/" }),
+      body: JSON.stringify(body),
     });
     expect((await route!.POST!(request, { params: {} })).status).toBe(400);
   });
@@ -90,5 +129,34 @@ describe("feedbackPlugin", () => {
     expect(response.status).toBe(403);
     await expect(response.text()).resolves.toBe("The domain is not verified");
     fetch.mockRestore();
+  });
+
+  it("finds the discussion of a page in the storage repository", async () => {
+    const graphql = vi.fn(async (query: string) => {
+      if (query.includes("repository(")) return { repository };
+      if (query.includes("search(")) return { search: { nodes: [discussion] } };
+      return { addDiscussionComment: { comment: { url: "https://github.com/comment" } } };
+    });
+    octokit.getInstallationOctokit.mockResolvedValue({ graphql });
+    const [route] = await apiRoutes(
+      githubFeedbackPlugin({
+        appId: "1",
+        privateKey: "key",
+        storage: { owner: "acme", repo: "docs", category: "Docs" },
+      }),
+    );
+
+    const response = await route!.POST!(
+      new Request("http://localhost/api/feedback/page", {
+        method: "POST",
+        body: JSON.stringify({ url: "http://localhost/docs", opinion: "good", message: "" }),
+      }),
+      { params: {} },
+    );
+
+    expect(graphql.mock.calls[1]?.[0]).toContain(
+      String.raw`\"Feedback for /docs\" in:title repo:acme/docs author:@me`,
+    );
+    expect(await response.json()).toEqual({ githubUrl: "https://github.com/comment" });
   });
 });

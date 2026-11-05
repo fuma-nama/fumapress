@@ -169,10 +169,14 @@ export function blogPlugin<
 
   async function collect(ctx: Context<C>, lang: C["lang"]) {
     const loader = await ctx.getLoader();
-    let byLang = collections.get(loader);
-    if (!byLang) collections.set(loader, (byLang = new Map()));
+    const byLang = collections.get(loader) ?? new Map<C["lang"], ReturnType<typeof derive>>();
+    collections.set(loader, byLang);
     let collection = byLang.get(lang);
-    if (!collection) byLang.set(lang, (collection = derive(ctx, loader, lang)));
+    if (!collection) {
+      byLang.set(lang, (collection = derive(ctx, loader, lang)));
+      // a later read tries again
+      collection.catch(() => byLang.delete(lang));
+    }
     return collection;
   }
 

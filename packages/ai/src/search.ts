@@ -13,15 +13,6 @@ export interface SearchOptions<C extends AppShape = AppShape> {
   pageToIndex?: (this: Context<C>, page: C["page"]) => Awaitable<PageDocument | null>;
 }
 
-async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
-  const SIZE = 100;
-  const out: O[] = [];
-  for (let i = 0; i < promises.length; i += SIZE) {
-    out.push(...(await Promise.all(promises.slice(i, i + SIZE))));
-  }
-  return out;
-}
-
 export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: Context<C>) {
   const { getLoader } = ctx;
   const {
@@ -53,7 +44,7 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
       },
     });
 
-    const docs = await chunkedAll(source.getPages().map(toIndex));
+    const docs = await Promise.all(source.getPages().map(toIndex));
 
     for (const doc of docs) {
       if (doc) search.add(doc);
