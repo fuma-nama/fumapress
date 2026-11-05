@@ -374,6 +374,18 @@ export async function createRouter(
               new Response(typeof content === "string" ? content : content.slice()).body!,
             ),
         });
+
+        // Workers can't load the native addon of Takumi, and serve static assets before the Worker
+        if (platform === "cloudflare" && ctx.mode === "dynamic") {
+          for (const { path, staticPaths } of await ctx.getApiRoutes()) {
+            for (const { pathname } of expandRoute(path, staticPaths).pages) {
+              if (!pathname.endsWith(".webp")) continue;
+              const url = new URL(ctx.withBase(pathname), "http://localhost");
+              const response = await entry.fetch(new Request(url));
+              if (response.ok) await utils.emitFile(`public${pathname}`, response.body!);
+            }
+          }
+        }
       };
 
       let out: WakuServerEntry = entry;

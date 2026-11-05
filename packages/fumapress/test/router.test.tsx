@@ -412,6 +412,39 @@ describe("patchAdapter", () => {
   });
 });
 
+describe("static images of Workers", () => {
+  const images: Plugin = {
+    name: "images",
+    routes({ createApi }) {
+      const GET = () => new Response("image");
+      createApi({ path: "/og/[...slugs]", render: "static", staticPaths: [["a.webp"]], GET });
+      createApi({ path: "/feed.json", render: "static", GET });
+    },
+  };
+
+  async function emitted(mode: "default" | "dynamic") {
+    const out: string[] = [];
+    const router = await routes([images], undefined, undefined, mode);
+    const adapter = () =>
+      ({ fetch: async () => new Response("image"), build: async () => {} }) as never;
+    const entry = router.patchAdapter(adapter)({} as never, {} as never) as unknown as {
+      build(utils: { emitFile(path: string): void }): Promise<void>;
+    };
+    await entry.build({ emitFile: (path) => out.push(path) });
+    return out;
+  }
+
+  it("writes the images of a site rendered on request on Cloudflare only", async () => {
+    vi.stubEnv("FUMAPRESS_PLATFORM", "cloudflare");
+    expect(await emitted("dynamic")).toEqual(["public/og/a.webp"]);
+    expect(await emitted("default")).toEqual([]);
+
+    vi.stubEnv("FUMAPRESS_PLATFORM", "node");
+    expect(await emitted("dynamic")).toEqual([]);
+    vi.unstubAllEnvs();
+  });
+});
+
 describe("createMiddlewares", () => {
   it("chains `waku.honoMiddleware` in layer order before the plugins' `middleware`", async () => {
     const hono = (name: string): Plugin => ({

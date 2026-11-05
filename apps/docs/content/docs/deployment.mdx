@@ -112,11 +112,13 @@ The build generates:
 | `wrangler.jsonc`       | Wrangler config named after `package.json`, skipped when your project has one. Static mode adds `not_found_handling: "404-page"`, so unknown URLs get the nearest `404.html`.    |
 | `dist/public/_headers` | Caches hashed assets under `/assets/` for a year, skipped when your project has a `public/_headers`. Other responses keep Cloudflare's default of revalidating on every request. |
 
-With your own Wrangler config, the build reuses its `name` and compatibility settings and points Wrangler at the built Worker; in static mode, set `assets.directory` to `./dist/public` yourself. Deploy right after building:
+With your own Wrangler config, the build reuses its `name` and compatibility settings and points Wrangler at the built Worker; in static mode, set `assets.directory` to `./dist/public` yourself. With a `basePath`, the generated config sets [`assets.base_path`](https://developers.cloudflare.com/workers/static-assets/routing/advanced/serving-a-subdirectory/), which needs Wrangler 4.148 or later. Deploy right after building:
 
 ```bash
 npx wrangler deploy
 ```
+
+[OG images](/docs/plugins/takumi) are static files: the Worker can't load the native addon of Takumi, so with `mode: "dynamic"` the build writes the image of every page it knows. Pages added later have no image until the next build.
 
 Image optimization uses [Cloudflare Image Transformations](https://developers.cloudflare.com/images/transform-images/). Enable it on your zone. Workers Builds does not expose the site URL, so set `site.baseUrl`:
 
