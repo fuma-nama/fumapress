@@ -87,27 +87,45 @@ it("hydrates when client component modules load at different times", async () =>
   root.unmount();
 });
 
-it("fetches a page tree again after a failed fetch", async () => {
+it("reloads once when a page tree is gone, then reports it, with one fetch per page", async () => {
   registerReference("client", client);
-  const tree = { name: "Docs", children: [] };
-  registerPageTree(tree, "/retry.json", tree);
-  const island = await serializeIsland(<client.TreeName tree={tree} />);
-  // the browser has the page tree of no page yet
-  modules.delete("/retry.json");
   const fetch = vi
     .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response(null, { status: 503 }))
-    .mockResolvedValueOnce(Response.json({ data: { name: "Fetched", children: [] } }));
+    .mockImplementation(async () => new Response(null, { status: 404 }));
+  const reload = vi.fn();
+  vi.stubGlobal("location", { reload });
+  const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-  const container = document.createElement("div");
-  const errors: unknown[] = [];
-  const root = createRoot(container, { onUncaughtError: (error) => errors.push(error) });
-  // React renders again after the error, like the island does on the next navigation
-  await act(async () => root.render(<PressIsland tree={island.tree} />));
-  await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
-  expect(errors).toEqual([]);
-  expect(container.textContent).toBe("Fetched");
+  async function renderTree(url: string) {
+    const tree = { name: "Docs", children: [] };
+    registerPageTree(tree, url, tree);
+    const island = await serializeIsland(<client.TreeName tree={tree} />);
+    // the browser has the page tree of no page yet
+    modules.delete(url);
+    const root = createRoot(document.createElement("div"));
+    await act(async () => root.render(<PressIsland tree={island.tree} />));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    await act(async () => root.render(<PressIsland tree={island.tree} />));
+    root.unmount();
+  }
+
+  await renderTree("/gone.json");
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(report).not.toHaveBeenCalledWith(
+    expect.objectContaining({ message: expect.stringContaining("/gone.json") }),
+  );
+
+  // the page after the reload, its session tried this file
+  sessionStorage.setItem("fumapress:reloaded:/still-gone.json", "1");
+  await renderTree("/still-gone.json");
   expect(fetch).toHaveBeenCalledTimes(2);
-  root.unmount();
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(report).toHaveBeenCalledWith(
+    expect.objectContaining({ message: expect.stringContaining("/still-gone.json") }),
+  );
+
   fetch.mockRestore();
+  report.mockRestore();
+  vi.unstubAllGlobals();
 });

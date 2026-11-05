@@ -29,7 +29,7 @@ export type IslandNode =
       ...children: IslandNode[],
     ];
 
-/** the loads of client references in the browser, by key; forgotten when they fail: a later render (like after a navigation) tries again */
+/** the loads of client references in the browser, by key */
 const loading = new Map<string, Promise<void>>();
 
 async function fetchPageTree(url: string) {
@@ -48,8 +48,15 @@ function load(key: string): Promise<void> {
     const out = importer().then(
       (module) => void modules.set(key, module),
       (error: unknown) => {
-        loading.delete(key);
-        throw error;
+        // a page from before a deployment or revalidation refers to files that are gone, like on Waku the new page has others
+        const reloaded = `fumapress:reloaded:${key}`;
+        if (sessionStorage.getItem(reloaded)) console.error(error);
+        else {
+          sessionStorage.setItem(reloaded, "1");
+          location.reload();
+        }
+        // never again on this page, the HTML of the server stays
+        return new Promise<void>(() => undefined);
       },
     );
     loading.set(key, out);
