@@ -12,8 +12,8 @@
   "dependencies": {
     "@fumadocs/notion": "^0.3.0",
     "@notionhq/client": "^5.26.0",
-    "fumadocs-core": "^16.16.2",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
+    "fumadocs-core": "^16.18.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.0",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

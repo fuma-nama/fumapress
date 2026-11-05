@@ -50,7 +50,7 @@
     "flexsearch": "^0.8.212",
     "fumadocs-core": "^16.18.0",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.0",
     "react": "^19.3.0",
     "takumi-js": "^2.14.0",
     "tsdown": "0.23.0",
@@ -61,7 +61,7 @@
     "@types/react": "*",
     "flexsearch": "*",
     "fumadocs-core": "^16.18.0",
-    "fumadocs-ui": "^16.16.2",
+    "fumadocs-ui": "^16.18.0",
     "react": "^19.2.0",
     "takumi-js": "^2.14.0"
   },

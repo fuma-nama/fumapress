@@ -58,6 +58,6 @@
     }
   },
   "inlinedDependencies": {
-    "@fumadocs/sanity": "0.2.3"
+    "@fumadocs/sanity": "0.3.0"
   }
 }

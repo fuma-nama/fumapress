@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@fumapress/core": "workspace:^",
-    "@vitejs/plugin-rsc": "^0.5.33",
+    "@vitejs/plugin-rsc": "^0.5.34",
     "flexsearch": "^0.8.212",
     "lucide-react": "^1.47.0",
     "takumi-js": "^2.14.0",
@@ -76,7 +76,7 @@
     "@types/react-dom": "^19.3.0",
     "fumadocs-core": "^16.18.0",
     "fumadocs-mdx": "^15.5.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.0",
     "hono": "^4.13.9",
     "http-cache-semantics": "^4.2.0",
     "react": "^19.3.0",
@@ -91,7 +91,7 @@
     "@types/react": "*",
     "fumadocs-core": "^16.18.0",
     "fumadocs-mdx": "^15.5.0",
-    "fumadocs-ui": "^16.16.2",
+    "fumadocs-ui": "^16.18.0",
     "hono": "*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -118,7 +118,7 @@
     "node": ">=24"
   },
   "inlinedDependencies": {
-    "http-cache-semantics": "4.2.0",
+    "http-cache-semantics": "4.3.0",
     "resolve.exports": "2.0.3"
   }
 }

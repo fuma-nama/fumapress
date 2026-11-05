@@ -21,7 +21,7 @@
     "fumadocs-core": "^16.18.0",
     "fumadocs-mdx": "^15.5.0",
     "fumadocs-typescript": "^5.4.1",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.16.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.0",
     "fumapress": "workspace:*",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
