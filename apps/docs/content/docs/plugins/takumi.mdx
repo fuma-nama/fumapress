@@ -157,4 +157,4 @@ takumiPlugin({
 });
 ```
 
-The binary is only bundled when you import it. A Cloudflare Worker renders images on request with WebAssembly without this option.
+The binary is only bundled when you import it. A Cloudflare Worker needs no option: it uses the WebAssembly backend, whose binary ships in the Worker. Rendering on request can exceed the 10 ms of CPU time per request on the Workers Free plan.
