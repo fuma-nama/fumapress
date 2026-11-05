@@ -90,7 +90,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     name: "core:llms.txt",
     provides: ["llms"],
     transformPage(data) {
-      return { markdownUrl: this.withBase(markdownPath(data.url)) };
+      return { markdownUrl: markdownPath(data.url) };
     },
     async routes({ createApi }) {
       createApi({

@@ -178,15 +178,15 @@ describe("llmsPlugin", () => {
     expect(post.headers.get("Content-Type")).toBe("text/html");
   });
 
-  it("links the Markdown of pages", async () => {
+  it("links the Markdown of pages without the base path, the page actions of Fumadocs add it", async () => {
     const ctx = await createSite({}, {}, "/repo/");
     const loader = await ctx.getLoader();
     const data = async (url: string) => ctx.getPageData(loader.getPageByUrl(url)!);
 
     await expect(data("/docs/basics")).resolves.toMatchObject({
-      markdownUrl: "/repo/docs/basics.md",
+      markdownUrl: "/docs/basics.md",
     });
-    await expect(data("/")).resolves.toMatchObject({ markdownUrl: "/repo/index.md" });
+    await expect(data("/")).resolves.toMatchObject({ markdownUrl: "/index.md" });
   });
 
   it("accepts custom Markdown", async () => {
