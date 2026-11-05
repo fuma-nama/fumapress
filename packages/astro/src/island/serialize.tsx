@@ -14,7 +14,9 @@ import { DevalueError, stringify } from "devalue";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { components } from "virtual:fumapress/island";
-import type { IslandNode } from "./island";
+import type * as PageTree from "fumadocs-core/page-tree";
+import { deserializePageTree, type SerializedPageTree } from "fumadocs-core/source/client";
+import { pageTrees, type IslandNode } from "./island";
 import { getReference } from "./references";
 
 /** the props of `Island.astro` */
@@ -29,6 +31,16 @@ export interface IslandData {
 
 /** the URLs of page tree files by their page tree: the island gets a page tree by identity from its file, rather than in its props */
 export const pageTreeFiles = new WeakMap<object, string>();
+
+/** the file of a page tree, the island renders the deserialized tree on the server too, like in the browser */
+export function registerPageTree(
+  tree: PageTree.Root,
+  url: string,
+  serialized: SerializedPageTree,
+): void {
+  pageTreeFiles.set(tree, url);
+  pageTrees.set(url, deserializePageTree(serialized));
+}
 
 /** a slot of the island rendered by Astro */
 export class Slot {

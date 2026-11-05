@@ -52,7 +52,7 @@ it("serves the page tree of each language at a URL by its content", async () => 
   expect(await treeRoutes("Home")).toEqual(paths);
   expect((await treeRoutes("Other"))[0]).not.toBe(paths[0]);
 
-  // on request, by the middleware
+  // on request, also a route
   const ctx = await pressContext(
     {
       mode: "dynamic",
@@ -63,14 +63,12 @@ it("serves the page tree of each language at a URL by its content", async () => 
     },
     { base: "/docs", defaults: [contentSourcePlugin()] },
   );
-  expect(await ctx.getApiRoutes()).toEqual([]);
-  const next = async () => new Response(null, { status: 404 });
-  const tree = await ctx.handleRequest(new Request(`http://localhost/docs${paths[1]}`), next);
+  const routes = await ctx.getApiRoutes();
+  expect(routes.map((route) => route.render)).toEqual(["dynamic", "dynamic"]);
+  expect(routes.map((route) => route.path)).toEqual(paths);
+  const tree = await routes[1]!.GET!(new Request("http://localhost"), { params: {} });
   expect(tree.headers.get("Content-Type")).toBe("application/json");
-  const source = await ctx.getLoader();
-  expect(await tree.json()).toEqual(await source.serializePageTree(source.getPageTree("fr")));
-  const other = "/docs/_fumapress/page-tree/fr.0000000000000000.json";
-  expect((await ctx.handleRequest(new Request(`http://localhost${other}`), next)).status).toBe(404);
+  expect(tree.headers.get("Cache-Control")).toContain("immutable");
 });
 
 it("renders collection pages as their `<Content />`, dated by the `date` frontmatter", async () => {

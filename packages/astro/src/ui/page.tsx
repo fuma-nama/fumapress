@@ -1,14 +1,11 @@
 import type { AstroGlobal } from "astro";
 import { createElement, type ReactNode } from "react";
-import { type Context, type PageAlternate, type View } from "@fumapress/core";
+import type { PageAlternate, View } from "@fumapress/core";
 import { mergeHead, pageLinks, pathLocale, renderPage, wrapSlot } from "@fumapress/core/runtime";
 import { mergeI18n } from "@fumapress/core/runtime/ui";
 import type { HeadTag } from "@fumapress/core";
-import { deserializePageTree } from "fumadocs-core/source/client";
 import type { Page } from "fumadocs-core/source";
-import { getPageTreeFile } from "../content-source";
-import { pageTrees } from "../island/island";
-import { AstroSlot, pageTreeFiles, serializeIsland, type IslandData } from "../island/serialize";
+import { AstroSlot, serializeIsland, type IslandData } from "../island/serialize";
 import type { ViewPage } from "../routes/shared";
 import config from "virtual:fumapress/config";
 import { getPressContext, getProviderData } from "../runtime";
@@ -30,18 +27,6 @@ export interface RenderedPage {
   lang?: string;
   head: HeadTag[];
   island: IslandProps;
-}
-
-/** the page tree of a language as a file, the island fetches it once rather than reading it from its props */
-async function registerPageTree(ctx: Context, lang: string | undefined): Promise<void> {
-  const loader = await ctx.getLoader();
-  const tree = loader.getPageTree(lang);
-  if (pageTreeFiles.has(tree)) return;
-  const file = await getPageTreeFile(loader, lang);
-  const url = ctx.withBase(file.path);
-  // the island renders the deserialized tree on the server too, like in the browser
-  pageTrees.set(url, deserializePageTree(file.serialized));
-  pageTreeFiles.set(tree, url);
 }
 
 /** the island of a page, in the root provider with `layout.wrapper` around it */
@@ -83,7 +68,6 @@ export async function getContentIsland(
 export async function getPage(astro: AstroProps, target: PageTarget): Promise<RenderedPage> {
   const ctx = getPressContext();
   const lang = "page" in target ? target.page.locale : target.view.route.lang;
-  await registerPageTree(ctx, lang);
   const [node, head] = await Promise.all([
     renderPage(
       ctx,

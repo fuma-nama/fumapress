@@ -6,6 +6,7 @@ import { pageAlternate, type RuntimeContext } from "@fumapress/core/runtime";
 import { registerReference } from "@/island/references";
 import * as client from "./fixtures/client";
 import { pressContext, testPress, type TestSite } from "./harness";
+import { contentSourcePlugin } from "@/content-source";
 
 const runtime = vi.hoisted(() => ({
   ctx: undefined as RuntimeContext | undefined,
@@ -40,7 +41,7 @@ async function site(plugin: Plugin<AppShape, any> = {}, config: Partial<TestSite
     ...config,
   };
   runtime.press = testPress(options);
-  runtime.ctx = await pressContext(options);
+  runtime.ctx = await pressContext(options, { defaults: [contentSourcePlugin()] });
   return runtime.ctx;
 }
 
