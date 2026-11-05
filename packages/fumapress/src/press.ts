@@ -25,11 +25,6 @@ export type WakuAppShape = AppShape & { runtime: "waku" };
 
 /** the Waku-only options of `.config()` */
 export interface WakuPressConfig<C extends AppShape> {
-  /** @deprecated `head`, keyed on both runtimes; renders after the keyed tags */
-  meta?: {
-    root?: (this: Context<C>) => ReactNode;
-    page?: (this: Context<C>, page: C["page"]) => ReactNode;
-  };
   ui?: {
     /** the document: `head` is the styles, `children` the page in the root provider; returns `<html>`, `<head>` and `<body>` */
     renderRoot?: (

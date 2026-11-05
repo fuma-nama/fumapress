@@ -12,7 +12,6 @@ export default defineConfig({
     "src/router/fs.tsx",
     "src/router/deploy.enhancer.ts",
     "src/router/client-entry.ts",
-    "src/adapters/**",
     "src/plugins/*",
     "src/plugins/image/{cloudflare,vercel,vercel.enhancer,self-hosted}.{ts,tsx}",
   ],

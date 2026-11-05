@@ -140,7 +140,7 @@ See [Preset](/docs/config#preset) and [Capabilities](/docs/plugins#capabilities)
 
 ### Head Tags
 
-`meta` JSX is deprecated. Use the keyed `head` option instead. `meta` still works on Waku.
+`meta` JSX is removed. Use the keyed `head` option instead.
 
 ```tsx title="press.config.tsx"
 // [!code --:8]
@@ -346,9 +346,9 @@ import openapiPlugin from "fumadocs-openapi/press";
 import asyncapiPlugin from "@fumadocs/asyncapi/press";
 ```
 
-### Notion, Sanity, Obsidian
+### Notion, Sanity, Obsidian, GraphQL
 
-`@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian` are deprecated. Use the Fumadocs `/press` plugins: `notionPlugin({ notion, ...options })` of `@fumadocs/notion/press`, `sanityPlugin({ components })` of `@fumadocs/sanity/press` and `obsidianPlugin({ vault, components })` of `fumadocs-obsidian/press`. `@fumapress/graphql` is deprecated for `@fumadocs/graphql/press`, with the same options.
+`@fumapress/notion`, `@fumapress/sanity`, `@fumapress/obsidian` and `@fumapress/graphql` are removed. Use the Fumadocs `/press` plugins: `notionPlugin({ notion, ...options })` of `@fumadocs/notion/press`, `sanityPlugin({ components })` of `@fumadocs/sanity/press`, `obsidianPlugin({ vault, components })` of `fumadocs-obsidian/press` and `graphqlPlugin({ server })` of `@fumadocs/graphql/press`.
 
 ### Feedback
 

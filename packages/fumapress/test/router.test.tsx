@@ -173,7 +173,7 @@ describe("createPages", () => {
     expect(paths("layout")).toEqual(["/(default)", "/cn", "/en"]);
     expect(paths("page")).toEqual(["/", "/404", "/cn/[...slugs]", "/en/[...slugs]"]);
 
-    const [, , page] = await contentPage("/en/[...slugs]", ["guide"]);
+    const [, page] = await contentPage("/en/[...slugs]", ["guide"]);
     expect(page).toBe("en:undefined:guide");
   });
 
@@ -394,7 +394,7 @@ describe("Root", () => {
     i18n: I18nConfig,
     path: string,
   ) {
-    let props: { head: { props: { children: unknown[] } }; children: { props: { i18n?: object } } };
+    let props: { children: { props: { i18n?: object } } };
     const router = await createRouter(
       site([], i18n, "static", {
         ...config,
@@ -410,14 +410,6 @@ describe("Root", () => {
     await element.type(element.props);
     return props!;
   }
-
-  it("renders the deprecated `meta`", async () => {
-    const meta = { root: () => "root meta", page: () => "page meta" };
-    const { head } = await renderRoot({ meta }, prefixed, "/en");
-    expect(head.props.children[1]).toBe("root meta");
-    const [, tag] = await contentPage("/en/[...slugs]", ["guide"]);
-    expect(tag).toBe("page meta");
-  });
 
   it.each([
     ["default-locale", hidden, "default-locale"],

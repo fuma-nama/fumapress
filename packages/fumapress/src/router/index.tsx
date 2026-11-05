@@ -205,18 +205,12 @@ export async function createRouter(
         {wrapSlot(slots["layout.wrapper"], children)}
       </PressProvider>
     );
-    const head = (
-      <>
-        {styleTag}
-        {config.meta?.root?.call(ctx)}
-      </>
-    );
     if (config.ui?.renderRoot)
-      return config.ui.renderRoot.call(ctx, { lang, head, children: body });
+      return config.ui.renderRoot.call(ctx, { lang, head: styleTag, children: body });
 
     return (
       <html lang={lang ?? "en"} suppressHydrationWarning>
-        <head>{head}</head>
+        <head>{styleTag}</head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
           {body}
         </body>
@@ -236,7 +230,6 @@ export async function createRouter(
     return (
       <>
         <Head tags={ctx.getHead({ page })} />
-        {config.meta?.page?.call(ctx, page)}
         {await render({ lang, page })}
       </>
     );

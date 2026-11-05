@@ -24,7 +24,6 @@
   ],
   "exports": {
     ".": "./dist/index.js",
-    "./adapters/mdx/schema": "./dist/adapters/mdx/schema.js",
     "./cli": "./dist/cli.js",
     "./client": "./dist/client.js",
     "./image": "./dist/image.js",

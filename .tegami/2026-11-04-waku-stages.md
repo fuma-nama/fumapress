@@ -9,7 +9,7 @@ packages:
 - `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`; `props.renderDefault()` is the built-in Docs Layout or Home Layout.
 - `ui.renderRoot({ lang, head, children })` replaces `renderRoot`, with the styles in `head` and the root provider in `children`.
 - `ui.providerProps` sets the root provider of every page, like `theme`, over the `providerProps()` of plugins.
-- Deprecated `meta`, use the keyed `head` tags instead.
+- Refactored: removed `meta`, use the keyed `head` tags.
 - The MDX renderer is built in: `press({ components: "./src/components/mdx.tsx" })` of `fumapress/vite` sets the MDX components, relative links resolve by default.
 - MDX renders with `mdxPlugin()` of `fumadocs-mdx/press`, which needs `fumadocs-mdx` 15.5.0 or later. A custom server entry passes it: `createRouter(press, { renderers: [mdxPlugin({ components })] })`.
 - Plugins are `Plugin` of `fumapress`, replacing `PressPlugin`. They reach Waku through `waku` (`WakuPlugin`): `createPages` (layouts in route groups only), `honoMiddleware` and `unstable_serverEntry`, replacing `createPages`, `createMiddlewares` and `unstable_onServerEntry`. The first plugin is the outermost server entry wrapper.
@@ -21,7 +21,8 @@ packages:
 - A custom search dialog is `ui.providerProps.search.SearchDialog`, a client component on a Fumadocs search hook like `useFlexsearchStatic()`. It receives the search plugin's `from` or `api` and `locale`.
 - Refactored the Open Graph images: `ogImage` of route configs replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.
 - Refactored: removed `fumapress/plugins/openapi` and `fumapress/plugins/asyncapi`, use `openapiPlugin()` of `fumadocs-openapi/press` and `asyncapiPlugin()` of `@fumadocs/asyncapi/press`.
-- Deprecated `fumapress/adapters/mdx/schema`, use `fumapress/schema`.
+- Refactored: removed `fumapress/adapters/mdx/schema`, use `fumapress/schema`.
+- Refactored: removed `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`, use the default export of `/press` of the Fumadocs integration.
 - Refactored: removed the layout factories of `fumapress/layouts/*`, `fumapress/adapters/mdx`, `fumapress/plugins/blog` and `fumapress/i18n` (use `@fumapress/blog`), `renderNotFound`, `AppContext`, `this.data`, `preinit`, `configureRoutes` and plugin `renderPage`.
 - `selectTreeRoot(tree, "docs")` replaces the `treeRoot` option of the layouts: pass it to the `tree` of your layout in `ui.renderPage`.
 - `fumapress/css/preset.css` no longer includes the blog styles, import `@fumapress/blog/css/preset.css` with `@fumapress/blog`.

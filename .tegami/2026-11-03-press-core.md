@@ -2,10 +2,6 @@
 packages:
   "npm:@fumapress/core": minor
   "npm:fumapress": patch
-  "npm:@fumapress/graphql": minor
-  "npm:@fumapress/notion": minor
-  "npm:@fumapress/sanity": minor
-  "npm:@fumapress/obsidian": minor
 ---
 
 ### Added `@fumapress/core`
@@ -26,10 +22,3 @@ packages:
 - Sitemaps escape `&` in alternate links, Markdown served to agents is `Cache-Control: private`, and URLs with a trailing slash negotiate Markdown too.
 - Link validation no longer reports links rendered by its own requests.
 - `openapiPlugin()` reports a proxy in static mode with the error of `fumadocs-openapi/press`.
-
-### Deprecated the integration packages
-
-- Deprecated `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`: use the default export of `/press` of the Fumadocs integration.
-- They depend on `@fumapress/core` instead of `fumapress`, and work on Waku and Astro.
-- `@fumapress/notion` re-exports `@fumadocs/notion` instead of shipping a copy of it, `@notionhq/client` is a peer dependency.
-- `@fumapress/obsidian` stops watching the vault when the site reloads.
