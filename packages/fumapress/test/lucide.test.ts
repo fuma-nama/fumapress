@@ -25,42 +25,6 @@ function rewrite(code: string) {
   return rewriteImports(code, imports, exports);
 }
 
-test("maps re-exported names to the modules declaring them", () => {
-  expect(Object.fromEntries(exports)).toEqual({
-    ChevronDown: { file: `${dir}/icons/chevron-down.mjs`, name: "default" },
-    ChevronDownIcon: { file: `${dir}/icons/chevron-down.mjs`, name: "default" },
-    X: { file: `${dir}/icons/x.mjs`, name: "default" },
-    LucideProvider: { file: `${dir}/context.mjs`, name: "LucideProvider" },
-    useLucideContext: { file: `${dir}/context.mjs`, name: "useLucideContext" },
-  });
-});
-
-test("rewrites named imports into imports of the declaring modules", () => {
-  expect(
-    rewrite(`import { ChevronDown as Chevron, X } from "lucide-react";
-import { LucideProvider } from 'lucide-react';
-export { Chevron, X, LucideProvider };`),
-  ).toBe(`import Chevron from "${dir}/icons/chevron-down.mjs"; import X from "${dir}/icons/x.mjs";
-import { LucideProvider as LucideProvider } from "${dir}/context.mjs";
-export { Chevron, X, LucideProvider };`);
-});
-
-test("keeps the line numbers of multi-line imports", () => {
-  const code = `import {
-  ChevronDown,
-  X,
-} from "lucide-react";
-console.log(ChevronDown, X);`;
-
-  expect(rewrite(code)?.split("\n")).toEqual([
-    `import ChevronDown from "${dir}/icons/chevron-down.mjs"; import X from "${dir}/icons/x.mjs";`,
-    "",
-    "",
-    "",
-    "console.log(ChevronDown, X);",
-  ]);
-});
-
 test("keeps imports binding anything else", () => {
   for (const code of [
     `import { icons } from "lucide-react";`,

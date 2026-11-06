@@ -15,13 +15,11 @@ export type {
   WakuRouteFns,
   WakuRouteProps,
 } from "./router";
-export { selectTreeRoot } from "@fumapress/core";
-export type { BuildMode } from "@fumapress/core";
+export { selectTreeRoot } from "@fumapress/core/page-tree";
 export type {
   AppShape,
   BaseOptions,
   GitProvider,
-  PageNode,
   Plugin,
   PluginTypes,
   PressContext,

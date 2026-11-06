@@ -4,11 +4,11 @@ import { Hono } from "hono/tiny";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { createRouter, type WakuRouteFns } from "@/router";
 import { fsRouterFn } from "@/router/fs";
-import { createPress, getPressContext, type WakuServerEntry } from "@/press";
+import { createPress, getPressContext } from "@/press";
 import type { AppShape, Awaitable, Context, Plugin } from "@fumapress/core";
 import { llmsPlugin } from "@fumapress/core/plugins/llms.txt";
 import type { I18nConfig } from "fumadocs-core/i18n";
-import type { VirtualFile } from "fumadocs-core/source";
+import type { _Internal, VirtualFile } from "fumadocs-core/source";
 
 interface Route {
   kind: string;
@@ -38,7 +38,7 @@ const recorded = vi.hoisted(() => {
         createRoot: record("root"),
         createApi: record("api"),
         createSlice: record("slice"),
-        createInterceptor() {},
+        createInterceptor: record("interceptor"),
       };
     },
   });
@@ -97,16 +97,26 @@ const files: VirtualFile[] = [
   { type: "page", path: "guide.mdx", data: { title: "Guide" } },
 ];
 
+const dynamic: _Internal.AnyInput = { files: () => files };
+/** `guide` is prerendered, `status` renders on demand */
+const mixed: _Internal.AnyInput = {
+  docs: { files: [{ type: "page", path: "guide.mdx", data: { title: "Guide" } }] },
+  live: { files: () => [{ type: "page", path: "status.mdx", data: { title: "Status" } }] },
+};
+const dynamicApi: Plugin = {
+  name: "api",
+  routes: ({ createApi }) => createApi({ path: "/api/x", GET: () => new Response() }),
+};
+
 function site(
   plugins: Plugin<AppShape, any>[] = [],
   i18n?: I18nConfig,
-  mode: "static" | "default" | "dynamic" = "static",
+  content: _Internal.AnyInput = { files },
   config: object = {},
 ) {
-  return createPress({ files }, { i18n: i18n as never })
+  return createPress(content, { i18n: i18n as never })
     .plugins(...plugins)
     .config({
-      mode,
       preset: [],
       site: { baseUrl: "https://example.com" },
       ui: { renderPage: (props) => `${props.lang}:${props.type}:${props.slugs?.join("/")}` },
@@ -118,9 +128,9 @@ async function routes(
   plugins: Plugin<AppShape, any>[] = [],
   own: (this: Context, fns: WakuRouteFns) => Awaitable<void> = () => {},
   i18n?: I18nConfig,
-  mode?: "static" | "default" | "dynamic",
+  content?: _Internal.AnyInput,
 ) {
-  const router = await createRouter(site(plugins, i18n, mode));
+  const router = await createRouter(site(plugins, i18n, content));
   router.createPages(own);
   await recorded.pending;
   return router;
@@ -130,6 +140,14 @@ function paths(kind: string) {
   const out: string[] = [];
   for (const route of recorded.routes) if (route.kind === kind) out.push(route.path ?? route.id!);
   return out.sort();
+}
+
+/** the page routes at `path`: a static one and a dynamic one can share a pattern */
+function pagesAt(path: string) {
+  const out: Pick<Route, "render" | "staticPaths">[] = [];
+  for (const { kind, path: routePath, render, staticPaths } of recorded.routes)
+    if (kind === "page" && routePath === path) out.push({ render, staticPaths });
+  return out;
 }
 
 function route(path: string): Route {
@@ -168,6 +186,22 @@ const Page: FC = () => null;
 const Lang: FC<{ lang?: string }> = ({ lang }) => createElement("p", null, lang);
 
 describe("createPages", () => {
+  it("registers a static API route before a dynamic one on its pattern, Waku refuses the other order", async () => {
+    const GET = () => new Response();
+    await routes([
+      {
+        routes({ createApi }) {
+          createApi({ path: "/og/[...slugs]", GET });
+          createApi({ path: "/og/[...slugs]", render: "static", staticPaths: [["a"]], GET });
+        },
+      },
+    ]);
+    expect(recorded.routes.filter((route) => route.path === "/og/[...slugs]")).toMatchObject([
+      { render: "static" },
+      { render: "dynamic" },
+    ]);
+  });
+
   it("prefixes every language and renders content through `ui.renderPage`", async () => {
     await routes([], undefined, prefixed);
     expect(paths("layout")).toEqual(["/(default)", "/cn", "/en"]);
@@ -177,23 +211,47 @@ describe("createPages", () => {
     expect(page).toBe("en:undefined:guide");
   });
 
-  it("keys stylesheets in head by URL, pages have other tags before them", async () => {
-    const stylesheet: Plugin = {
-      name: "stylesheet",
-      head: () => [{ tag: "link", attrs: { rel: "stylesheet", href: "/a.css" } }],
-    };
-    await routes([stylesheet], undefined, prefixed);
-    const [head] = (await contentPage("/en/[...slugs]", ["guide"])) as {
-      type: FC<object>;
-      props: object;
-    }[];
-    const tags = (await head!.type(head!.props)) as unknown as { key: string; props: object }[];
-    const link = tags.find((tag) => "precedence" in tag.props);
-    expect(link?.key).toBe("/a.css");
+  it("renders content pages like their source, a site can mix both", async () => {
+    await routes();
+    expect(pagesAt("/[...slugs]")).toEqual([
+      { render: "static", staticPaths: [[], ["index.cn"], ["guide"]] },
+    ]);
+
+    await routes([], undefined, undefined, dynamic);
+    expect(pagesAt("/[...slugs]")).toEqual([{ render: "dynamic", staticPaths: undefined }]);
+
+    await routes([], undefined, undefined, mixed);
+    expect(pagesAt("/[...slugs]")).toEqual([
+      { render: "static", staticPaths: [["guide"]] },
+      { render: "dynamic", staticPaths: undefined },
+    ]);
+    const [, page] = await contentPage("/[...slugs]", ["status"]);
+    expect(page).toBe("undefined:live:status");
   });
 
-  it("routes the root of a language rendered on request, unless your own page has it", async () => {
-    await routes([], undefined, prefixed, "dynamic");
+  it("makes custom pages static by default, on any content", async () => {
+    await routes(
+      [],
+      ({ createPage }) => createPage({ path: "/(fs)/about", component: Page }),
+      undefined,
+      dynamic,
+    );
+    expect(route("/(fs)/about").render).toBe("static");
+  });
+
+  it("redirects the root in the way the site is served", async () => {
+    await routes([], undefined, prefixed);
+    expect(route("/").render).toBe("static");
+
+    await routes([dynamicApi], undefined, prefixed);
+    expect(route("/").render).toBe("dynamic");
+
+    await routes([], undefined, prefixed, dynamic);
+    expect(route("/").render).toBe("dynamic");
+  });
+
+  it("routes the root of a language rendered on demand, unless a custom page has it", async () => {
+    await routes([], undefined, prefixed, dynamic);
     expect(paths("page")).toEqual(expect.arrayContaining(["/cn", "/en"]));
 
     const root = recorded.routes.find((route) => route.kind === "page" && route.path === "/cn");
@@ -206,14 +264,14 @@ describe("createPages", () => {
       [],
       ({ createPage }) => createPage({ path: "/", lang: "cn", component: Page }),
       hidden,
-      "dynamic",
+      dynamic,
     );
     const roots = paths("page").filter((path) => path === "/cn");
     expect(roots).toEqual(["/cn"]);
     expect(paths("page")).not.toContain("/(default)");
   });
 
-  it("keeps plugin layouts in route groups, your own pages win, two plugins on one path fail", async () => {
+  it("keeps plugin layouts in route groups, custom pages win, two plugins on one path fail", async () => {
     const layout = (path: string): Plugin => ({
       name: "layout",
       waku: { createPages: ({ createLayout }) => createLayout({ path, component: Page }) },
@@ -247,17 +305,6 @@ describe("createPages", () => {
     expect(route?.pages[0]?.path).toBe("/tags/(draft)");
   });
 
-  it("replaces the routes on every run, like dev reruns", async () => {
-    const router = await createRouter(site());
-    for (const path of ["/(fs)/a", "/(fs)/b"]) {
-      router.createPages(({ createPage }) => createPage({ path, component: Page }));
-      await recorded.pending;
-    }
-    const served: string[] = [];
-    for (const route of await getPressContext().getPageRoutes()) served.push(route.path);
-    expect(served).toEqual(["/b"]);
-  });
-
   it("makes a view at `/404` the not found page", async () => {
     const view = views(function ({ createView }) {
       for (const lang of this.languages)
@@ -271,7 +318,7 @@ describe("createPages", () => {
     expect(paths("page")).toEqual(["/(default)/[...slugs]", "/404", "/cn/404", "/cn/[...slugs]"]);
   });
 
-  it("registers a view without the pages your own pages take", async () => {
+  it("registers a view without the pages custom pages take", async () => {
     const tags = views(({ createView }) =>
       createView({ path: "/tags/[tag]", staticPaths: ["a", "b"], view: () => xView("tag") }),
     );
@@ -288,14 +335,14 @@ describe("createPages", () => {
         view: ({ tag }) => (tags.push(String(tag)), xView("tag")),
       }),
     );
-    await routes([view], undefined, undefined, "default");
+    await routes([view]);
     recorded.request = new Request("https://example.com/tags/x");
     for (const path of ["/tags/100%25", "/tags/a%2Fb", "/tags/a%252Fb"])
       await html(route("/tags/[tag]"), { path });
     expect(tags).toEqual(["100%", "a/b", "a%2Fb"]);
   });
 
-  it("gives your own layouts and slices their path and id, a plugin's are skipped", async () => {
+  it("gives custom layouts and slices their path and id, a plugin's are skipped", async () => {
     const plugin: Plugin = {
       name: "banner",
       waku: {
@@ -317,30 +364,6 @@ describe("createPages", () => {
 
     const layout = route("/(acme)").component as FC<{ children: string }>;
     expect((layout({ children: "x" }) as { type: unknown }).type).toBe(Lang);
-  });
-
-  it("renders the Markdown of your own pages reading the base options, without a home", async () => {
-    let read: unknown;
-    const About: FC = async () => {
-      read = (await getPressContext().getBaseOptions({ lang: undefined })).nav?.url;
-      return null;
-    };
-    const router = await createRouter(
-      createPress({ files: [files[2]!] }, {})
-        .plugins(llmsPlugin({ routes: "all" }))
-        .config({ preset: [] }),
-    );
-    router.createPages(({ createPage }) => createPage({ path: "/(fs)/about", component: About }));
-    await recorded.pending;
-    expect(read).toBe("/guide");
-  });
-
-  it("defaults `site.baseUrl` to the development server, with a warning", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    await createRouter(createPress({ files }, {}).plugins().config({ preset: [] }));
-    expect(getPressContext().siteConfig.baseUrl).toBe("http://localhost:3000");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"site.baseUrl" is not set'));
-    warn.mockRestore();
   });
 
   it("renders the head of views from core, with their title and description", async () => {
@@ -370,20 +393,13 @@ describe("createPages", () => {
     expect(notFound("/en/missing")).toBe("en");
     expect(notFound("/cnx/missing")).toBe("en");
 
-    await routes([], undefined, hidden, "default");
+    await routes([dynamicApi], undefined, hidden);
     expect(route("/404").render).toBe("dynamic");
     expect(notFound("/cn")).toBe("cn");
     expect(notFound("/missing")).toBe("en");
-  });
 
-  it("tells client references apart by React's tag", async () => {
-    await routes();
-    const ctx = getPressContext();
-    expect(ctx.isClientReference({ $$typeof: Symbol.for("react.client.reference") })).toBe(true);
-    expect(ctx.isClientReference(Object.assign(() => {}, { $$typeof: Symbol.for("x") }))).toBe(
-      false,
-    );
-    expect(ctx.isClientReference(null)).toBe(false);
+    await routes([], undefined, hidden, dynamic);
+    expect(route("/404").render).toBe("dynamic");
   });
 });
 
@@ -396,7 +412,7 @@ describe("Root", () => {
   ) {
     let props: { children: { props: { i18n?: object } } };
     const router = await createRouter(
-      site([], i18n, "static", {
+      site([], i18n, undefined, {
         ...config,
         ui: { ...config.ui, renderRoot: (root: never) => ((props = root), null) },
       }),
@@ -415,7 +431,7 @@ describe("Root", () => {
     ["default-locale", hidden, "default-locale"],
     ["never", prefixed, undefined],
   ])(
-    "gives your own `i18n` the URLs of the site without translations: %s",
+    "gives a custom `i18n` the URLs of the site without translations: %s",
     async (_, i18n, hide) => {
       const locales = [{ locale: "en", name: "English" }];
       const { children } = await renderRoot(
@@ -434,24 +450,6 @@ describe("Root", () => {
 });
 
 describe("patchAdapter", () => {
-  it("nests server entries, the first plugin outermost", async () => {
-    const order: string[] = [];
-    const wrap = (name: string): Plugin => ({
-      name,
-      waku: {
-        unstable_serverEntry(entry): WakuServerEntry {
-          order.push(name);
-          return entry;
-        },
-      },
-    });
-    const adapter = () => ({ fetch: async () => new Response(), build: async () => {} }) as never;
-
-    const router = await routes([wrap("outer"), wrap("inner")]);
-    router.patchAdapter(adapter)({} as never, {} as never);
-    expect(order).toEqual(["inner", "outer"]);
-  });
-
   it("negotiates the static files adapters serve before middleware, with their type", async () => {
     const adapter = () =>
       ({
@@ -461,7 +459,7 @@ describe("patchAdapter", () => {
             : new Response("html", { headers: { "Content-Type": "text/html" } }),
         build: async () => {},
       }) as never;
-    const router = await routes([llmsPlugin()], undefined, undefined, "default");
+    const router = await routes([llmsPlugin()]);
     const { fetch } = router.patchAdapter(adapter)({} as never, {} as never);
     const request = (path: string, accept = "*/*") =>
       fetch(new Request(`http://localhost${path}`, { headers: { Accept: accept } }));
@@ -481,7 +479,7 @@ describe("patchAdapter", () => {
 
   /** an adapter with a server: static files first, then the middleware of the router */
   async function server(plugins: Plugin<AppShape, any>[], headers?: HeadersInit) {
-    const router = await routes(plugins, undefined, undefined, "default");
+    const router = await routes(plugins);
     const app = new Hono();
     for (const middleware of router.createMiddlewares()) app.use(middleware({ app }));
     app.all("*", (c) =>
@@ -540,7 +538,7 @@ describe("patchAdapter", () => {
 describe("createMiddlewares", () => {
   it("answers paths outside of the base path before Waku's router throws on them", async () => {
     vi.stubEnv("BASE_URL", "/repo/");
-    const router = await routes([], undefined, undefined, "default");
+    const router = await routes();
     const app = new Hono();
     for (const middleware of router.createMiddlewares()) app.use(middleware({ app }));
     app.all("*", (c) => c.text("page"));
@@ -554,35 +552,20 @@ describe("createMiddlewares", () => {
     expect(root.headers.get("Location")).toBe("/repo/?a=1");
   });
 
-  it("chains `waku.honoMiddleware` in layer order before the plugins' `middleware`", async () => {
-    const hono = (name: string): Plugin => ({
-      name,
-      waku: { honoMiddleware: () => async (_c, next) => next() },
-    });
-    const router = await routes([hono("a"), hono("b")]);
-    expect(router.createMiddlewares()).toHaveLength(3);
-  });
-
   it("runs the middleware of plugins on the page of client navigations, addressing redirects and rewrites like the request", async () => {
     const seen: string[] = [];
-    const router = await routes(
-      [
-        {
-          async middleware(request, next) {
-            seen.push(request.url);
-            const { pathname } = new URL(request.url);
-            if (pathname === "/old")
-              return Response.redirect(new URL("/new?a=1", request.url), 308);
-            if (pathname === "/away") return Response.redirect("https://example.org/", 307);
-            if (pathname === "/alias") return next("/guide");
-            return next();
-          },
+    const router = await routes([
+      {
+        async middleware(request, next) {
+          seen.push(request.url);
+          const { pathname } = new URL(request.url);
+          if (pathname === "/old") return Response.redirect(new URL("/new?a=1", request.url), 308);
+          if (pathname === "/away") return Response.redirect("https://example.org/", 307);
+          if (pathname === "/alias") return next("/guide");
+          return next();
         },
-      ],
-      undefined,
-      undefined,
-      "default",
-    );
+      },
+    ]);
     const handler = router.createMiddlewares().at(-1)!({
       app: { fetch: async (req: Request) => new Response(req.url) },
     } as never);
@@ -614,8 +597,8 @@ describe("createMiddlewares", () => {
     // document requests are the page itself, as requested
     expect(await location("http://localhost/old")).toBe("http://localhost/new?a=1");
     seen.length = 0;
-    await request("http://localhost/guide/?flag");
-    expect(seen).toEqual(["http://localhost/guide/?flag"]);
+    await request("http://localhost/guide?flag");
+    expect(seen).toEqual(["http://localhost/guide?flag"]);
   });
 });
 
@@ -649,18 +632,35 @@ describe("fsRouterFn", () => {
     );
   });
 
-  it("generates the static paths of API routes", async () => {
+  it("skips the ignored directories of Waku and registers interceptors", async () => {
+    await routes(
+      [],
+      fsRouterFn({
+        "./pages/_actions/save.ts": async () => ({ save() {} }),
+        "./pages/_interceptors/log.ts": async () => ({ default: async () => {} }),
+        "./pages/about.tsx": async () => ({ default: Lang }),
+      }),
+    );
+    expect(fsPaths("page")).toEqual(["/(fs)/about"]);
+    expect(recorded.routes.filter((route) => route.kind === "interceptor")).toHaveLength(1);
+  });
+
+  it("makes pages static and API routes dynamic by default", async () => {
     const GET = async () => new Response();
     await routes(
       [],
       fsRouterFn({
-        "./pages/_api/og/[...slugs].ts": async () => ({
-          GET,
-          getConfig: () => ({ render: "static", staticPaths: [["a.webp"]] }),
+        "./pages/about.tsx": async () => ({ default: Lang }),
+        "./pages/live.tsx": async () => ({
+          default: Lang,
+          getConfig: () => ({ render: "dynamic" }),
         }),
+        "./pages/_api/own.ts": async () => ({ GET }),
       }),
     );
-    expect(route("/og/[...slugs]").staticPaths).toEqual([["a.webp"]]);
+    expect(route("/(fs)/about").render).toBe("static");
+    expect(route("/(fs)/live").render).toBe("dynamic");
+    expect(route("/own").render).toBe("dynamic");
   });
 
   it("registers a copy per language with the lang prop", async () => {

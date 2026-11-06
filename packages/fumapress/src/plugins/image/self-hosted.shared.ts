@@ -28,7 +28,7 @@ export function validateImageSrc(
   config: ResolvedImageConfig,
   src: string,
 ): { allowed: true } | { allowed: false; reason: string } {
-  if (src.startsWith("https://") || src.startsWith("http://")) {
+  if ((src.startsWith("https://") || src.startsWith("http://")) && URL.canParse(src)) {
     const resolved = new URL(src);
 
     const hasAllowedHost = config.allowedHosts.some((entry) => {

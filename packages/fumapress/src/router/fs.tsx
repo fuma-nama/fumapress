@@ -2,6 +2,8 @@
  * This is a copy of https://github.com/wakujs/waku/blob/main/packages/waku/src/router/fs-router.ts
  */
 import type { FC } from "react";
+import { unstable_isIgnoredPath as isIgnoredPath } from "waku/minimal/server";
+import type { HandlerInterceptor } from "waku/router/server";
 import type { Awaitable, Context } from "@fumapress/core";
 import type { WakuRouteConfig, WakuRouteFns } from "@/router";
 import { joinPaths } from "@/lib/pathname";
@@ -23,11 +25,7 @@ interface Options {
   slicesDir?: string;
 }
 
-const IGNORED_PATH_PARTS = new Set(["_components", "_hooks"]);
 const SPECIAL_BASENAME = new Set(["_layout", "index", "_root"]);
-
-/** Ignore paths like `_components` and `_hooks` in pages dir */
-const isIgnoredPath = (paths: string[]) => paths.some((p) => IGNORED_PATH_PARTS.has(p));
 
 export function fsRouterFn(
   /**
@@ -45,7 +43,7 @@ export function fsRouterFn(
   options: Options = {},
 ): (this: Context, fns: WakuRouteFns) => Awaitable<void> {
   return async function (fns) {
-    const { createPage, createLayout, createRoot, createApi, createSlice } = fns;
+    const { createPage, createLayout, createRoot, createApi, createSlice, createInterceptor } = fns;
     const { pagesDir = "pages", apiDir = "_api", slicesDir = "_slices" } = options;
 
     const pagesDirPrefix = pagesDir + "/";
@@ -61,6 +59,11 @@ export function fsRouterFn(
         .split("/")
         .filter(Boolean);
       if (isIgnoredPath(pathItems)) {
+        continue;
+      }
+      if (pathItems[0] === "_interceptors") {
+        const mod = (await modules[file]!()) as { default: HandlerInterceptor };
+        createInterceptor(mod.default);
         continue;
       }
 
@@ -84,7 +87,7 @@ export function fsRouterFn(
       if (pathItems[0] === apiDir) {
         // Strip the apiDir prefix from the path (e.g., _api/hello.txt -> hello.txt)
         const apiPath = "/" + pathItems.slice(1).join("/");
-        const renderMode = config?.render ?? (this.mode === "default" ? "dynamic" : this.mode);
+        const renderMode = config?.render ?? "dynamic";
 
         if (renderMode === "static") {
           if (Object.keys(mod).length !== 2 || !mod.GET) {
@@ -133,7 +136,7 @@ export function fsRouterFn(
       }
 
       const component = mod.default!;
-      const renderMode = config?.render ?? (this.mode === "default" ? "static" : this.mode);
+      const renderMode = config?.render ?? "static";
 
       if (pathItems[0] === slicesDir) {
         createSlice({

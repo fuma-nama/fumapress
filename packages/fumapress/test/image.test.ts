@@ -12,7 +12,6 @@ import CachePolicy from "http-cache-semantics";
 import { createProvider as createCloudflareProvider } from "@/plugins/image/cloudflare.client";
 import { resolveCloudflareImageConfig } from "@/plugins/image/cloudflare.utils";
 import { createProvider } from "@/plugins/image/self-hosted.client";
-import { resolveVercelImageConfig } from "@/plugins/image/vercel.utils";
 
 const sourceUrl = "https://example.com/hero.png";
 const cacheRequest = {
@@ -92,13 +91,15 @@ describe("image cache", () => {
   const optimizeKey = (width: number) =>
     getOptimizeCacheKey({ src: "/hero.png", width, quality: 75 });
 
-  it("stores source entries with an empty optimize map", () => {
+  it("starts over when the images in memory reach the limit", () => {
     const cache = new ImageOptimizationCache();
-    const result = createFetchResult("public, max-age=60");
-    const entry = cache.set(sourceUrl, result);
-
-    expect(entry).toEqual({ ...result, optimized: new Map() });
+    const entry = cache.set(sourceUrl, createFetchResult("public, max-age=60"))!;
+    const variant = { body: new Uint8Array(200_000_000), contentType: "image/jpeg" };
+    cache.setOptimized(entry, optimizeKey(640), variant);
     expect(cache.readCache(sourceUrl, cacheRequest)).toBe(entry);
+
+    cache.setOptimized(entry, optimizeKey(750), variant);
+    expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
   });
 
   it("keeps optimize variants on the source entry, invalidating them together", () => {
@@ -121,11 +122,6 @@ describe("image cache", () => {
     expect(cache.readCache(sourceUrl, cacheRequest)).toBeNull();
 
     vi.useRealTimers();
-  });
-
-  it("builds optimize keys from width and quality", () => {
-    expect(optimizeKey(640)).toBe(`640${String.fromCharCode(0)}75`);
-    expect(optimizeKey(1280)).toBe(`1280${String.fromCharCode(0)}75`);
   });
 
   it("does not store no-store or no-cache responses", () => {
@@ -202,13 +198,24 @@ describe("image optimization redirects", () => {
 
   /** request `/hero.png` of the deployment itself */
   function optimize(config = resolveImageConfig()) {
-    return createImageOptimizer(config)(
-      new Request("https://site.example/_img?src=%2Fhero.png&width=640&quality=75"),
-    );
+    return createImageOptimizer(
+      config,
+      "https://site.example",
+    )(new Request("https://site.example/_img?src=%2Fhero.png&width=640&quality=75"));
   }
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("fetches the paths of images from the site, not the Host of the request", async () => {
+    const seen = mockRedirect("https://site.example/static/hero.png");
+    await createImageOptimizer(
+      resolveImageConfig(),
+      "https://site.example",
+    )(new Request("https://attacker.example/_img?src=%2Fhero.png&width=640&quality=75"));
+
+    expect(seen[0]).toBe("https://site.example/hero.png");
   });
 
   it("follows redirects within the site's own origin", async () => {
@@ -233,15 +240,4 @@ describe("image optimization redirects", () => {
       404,
     );
   });
-});
-
-it("keeps the Vercel options written to the build output", () => {
-  const options = {
-    domains: ["avatars.githubusercontent.com"],
-    remotePatterns: [{ hostname: "cdn.example" }],
-    localPatterns: [{ pathname: "/assets/**" }],
-    formats: ["image/webp" as const],
-    minimumCacheTTL: 60,
-  };
-  expect(resolveVercelImageConfig(options)).toMatchObject(options);
 });

@@ -12,6 +12,7 @@ import type {
   Press,
   PressContent,
   PressContext,
+  SiteConfig,
 } from "@fumapress/core";
 import type { _Internal } from "fumadocs-core/source";
 import type { MiddlewareHandler } from "hono";
@@ -25,6 +26,7 @@ export type WakuAppShape = AppShape & { runtime: "waku" };
 
 /** the Waku-only options of `.config()` */
 export interface WakuPressConfig<C extends AppShape> {
+  site?: Pick<SiteConfig, "baseUrl">;
   ui?: {
     /** the document: `head` is the styles, `children` the page in the root provider; returns `<html>`, `<head>` and `<body>` */
     renderRoot?: (
@@ -70,7 +72,7 @@ export interface WakuHooks<C extends AppShape> {
    * layouts. Called once, it covers every language itself, like `routes`. Layouts only in route groups
    * (`/(name)`): the site owns its pages, a plugin layout never wraps them. Not the root (`ui.renderRoot` is the site's), and
    * no `createApi` (API routes are `createApi` of core `routes()`, on both runtimes). A path taken twice by pages or by layouts, or a
-   * slice id taken twice, is an error; your own page or layout wins.
+   * slice id taken twice, is an error; a custom page or layout wins.
    */
   createPages?: (
     this: Context<C>,
@@ -108,7 +110,7 @@ export function setPressContext(ctx: Context) {
   current = ctx;
 }
 
-/** the context of the site, for your own pages and routes: `getPressContext<typeof app>()` */
+/** the context of the site, for custom pages and routes: `getPressContext<typeof app>()` */
 export function getPressContext<A extends Press<any, any> = Press>(): PressContext<A> {
   if (!current)
     throw new Error("[Fumapress] `getPressContext()` is read before the router is created.");

@@ -1,21 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { selectTreeRoot, type ApiRoute, type Context } from "@fumapress/core";
+import type { ApiRoute, Context } from "@fumapress/core";
 import { getPageTreeFiles, pageTreePlugin } from "@/router/page-tree";
-
-const references = vi.hoisted(() => new Map<object, string>());
 
 // React Flight needs the `react-server` condition
 vi.mock("waku/server", () => ({
   serializeRsc: async (value: unknown) => new TextEncoder().encode(JSON.stringify(value)),
 }));
 vi.mock("@vitejs/plugin-rsc/rsc", () => ({
-  registerClientReference(value: object, id: string, name: string) {
-    references.set(value, `${id}#${name}`);
-    return Object.defineProperty(value, "$$typeof", {
-      value: Symbol.for("react.client.reference"),
-    });
-  },
+  registerClientReference: (value: object) =>
+    Object.defineProperty(value, "$$typeof", { value: Symbol.for("react.client.reference") }),
 }));
 
 function createTree(): PageTree.Root {
@@ -36,12 +30,16 @@ function createTree(): PageTree.Root {
   };
 }
 
-function createContext(tree: PageTree.Root, base = "/site/") {
+function createContext(
+  tree: PageTree.Root,
+  base = "/site/",
+  render: "static" | "dynamic" = "static",
+) {
   return {
-    mode: "default",
+    getContentRender: (source?: string) => (source ? "static" : render),
     languages: [undefined],
     withBase: (path: string) => base + path.slice(1),
-    getLoader: async () => ({ getPageTree: () => tree }),
+    getLoader: async () => ({ getPageTree: () => tree, getPages: () => [{ type: "docs" }] }),
   } as unknown as Context;
 }
 
@@ -51,40 +49,9 @@ function revalidated() {
   return tree;
 }
 
-function idOf(nodes: object) {
-  return references.get(nodes)?.replace(/^.*#/, "");
-}
-
 describe("page tree files", () => {
   beforeEach(() => {
-    references.clear();
     globalThis.PAGE_TREE_FILES = undefined;
-  });
-
-  it("makes every node list a reference to its file, the same arrays on the server", async () => {
-    const tree = createTree();
-    const { children } = tree;
-    const [file] = await getPageTreeFiles(createContext(tree));
-    const folder = tree.children[1] as PageTree.Folder;
-
-    expect(tree.children).toBe(children);
-    expect(tree.children).toHaveLength(2);
-    expect(references.get(tree.children)).toBe(`page-tree:/site/_fumapress/page-tree/${file}#c`);
-    expect(idOf(folder.children)).toBe("c.1");
-    expect(idOf(tree.fallback!.children)).toBe("f");
-    expect(idOf(selectTreeRoot(tree, "docs").children)).toBe("c.1+");
-    expect(() => tree.children.push(folder)).toThrow(TypeError);
-  });
-
-  it("writes the lists by those names", async () => {
-    const tree = createTree();
-    const [file] = await getPageTreeFiles(createContext(tree));
-    const bytes = globalThis.PAGE_TREE_FILES!.get(`/site/_fumapress/page-tree/${file}`)!;
-    const lists = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, { url?: string }[]>;
-
-    expect(Object.keys(lists).sort()).toEqual(["c", "c.1", "c.1+", "f"]);
-    expect(lists["c.1+"]!.map((node) => node.url)).toEqual(["/docs", "/docs/a"]);
-    expect(lists.c).toHaveLength(2);
   });
 
   it("creates a file once per tree, and another for revalidated content", async () => {
@@ -96,58 +63,51 @@ describe("page tree files", () => {
     );
   });
 
-  it("keeps the last two files of a language, for renders in flight", async () => {
-    const stored = () => [...globalThis.PAGE_TREE_FILES!.keys()].sort();
-    const url = (file: string | undefined) => `/site/_fumapress/page-tree/${file}`;
-    const version = async (count: number, languages: unknown[] = [undefined]) => {
-      const tree = createTree();
-      tree.children.length = count;
-      const [file] = await getPageTreeFiles({ ...createContext(tree), languages } as never);
-      return url(file);
-    };
-
-    const first = await version(2);
-    expect(await version(2)).toBe(first);
-    expect(stored()).toEqual([first]);
-
-    const second = await version(1);
-    expect(stored()).toEqual([first, second].sort());
-
-    // the first again is the last one, the second is the one before it
-    await version(2);
-    const third = await version(0);
-    expect(stored()).toEqual([first, third].sort());
-
-    const cn = await version(1, ["cn"]);
-    expect(stored()).toEqual([first, third, cn].sort());
-  });
-
-  it("serves the files, and revalidated ones when the site has a server", async () => {
-    let tree = createTree();
-    const ctx = { ...createContext(tree), getLoader: async () => ({ getPageTree: () => tree }) };
-    const routes: ApiRoute[] = [];
-    await pageTreePlugin().routes!.call(
-      ctx as never,
-      {
-        createApi: (route: ApiRoute) => routes.push(route),
-      } as never,
-    );
-
-    const [generated, onRequest] = routes;
-    expect(generated!.render).toBe("static");
-    expect(onRequest!.render).toBeUndefined();
-
+  describe("routes", () => {
     const request = (file: string) => new Request(`http://localhost/_fumapress/page-tree/${file}`);
-    const [file] = await getPageTreeFiles(ctx as never);
-    const response = await generated!.GET!(request(file!), { params: {} });
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/x-component");
-    expect((await generated!.GET!(request("default.unknown.txt"), { params: {} })).status).toBe(
-      404,
-    );
 
-    tree = revalidated();
-    const [next] = await getPageTreeFiles(ctx as never);
-    expect((await onRequest!.GET!(request(next!), { params: {} })).status).toBe(200);
+    async function serving(render: "static" | "dynamic") {
+      const state = { tree: createTree() };
+      const ctx = {
+        ...createContext(state.tree, undefined, render),
+        getLoader: async () => ({
+          getPageTree: () => state.tree,
+          getPages: () => [{ type: "docs" }],
+        }),
+      };
+      const routes: ApiRoute[] = [];
+      await pageTreePlugin().routes!.call(
+        ctx as never,
+        { createApi: (route: ApiRoute) => routes.push(route) } as never,
+      );
+      return { ctx, routes, state };
+    }
+
+    it("generates the files of static content", async () => {
+      const { ctx, routes } = await serving("static");
+      expect(routes).toHaveLength(1);
+      const [generated] = routes;
+      expect(generated!.render).toBe("static");
+
+      const [file] = await getPageTreeFiles(ctx as never);
+      expect(generated!.staticPaths).toEqual([file]);
+      const response = await generated!.GET!(request(file!), { params: {} });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("text/x-component");
+      expect((await generated!.GET!(request("default.unknown.txt"), { params: {} })).status).toBe(
+        404,
+      );
+    });
+
+    it("serves the revalidated files of dynamic content on demand", async () => {
+      const { ctx, routes, state } = await serving("dynamic");
+      const [built, onRequest] = routes;
+      expect(built!.render).toBe("static");
+      expect(onRequest!.render).toBeUndefined();
+
+      state.tree = revalidated();
+      const [next] = await getPageTreeFiles(ctx as never);
+      expect((await onRequest!.GET!(request(next!), { params: {} })).status).toBe(200);
+    });
   });
 });

@@ -2,7 +2,7 @@ import { registerClientReference } from "@vitejs/plugin-rsc/rsc";
 import { serializeRsc } from "waku/server";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { Context, Plugin } from "@fumapress/core";
-import { getRootChildren } from "@fumapress/core/runtime";
+import { getRootChildren } from "@fumapress/core/page-tree";
 
 const files = new WeakMap<PageTree.Root, Promise<string>>();
 /** the file URLs of each language, oldest first: a render in flight while the content changes reads the one before the last */
@@ -87,9 +87,12 @@ export function pageTreePlugin(): Plugin {
         });
       };
 
-      createApi({ path, render: "static", staticPaths: await getPageTreeFiles(this), GET });
+      // prerendered pages keep the files of their build, public files aren't for the pages of dynamic sources
+      const pages = (await this.getLoader()).getPages();
+      if (pages.some((page) => this.getContentRender(page.type) === "static"))
+        createApi({ path, render: "static", staticPaths: await getPageTreeFiles(this), GET });
       // revalidated content has another URL
-      if (this.mode === "default") createApi({ path, GET });
+      if (this.getContentRender() === "dynamic") createApi({ path, GET });
     },
   };
 }

@@ -80,7 +80,7 @@ test("keeps the project's own _headers", async () => {
   expect(readFileSync("dist/public/_headers", "utf-8")).toBe("/*\n  X-Custom: 1\n");
 });
 
-test("serves 404.html from the generated Wrangler config in static mode", async () => {
+test("serves 404.html from the generated Wrangler config with the `static` option of Waku", async () => {
   await run({ serverless: false });
 
   expect(JSON.parse(readFileSync("wrangler.jsonc", "utf-8"))).toEqual({
@@ -104,11 +104,4 @@ test("leaves the project's own Wrangler config alone", async () => {
   writeFileSync("wrangler.toml", 'name = "mine"\n');
   await run({ serverless: false });
   expect(existsSync("wrangler.jsonc")).toBe(false);
-});
-
-test("writes no Wrangler config on other platforms", async () => {
-  await run({ serverless: false }, false);
-
-  expect(existsSync("wrangler.jsonc")).toBe(false);
-  expect(existsSync("dist/public/_headers")).toBe(true);
 });

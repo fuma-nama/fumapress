@@ -28,7 +28,7 @@ export interface SelfHostedImageOptions {
   maxSourceSize?: number;
 }
 
-/** an on-demand optimizer route with `sharp`; `mode: "static"` has no server, its images are served as they are */
+/** an on-demand optimizer route with `sharp`, so the site needs a server and `site.baseUrl`, where its images are. Without them images are served as they are */
 export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
   options: SelfHostedImageOptions = {},
 ): WakuPlugin<C, { provides: "image" }> {
@@ -38,7 +38,7 @@ export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
     name: "self-hosted-image",
     provides: ["image"],
     slots({ page }) {
-      if (page || this.mode === "static") return;
+      if (page || !this.siteConfig.baseUrl) return;
       return [
         {
           slot: "layout.wrapper",
@@ -49,9 +49,12 @@ export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
       ];
     },
     routes({ createApi }) {
-      if (this.mode === "static") return;
+      const { baseUrl } = this.siteConfig;
+      if (!baseUrl) return;
       const optimizer = createImageOptimizer(
         config,
+        // the dev server has its own port, and `baseUrl` may be the deployed site
+        import.meta.env.DEV ? undefined : baseUrl,
         import.meta.env.DEV ? undefined : new ImageOptimizationCache(),
       );
       createApi({ path: config.path, GET: optimizer });

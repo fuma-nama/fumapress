@@ -267,6 +267,8 @@ function core(options: WakuPressOptions = {}): Plugin {
           // instantiate `fumadocs-core` twice from its optional `waku` peer dependency, and linked
           // packages resolve React from their own directory
           dedupe: ["react", "react-dom", ...(out?.framework ?? [])],
+          // the dev server of Vite ignores them by default, the build doesn't
+          tsconfigPaths: true,
         },
         ssr: {
           noExternal: out?.framework,
@@ -284,7 +286,7 @@ function core(options: WakuPressOptions = {}): Plugin {
       },
     },
     async resolveId(source, _importer, options) {
-      if (source === "virtual:fumapress-core/config") {
+      if (source === "virtual:fumapress/config") {
         return this.resolve("/press.config", undefined, options);
       }
 
@@ -296,7 +298,9 @@ function core(options: WakuPressOptions = {}): Plugin {
         );
       }
 
-      if (source.startsWith("virtual:root.css")) {
+      if (source === "virtual:fumapress/renderers") return "\0virtual:fumapress/renderers";
+
+      if (source.startsWith("virtual:fumapress/css")) {
         const [_id, query = ""] = source.split("?", 2);
 
         return (
@@ -306,36 +310,33 @@ function core(options: WakuPressOptions = {}): Plugin {
       }
     },
     async load(id) {
-      if (id === "\0virtual:vite-rsc-waku/server-entry-inner") {
+      if (id === "\0virtual:vite-rsc-waku/server-entry-inner") return managedServerEntry;
+      if (id === "\0virtual:fumapress/renderers") {
         // Fumadocs MDX renders MDX content, sites without it have none
-        const mdx = Boolean(await this.resolve("fumadocs-mdx/press"));
-        if (!mdx && (await this.resolve("fumadocs-mdx")))
+        if (await this.resolve("fumadocs-mdx/press"))
+          return `import components from 'virtual:fumapress/components';
+import mdxPlugin from 'fumadocs-mdx/press';
+export default [mdxPlugin({ components })];`;
+        if (await this.resolve("fumadocs-mdx"))
           throw new Error(
             "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/press`: update `fumadocs-mdx` to 15.5.0 or later.",
           );
-        return getManagedServerEntry(mdx);
+        return "export default [];";
       }
     },
   };
 }
 
-function getManagedServerEntry(mdx: boolean) {
-  return `import _adapter from 'waku/adapters/default';
-import press from 'virtual:fumapress-core/config';
+const managedServerEntry = `import _adapter from 'waku/adapters/default';
+import press from 'virtual:fumapress/config';
 import { createRouter } from 'fumapress/router';
 import { fsRouterFn } from 'fumapress/router/fs';
-${
-  mdx
-    ? `import components from 'virtual:fumapress/components';
-import mdxPlugin from 'fumadocs-mdx/press';`
-    : ""
-}
 
 const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
   base: '/src',
 });
 
-const router = await createRouter(press${mdx ? ", { renderers: [mdxPlugin({ components })] }" : ""});
+const router = await createRouter(press);
 import.meta.hot?.dispose(router.dispose);
 const pages = router.createPages(fsRouterFn(modules));
 const middlewareFns = router.createMiddlewares();
@@ -343,4 +344,3 @@ const adapter = router.patchAdapter(_adapter);
 
 export default adapter(pages, { middlewareFns });
 `;
-}

@@ -50,8 +50,20 @@ interface CacheEntry extends FetchSourceResult {
   optimized: Map<string, OptimizeResult>;
 }
 
+/** the bytes of images kept in memory: a request can ask for any size and quality of an image */
+const maxCacheSize = 256_000_000;
+
 export class ImageOptimizationCache {
   private readonly store = new Map<string, CacheEntry>();
+  private size = 0;
+
+  /** starts over when full, over-counting replaced images only makes it sooner */
+  private add(bytes: number) {
+    this.size += bytes;
+    if (this.size <= maxCacheSize) return;
+    this.store.clear();
+    this.size = 0;
+  }
 
   readCache(src: string, req?: CachePolicy.HttpRequest): CacheEntry | null {
     const entry = this.store.get(src);
@@ -65,6 +77,11 @@ export class ImageOptimizationCache {
     return null;
   }
 
+  setOptimized(entry: CacheEntry, key: string, result: OptimizeResult) {
+    entry.optimized.set(key, result);
+    this.add(result.body.byteLength);
+  }
+
   set(src: string, result: FetchSourceResult): CacheEntry | null {
     const { policy } = result;
     if (!policy.storable() || policy.timeToLive() <= 0) return null;
@@ -73,6 +90,7 @@ export class ImageOptimizationCache {
       optimized: new Map(),
     };
 
+    this.add(entry.body.byteLength);
     this.store.set(src, entry);
     return entry;
   }
@@ -134,7 +152,14 @@ function createCachePolicyHeaders(headers: Headers) {
   return out;
 }
 
-export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageOptimizationCache) {
+/**
+ * @param origin - where the paths of images are: never the `Host` of a request in production, which the client picks
+ */
+export function createImageOptimizer(
+  config: ResolvedImageConfig,
+  origin?: string,
+  cache?: ImageOptimizationCache,
+) {
   async function transformImage(
     input: FetchSourceResult,
     { width, quality }: { width: number; quality: number },
@@ -167,7 +192,7 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
   }
 
   async function fetchSource(
-    params: ParsedImageParams,
+    src: string,
     request: Request,
   ): Promise<CacheEntry | FetchSourceResult | Response> {
     const headers = new Headers({
@@ -180,11 +205,10 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
       headers: createCachePolicyHeaders(headers),
     };
 
-    const cached = cache?.readCache(params.src, cachePolicyRequest);
+    const cached = cache?.readCache(src, cachePolicyRequest);
     if (cached) return cached;
 
-    const initialUrl = new URL(params.src, request.url).toString();
-    let currentUrl = initialUrl;
+    let currentUrl = src;
     let redirectCount = 0;
     let res: Response | null = null;
 
@@ -235,7 +259,7 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
       }),
     };
 
-    return cache?.set(params.src, result) ?? result;
+    return cache?.set(src, result) ?? result;
   }
 
   function createOptimizedImageResponse(result: OptimizeResult, policy?: CachePolicy): Response {
@@ -258,7 +282,7 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
     }
 
     headers.set("Content-Type", result.contentType);
-    headers.set("Content-Security-Policy", "script- src 'none'; frame-src 'none'; sandbox;");
+    headers.set("Content-Security-Policy", "script-src 'none'; frame-src 'none'; sandbox;");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Content-Disposition", "inline");
 
@@ -282,7 +306,8 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
       return new Response(validation.reason, { status: 403 });
     }
 
-    const source = await fetchSource(params, request);
+    const src = new URL(params.src, origin ?? request.url).href;
+    const source = await fetchSource(src, request);
     if (source instanceof Response) return source;
 
     const optimizeKey = getOptimizeCacheKey(params);
@@ -297,9 +322,7 @@ export function createImageOptimizer(config: ResolvedImageConfig, cache?: ImageO
         quality: params.quality,
       });
 
-      if ("optimized" in source) {
-        source.optimized.set(optimizeKey, transformed);
-      }
+      if ("optimized" in source) cache?.setOptimized(source, optimizeKey, transformed);
 
       return createOptimizedImageResponse(transformed, source.policy);
     } catch (error) {

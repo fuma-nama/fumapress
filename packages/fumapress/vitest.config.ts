@@ -10,7 +10,11 @@ export default defineConfig({
     // the styles of the root layout, from Vite in the app
     alias: [
       {
-        find: /^virtual:root\.css\?.*$/,
+        find: "virtual:fumapress/renderers",
+        replacement: new URL("./test/stubs/renderers.ts", import.meta.url).pathname,
+      },
+      {
+        find: /^virtual:fumapress\/css\?.*$/,
         replacement: new URL("./test/stubs/empty.ts", import.meta.url).pathname,
       },
     ],
