@@ -1,5 +1,6 @@
 import type { AstroGlobal } from "astro";
-import { createElement, type ReactNode } from "react";
+import { createElement, isValidElement, type ReactNode } from "react";
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
 import type { PageAlternate, PageRoute } from "@fumapress/core";
 import {
   matchPageRoute,
@@ -9,27 +10,65 @@ import {
   wrapSlot,
   type RenderTarget,
 } from "@fumapress/core/runtime";
-import { mergeI18n } from "@fumapress/core/runtime/ui";
 import type { HeadTag } from "@fumapress/core";
-import { AstroContent, serializeIsland, type IslandData } from "../island/serialize";
-import { ctx } from "../routes/context";
-import type { PageProps } from "../routes/shared";
+import {
+  AstroContent,
+  isAstroComponent,
+  serializeIsland,
+  type IslandData,
+} from "../island/serialize";
+import { ctx } from "./context";
+import type { PageProps } from "./shared";
 import { getProviderData } from "../runtime";
-import { ContentProvider, type ProviderData } from "./content";
-import { renderDefault } from "./default";
-import { Home } from "./home";
-import { Provider } from "./provider";
+import { ContentProvider, type ProviderData } from "../ui/content";
+import { Home } from "../ui/home";
+import { LayoutRoot, layoutRootKeys } from "../ui/layout-root";
+import { Provider } from "../ui/provider";
 
 type AstroProps = Pick<AstroGlobal, "url" | "params">;
 
 /** the props of `Island.astro` */
-type IslandProps = IslandData & { provider: ProviderData };
+type PageIsland = IslandData & { provider: ProviderData };
 
 /** a page in `Layout.astro`: its language, head tags and island */
 export interface RenderedPage {
   lang?: string;
   head: HeadTag[];
-  island: IslandProps;
+  island: PageIsland;
+  /** the `.astro` file from `ui.renderPage`, it renders instead of the island */
+  layout?: {
+    component: AstroComponentFactory;
+    props: object;
+    /** the island of the page content, its default slot */
+    content: PageIsland;
+  };
+}
+
+/** the props of the element `ui.renderPage` returns, by what the server keeps from the React root */
+interface LayoutElementProps extends Record<string, unknown> {
+  body?: ReactNode;
+  children?: ReactNode;
+}
+
+/** the island of the React root of an `.astro` layout: without the props that only the server has, and the content in its slot */
+async function renderLayout(
+  provider: ProviderData,
+  lang: string | undefined,
+  component: AstroComponentFactory,
+  props: LayoutElementProps,
+): Promise<{ island: PageIsland; layout: NonNullable<RenderedPage["layout"]> }> {
+  const { body, children, renderDefault: _, ...layoutProps } = props;
+  const root: Record<string, unknown> = {};
+  for (const key of layoutRootKeys) root[key] = props[key];
+  const island = await getIsland(provider, lang, createElement(LayoutRoot, root), true);
+  return {
+    island,
+    layout: {
+      component,
+      props: { ...layoutProps, island: island.tree },
+      content: await getContentIsland(island.provider, children ?? body),
+    },
+  };
 }
 
 /** the island of a page, in the root provider with `layout.wrapper` around it */
@@ -37,27 +76,26 @@ async function getIsland(
   provider: ProviderData,
   lang: string | undefined,
   node: ReactNode,
-): Promise<IslandProps> {
+  inline?: boolean,
+): Promise<PageIsland> {
   const [slots, { i18n, ...props }] = await Promise.all([
     ctx.getSlots({}),
     ctx.getProviderProps({ lang }),
   ]);
-  provider = { ...provider, i18n: mergeI18n(provider.i18n, i18n) };
+  provider = { ...provider, i18n };
   const island = await serializeIsland(
     createElement(Provider, {
       provider,
       props,
       children: wrapSlot(slots["layout.wrapper"], node),
     }),
+    inline,
   );
   return { ...island, provider };
 }
 
 /** the island of React content, in the provider of content */
-export async function getContentIsland(
-  provider: ProviderData,
-  node: ReactNode,
-): Promise<IslandProps> {
+async function getContentIsland(provider: ProviderData, node: ReactNode): Promise<PageIsland> {
   const island = await serializeIsland(
     createElement(ContentProvider, { provider, children: node }),
   );
@@ -69,9 +107,12 @@ async function renderTarget(
   target: RenderTarget,
   headTags: Promise<HeadTag[]>,
 ): Promise<RenderedPage> {
-  const [node, head] = await Promise.all([ctx.renderPage(target, renderDefault), headTags]);
+  const [node, head] = await Promise.all([ctx.renderPage(target), headTags]);
   const { lang } = target;
-  return { lang, head, island: await getIsland(getProviderData(astro, lang), lang, node) };
+  const provider = getProviderData(astro, lang);
+  if (isValidElement<LayoutElementProps>(node) && isAstroComponent(node.type))
+    return { lang, head, ...(await renderLayout(provider, lang, node.type, node.props)) };
+  return { lang, head, island: await getIsland(provider, lang, node) };
 }
 
 /** a content page or a view rendered by `ui.renderPage`, or the response of a redirect, or a 404 for a view without content */
@@ -93,7 +134,7 @@ export async function getPage(
     if (content)
       return renderTarget(
         astro,
-        { lang, view: content },
+        { lang, view: content, path },
         ctx.getHead({ route: view.route, path, view: content }),
       );
   }
@@ -111,7 +152,7 @@ export interface HomeLayoutOptions {
   notFound?: boolean;
 }
 
-/** your own page in the home layout, its content is the default slot of the island */
+/** a custom page in the home layout, its content is the default slot of the island */
 export async function getHomeLayout(
   astro: AstroProps,
   { title, description, lang, alternates, notFound }: HomeLayoutOptions,

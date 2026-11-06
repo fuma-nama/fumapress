@@ -45,6 +45,11 @@ export interface AstroSlot {
   components?: MDXComponents;
 }
 
+/** an `.astro` file as the type of an element */
+export function isAstroComponent(type: unknown): type is AstroComponentFactory {
+  return typeof type === "function" && "isAstroComponentFactory" in type;
+}
+
 /** without `component`, the default slot of `Island.astro`, the children of its Astro component */
 type AstroContentProps = Partial<AstroSlot>;
 
@@ -74,16 +79,41 @@ for (const [name, component] of Object.entries(components)) {
 
 const unserializable = Symbol("unserializable");
 
+/** where a part Astro or React renders goes in the island tree */
+type ToSlot = (content: IslandData["slots"][number]) => IslandNode;
+
+/** a component of the page has no slots of Astro: HTML stays in the tree, Astro content has nowhere to go */
+function inlineSlot(content: IslandData["slots"][number]): IslandNode {
+  if (typeof content !== "string")
+    throw new Error("[Fumapress] the props of an `.astro` layout can't have Astro content.");
+  return [
+    "div",
+    {
+      style: { display: "contents" },
+      dangerouslySetInnerHTML: { __html: content },
+      suppressHydrationWarning: true,
+    },
+  ];
+}
+
 /**
  * Render React content as a press island: client components (`'use client'`) and MDX components hydrate, React renders the other components on the server.
  *
+ * @param inline - keep the parts below in the tree, for an island without slots of Astro
+ *
  * Highlighted code, {@link AstroContent} and the parts the island can't receive, like class components, render once by Astro as slots.
  */
-export async function serializeIsland(node: ReactNode): Promise<IslandData> {
+export async function serializeIsland(node: ReactNode, inline = false): Promise<IslandData> {
   const nodes: IslandNode[] = [];
   const slots: IslandData["slots"] = [];
   const pageTrees: string[] = [];
-  await serialize(node, nodes, slots, false);
+  const toSlot: ToSlot = inline
+    ? inlineSlot
+    : (content) => {
+        slots.push(content);
+        return new Slot(`s${slots.length - 1}`);
+      };
+  await serialize(node, nodes, toSlot, false);
   try {
     const tree = stringify(nodes, {
       slot: (value) => value instanceof Slot && value.name,
@@ -109,7 +139,7 @@ export async function serializeIsland(node: ReactNode): Promise<IslandData> {
 async function serialize(
   node: ReactNode,
   out: IslandNode[],
-  slots: IslandData["slots"],
+  toSlot: ToSlot,
   pre: boolean,
 ): Promise<void> {
   if (typeof node === "string" || typeof node === "number" || typeof node === "bigint") {
@@ -118,21 +148,27 @@ async function serialize(
   }
   // `null`, booleans, and functions like render props
   if (typeof node !== "object" || node === null) return;
-  if ("then" in node) return serialize(await node, out, slots, pre);
+  if ("then" in node) return serialize(await node, out, toSlot, pre);
   if (Symbol.iterator in node) {
-    for (const child of node) await serialize(child, out, slots, pre);
+    for (const child of node) await serialize(child, out, toSlot, pre);
     return;
   }
   if (!isValidElement<ElementProps>(node)) return;
   if (isAstroContent(node)) {
     const { component, components } = node.props;
-    out.push(component ? slot(slots, { component, components }) : new Slot("children"));
+    out.push(component ? toSlot({ component, components }) : new Slot("children"));
     return;
   }
 
   const { type, props } = node;
+  if (type === Fragment && node.key !== null) {
+    const nodes: IslandNode[] = [];
+    await serialize(props.children, nodes, toSlot, pre);
+    out.push(["", { key: node.key }, ...nodes]);
+    return;
+  }
   if (type === Fragment || type === Suspense || type === StrictMode)
-    return serialize(props.children, out, slots, pre);
+    return serialize(props.children, out, toSlot, pre);
 
   if (typeof type === "string") {
     const { children, ...rest } = props;
@@ -143,13 +179,13 @@ async function serialize(
         out.push([
           type,
           hostProps(code),
-          slot(slots, html ? String(html.__html) : renderToStaticMarkup(children)),
+          toSlot(html ? String(html.__html) : renderToStaticMarkup(children)),
         ]);
         return;
       }
     }
     const nodes: IslandNode[] = [];
-    await serialize(children, nodes, slots, type === "pre");
+    await serialize(children, nodes, toSlot, type === "pre");
     out.push([type, hostProps(rest), ...nodes]);
     return;
   }
@@ -161,10 +197,10 @@ async function serialize(
     // refs are of the browser
     const { children, ref: _ref, ...rest } = props;
     const islandProps =
-      typeof children === "function" ? unserializable : await toIslandProps(rest, slots);
+      typeof children === "function" ? unserializable : await toIslandProps(rest, toSlot);
     if (islandProps !== unserializable) {
       const nodes: IslandNode[] = [];
-      await serialize(children, nodes, slots, name === "pre");
+      await serialize(children, nodes, toSlot, name === "pre");
       out.push([1, name ?? type, islandProps, ...nodes]);
       return;
     }
@@ -174,14 +210,19 @@ async function serialize(
       );
   }
 
+  if (isAstroComponent(type))
+    throw new Error(
+      `[Fumapress] the Astro component <${type.name}> is in React content: \`ui.renderPage\` can return one as the layout of a page, React renders other content.`,
+    );
+
   // other function components render on the server like server components, their output can have components
   if (isFunctionComponent(type)) {
     const result = await call(type, props);
-    if (result) return serialize(await result.value, out, slots, pre);
+    if (result) return serialize(await result.value, out, toSlot, pre);
   }
 
   // class components, `memo()`, context providers and the others are rendered by React
-  out.push(slot(slots, await render(node)));
+  out.push(toSlot(await render(node)));
 }
 
 /** class components have `isReactComponent` on their prototype */
@@ -216,11 +257,6 @@ async function render(node: ReactNode): Promise<string> {
   return new Response(prelude).text();
 }
 
-function slot(slots: IslandData["slots"], content: IslandData["slots"][number]): Slot {
-  slots.push(content);
-  return new Slot(`s${slots.length - 1}`);
-}
-
 /** event handlers and refs are of the browser, like React rendering HTML */
 function hostProps(props: Record<string, unknown>): Record<string, unknown> | 0 {
   let out: Record<string, unknown> | 0 = 0;
@@ -232,19 +268,19 @@ function hostProps(props: Record<string, unknown>): Record<string, unknown> | 0 
 }
 
 /** a prop of a component in the island: client components are references, elements are island trees */
-async function toIslandProp(value: unknown, slots: IslandData["slots"]): Promise<unknown> {
+async function toIslandProp(value: unknown, toSlot: ToSlot): Promise<unknown> {
   if (typeof value === "function") return getReference(value) ? value : unserializable;
   if (typeof value !== "object" || value === null || value instanceof Slot) return value;
   if (isValidElement(value)) {
     const nodes: IslandNode[] = [];
-    await serialize(value, nodes, slots, false);
+    await serialize(value, nodes, toSlot, false);
     return new Tree(nodes);
   }
   if (getReference(value)) return value;
   if (Array.isArray(value)) {
     const out: unknown[] = [];
     for (const item of value) {
-      const prop = await toIslandProp(item, slots);
+      const prop = await toIslandProp(item, toSlot);
       if (prop === unserializable) return unserializable;
       out.push(prop);
     }
@@ -255,7 +291,7 @@ async function toIslandProp(value: unknown, slots: IslandData["slots"]): Promise
   // values of other classes like dates and maps, the component renders on the server when the island can't receive them
   if (prototype !== Object.prototype && prototype !== null)
     return isSerializable(value) ? value : unserializable;
-  return toIslandProps(value, slots);
+  return toIslandProps(value, toSlot);
 }
 
 function isSerializable(value: object): boolean {
@@ -270,11 +306,11 @@ function isSerializable(value: object): boolean {
 /** the props of a component in the island */
 async function toIslandProps(
   value: object,
-  slots: IslandData["slots"],
+  toSlot: ToSlot,
 ): Promise<Record<string, unknown> | typeof unserializable> {
   const out: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value)) {
-    const prop = await toIslandProp(item, slots);
+    const prop = await toIslandProp(item, toSlot);
     if (prop === unserializable) return unserializable;
     out[key] = prop;
   }

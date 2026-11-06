@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from "astro";
 import { ctx } from "./context";
 import { serve, serveApi, serveFile } from "./shared";
 
-/** where Astro routes the requests of plugins, your own routes go first: `/404` has the files `[...fumapressServer]` doesn't take with `trailingSlash: "always"` */
+/** where Astro routes the requests of plugins, custom routes go first: `/404` has the files `[...fumapressServer]` doesn't take with `trailingSlash: "always"` */
 const pressRoutes = new Set(["/404", "/[...fumapressServer]"]);
 
 /** the `middleware` and the routes of plugins, for requests served on demand */

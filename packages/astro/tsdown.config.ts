@@ -5,9 +5,11 @@ export default defineConfig({
   // with the modules of `.astro` files and the generated code, their exports are kept
   entry: [
     "src/{index,config,runtime}.ts",
+    "src/client.tsx",
     "src/plugins/*.ts",
     "src/routes/{context,file,middleware,shared}.ts",
-    "src/ui/{page,content,default}.tsx",
+    "src/routes/render.tsx",
+    "src/ui/{content,layout-root}.tsx",
     "src/island/{island.tsx,references.ts}",
   ],
   target: "es2023",
@@ -28,7 +30,7 @@ export default defineConfig({
     enabled: true,
     exclude: [/^(\.\/)?(routes|ui|island)\//],
     customExports: {
-      "./components/*": "./dist/components/*",
+      "./components/HomeLayout.astro": "./dist/components/HomeLayout.astro",
       "./css/preset.css": "./css/preset.css",
       "./css/default.css": "./css/default.css",
     },

@@ -1,49 +1,31 @@
 import { trailingSlash } from "astro:config/client";
 import config from "virtual:fumapress/config";
-import { adapter, defaultMode, routes, prerender, siteUrl } from "virtual:fumapress/astro";
-import { stripBase, type Press } from "@fumapress/core";
+import { adapter, routes, prerender, serverOutput, siteUrl } from "virtual:fumapress/astro";
+import { stripBase } from "@fumapress/core";
 import { createPressContext, pathLocale } from "@fumapress/core/runtime";
-import { uiTranslations } from "fumadocs-ui/i18n";
 import { contentSourcePlugin } from "../content-source";
 import { pageTreePlugin } from "../island/page-tree";
 import { getReference } from "../island/references";
-
-const input = config["~press"];
-const mode = input.config.mode ?? defaultMode;
-if (mode !== "static" && !adapter)
-  throw new Error(
-    `[Fumapress] \`mode: "${mode}"\` renders routes on request, add an adapter to Astro or use \`mode: "static"\`.`,
-  );
-
-/** the site of `press.config.tsx`, with the mode and URL of the Astro config */
-const press: Press = {
-  ...config,
-  "~press": {
-    ...input,
-    config: {
-      ...input.config,
-      mode,
-      site: { ...input.config.site, baseUrl: input.config.site?.baseUrl ?? siteUrl },
-    },
-  },
-};
 
 // a reloaded `press.config.tsx` creates another context
 const controller = new AbortController();
 import.meta.hot?.dispose(() => controller.abort());
 
 /** the context of the site, with the getters of the runtime */
-export const ctx = await createPressContext(press, {
+export const ctx = await createPressContext(config, {
   base: import.meta.env.BASE_URL,
+  baseUrl: siteUrl,
   trailingSlash: trailingSlash === "always",
-  defaults: [
-    contentSourcePlugin(),
-    pageTreePlugin(),
-    { name: "astro:ui-translations", translations: uiTranslations() },
-  ],
+  dynamic: serverOutput,
+  defaults: [contentSourcePlugin(), pageTreePlugin(prerender)],
   signal: controller.signal,
   isClientReference: (value) => getReference(value) !== undefined,
 });
+
+if (!adapter && ctx.getContentRender() === "dynamic")
+  throw new Error(
+    "[Fumapress] a dynamic content source renders its pages on demand, add an adapter to Astro.",
+  );
 
 ctx.setRuntimeRoutes(
   routes.map(({ path: route, render }) => {
@@ -67,10 +49,6 @@ if (import.meta.env.DEV) {
 if (prerender) {
   if (!ctx.plugins.some((plugin) => plugin.build)) {
     globalThis.FUMAPRESS_BUILD = undefined;
-  } else if (mode === "dynamic") {
-    throw new Error(
-      '[Fumapress] the `build` of plugins, like link validation, reads the prerendered pages, but pages render on request in `mode: "dynamic"`.',
-    );
   } else if (globalThis.FUMAPRESS_BUILD) {
     globalThis.FUMAPRESS_BUILD.ctx = ctx;
   } else {

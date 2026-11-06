@@ -4,7 +4,8 @@ export type ClientReference = [key: string, name: string];
 /** the client component modules on the server by key, registered by themselves, see `plugin.ts` */
 export const modules = new Map<string, Record<string, unknown>>();
 const pending: [key: string, module: Record<string, unknown>][] = [];
-const references = new Map<unknown, ClientReference>();
+/** weak: revalidated content has new page trees */
+const references = new WeakMap<object, ClientReference>();
 
 /** called by client component modules on the server */
 export function registerReference(key: string, module: Record<string, unknown>): void {
@@ -37,5 +38,5 @@ export function getReference(component: unknown): ClientReference | undefined {
         references.set(value, [key, name]);
     }
   }
-  return references.get(component);
+  return references.get(component as object);
 }

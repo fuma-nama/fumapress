@@ -26,7 +26,7 @@ export interface PageProps {
   redirect?: string;
 }
 
-/** the view rendered on request at `path` (without the base path), with its translations when its route lists the path */
+/** the view rendered on demand at `path` (without the base path), with its translations when its route lists the path */
 export async function matchView(ctx: RuntimeContext, path: string): Promise<ViewPage | undefined> {
   const match = matchPageRoute(
     await getPageRoutesWithDerived(ctx),
@@ -47,18 +47,18 @@ export async function matchView(ctx: RuntimeContext, path: string): Promise<View
   };
 }
 
-/** the static paths of `[...fumapressPage]`, no pages in `dynamic` mode */
+/** the static paths of `[...fumapressPage]`: the pages of static content sources, and static views */
 export async function pageStaticPaths(ctx: RuntimeContext, adapter: boolean) {
   const paths: { params: { fumapressPage?: string }; props: PageProps }[] = [];
-  if (ctx.mode === "dynamic") return paths;
   const routes = await getPageRoutesWithDerived(ctx);
   for (const { view, render } of routes) {
     if (view && render === "dynamic" && !adapter)
       throw new Error(
-        `[Fumapress] the route "${view.path}" renders on request, add an adapter to Astro.`,
+        `[Fumapress] the route "${view.path}" renders on demand, add an adapter to Astro.`,
       );
   }
   for (const page of (await ctx.getLoader()).getPages()) {
+    if (ctx.getContentRender(page.type) === "dynamic") continue;
     // page URLs are encoded, like spaces in file names
     paths.push({
       params: { fumapressPage: decodeURI(page.url.slice(1)) || undefined },
@@ -76,7 +76,8 @@ export async function pageStaticPaths(ctx: RuntimeContext, adapter: boolean) {
         });
     }
   }
-  const redirect = await rootRedirect(ctx);
+  // the content can change while the server runs
+  const redirect = ctx.getContentRender() === "static" ? await rootRedirect(ctx) : undefined;
   if (redirect !== undefined)
     paths.push({
       params: { fumapressPage: undefined },
@@ -103,11 +104,11 @@ export async function fileStaticPaths(
     if (route.render === "dynamic") {
       if (!adapter)
         throw new Error(
-          `[Fumapress] the route "${route.path}" renders on request, add an adapter to Astro.`,
+          `[Fumapress] the route "${route.path}" renders on demand, add an adapter to Astro.`,
         );
       if (staticNotFound && /\.[^/]+$/.test(route.path))
         throw new Error(
-          `[Fumapress] Astro serves your 404 page at "${route.path}": with \`trailingSlash: "always"\`, routes rendered on request with a file extension need a 404 page rendered on request. Add \`export const prerender = false\` to your 404 page.`,
+          `[Fumapress] Astro serves your 404 page at "${route.path}": with \`trailingSlash: "always"\`, routes rendered on demand with a file extension need a 404 page rendered on demand. Add \`export const prerender = false\` to your 404 page.`,
         );
       continue;
     }
@@ -134,7 +135,7 @@ export async function serveFile(
     if (params.fumapressFile === file) return props.GET(request, { params: props.params });
 }
 
-/** the route rendered on request at `path` (without the base path), with its params */
+/** the route rendered on demand at `path` (without the base path), with its params */
 export async function matchApiRoute(
   ctx: RuntimeContext,
   path: string,
@@ -164,7 +165,7 @@ async function dispatch(route: ApiRoute, request: Request, params: RouteParams):
   return new Response(null, { status: 405, headers: { Allow: allow.join(", ") } });
 }
 
-/** the response of the route of plugins rendered on request at the URL of `request` */
+/** the response of the route of plugins rendered on demand at the URL of `request` */
 export async function serveApi(
   ctx: RuntimeContext,
   request: Request,
@@ -174,7 +175,7 @@ export async function serveApi(
   if (match) return dispatch(match.route, request, match.params);
 }
 
-/** the page to render on request at the URL of `request` */
+/** the page to render on demand at the URL of `request` */
 export async function serve(ctx: RuntimeContext, request: Request): Promise<PageProps | undefined> {
   const path = stripBase(new URL(request.url).pathname, ctx.withBase("/"));
   if (path === undefined) return;
@@ -183,9 +184,9 @@ export async function serve(ctx: RuntimeContext, request: Request): Promise<Page
   const trimmed = path.replace(/(.)\/$/, "$1");
   const view = await matchView(ctx, trimmed);
   if (view) return { view };
-  if (ctx.mode !== "dynamic") return;
   const page = (await ctx.getLoader()).getPageByUrl(trimmed);
-  if (page) return { page };
+  if (page && ctx.getContentRender(page.type) === "dynamic") return { page };
+  if (ctx.getContentRender() === "static") return;
   const redirect = path === "/" ? await rootRedirect(ctx) : undefined;
   if (redirect !== undefined) return { redirect: ctx.withBase(redirect) };
 }

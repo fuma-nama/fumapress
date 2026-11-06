@@ -1,10 +1,9 @@
 import type { APIContext, MiddlewareNext } from "astro";
 import { describe, expect, it, vi } from "vitest";
 import { type AppShape, type Plugin } from "@fumapress/core";
-import { notFoundView, type RuntimeContext } from "@fumapress/core/runtime";
+import { notFoundView, type PressRuntime, type RuntimeContext } from "@fumapress/core/runtime";
 import { onRequest } from "@/routes/middleware";
 import { fileStaticPaths, pageStaticPaths, serve, serveApi } from "@/routes/shared";
-import type { ViewPage } from "@/routes/shared";
 import { pressContext, type TestSite } from "./harness";
 
 const runtime = vi.hoisted(() => ({ ctx: undefined as RuntimeContext | undefined }));
@@ -16,9 +15,22 @@ vi.mock("@/routes/context", () => ({
 
 const docs = { files: [{ type: "page" as const, path: "index.mdx", data: { title: "Home" } }] };
 const i18n = { languages: ["en", "cn"], defaultLanguage: "en" };
+const dynamicDocs = { docs: { files: () => docs.files } };
+/** the home page is prerendered, `/live/status` renders on demand */
+const mixed = {
+  docs,
+  live: {
+    files: () => [{ type: "page" as const, path: "live/status.mdx", data: { title: "Status" } }],
+  },
+};
 
-function site(plugin: Plugin<AppShape, any>, config: Partial<TestSite> = {}, base = "/") {
-  return pressContext({ content: { docs }, plugins: [plugin], ...config }, { base });
+function site(
+  plugin: Plugin<AppShape, any>,
+  config: Partial<TestSite> = {},
+  base = "/",
+  runtime: Partial<PressRuntime> = {},
+) {
+  return pressContext({ content: { docs }, plugins: [plugin], ...config }, { base, ...runtime });
 }
 
 const GET = () => new Response("get");
@@ -47,7 +59,7 @@ describe("static routes", () => {
     ]);
     expect(paths[1]!.props.params).toEqual({ slugs: ["a", "b.webp"] });
     await expect(fileStaticPaths(ctx, false)).rejects.toThrow(
-      'the route "/api/search" renders on request, add an adapter to Astro.',
+      'the route "/api/search" renders on demand, add an adapter to Astro.',
     );
     // the search route has no file extension, Astro redirects it to a catch-all route
     await expect(fileStaticPaths(ctx, true, true)).resolves.toEqual(paths);
@@ -58,12 +70,11 @@ describe("static routes", () => {
   });
 
   it("render the pages and the root redirect", async () => {
-    const ctx = await site({}, { i18n, mode: "static" });
+    const ctx = await site({}, { i18n });
     const paths = await pageStaticPaths(ctx, false);
 
     expect(paths.map((path) => path.params.fumapressPage)).toEqual(["en", "cn", undefined]);
     expect(paths[2]!.props.redirect).toBe("/en");
-    expect(await pageStaticPaths(await site({}, { mode: "dynamic" }), true)).toEqual([]);
 
     const guide = { files: [{ type: "page" as const, path: "docs/guide.mdx", data: {} }] };
     const noHome = await site(
@@ -71,13 +82,22 @@ describe("static routes", () => {
       {
         content: { docs: guide },
         i18n: { languages: ["en"], defaultLanguage: "en" },
-        mode: "static",
       },
       "/sub",
     );
     expect((await pageStaticPaths(noHome, false)).at(-1)!.props.redirect).toBe(
       "/sub/en/docs/guide",
     );
+  });
+
+  it("leave out the pages of dynamic sources, and the root redirect with them", async () => {
+    expect(await pageStaticPaths(await site({}, { content: dynamicDocs, i18n }), true)).toEqual([]);
+    expect(await pageStaticPaths(await site({}, { i18n }, "/", { dynamic: true }), true)).toEqual(
+      [],
+    );
+
+    const paths = await pageStaticPaths(await site({}, { content: mixed }), true);
+    expect(paths).toMatchObject([{ params: {}, props: { page: { url: "/" } } }]);
   });
 });
 
@@ -124,22 +144,25 @@ describe("server routes", async () => {
     }
   });
 
-  it("create the routes of plugins once per content", async () => {
-    const routes = vi.fn<NonNullable<Plugin["routes"]>>(({ createApi }) =>
-      createApi({ path: "/api", GET }),
-    );
-    const once = await site({ routes });
-    for (let i = 0; i < 3; i++) await serveApi(once, new Request("http://localhost/api"));
-    expect(routes).toHaveBeenCalledTimes(1);
-  });
-
-  it("render pages in dynamic mode", async () => {
-    const dynamic = await site({}, { mode: "dynamic", i18n }, "/sub");
+  it.each<[string, Partial<TestSite>, Partial<PressRuntime>]>([
+    ["a dynamic source", { content: dynamicDocs }, {}],
+    ["`output: 'server'`", {}, { dynamic: true }],
+  ])("render pages with %s", async (_, config, runtime) => {
+    const dynamic = await site({}, { ...config, i18n }, "/sub", runtime);
     const page = await serve(dynamic, new Request("http://localhost/sub/cn/"));
     expect(page).toMatchObject({ page: { url: "/cn" } });
     expect(await serve(dynamic, new Request("http://localhost/sub"))).toEqual({
       redirect: "/sub/en",
     });
+  });
+
+  it("render only the pages of dynamic sources on a site mixing both", async () => {
+    const both = await site({}, { content: mixed });
+
+    expect(await serve(both, new Request("http://localhost/live/status/"))).toMatchObject({
+      page: { url: "/live/status" },
+    });
+    expect(await serve(both, new Request("http://localhost/"))).toBeUndefined();
   });
 });
 
@@ -190,9 +213,9 @@ describe("views", () => {
     expect(await paths(config)).toEqual(expected);
   });
 
-  it("need an adapter to render on request", async () => {
+  it("need an adapter to render on demand", async () => {
     await expect(pageStaticPaths(await site(views), false)).rejects.toThrow(
-      'the route "/(app)/live/[id]" renders on request, add an adapter to Astro.',
+      'the route "/(app)/live/[id]" renders on demand, add an adapter to Astro.',
     );
   });
 
@@ -202,20 +225,7 @@ describe("views", () => {
     expect((await notFoundView(ctx, "fr"))?.path).toBe("/404");
   });
 
-  it("link the pages of other languages at their path as translations", async () => {
-    const pages = new Map<string, ViewPage["page"]>();
-    for (const { props } of await pageStaticPaths(await site(views, { i18n }), true))
-      if (props.view) pages.set(props.view.page.path, props.view.page);
-
-    expect(pages.get("/cn/tags/react")?.translations).toEqual([
-      { lang: "en", path: "/en/tags/react" },
-      { lang: "cn", path: "/cn/tags/react" },
-    ]);
-    expect(pages.get("/en/tags/vue")?.translations).toEqual([{ lang: "en", path: "/en/tags/vue" }]);
-    expect(pages.get("/cn/tags/react")?.params).toEqual({ tag: "react" });
-  });
-
-  it("render on request with their params, every view in `dynamic` mode", async () => {
+  it("render on demand with their params", async () => {
     const ctx = await site(views, { i18n }, "/sub");
     const request = new Request("http://localhost/sub/en/live/42");
     const live = (await serve(ctx, request))!;
@@ -225,11 +235,30 @@ describe("views", () => {
       translations: [],
     });
     expect(await serve(ctx, new Request("http://localhost/sub/cn/blog"))).toBeUndefined();
+  });
 
-    const dynamic = await site(views, { i18n, mode: "dynamic" });
-    const blog = (await serve(dynamic, new Request("http://localhost/cn/blog/")))!;
+  it.each<[string, Partial<TestSite>, Partial<PressRuntime>]>([
+    ["a dynamic source", { content: dynamicDocs }, {}],
+    ["`output: 'server'`", {}, { dynamic: true }],
+  ])("following the content render on demand with %s", async (_, config, runtime) => {
+    const following: Plugin<AppShape, { views: { test: {} } }> = {
+      routes({ createView }) {
+        for (const lang of this.languages)
+          createView({
+            lang,
+            path: "/blog",
+            render: this.getContentRender(),
+            view: () => view(`blog:${lang}`),
+          });
+      },
+    };
+    const onRequest = await site(following, { ...config, i18n }, "/", runtime);
+    const blog = (await serve(onRequest, new Request("http://localhost/cn/blog/")))!;
     expect(blog.view?.page.path).toBe("/cn/blog");
     expect(blog.view?.page.translations).toHaveLength(2);
+
+    const prerendered = await site(following, { i18n });
+    expect(await serve(prerendered, new Request("http://localhost/cn/blog/"))).toBeUndefined();
   });
 
   it("match the pages of their route by the decoded path of the request", async () => {
@@ -239,12 +268,13 @@ describe("views", () => {
           createView({
             lang,
             path: "/tags/[tag]",
+            render: "dynamic",
             staticPaths: ["über"],
             view: ({ tag }) => view(tag),
           });
       },
     };
-    const ctx = await site(tags, { i18n, mode: "dynamic" });
+    const ctx = await site(tags, { i18n });
     const listed = (await serve(ctx, new Request("http://localhost/cn/tags/%C3%BCber")))!;
     const other = (await serve(ctx, new Request("http://localhost/cn/tags/%C3%A4")))!;
 
@@ -299,11 +329,11 @@ describe("middleware", () => {
   });
 
   it.each([
-    ["/[...fumapressServer]", "/sub/api/x/", "route"],
+    ["/[...fumapressServer]", "/sub/api/x", "route"],
     // a file `[...fumapressServer]` doesn't take with `trailingSlash: "always"`
     ["/404", "/sub/robots.txt", "route"],
     ["/404", "/sub/missing", "next"],
-    // your own route replaces the route of a plugin
+    // a custom route replaces the route of a plugin
     ["/api/x", "/sub/api/x", "next"],
   ])("on %s, answers %s with the %s", async (routePattern, path, expected) => {
     runtime.ctx = await site(

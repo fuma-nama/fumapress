@@ -2,13 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
-import type { DevEnvironment, Plugin, RunnableDevEnvironment, ViteDevServer } from "vite";
+import type { Plugin, ViteDevServer } from "vite";
 import fumadocs, { type CollectionConfig, type FumadocsOptions } from "@fumadocs/astro";
-import type { BuildMode } from "@fumapress/core";
 import { crawlFrameworkPkgs, type CrawlResult } from "@fumapress/core/runtime/vite";
 import { createBuildOutput } from "./build";
 import { clientReferences } from "./island/plugin";
-import type * as Context from "./routes/context";
 import type * as Generated from "virtual:fumapress/astro";
 
 export interface AstroPressOptions extends FumadocsOptions {
@@ -58,11 +56,6 @@ export default function press({
           const root = fileURLToPath(config.root);
           const srcDir = fileURLToPath(config.srcDir);
           const adapter = config.adapter !== undefined;
-          const mode: BuildMode = !adapter
-            ? "static"
-            : config.output === "server"
-              ? "dynamic"
-              : "default";
           basePath = config.base.replace(/\/$/, "");
           const site = config.site && config.site.replace(/\/$/, "") + basePath;
           const appCss = path.join(srcDir, "app.css");
@@ -76,13 +69,13 @@ export default function press({
           const modules: Record<string, string | ((environment: string) => string)> = {
             "virtual:fumapress/astro": (environment) => `export const adapter = ${adapter};
 export const staticNotFound = ${adapter && config.trailingSlash === "always" && prerendered404};
-export const defaultMode = ${JSON.stringify(mode)};
+export const serverOutput = ${config.output === "server"};
 export const routes = ${JSON.stringify(routes)};
 export const prerender = ${environment === "prerender"};
 export const siteUrl = ${JSON.stringify(devUrl ?? site)};`,
             "virtual:fumapress/island": `import components from ${userModule(root, components)};
-import { createIsland } from ${JSON.stringify(internalModule("island/island"))};
-export const PressIsland = createIsland(components);
+import { createPressIsland } from ${JSON.stringify(internalModule("island/island"))};
+export const PressIsland = createPressIsland(components);
 export { components };`,
           };
           for (const [name, collection] of Object.entries(collections)) {
@@ -100,7 +93,7 @@ export default withProvider(components);`;
             });
           route("[...fumapressPage]", "page.astro");
           route("[...fumapressFile]", "file.js");
-          // routes rendered on request, Astro tries the prerendered routes of a pattern first
+          // routes rendered on demand, Astro tries the prerendered routes of a pattern first
           if (adapter) route("[...fumapressServer]", "server.astro", false);
           const userPages = path.join(srcDir, "pages");
           if (
@@ -115,7 +108,6 @@ export default withProvider(components);`;
             entrypoint: new URL("./routes/middleware.js", import.meta.url),
           });
 
-          const context = internalModule("routes/context");
           const crawl = await crawlFrameworkPkgs(root, "astro");
           const { dependencies = {}, devDependencies = {} } = JSON.parse(
             fs.readFileSync(path.join(root, "package.json"), "utf8"),
@@ -127,19 +119,25 @@ export default withProvider(components);`;
               plugins: [
                 frameworkPlugin(crawl, { ...dependencies, ...devDependencies }),
                 virtualPlugin(files, modules),
-                // every page has one of the layouts, they load with the island
+                // every page has the root provider, it loads with the island
                 clientReferences(internalModule("island/references"), [
                   internalModule("ui/provider"),
-                  internalModule("ui/default"),
-                  internalModule("ui/home"),
                 ]),
-                contentReloadPlugin(context, Object.values(collections), root),
               ],
             },
           });
         },
-        "astro:config:done"({ config }) {
+        "astro:config:done"({ config, injectTypes }) {
           outDir = fileURLToPath(config.outDir);
+          // `press.config.tsx` imports them, `tsc` knows no `.astro` files
+          injectTypes({
+            filename: "types.d.ts",
+            content: `declare module "*.astro" {
+  const component: (props: any) => any;
+  export default component;
+}
+`,
+          });
         },
         "astro:routes:resolved"(params) {
           routes = [];
@@ -223,58 +221,6 @@ function resolveConfigFile(root: string): string {
   throw new Error(
     "[Fumapress] add `press.config.tsx` to the project root, its default export is the config of the site.",
   );
-}
-
-/** the environment where Astro renders routes in dev, it can import modules */
-function isRunnable(
-  environment: DevEnvironment | undefined,
-): environment is RunnableDevEnvironment {
-  return environment !== undefined && "runner" in environment;
-}
-
-function isInside(dir: string, file: string): boolean {
-  const relative = path.relative(dir, file);
-  return !relative.startsWith("..") && !path.isAbsolute(relative);
-}
-
-/**
- * In dev, files of runtime content sources (like `@fumadocs/local-md`) aren't modules, a change reloads the content and the pages.
- *
- * Collections are left to Astro, which reloads their content itself.
- */
-function contentReloadPlugin(
-  /** the module of the runtime context */
-  context: string,
-  collections: CollectionConfig[],
-  root: string,
-): Plugin {
-  const dirs: string[] = [];
-  for (const { dir } of collections) dirs.push(path.resolve(root, dir));
-
-  return {
-    name: "@fumapress/astro:content-reload",
-    configureServer(server) {
-      const { ssr, client } = server.environments;
-      if (!isRunnable(ssr)) return;
-      const onFile = async (file: string) => {
-        if (ssr.moduleGraph.getModulesByFile(file)?.size) return;
-        if (dirs.some((dir) => isInside(dir, file))) return;
-        const { ctx } = await ssr.runner.import<typeof Context>(context);
-        for (const page of (await ctx.getLoader()).getPages()) {
-          if (!page.absolutePath || !isInside(path.dirname(page.absolutePath), file)) continue;
-          ctx.invalidateLoader();
-          ssr.hot.send({ type: "full-reload" });
-          client?.hot.send({ type: "full-reload" });
-          return;
-        }
-      };
-
-      const listener = (file: string) => void onFile(file).catch(() => undefined);
-      server.watcher.on("add", listener);
-      server.watcher.on("change", listener);
-      server.watcher.on("unlink", listener);
-    },
-  };
 }
 
 /** resolved from the project rather than this package */

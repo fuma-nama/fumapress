@@ -5,7 +5,7 @@ import type { IslandData } from "./serialize";
 
 interface Props extends Pick<IslandData, "tree" | "slots"> {
   /** the props of the provider of Astro content in its slots */
-  provider?: ProviderData;
+  provider: ProviderData;
   /** the name of `transition:persist`, the island is kept on navigation */
   persist?: string;
 }

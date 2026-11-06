@@ -1,7 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import type { DefaultPageProps } from "@fumapress/core/runtime";
-import { HomeShell } from "@fumapress/core/runtime/ui";
+import { HomeShell } from "@fumapress/core/ui/home";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { DefaultNotFound } from "fumadocs-ui/layouts/home/not-found";
 

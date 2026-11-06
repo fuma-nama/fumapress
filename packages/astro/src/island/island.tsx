@@ -16,7 +16,7 @@ export interface PressIslandProps {
 /**
  * A node of the island tree from `serializeIsland()`: text, a slot, an HTML element, or a component with an MDX component name or a client component.
  *
- * Elements are created with their React props as they are.
+ * Elements are created with their React props as they are, an empty tag name is a fragment with a key.
  */
 export type IslandNode =
   | string
@@ -75,7 +75,7 @@ function load(key: string): Promise<void> {
 /**
  * Create the island rendering React content of the server, with the MDX components of the content.
  */
-export function createIsland(components: MDXComponents) {
+export function createPressIsland(components: MDXComponents) {
   function toReact(node: IslandNode): ReactNode {
     // text, and slots replaced by their content when parsed
     if (!Array.isArray(node)) return node as ReactNode;
@@ -89,7 +89,7 @@ export function createIsland(components: MDXComponents) {
     }
 
     const [tagName, props, ...children] = node;
-    return createElement(tagName, props || null, ...children.map(toReact));
+    return createElement(tagName || Fragment, props || null, ...children.map(toReact));
   }
 
   /** client references are the exports of their modules, it suspends until the missing modules are loaded */

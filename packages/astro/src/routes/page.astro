@@ -2,7 +2,7 @@
 import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { adapter } from "virtual:fumapress/astro";
 import Layout from "../ui/Layout.astro";
-import { getPage } from "../ui/page.js";
+import { getPage } from "./render.js";
 import { ctx } from "./context.js";
 import { pageStaticPaths } from "./shared.js";
 

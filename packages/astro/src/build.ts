@@ -2,14 +2,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { stripBase, type PressBuildOutput } from "@fumapress/core";
 import type { RuntimeContext } from "@fumapress/core/runtime";
-import { matchApiRoute, matchView } from "./routes/shared";
+import { matchApiRoute, serve } from "./routes/shared";
 
 export interface BuildOutputOptions {
   /** the directory of prerendered pages and public files */
   dir: string;
   /** `outDir` of Astro, the directory of `emitFile()` */
   outDir: string;
-  /** the patterns of your routes rendered on request */
+  /** the patterns of your routes rendered on demand */
   routes: RegExp[];
 }
 
@@ -27,7 +27,7 @@ async function findFile(dir: string, pathname: string): Promise<string | undefin
   }
 }
 
-/** the output of an Astro build for the `build` of plugins, routes rendered on request answer without content */
+/** the output of an Astro build for the `build` of plugins, routes rendered on demand answer without content */
 export function createBuildOutput(
   ctx: RuntimeContext,
   links: PressBuildOutput["links"],
@@ -50,7 +50,7 @@ export function createBuildOutput(
       if (
         routes.some((route) => route.test(pathname)) ||
         (await matchApiRoute(ctx, pathname)) ||
-        (await matchView(ctx, pathname))
+        (await serve(ctx, request))
       )
         return new Response();
       return new Response(null, { status: 404 });

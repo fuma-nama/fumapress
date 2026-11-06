@@ -19,11 +19,10 @@
     "css"
   ],
   "type": "module",
-  "sideEffects": [
-    "./dist/ui/default.js"
-  ],
+  "sideEffects": false,
   "exports": {
     ".": "./dist/index.js",
+    "./client": "./dist/client.js",
     "./config": "./dist/config.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
@@ -35,7 +34,7 @@
     "./plugins/takumi": "./dist/plugins/takumi.js",
     "./runtime": "./dist/runtime.js",
     "./package.json": "./package.json",
-    "./components/*": "./dist/components/*",
+    "./components/HomeLayout.astro": "./dist/components/HomeLayout.astro",
     "./css/preset.css": "./css/preset.css",
     "./css/default.css": "./css/default.css"
   },

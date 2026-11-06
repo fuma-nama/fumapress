@@ -5,13 +5,17 @@ import { modules, registerPageTree } from "./references";
 /**
  * A tree in the props of every page makes the output of a site quadratic to its pages. The trees of the loader are client references to a file instead: the island gets them by identity, the browser fetches each once.
  */
-export function pageTreePlugin(): Plugin {
+export function pageTreePlugin(prerender = false): Plugin {
   const files = new Map<string | undefined, string>();
 
   return {
     name: "astro:page-tree",
     async routes({ createApi }) {
       const source = await this.getLoader();
+      // public files aren't for the pages of dynamic sources
+      const hasStatic = source
+        .getPages()
+        .some((page) => this.getContentRender(page.type) === "static");
       for (const lang of this.languages) {
         const tree = source.getPageTree(lang);
         const serialized = await source.serializePageTree(tree);
@@ -28,7 +32,8 @@ export function pageTreePlugin(): Plugin {
         registerPageTree(tree, url, deserializePageTree(serialized));
         createApi({
           path,
-          render: "static",
+          // prerendered pages keep the files of their build, the server has the ones of revalidated content
+          render: prerender && hasStatic ? "static" : this.getContentRender(),
           GET: () =>
             new Response(json, {
               headers: {

@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
+import { createPressIsland } from "@/island/island";
 
 export function Card({ title, children }: { title?: ReactNode; children?: ReactNode }) {
   return (
@@ -20,3 +21,6 @@ export function Box({ icon: Icon }: { icon: ComponentType }) {
 
 /** the MDX components of `virtual:fumapress/island` */
 export const components = { Card, Box } satisfies MDXComponents;
+
+/** the island of `virtual:fumapress/island` */
+export const PressIsland = createPressIsland(components);

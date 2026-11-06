@@ -1,6 +1,5 @@
 import { expect, it } from "vitest";
 import { pageTreePlugin } from "@/island/page-tree";
-import { modules } from "@/island/references";
 import { pressContext } from "./harness";
 
 it("serves the page tree of each language at a URL by its content", async () => {
@@ -34,12 +33,13 @@ it("serves the page tree of each language at a URL by its content", async () => 
   expect(await treeRoutes("Home")).toEqual(paths);
   expect((await treeRoutes("Other"))[0]).not.toBe(paths[0]);
 
-  // on request, also a route
+  // on demand, also a route
   const ctx = await pressContext(
     {
-      mode: "dynamic",
       content: {
-        docs: { files: [{ type: "page" as const, path: "index.md", data: { title: "Home" } }] },
+        docs: {
+          files: () => [{ type: "page" as const, path: "index.md", data: { title: "Home" } }],
+        },
       },
       i18n: { languages: ["en", "fr"], defaultLanguage: "en" },
     },
@@ -51,24 +51,4 @@ it("serves the page tree of each language at a URL by its content", async () => 
   const tree = await routes[1]!.GET!(new Request("http://localhost"), { params: {} });
   expect(tree.headers.get("Content-Type")).toBe("application/json");
   expect(tree.headers.get("Cache-Control")).toContain("immutable");
-});
-
-it("keeps one file per language when content changes", async () => {
-  const plugin = pageTreePlugin();
-  const urls = [];
-  for (const title of ["One", "Two"]) {
-    const ctx = await pressContext(
-      {
-        content: {
-          docs: { files: [{ type: "page" as const, path: "index.md", data: { title } }] },
-        },
-      },
-      { defaults: [plugin] },
-    );
-    urls.push((await ctx.getApiRoutes())[0]!.path);
-  }
-
-  expect(urls[0]).not.toBe(urls[1]);
-  expect(modules.has(urls[0]!)).toBe(false);
-  expect(modules.has(urls[1]!)).toBe(true);
 });

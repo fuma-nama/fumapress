@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, createElement, Fragment, memo, type ReactNode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { expect, it, vi } from "vitest";
-import { createIsland } from "@/island/island";
-import { modules, registerPageTree, registerReference } from "@/island/references";
+import { createIsland } from "@/client";
+import { modules, registerReference } from "@/island/references";
 import { serializeIsland } from "@/island/serialize";
+import * as layout from "@/ui/layout-root";
 import * as client from "./fixtures/client";
 import registry from "./fixtures/client-references";
-import { components } from "./fixtures/components";
+import { PressIsland } from "./fixtures/components";
 
-const PressIsland = createIsland(components);
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 let received: unknown;
@@ -87,45 +87,78 @@ it("hydrates when client component modules load at different times", async () =>
   root.unmount();
 });
 
-it("reloads once when a page tree is gone, then reports it, with one fetch per page", async () => {
-  registerReference("client", client);
-  const fetch = vi
-    .spyOn(globalThis, "fetch")
-    .mockImplementation(async () => new Response(null, { status: 404 }));
-  const reload = vi.fn();
-  vi.stubGlobal("location", { reload });
-  const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+it("renders the React root of an `.astro` layout with the props of the page and its own", async () => {
+  registerReference("layout", layout);
+  Object.assign(registry, { layout: async () => layout });
+  const Static = memo(() => <em>static</em>);
+  const pageProps = { title: "Docs", kind: "page", banner: <Static /> };
+  const { tree } = await serializeIsland(createElement(layout.LayoutRoot, pageProps), true);
+  modules.clear();
 
-  async function renderTree(url: string) {
-    const tree = { name: "Docs", children: [] };
-    registerPageTree(tree, url, tree);
-    const island = await serializeIsland(<client.TreeName tree={tree} />);
-    // the browser has the page tree of no page yet
-    modules.delete(url);
-    const root = createRoot(document.createElement("div"));
-    await act(async () => root.render(<PressIsland tree={island.tree} />));
-    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
-    await act(async () => root.render(<PressIsland tree={island.tree} />));
-    root.unmount();
+  function Root(props: {
+    title?: string;
+    kind: string;
+    own: string;
+    banner?: ReactNode;
+    children?: ReactNode;
+  }) {
+    return (
+      <main data-title={props.title} data-kind={props.kind} data-own={props.own}>
+        {props.banner}
+        {props.children}
+      </main>
+    );
   }
+  const Island = createIsland(Root);
 
-  await renderTree("/gone.json");
-  expect(fetch).toHaveBeenCalledTimes(1);
-  expect(reload).toHaveBeenCalledTimes(1);
-  expect(report).not.toHaveBeenCalledWith(
-    expect.objectContaining({ message: expect.stringContaining("/gone.json") }),
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <Island island={tree} own="yes" kind="own">
+        <b>child</b>
+      </Island>,
+    ),
   );
+  await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
 
-  // the page after the reload, its session tried this file
-  sessionStorage.setItem("fumapress:reloaded:/still-gone.json", "1");
-  await renderTree("/still-gone.json");
-  expect(fetch).toHaveBeenCalledTimes(2);
-  expect(reload).toHaveBeenCalledTimes(1);
-  expect(report).toHaveBeenCalledWith(
-    expect.objectContaining({ message: expect.stringContaining("/still-gone.json") }),
+  const main = container.querySelector("main");
+  expect(main?.dataset).toMatchObject({ title: "Docs", kind: "own", own: "yes" });
+  expect(main?.innerHTML).toBe('<div style="display: contents;"><em>static</em></div><b>child</b>');
+  root.unmount();
+});
+
+it("reports a layout that forgets the `island` prop", () => {
+  const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const Island = createIsland(function DocsRoot() {
+    return null;
+  });
+  expect(() => renderToString(<Island {...({} as { island: never })} />)).toThrow(
+    "pass the `island` prop of the `.astro` layout to <DocsRoot>",
   );
-
-  fetch.mockRestore();
   report.mockRestore();
-  vi.unstubAllGlobals();
+});
+
+it("keeps client state per page, a persisted island reuses its position", async () => {
+  registerReference("client", client);
+  const page = (url: string) =>
+    serializeIsland(
+      <Fragment key={url}>
+        <client.Counter initial={0} />
+      </Fragment>,
+    );
+  const [first, same, next] = await Promise.all([page("/a"), page("/a"), page("/b")]);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const render = (tree: string) => act(async () => root.render(<PressIsland tree={tree} />));
+
+  await render(first.tree);
+  await act(async () => container.querySelector("button")!.click());
+  const clicked = container.textContent;
+  expect(clicked).toBe("count 1");
+
+  await render(same.tree);
+  expect(container.textContent).toBe(clicked);
+  await render(next.tree);
+  expect(container.textContent).toBe("count 0");
 });

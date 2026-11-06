@@ -14,6 +14,8 @@ export interface TestSite
   extends ContentOptions<_Internal.AnyInput, string | undefined>, PressConfig<AppShape, any> {
   content: _Internal.AnyInput;
   plugins?: PluginOption<Plugin<AppShape, any>>[];
+  /** `site` of the Astro config */
+  siteUrl?: string;
 }
 
 /** the stages of a site, without a preset unless `preset` is given */
@@ -30,6 +32,7 @@ export function testPress({ content, i18n, loaderOptions, plugins = [], ...confi
 export async function pressContext(site: TestSite, runtime: Partial<PressRuntime> = {}) {
   const ctx = await createPressContext(testPress(site), {
     base: "/",
+    baseUrl: site.siteUrl,
     defaults: [],
     signal: new AbortController().signal,
     isClientReference: () => false,

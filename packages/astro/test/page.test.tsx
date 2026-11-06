@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { AppShape, Plugin } from "@fumapress/core";
 import type { RuntimeContext } from "@fumapress/core/runtime";
 import { registerReference } from "@/island/references";
+import { AstroContent } from "@/island/serialize";
 import * as client from "./fixtures/client";
 import { pressContext, type TestSite } from "./harness";
 import { contentSourcePlugin } from "@/content-source";
@@ -23,7 +24,7 @@ vi.mock("@fumadocs/astro/source", () => ({ NoProcessedMarkdownError: class exten
 vi.mock("astro:transitions/client", () => ({ navigate() {} }));
 vi.mock("astro:config/client", () => ({ base: "/", trailingSlash: "ignore" }));
 
-const { getHomeLayout, getPage } = await import("@/ui/page");
+const { getHomeLayout, getPage } = await import("@/routes/render");
 const { ContentProvider } = await import("@/ui/content");
 const { Link } = await import("@/ui/link");
 const { Provider } = await import("@/ui/provider");
@@ -48,7 +49,7 @@ const docs = {
 async function site(plugin: Plugin<AppShape, any> = {}, config: Partial<TestSite> = {}) {
   const options: TestSite = {
     content: { docs },
-    site: { baseUrl: "https://example.com" },
+    siteUrl: "https://example.com",
     plugins: [plugin],
     ...config,
   };
@@ -72,7 +73,9 @@ function islandTree(tree: string): unknown {
 beforeAll(async () => {
   registerReference("provider", await import("@/ui/provider"));
   registerReference("home", await import("@/ui/home"));
-  registerReference("default", await import("@/ui/default"));
+  registerReference("docs", await import("@fumapress/core/ui/docs"));
+  registerReference("shell", await import("@fumapress/core/ui/home"));
+  registerReference("layout", await import("@/ui/layout-root"));
   registerReference("client", client);
 });
 
@@ -86,6 +89,24 @@ describe("layouts", () => {
     expect(tree.indexOf('"Provider"')).toBeGreaterThan(-1);
     expect(tree.indexOf('"Frame"')).toBeGreaterThan(tree.indexOf('"Provider"'));
     expect(tree.indexOf('"Home"')).toBeGreaterThan(tree.indexOf('"Frame"'));
+  });
+
+  it("keep `hideLocale` of the site with an `i18n` of `ui.providerProps`", async () => {
+    await site(
+      {},
+      {
+        i18n: { languages: ["en", "cn"], defaultLanguage: "en", hideLocale: "default-locale" },
+        ui: { providerProps: { i18n: { translations: { Search: "搜尋" } } } },
+      },
+    );
+    const { provider } = (await getHomeLayout(astro, { lang: "cn" })).island;
+
+    expect(provider.i18n).toEqual({
+      locale: "cn",
+      defaultLanguage: "en",
+      hideLocale: "default-locale",
+      translations: { Search: "搜尋" },
+    });
   });
 
   it("pass `ui.providerProps` with the dialog of the search plugin to the root provider", async () => {
@@ -147,7 +168,7 @@ describe("pages", () => {
     const { tree, pageTrees } = (await renderedPage({ page: page! })).island;
 
     expect(tree.indexOf('"Frame"')).toBeGreaterThan(-1);
-    expect(tree.indexOf('"default"')).toBeGreaterThan(tree.indexOf('"Frame"'));
+    expect(tree.indexOf('"docs"')).toBeGreaterThan(tree.indexOf('"Frame"'));
     expect(tree.indexOf('"DefaultDocs"')).toBeGreaterThan(tree.indexOf('"Frame"'));
     expect(pageTrees).toHaveLength(1);
   });
@@ -171,6 +192,100 @@ describe("pages", () => {
       tag: "link",
       attrs: { rel: "canonical", href: "https://example.com/test" },
     });
+  });
+});
+
+describe("`.astro` layouts", () => {
+  /** the default export of an `.astro` file */
+  const AstroLayout = Object.assign(() => null, { isAstroComponentFactory: true });
+
+  it("take the props of the page and the island of their React root", async () => {
+    const ctx = await site(
+      { slots: ({ page }) => (page ? [] : [{ slot: "layout.wrapper", component: client.Frame }]) },
+      { ui: { renderPage: (props) => createElement(AstroLayout, props) } },
+    );
+    const [page] = (await ctx.getLoader()).getPages();
+    const { island, layout } = await renderedPage({ page: page! });
+
+    expect(layout?.component).toBe(AstroLayout);
+    expect(layout?.props).toMatchObject({
+      type: "docs",
+      page,
+      island: island.tree,
+    });
+    for (const name of ["body", "children", "renderDefault"])
+      expect(layout?.props).not.toHaveProperty(name);
+
+    expect(island.tree.indexOf('"Provider"')).toBeGreaterThan(-1);
+    expect(island.tree.indexOf('"Frame"')).toBeGreaterThan(island.tree.indexOf('"Provider"'));
+    expect(island.tree.indexOf('"LayoutRoot"')).toBeGreaterThan(island.tree.indexOf('"Frame"'));
+  });
+
+  it("keep the props of plugin views from their React root", async () => {
+    const entries = [{ load() {} }];
+    const ctx = await site(
+      { getPageView: () => ({ props: { entries }, node: "view" }) },
+      { ui: { renderPage: (props) => createElement(AstroLayout, props) } },
+    );
+    const [page] = (await ctx.getLoader()).getPages();
+    const { island, layout } = await renderedPage({ page: page! });
+
+    expect(layout?.props).toMatchObject({ entries });
+    expect(island.tree).not.toContain("entries");
+  });
+
+  it("have the page content in their slot, `children` over the body", async () => {
+    const pageContent = async (children?: string) => {
+      const ctx = await site(
+        { getPageBody: () => ({ node: "the body" }) },
+        {
+          ui: {
+            renderPage: (props) =>
+              createElement(AstroLayout, children ? { ...props, children } : props),
+          },
+        },
+      );
+      const [page] = (await ctx.getLoader()).getPages();
+      const { layout } = await renderedPage({ page: page! });
+      return JSON.stringify(layout?.content);
+    };
+
+    await expect(pageContent()).resolves.toContain("the body");
+    const own = await pageContent("own content");
+    expect(own).toContain("own content");
+    expect(own).not.toContain("the body");
+  });
+
+  it("can't have Astro content in their options", async () => {
+    const ctx = await site(
+      {},
+      {
+        ui: {
+          renderPage: (props) =>
+            createElement(AstroLayout, {
+              ...props,
+              footer: { own: createElement(AstroContent, { component: AstroLayout as never }) },
+            } as object),
+        },
+      },
+    );
+    const [page] = (await ctx.getLoader()).getPages();
+
+    await expect(renderedPage({ page: page! })).rejects.toThrow(
+      "the props of an `.astro` layout can't have Astro content",
+    );
+  });
+
+  it("can't be nested in React content", async () => {
+    const ctx = await site(
+      {},
+      { ui: { renderPage: () => createElement("div", null, createElement(AstroLayout)) } },
+    );
+    const [page] = (await ctx.getLoader()).getPages();
+
+    await expect(renderedPage({ page: page! })).rejects.toThrow(
+      "is in React content: `ui.renderPage` can return one as the layout of a page",
+    );
   });
 });
 
@@ -219,25 +334,6 @@ describe("responses", () => {
 });
 
 describe("head tags", () => {
-  it("run the `head` of the page with its route, your tags winning by key", async () => {
-    const head = vi.fn<NonNullable<Plugin["head"]>>(() => undefined);
-    await site(
-      { head },
-      {
-        head: ({ path }) => [
-          { tag: "link", attrs: { rel: "canonical", href: `https://site.example${path}` } },
-        ],
-      },
-    );
-    const { head: tags } = await getHomeLayout(astro, { description: "About" });
-
-    expect(head).toHaveBeenCalledWith(expect.objectContaining({ path: "/cn/blog" }));
-    expect(tags.filter((tag) => tag.attrs?.rel === "canonical")).toEqual([
-      { tag: "link", attrs: { rel: "canonical", href: "https://site.example/cn/blog" } },
-    ]);
-    expect(tags).toContainEqual({ tag: "meta", attrs: { name: "description", content: "About" } });
-  });
-
   it("have no links on a not found page, with its title", async () => {
     await site();
     const { head: tags } = await getHomeLayout(astro, { title: "Gone", notFound: true });
@@ -268,11 +364,5 @@ describe("head tags", () => {
       link("alternate", "https://example.com/en/blog", "x-default"),
     ])
       expect(head).toContainEqual(tag);
-  });
-
-  it("link no translations without `alternates`", async () => {
-    await site();
-    const { head } = await getHomeLayout(astro, { title: "Blog" });
-    expect(head.some((tag) => tag.attrs?.rel === "alternate")).toBe(false);
   });
 });

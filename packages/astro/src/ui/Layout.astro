@@ -2,11 +2,11 @@
 import { ClientRouter } from "astro:transitions";
 import "virtual:fumapress/css";
 import Island from "../island/Island.astro";
-import type { RenderedPage } from "./page.js";
+import type { RenderedPage } from "../routes/render.js";
 
 type Props = RenderedPage;
 
-const { lang, head, island } = Astro.props;
+const { lang, head, island, layout } = Astro.props;
 ---
 
 <html lang={lang ?? "en"} transition:animate="none">
@@ -40,6 +40,16 @@ const { lang, head, island } = Astro.props;
     <ClientRouter />
   </head>
   <body style="display: flex; flex-direction: column; min-height: 100vh">
-    <Island {...island} persist="fumapress-page"><slot /></Island>
+    {
+      layout ? (
+        <layout.component {...layout.props}>
+          <Island {...layout.content} />
+        </layout.component>
+      ) : (
+        <Island {...island} persist="fumapress-page">
+          <slot />
+        </Island>
+      )
+    }
   </body>
 </html>

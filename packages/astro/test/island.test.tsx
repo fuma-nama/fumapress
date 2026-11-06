@@ -2,13 +2,13 @@ import { createElement, forwardRef, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { createIsland } from "@/island/island";
+import { createPressIsland } from "@/island/island";
 import { registerPageTree, registerReference } from "@/island/references";
 import { AstroContent, serializeIsland, type IslandData } from "@/island/serialize";
 import * as client from "./fixtures/client";
 import { Box, Card, components } from "./fixtures/components";
 
-const PressIsland = createIsland(components);
+const PressIsland = createPressIsland(components);
 const { Counter, Star } = client;
 
 beforeAll(() => {

@@ -3,10 +3,10 @@ import { stripBase } from "@fumapress/core";
 import { notFoundView, pathLocale } from "@fumapress/core/runtime";
 import HomeLayout from "../components/HomeLayout.astro";
 import Layout from "../ui/Layout.astro";
-import { getPage } from "../ui/page.js";
+import { getPage } from "./render.js";
 import { ctx } from "./context.js";
 
-// your own `404.astro` replaces this route, a view of plugins at `/404` replaces the default; on a server, in the language of the URL prefix
+// a custom `404.astro` replaces this route, a view of plugins at `/404` replaces the default; on a server, in the language of the URL prefix
 const path = stripBase(Astro.url.pathname, ctx.withBase("/")) ?? "/";
 const route = await notFoundView(ctx, pathLocale(ctx, path));
 const first = route?.pages[0];

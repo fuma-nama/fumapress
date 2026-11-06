@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Plugin } from "@fumapress/core";
+import { createPress } from "@/config";
 import type { TestSite } from "./harness";
 
 type AstroValues = typeof import("virtual:fumapress/astro");
@@ -12,7 +13,7 @@ async function load(config: Partial<TestSite>, astro: Partial<AstroValues> = {})
   }));
   vi.doMock("virtual:fumapress/astro", () => ({
     adapter: false,
-    defaultMode: "static",
+    serverOutput: false,
     routes: [],
     prerender: false,
     siteUrl: undefined,
@@ -24,6 +25,7 @@ async function load(config: Partial<TestSite>, astro: Partial<AstroValues> = {})
 }
 
 const build: Plugin = { build() {} };
+const home = { type: "page" as const, path: "index.mdx", data: { title: "Home" } };
 const view = (path: string, type: string, lang?: string) => ({
   lang,
   path,
@@ -34,19 +36,33 @@ afterEach(() => {
   globalThis.FUMAPRESS_BUILD = undefined;
 });
 
-describe("mode", () => {
-  it.each<[string, Partial<TestSite>, Partial<AstroValues>, string]>([
-    ["static without an adapter", {}, {}, "static"],
-    ["default with an adapter", {}, { adapter: true, defaultMode: "default" }, "default"],
-    ["dynamic with `output: 'server'`", {}, { adapter: true, defaultMode: "dynamic" }, "dynamic"],
-    ["yours over Astro's", { mode: "static" }, { adapter: true, defaultMode: "dynamic" }, "static"],
-  ])("is %s", async (_, config, astro, expected) => {
-    expect((await load(config, astro)).getPressContext().mode).toBe(expected);
+it("renders content on demand with `output: 'server'`", async () => {
+  const content = { docs: { files: [home] } };
+
+  expect((await load({ content })).getPressContext().getContentRender("docs")).toBe("static");
+  expect(
+    (await load({ content }, { adapter: true, serverOutput: true }))
+      .getPressContext()
+      .getContentRender("docs"),
+  ).toBe("dynamic");
+});
+
+it("has the URL of the Astro config", async () => {
+  const { getPressContext } = await load(
+    { site: { name: "Site" } },
+    { siteUrl: "https://example.com/docs" },
+  );
+  expect(getPressContext().siteConfig).toMatchObject({
+    name: "Site",
+    baseUrl: "https://example.com/docs",
   });
 
-  it("needs an adapter to render on request", async () => {
-    await expect(load({ mode: "default" })).rejects.toThrow("add an adapter to Astro");
-  });
+  createPress({ files: [] })
+    .plugins()
+    .config({
+      // @ts-expect-error Astro gives the URL
+      site: { baseUrl: "https://example.com" },
+    });
 });
 
 describe("build hooks", () => {
@@ -56,21 +72,27 @@ describe("build hooks", () => {
     expect(globalThis.FUMAPRESS_BUILD?.ctx).toBe(getPressContext());
   });
 
-  it("are skipped without plugins of them", async () => {
+  it("get the site with some pages prerendered", async () => {
     globalThis.FUMAPRESS_BUILD = { links: [] };
-    await load({}, { prerender: true });
-    expect(globalThis.FUMAPRESS_BUILD).toBeUndefined();
+    const content = { docs: { files: [home] }, live: { files: () => [] } };
+    const { getPressContext } = await load(
+      { plugins: [build], content },
+      { prerender: true, adapter: true },
+    );
+    expect(globalThis.FUMAPRESS_BUILD?.ctx).toBe(getPressContext());
   });
 
-  it("fail when pages are prerendered elsewhere, or render on request", async () => {
+  it("fail when pages are prerendered elsewhere", async () => {
     await expect(load({ plugins: [build] }, { prerender: true })).rejects.toThrow(
       "remove `experimental.parallelPrerender` and prerender with Node",
     );
-    globalThis.FUMAPRESS_BUILD = { links: [] };
-    await expect(
-      load({ plugins: [build], mode: "dynamic" }, { prerender: true, adapter: true }),
-    ).rejects.toThrow('pages render on request in `mode: "dynamic"`');
   });
+});
+
+it("needs an adapter for a dynamic source", async () => {
+  await expect(load({ content: { docs: { files: () => [home] } } })).rejects.toThrow(
+    "a dynamic content source renders its pages on demand, add an adapter to Astro.",
+  );
 });
 
 it("has the path of pages in the provider data", async () => {
