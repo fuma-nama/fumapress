@@ -34,7 +34,7 @@ export interface ApiRoute extends Partial<Record<Framework.Method | "ALL", Route
 
   /**
    * - `dynamic`: handle requests on the server.
-   * - `static`: generate the `GET` response at build time, `mode: "dynamic"` handles it on request.
+   * - `static`: generate the `GET` response at build time. A route reading content follows it: `this.getContentRender()`.
    *
    * @defaultValue "dynamic"
    */
@@ -51,33 +51,33 @@ export interface RouteFns<C extends AppShape = AppShape, V = any> extends Framew
    * a page of the plugin, `ui.renderPage` renders it as `props.type`. Without `lang`, it is created in the languages the hook
    * covers: every language in `routes`, `env.lang` in `deriveRoutes`.
    */
-  createView(route: ViewRoute<V, C["lang"]> & { lang?: C["lang"] }): void;
+  createView<R extends "static" | "dynamic" = "static">(
+    route: ViewRouteInput<V, C["lang"], R> & { lang?: C["lang"] },
+  ): void;
 }
 
 /**
  * `path` without the language prefix; the site prefixes it and links the views of other languages at the same `path`. A view
- * rendered on request (`render: "dynamic"`) gets the request; a static one has none to read.
+ * rendered on demand (`render: "dynamic"`) gets the request; a static one has none to read.
  */
-export type ViewRoute<V = any, Lang extends string | undefined = string | undefined> = Pick<
-  ApiRoute,
-  "path" | "staticPaths"
-> &
-  (
-    | {
-        /** prerendered; `mode: "dynamic"` renders it on request, still without the request */
-        render?: "static";
-        view(params: RouteParams, env: { lang: Lang }): Awaitable<View<V> | undefined>;
-      }
-    | {
-        render: "dynamic";
-        view(
-          params: RouteParams,
-          env: { lang: Lang; request: Request },
-        ): Awaitable<View<V> | undefined>;
-      }
-  );
+export type ViewRoute<V = any, Lang extends string | undefined = string | undefined> =
+  | ViewRouteInput<V, Lang, "static">
+  | (ViewRouteInput<V, Lang, "dynamic"> & { render: "dynamic" });
 
-/** a route rendering pages: your own page, a view, or a page of a runtime hook; read-only, every plugin reads the same list */
+/** a view as plugins create it: `render` can be a value like `this.getContentRender()`, only `dynamic` views read the request */
+export type ViewRouteInput<
+  V,
+  Lang extends string | undefined,
+  R extends "static" | "dynamic",
+> = Pick<ApiRoute, "path" | "staticPaths"> & {
+  render?: R;
+  view(
+    params: RouteParams,
+    env: [R] extends ["dynamic"] ? { lang: Lang; request: Request } : { lang: Lang },
+  ): Awaitable<View<V> | undefined>;
+};
+
+/** a route rendering pages: a custom page, a view, or a page of a runtime hook; read-only, every plugin reads the same list */
 export interface PageRoute<C extends AppShape = AppShape> {
   /** URL pattern, with the language prefix and without the base path */
   readonly path: string;
@@ -99,7 +99,7 @@ export interface PageRoute<C extends AppShape = AppShape> {
 
 /** a page route as the runtime serves it */
 export interface ServedRoute<C extends AppShape = AppShape> extends PageRoute<C> {
-  /** the plugin that created it, none on your own pages */
+  /** the plugin that created it, none on custom pages */
   readonly plugin?: PluginInfo;
   /** the view it renders */
   readonly view?: ViewRoute;
@@ -110,7 +110,7 @@ export interface ServedRoute<C extends AppShape = AppShape> extends PageRoute<C>
 /** options of a page route, the `getConfig()` of a Waku route file; plugin packages declare their keys by declaration merging */
 export interface RouteOptions {}
 
-/** a page route the runtime serves: your own page, or a page a plugin's runtime hook (`waku.createPages`) created */
+/** a page route the runtime serves: a custom page, or a page a plugin's runtime hook (`waku.createPages`) created */
 export interface PageRouteInput<C extends AppShape = AppShape>
   extends
     Pick<ServedRoute<C>, "lang" | "render" | "markdown" | "plugin">,
@@ -196,6 +196,20 @@ export function expandRoute(
   }
 
   return { pattern, pages };
+}
+
+/**
+ * `pathname` as routers resolve it: repeated slashes collapse, characters a path can hold as they are lose their escapes, the other escapes are uppercase and `/index.html` is its folder.
+ * Middleware matches the text of a path, so it must never see another form of what routers match.
+ */
+export function canonicalPath(pathname: string): string {
+  return pathname
+    .replace(/\/{2,}/g, "/")
+    .replace(/%[0-9a-f]{2}/gi, (escape) => {
+      const char = String.fromCharCode(Number.parseInt(escape.slice(1), 16));
+      return /[\w.~!$&'()*+,;=:@-]/.test(char) ? char : escape.toUpperCase();
+    })
+    .replace(/\/index\.html$/, "/");
 }
 
 /**
@@ -367,8 +381,8 @@ function pageKey(path: string): string {
   return path.replace(/(.)\/$/, "$1");
 }
 
-/** the owner of your own pages in route conflicts */
-const ownPage = "your own page";
+/** the owner of custom pages in route conflicts */
+const ownPage = "a custom page";
 
 /** `this` of the hooks creating routes, where reading the routes would wait for themselves */
 function routeContext<T>(
@@ -405,12 +419,14 @@ export function collectRoutes(
   source: Source,
   inputs: readonly PageRouteInput[],
 ): CollectedRoutes {
-  const { languages, mode, plugins } = ctx;
+  const { languages, plugins } = ctx;
   const defaultLanguage = ctx.i18nConfig?.defaultLanguage;
-  /** route key → its owner, for "a path has one route": the plugin, your own page or a content page */
+  /** route key → its owner, for "a path has one route": the plugin, a custom page or a content page */
   const owners = new Map<string, PluginInfo | string>();
   const contentUrls: string[] = [];
   for (const page of source.getPages()) {
+    // a dynamic source can gain a page at any path while the server runs: the route wins, no error takes the site down
+    if (ctx.getContentRender(page.type) === "dynamic") continue;
     contentUrls.push(page.url);
     owners.set(page.url, `the content page "${page.url}"`);
   }
@@ -442,7 +458,7 @@ export function collectRoutes(
     return localized;
   }
 
-  /** false when your own page takes a key of a plugin's page (yours wins), an error naming both for any other owner */
+  /** false when a custom page takes a key of a plugin's page (yours wins), an error naming both for any other owner */
   function claim(keys: Set<string>, owner: PluginInfo, path: string, page: boolean): boolean {
     if (page) for (const key of keys) if (owners.get(key) === ownPage) return false;
     for (const key of keys)
@@ -456,17 +472,8 @@ export function collectRoutes(
     return true;
   }
 
-  function checkRender(plugin: AnyPlugin, path: string, render: "static" | "dynamic") {
-    if (render === "dynamic" && mode === "static")
-      throw new Error(
-        `[Fumapress] the route "${path}" of ${nameOf(plugin)} renders on request, which \`mode: "static"\` can't serve: turn it off in the options of the plugin, or use another \`mode\`. Plugins that can degrade read \`this.mode\`.`,
-      );
-  }
-
   function addApi(plugin: AnyPlugin, route: ApiRoute) {
-    const declared = route.render ?? "dynamic";
-    checkRender(plugin, route.path, declared);
-    const render = mode === "dynamic" ? "dynamic" : declared;
+    const { render = "dynamic" } = route;
     if (render === "static") {
       if (!route.staticPaths && route.path.includes("["))
         throw new Error(
@@ -482,7 +489,7 @@ export function collectRoutes(
       route.path,
       render === "static" ? route.staticPaths : undefined,
     );
-    // a static route serves only its listed paths, which a page pattern like your own `/[...slug]` leaves to it
+    // a static route serves only its listed paths, which a page pattern like a custom `/[...slug]` leaves to it
     claim(
       routeKeys(render === "static" ? undefined : pattern, pages, undefined),
       plugin,
@@ -511,9 +518,12 @@ export function collectRoutes(
     });
   }
 
-  function addView(plugin: AnyPlugin, route: ViewRoute, lang: string | undefined) {
-    const render = route.render === "dynamic" || mode === "dynamic" ? "dynamic" : "static";
-    checkRender(plugin, route.path, route.render ?? "static");
+  function addView(
+    plugin: AnyPlugin,
+    route: ViewRouteInput<any, any, any>,
+    lang: string | undefined,
+  ) {
+    const { render = "static" } = route;
     if (render === "static" && !route.staticPaths && route.path.includes("["))
       throw new Error(
         `[Fumapress] the static view "${route.path}" has params, list the params of its pages in \`staticPaths\`.`,
@@ -521,7 +531,7 @@ export function collectRoutes(
     const expanded = expandRoute(route.path, route.staticPaths);
     const pattern = ctx.localizePath(lang, expanded.pattern);
     if (owners.get(patternKey(pattern)) === ownPage) return;
-    // your own page at one of its pages takes only that page
+    // a custom page at one of its pages takes only that page
     const pages: ExpandedPages = [];
     const staticPaths: string[][] = [];
     for (const [i, page] of expanded.pages.entries()) {
@@ -555,14 +565,14 @@ export function collectRoutes(
   /** a view without `lang` is created in `langs`, the languages the hook covers */
   const routeFns = (plugin: AnyPlugin, langs: readonly (string | undefined)[]): RouteFns => ({
     createApi: (route) => addApi(plugin, route),
-    createView(route) {
+    createView(route: ViewRouteInput<any, any, any> & { lang?: string }) {
       if (route.lang !== undefined) addView(plugin, route, route.lang);
       else for (const lang of langs) addView(plugin, route, lang);
     },
   });
 
   async function runRoutes(): Promise<ServedRoute[]> {
-    // your own pages first: they win over the pages of plugins
+    // custom pages first: they win over the pages of plugins
     for (const input of inputs) if (!input.plugin) addRuntimeRoute(input);
     for (const input of inputs) if (input.plugin) addRuntimeRoute(input);
 

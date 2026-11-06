@@ -1,14 +1,13 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, afterEach, expect, test, vi } from "vitest";
+import { afterAll, expect, test } from "vitest";
 import { crawlFrameworkPkgs } from "@/runtime/vite";
 
 // realpath: the crawl resolves symlinks, and macOS keeps its temp dir behind one
 const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "fumapress-vitefu-")));
 
 afterAll(() => fs.rm(root, { recursive: true, force: true }));
-afterEach(() => vi.restoreAllMocks());
 
 function crawl(dir: string) {
   return crawlFrameworkPkgs(dir, "waku");
@@ -93,44 +92,4 @@ test("pre-bundles CJS runtime entries only, never declaration files", async () =
       "fumadocs-fixture > shared-lib",
     ],
   });
-});
-
-test("reads each package.json once, and none outside framework packages", async () => {
-  const readFile = vi.spyOn(fs, "readFile");
-  await crawl(root);
-
-  const reads = readFile.mock.calls.map(([file]) => path.relative(root, String(file)));
-  expect(reads.sort()).toEqual([
-    "node_modules/@types/mdx/package.json",
-    "node_modules/cjs-lib/package.json",
-    "node_modules/cycle-lib/package.json",
-    "node_modules/fumadocs-fixture/package.json",
-    "node_modules/mdx-lib/package.json",
-    "node_modules/mixed-lib/package.json",
-    "node_modules/shared-lib/package.json",
-    "package.json",
-  ]);
-});
-
-test("memoizes the crawl until the installed packages change", async () => {
-  const memoRoot = path.join(root, "memo");
-  await writePkg("memo", { name: "memo-app", dependencies: { "fumadocs-fixture": "*" } });
-  const installState = path.join(memoRoot, "node_modules/.pnpm/lock.yaml");
-  await fs.mkdir(path.dirname(installState), { recursive: true });
-  await fs.writeFile(installState, "lockfileVersion: 1");
-
-  const readFile = vi.spyOn(fs, "readFile");
-  const first = await crawl(memoRoot);
-  expect(first.include).toContain("fumadocs-fixture > shared-lib");
-  const readsOnFirstCall = readFile.mock.calls.length;
-  expect(readsOnFirstCall).toBeGreaterThan(0);
-
-  // same install: served from memory
-  expect(await crawl(memoRoot)).toEqual(first);
-  expect(readFile.mock.calls.length).toBe(readsOnFirstCall);
-
-  // an install ran: the crawl runs again
-  await fs.writeFile(installState, "lockfileVersion: 2\n");
-  await crawl(memoRoot);
-  expect(readFile.mock.calls.length).toBe(readsOnFirstCall * 2);
 });

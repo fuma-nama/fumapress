@@ -123,7 +123,7 @@ export type BlogTypes<P, S extends string> = {
   pages: { [K in S]: BlogPostViewProps<P> };
 };
 
-/** The posts of `lang` newest first, for your own pages like a landing page; `env` is optional without i18n. Requires `blogPlugin()`. */
+/** The posts of `lang` newest first, for custom pages like a landing page; `env` is optional without i18n. Requires `blogPlugin()`. */
 export async function getBlogPosts<C extends AppShape>(
   ctx: Context<C>,
   ...[env]: [C["lang"]] extends [undefined] ? [env?: LangEnv<C>] : [env: LangEnv<C>]
@@ -245,11 +245,13 @@ export function blogPlugin<
     },
     translations: blogTranslations(),
     async routes({ createView }) {
+      const render = this.getContentRender(source);
       for (const lang of this.languages) {
         if (indexPath !== false)
           createView({
             lang,
             path: indexPath,
+            render,
             view: async () => {
               const { entries, resolve, tagsUrl } = await collect(this, lang);
               const props = { posts: await Promise.all(entries.map(resolve)), tagsUrl };
@@ -262,6 +264,7 @@ export function blogPlugin<
         createView({
           lang,
           path: tagsPath,
+          render,
           view: async () => {
             const { tags, indexUrl } = await collect(this, lang);
             const props = {
@@ -274,6 +277,7 @@ export function blogPlugin<
         createView({
           lang,
           path: joinPath(tagsPath, "[tag]"),
+          render,
           staticPaths: Array.from(tags.keys()),
           view: async ({ tag: slug }) => {
             if (typeof slug !== "string") return;

@@ -62,6 +62,7 @@ export function changelogPlugin<
       if (indexPath === false) return;
       createView({
         path: indexPath,
+        render: this.getContentRender(source),
         view: async (_, { lang }) => {
           const pending: Promise<Entry>[] = [];
           for (const page of (await this.getLoader()).getPages(lang)) {

@@ -1,4 +1,3 @@
-import { createElement, Fragment } from "react";
 import type { PageBody, PluginContext, PluginLoaderOptions } from "fumadocs-core/framework/plugin";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
@@ -8,11 +7,9 @@ import type { TOCItemType } from "fumadocs-core/toc";
 import {
   flatten,
   nameOf,
-  namedItems,
   recommendedPreset,
   resolveLayers,
   takeKey,
-  wrapSlot,
   type AnyPlugin,
   type AppShape,
   type Awaitable,
@@ -30,8 +27,6 @@ import {
 } from "./plugin";
 import type {
   BaseOptions,
-  BuildMode,
-  DefaultPageProps,
   InferI18nConfig,
   PageNode,
   Press,
@@ -51,21 +46,28 @@ import {
   type PageRoute,
   type PageRouteInput,
   type ServedRoute,
+  canonicalPath,
+  stripBase,
 } from "./routes";
+import { providerI18n, renderPage } from "./runtime/render";
 
 /** the site, `this` in plugin hooks; read-only during hooks: core freezes it before the first hook */
 export interface Context<out C extends AppShape = AppShape> extends PluginContext<
   InferLoaderConfig<C>
 > {
-  readonly mode: BuildMode;
+  /**
+   * How a route reading this content renders: `dynamic` when one of the content sources is dynamic, of every source without
+   * `source`. Your routes follow it with `render: this.getContentRender(page.type)`.
+   */
+  getContentRender(source?: C["source"] | readonly C["source"][]): "static" | "dynamic";
   /** the languages of the site, `[undefined]` without i18n */
   readonly languages: readonly C["lang"][];
-  /** the base path of the site, `/` at the root */
-  readonly base: string;
   /** aborted when the runtime drops this context (a reloaded press.config): `fs.watch(dir, { signal: this.signal })` */
   readonly signal: AbortSignal;
   /** the API of the plugin providing `capability` */
-  getCapability<K extends keyof CapabilityAPI>(capability: K): CapabilityAPI[K] | undefined;
+  getCapability<K extends Capability>(
+    capability: K,
+  ): (K extends keyof CapabilityAPI ? CapabilityAPI[K] : unknown) | undefined;
   readonly siteConfig: Readonly<
     Pick<SiteConfig, "baseUrl" | "hreflang"> & Required<Pick<SiteConfig, "name">>
   > & {
@@ -94,7 +96,7 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   isClientReference(value: unknown): boolean;
   /** translations of a page for `hreflang` links, without fallback pages, empty when it has none */
   getPageAlternates(page: C["page"]): Promise<PageAlternate<C>[]>;
-  /** your own pages, the views and the pages of runtime hooks; throws while the routes are created */
+  /** custom pages, the views and the pages of runtime hooks; throws while the routes are created */
   getPageRoutes(): Promise<PageRoute<C>[]>;
 
   getPageBody(page: C["page"]): Promise<PageBody | undefined>;
@@ -111,14 +113,18 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
 export interface PressRuntime<C extends AppShape = AppShape> {
   /** the base path of the site, `/` at the root */
   base: string;
+  /** `siteConfig.baseUrl`: full URL of the site with the base path */
+  baseUrl?: string;
   /**
    * Like `trailingSlash: "always"` of the framework: the paths of `absoluteUrl()` without a file extension end with `/`,
-   * and so do those of `withBase()`, where adapters redirect other forms and a `POST` would become a `GET`. Builds in `static` mode keep the paths of their files.
+   * and so do those of `withBase()`, where adapters redirect other forms and a `POST` would become a `GET`.
    */
   trailingSlash?: boolean;
+  /** like `output: "server"` of the framework: routes reading content render on demand, whatever the source is */
+  dynamic?: boolean;
   /** the preset without `preset` in `.config()` @defaultValue recommendedPreset() */
   preset?: () => readonly PresetEntry<Plugin<C, any>>[];
-  /** the last layer, after the preset: the content renderers (MDX with the `components` module, Astro content collections) and the `translations` of the UI */
+  /** the last layer, after the preset: the content renderers (MDX with the `components` module, Astro content collections) */
   defaults: Plugin<C>[];
   /** aborted when the runtime drops the context */
   signal: AbortSignal;
@@ -136,7 +142,7 @@ export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C
    */
   setRuntimeRoutes(routes: readonly PageRouteInput<C>[]): void;
   getPageRoutes(): Promise<ServedRoute<C>[]>;
-  /** the API routes of `routes` and `deriveRoutes` with `render` resolved from `mode`, most specific path first; waits for `deriveRoutes`, unlike `getPageRoutes()` */
+  /** the API routes of `routes` and `deriveRoutes` most specific path first; waits for `deriveRoutes`, unlike `getPageRoutes()` */
   getApiRoutes(): Promise<ApiRoute[]>;
   /** the page of the plugin owning `page`, `body` is its content with `body.wrapper` applied */
   getPageView(page: C["page"], body: PageBody | undefined): Promise<PageView<any> | undefined>;
@@ -150,13 +156,10 @@ export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C
   getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
   /** of a content page with `page`, `layout.wrapper` without it; sorted by `order` */
   getSlots(env: PageEnv<C>): Promise<Partial<Record<SlotItem["slot"], SlotItem[]>>>;
-  /** `ui.providerProps` over the plugins' contributions */
+  /** `ui.providerProps` over the plugins' contributions, with the final `i18n` */
   getProviderProps(env: LangEnv<C>): Promise<ProviderProps>;
-  /** the page of `ui.renderPage`, or of `renderDefault`, the UI of the runtime, without it */
-  renderPage(
-    target: RenderTarget<C>,
-    renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-  ): Promise<PageNode>;
+  /** the page of `ui.renderPage`, or of the built-in UI without it */
+  renderPage(target: RenderTarget<C>): Promise<PageNode>;
   /** runs the `middleware` of plugins; `next(path)` of a plugin is `next(path)` here, which re-enters the chain */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
@@ -220,6 +223,12 @@ export async function createPressContext(
   runtime: PressRuntime,
 ): Promise<RuntimeContext> {
   const { content, options, plugins: listed, config } = press["~press"];
+  /** the keys of the dynamic sources of `content`, `undefined` when it is one source */
+  const dynamicSources = new Set<string | undefined>();
+  if (typeof content.files === "function") dynamicSources.add(undefined);
+  else if (!Array.isArray(content.files))
+    for (const [key, source] of Object.entries(content))
+      if (typeof source.files === "function") dynamicSources.add(key);
   const ui = config.ui ?? {};
   const translations = ui.translations;
   const i18nConfig = options.i18n;
@@ -255,10 +264,10 @@ export async function createPressContext(
   const { site } = config;
   const siteConfig: Context["siteConfig"] = Object.freeze({
     ...site,
+    baseUrl: runtime.baseUrl,
     name: site?.name ?? "Fumapress",
     git: site?.git && Object.freeze(resolveGit(site.git)),
   });
-  const mode = config.mode ?? "default";
   const { alwaysRevalidate, ...loaderOptions } = options.loaderOptions ?? {};
   let loader: DynamicLoader<InferLoaderConfig<AppShape>>;
 
@@ -340,13 +349,16 @@ export async function createPressContext(
   for (const plugin of plugins) if (plugin.middleware) middleware.push(plugin);
 
   const ctx: RuntimeContext = Object.freeze({
-    mode,
     languages: Object.freeze(i18nConfig?.languages ?? [undefined]),
-    base: runtime.base,
     signal: runtime.signal,
     plugins: Object.freeze(plugins),
     setRuntimeRoutes(routes: readonly PageRouteInput[]) {
       runtimeRoutes = routes;
+    },
+    getContentRender(source?: string | readonly (string | undefined)[]) {
+      if (runtime.dynamic) return "dynamic";
+      const keys = source === undefined ? [...dynamicSources] : [source].flat();
+      return keys.some((key) => dynamicSources.has(key)) ? "dynamic" : "static";
     },
     getCapability: (capability: Capability) => providers.get(capability)?.api,
     siteConfig,
@@ -374,9 +386,8 @@ export async function createPressContext(
       return joinPaths(`/${lang}`, pathname);
     },
     withBase(pathname: string) {
-      const url = joinPaths("/", ctx.base, pathname);
-      // the dev server of the framework has no files
-      return pathname === "/" || (ctx.mode === "static" && !dev) ? url : withTrailingSlash(url);
+      const url = joinPaths("/", runtime.base, pathname);
+      return pathname === "/" ? url : withTrailingSlash(url);
     },
     absoluteUrl(pathname: string) {
       if (URL.canParse(pathname)) return pathname;
@@ -466,6 +477,17 @@ export async function createPressContext(
     },
     getApiRoutes: async () => (await getCollection()).api,
     handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>) {
+      const { pathname, search } = new URL(request.url);
+      let canonical = canonicalPath(pathname);
+      const path = stripBase(canonical, ctx.withBase("/"));
+      // like the URLs of pages; the root keeps its slash for the routers that need it
+      if (!runtime.trailingSlash && path !== "/" && path?.endsWith("/"))
+        canonical = canonical.slice(0, -1);
+      if (canonical !== pathname)
+        return Promise.resolve(
+          new Response(null, { status: 308, headers: { Location: canonical + search } }),
+        );
+
       function dispatch(i: number): Promise<Response> {
         const plugin = middleware[i];
         if (!plugin) return next();
@@ -505,53 +527,10 @@ export async function createPressContext(
       const props = mergeOptions<ProviderProps>([own, ...contributions]);
       // the default dialog of Fumadocs searches a server the site doesn't have
       if (!props.search?.SearchDialog) props.search = { enabled: false, ...props.search };
+      props.i18n = providerI18n(ctx, env, props.i18n);
       return props;
     },
-    async renderPage(
-      target: RenderTarget,
-      renderDefault: (this: Context, props: DefaultPageProps) => PageNode,
-    ) {
-      const { lang } = target;
-      const [loader, baseOptions] = await Promise.all([
-        ctx.getLoader(),
-        ctx.getBaseOptions({ lang }),
-      ]);
-      const base = {
-        lang,
-        tree: loader.getPageTree(lang),
-        baseOptions,
-        renderDefault: () => renderDefault.call(ctx, props),
-      };
-      let props: DefaultPageProps;
-
-      if (target.view) {
-        const { type, props: viewProps, node } = target.view;
-        props = { ...viewProps, ...base, type, children: createElement(Fragment, null, node) };
-      } else {
-        const { page } = target;
-        const [pageData, body, slots] = await Promise.all([
-          ctx.getPageData(page),
-          ctx.getPageBody(page),
-          ctx.getSlots({ page }),
-        ]);
-        const node = wrapSlot(slots["body.wrapper"], body?.node);
-        const view = await ctx.getPageView(page, body && { node });
-        props = {
-          ...view?.props,
-          ...base,
-          type: page.type,
-          page,
-          slugs: page.slugs,
-          pageData,
-          body: createElement(Fragment, null, node),
-          actions: namedItems(slots.actions),
-          footer: namedItems(slots.footer),
-          children: view && createElement(Fragment, null, view.node),
-        };
-      }
-
-      return ui.renderPage ? ui.renderPage.call(ctx, props) : renderDefault.call(ctx, props);
-    },
+    renderPage: (target: RenderTarget) => renderPage(ctx, ui, target),
   });
 
   for (const plugin of plugins) await plugin.init?.call(ctx);

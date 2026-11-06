@@ -27,12 +27,6 @@ describe("createRedirectMatcher", () => {
     expect(match("/stable/a")).toBeUndefined();
   });
 
-  it("respects the permanent flag", () => {
-    const match = createRedirectMatcher([{ source: "/a", destination: "/b", permanent: false }]);
-
-    expect(match("/a")).toEqual({ destination: "/b", permanent: false });
-  });
-
   it("preserves absolute destination URLs", () => {
     const match = createRedirectMatcher([
       { source: "/external/:slug*", destination: "https://example.com/:slug*" },

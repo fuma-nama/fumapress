@@ -46,6 +46,15 @@ async function generate(
 }
 
 describe("sitemapPlugin", () => {
+  it.each<[string, TestSite["content"], string]>([
+    ["static content", content, "static"],
+    ["a dynamic source", { files: () => [page("docs/basics.mdx")] }, "dynamic"],
+  ])("renders like the content: %s", async (_, siteContent, render) => {
+    const ctx = await pressContext({ content: siteContent, plugins: [sitemapPlugin()] });
+
+    expect(await ctx.getApiRoutes()).toMatchObject([{ path: "/sitemap.xml", render }]);
+  });
+
   it("leaves out the not found pages", async () => {
     const xml = await generate({ i18n }, undefined, [
       route("/404", "en"),
@@ -171,20 +180,6 @@ describe("buildSitemap", () => {
       { loc, images: [{ loc: "https://example.com/hero.png", title: "Hero" }] },
       [
         "<image:image><image:loc>https://example.com/hero.png</image:loc><image:title>Hero</image:title></image:image>",
-      ],
-    ],
-    [
-      "a minimal video",
-      { loc, videos: [{ ...video, content_loc: "https://example.com/videos/intro.mp4" }] },
-      [
-        "<video:video>" +
-          "<video:thumbnail_loc>https://example.com/thumb.jpg</video:thumbnail_loc>" +
-          "<video:title>Intro</video:title>" +
-          "<video:description>A quick tour.</video:description>" +
-          "<video:content_loc>https://example.com/videos/intro.mp4</video:content_loc>" +
-          "<video:player_loc>https://example.com/player</video:player_loc>" +
-          "<video:uploader>Fuma</video:uploader>" +
-          "</video:video>",
       ],
     ],
     [

@@ -41,7 +41,7 @@ async function apiRoutes(plugin: ReturnType<typeof feedbackPlugin>) {
 /** the API routes of a real static site */
 async function staticRoutes(plugin: Plugin<AppShape, any>) {
   const site = await createPressContext(
-    createPress({ files: [] }).plugins(plugin).config({ mode: "static", preset: [] }),
+    createPress({ files: [] }).plugins(plugin).config({ preset: [] }),
     {
       base: "/",
       defaults: [],
@@ -60,9 +60,6 @@ describe("feedbackPlugin", () => {
       { path: "/api/feedback/page", POST: expect.any(Function) },
       { path: "/api/feedback/text", POST: expect.any(Function) },
     ]);
-    await expect(staticRoutes(plugin)).rejects.toThrow(
-      'the route "/api/feedback/page" of "feedback:main" renders on request',
-    );
   });
 
   it("runs client actions in the browser", async () => {

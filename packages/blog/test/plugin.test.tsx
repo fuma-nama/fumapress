@@ -37,9 +37,11 @@ const pages = [
 ];
 
 /** the site of the hooks: pages with a `date` frontmatter */
-function context(blog: ReturnType<typeof blogPlugin>) {
+function context(blog: ReturnType<typeof blogPlugin>, dynamicSources: string[] = []) {
   return {
     languages: ["en", "cn"],
+    getContentRender: (source: readonly string[]) =>
+      source.some((key) => dynamicSources.includes(key)) ? "dynamic" : "static",
     getLoader: () => ({ getPages: (lang: string) => pages.filter((p) => p.locale === lang) }),
     getCapability: (capability: string) => (capability === "blog" ? blog.api : undefined),
     localizePath: (lang: string, path: string) => `/${lang}${path}`,
@@ -50,15 +52,19 @@ function context(blog: ReturnType<typeof blogPlugin>) {
 
 type Options = Partial<BlogPluginOptions<AppShape, string | undefined>>;
 
-function setup({ source = "blog", ...options }: Options = {}, body?: ReactNode) {
+function setup(
+  { source = "blog", ...options }: Options = {},
+  body?: ReactNode,
+  dynamicSources?: string[],
+) {
   const plugin = blogPlugin({ source, ...options });
-  const ctx = context(plugin);
+  const ctx = context(plugin, dynamicSources);
   const views = async (lang: string) => {
     const out: ViewRoute[] = [];
     await plugin.routes!.call(ctx, {
       createApi() {},
       createView(route) {
-        if (route.lang === lang) out.push(route);
+        if (route.lang === lang) out.push(route as ViewRoute);
       },
     });
     return out;
@@ -88,6 +94,17 @@ async function html(node: ReactNode) {
 }
 
 describe("blogPlugin", () => {
+  it("renders its views like its sources", async () => {
+    const renders = async (dynamicSources?: string[]) =>
+      (await setup({ source: ["blog", "news"] }, undefined, dynamicSources).views("en")).map(
+        (route) => route.render,
+      );
+
+    expect(await renders()).toEqual(["static", "static", "static"]);
+    expect(await renders(["docs"])).toEqual(["static", "static", "static"]);
+    expect(await renders(["news"])).toEqual(["dynamic", "dynamic", "dynamic"]);
+  });
+
   it("adds the index, tags and tag views per language", async () => {
     const { views } = setup();
     expect((await views("en")).map(({ path, staticPaths }) => ({ path, staticPaths }))).toEqual([

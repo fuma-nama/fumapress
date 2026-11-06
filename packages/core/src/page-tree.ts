@@ -11,7 +11,7 @@ export function selectTreeRoot(tree: PageTree.Root, path: string): PageTree.Root
   }
 
   throw new Error(
-    `[Fumapress] folder "${path}" is not in the page tree, available folders: ${available.join(", ")}`,
+    `[Fumapress] folder "${path}" is not in the page tree, available folders: ${available.join(", ") || "none"}. It is the \`baseDir\` of a content source.`,
   );
 }
 

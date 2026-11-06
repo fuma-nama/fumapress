@@ -2,6 +2,7 @@ export { createPressContext, type PressRuntime, type RuntimeContext } from "../c
 export { mergeHead, pageAlternate, pageLinks } from "../head";
 export type { DefaultPageProps, PressInput, RenderTarget } from "../press";
 export {
+  canonicalPath,
   expandRoute,
   getPageRoutesWithDerived,
   matchPageRoute,
@@ -13,5 +14,4 @@ export {
   type PageRouteInput,
   type ServedRoute,
 } from "../routes";
-export { wrapSlot } from "../plugin";
-export { getRootChildren } from "../page-tree";
+export { siteI18n, wrapSlot } from "./render";

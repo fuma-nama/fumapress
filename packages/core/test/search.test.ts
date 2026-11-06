@@ -6,15 +6,16 @@ import { OramaSearchDialog } from "@/plugins/orama-search.client";
 import { i18n, page, pressContext, type TestRuntime, type TestSite } from "./harness";
 import type { Plugin } from "@/plugin";
 import { flexsearchPlugin } from "@/plugins/flexsearch";
+import { searchBreadcrumbs } from "@/search";
 import { oramaSearchPlugin } from "@/plugins/orama-search";
 
-const content: TestSite["content"] = {
-  files: [
-    page("docs/install.mdx", { title: "Install" }),
-    page("docs/theme.mdx", { title: "Theme" }),
-    page("docs/theme.cn.mdx", { title: "Theme (cn)" }),
-  ],
-};
+const files = [
+  page("docs/install.mdx", { title: "Install" }),
+  page("docs/theme.mdx", { title: "Theme" }),
+  page("docs/theme.cn.mdx", { title: "Theme (cn)" }),
+];
+const content: TestSite["content"] = { files };
+const dynamic: TestSite["content"] = { files: () => files };
 
 /** a content source with the text of each page for search */
 const source: Plugin = {
@@ -32,7 +33,7 @@ function createSite(config: Partial<TestSite> = {}, runtime: TestRuntime = {}) {
 
 async function getSearchRoute(config: Partial<TestSite>) {
   const ctx = await createSite({ ...config, plugins: [source, config.plugins] });
-  const route = (await ctx.getApiRoutes()).find((item) => item.path === "/api/search");
+  const route = (await ctx.getApiRoutes()).find((item) => item.path.startsWith("/api/search"));
   if (!route?.GET) throw new Error("missing the search route");
   const GET = route.GET;
   return {
@@ -50,8 +51,8 @@ describe.each([
 ] as const)("%s", (name, searchPlugin, StaticDialog) => {
   it("gives the root provider its dialog, of its index or of the server on each site, in each language", async () => {
     const plugin = searchPlugin();
-    const ctx = await createSite({ i18n, plugins: [plugin] }, { base: "/repo/" });
-    const index = await createSite({ mode: "static", plugins: [plugin] });
+    const ctx = await createSite({ content: dynamic, i18n, plugins: [plugin] }, { base: "/repo/" });
+    const index = await createSite({ plugins: [plugin] });
 
     expect((await ctx.getProviderProps({ lang: "cn" })).search).toEqual({
       SearchDialog: FetchSearchDialog,
@@ -59,8 +60,26 @@ describe.each([
     });
     expect((await index.getProviderProps({ lang: undefined })).search).toEqual({
       SearchDialog: StaticDialog,
-      options: { from: "/api/search" },
+      options: { from: "/api/search.json" },
     });
+  });
+
+  it("follows the content source, unless `render` says otherwise", async () => {
+    const files = [{ type: "page" as const, path: "a.mdx", data: { title: "A" } }];
+    const search = async (site: Parameters<typeof createSite>[0]) =>
+      (await (await createSite(site)).getProviderProps({ lang: undefined })).search;
+
+    expect(await search({ plugins: [searchPlugin()], content: { files } })).toMatchObject({
+      SearchDialog: StaticDialog,
+    });
+    expect(
+      await search({ plugins: [searchPlugin()], content: { files: () => files } }),
+    ).toMatchObject({
+      SearchDialog: FetchSearchDialog,
+    });
+    expect(
+      await search({ plugins: [searchPlugin({ render: "dynamic" })], content: { files } }),
+    ).toMatchObject({ SearchDialog: FetchSearchDialog });
   });
 
   it("keeps its options under the dialog of the site", async () => {
@@ -68,7 +87,7 @@ describe.each([
       return null;
     }
     const ctx = await createSite({
-      plugins: [searchPlugin()],
+      plugins: [searchPlugin({ render: "dynamic" })],
       ui: { providerProps: { search: { SearchDialog: MyDialog } } },
     });
 
@@ -78,19 +97,27 @@ describe.each([
     });
   });
 
-  it("searches on the server outside static mode", async () => {
-    for (const mode of ["default", "dynamic"] as const) {
-      const { route, search } = await getSearchRoute({ mode, plugins: [searchPlugin()] });
+  it.each<[string, Partial<TestSite>["content"], "dynamic" | undefined]>([
+    ["on a dynamic source", dynamic, undefined],
+    ["with `render`", content, "dynamic"],
+  ])("searches on the server %s", async (_, siteContent, render) => {
+    const { route, search } = await getSearchRoute({
+      content: siteContent,
+      plugins: [searchPlugin({ render })],
+    });
 
-      expect(route.render).toBe("dynamic");
-      expect(await search("query=install")).toContainEqual(
-        expect.objectContaining({ type: "page", url: "/docs/install", content: "Install" }),
-      );
-    }
+    expect(route.render).toBe("dynamic");
+    expect(await search("query=install")).toContainEqual(
+      expect.objectContaining({ type: "page", url: "/docs/install", content: "Install" }),
+    );
   });
 
   it("searches the pages of a language", async () => {
-    const { search } = await getSearchRoute({ i18n, plugins: [searchPlugin()] });
+    const { search } = await getSearchRoute({
+      content: dynamic,
+      i18n,
+      plugins: [searchPlugin()],
+    });
     const hit = (url: string) => expect.objectContaining({ url });
 
     const cn = await search("query=theme&locale=cn");
@@ -99,11 +126,14 @@ describe.each([
     expect(await search("query=theme&locale=en")).toContainEqual(hit("/en/docs/theme"));
   });
 
-  it("exports the index of every language in static mode", async () => {
+  it.each<[string, Partial<TestSite>["content"], "static" | undefined]>([
+    ["on static content", content, undefined],
+    ["with `render`", dynamic, "static"],
+  ])("exports the index of every language %s", async (_, siteContent, render) => {
     const { route, search } = await getSearchRoute({
-      mode: "static",
+      content: siteContent,
       i18n,
-      plugins: [searchPlugin()],
+      plugins: [searchPlugin({ render })],
     });
 
     expect(route.render).toBe("static");
@@ -112,38 +142,48 @@ describe.each([
     expect(index).toContain("/en/docs/install");
   });
 
-  it("builds the index with `buildIndex`", async () => {
-    const { search } = await getSearchRoute({
-      plugins: [
-        searchPlugin({
-          buildIndex(page) {
-            return {
-              id: page.url,
-              url: page.url,
-              title: `${page.data.title} of ${this.siteConfig.name}`,
-              structuredData: { headings: [], contents: [] },
-            };
-          },
-        }),
-      ],
-    });
-
-    expect(await search("query=install")).toContainEqual(
-      expect.objectContaining({ url: "/docs/install", content: "Install of Fumapress" }),
-    );
-  });
-
-  it("requires structured data from content sources", async () => {
+  it("indexes pages without structured data by their title", async () => {
     const ctx = await createSite({ plugins: [searchPlugin()] });
     const [route] = await ctx.getApiRoutes();
 
-    await expect(
-      route!.GET!(new Request("https://example.com/api/search?query=install"), { params: {} }),
-    ).rejects.toThrow(`Please specify the \`buildIndex\` option to ${name}()`);
+    const response = await route!.GET!(new Request("https://example.com/api/search.json"), {
+      params: {},
+    });
+    expect(response.status).toBe(200);
   });
 });
 
 it("disables the search of the root provider without a dialog", async () => {
   const ctx = await createSite();
   expect((await ctx.getProviderProps({ lang: undefined })).search).toEqual({ enabled: false });
+});
+
+it("breadcrumbs stay inside the root folder of a page, like the one of its layout", async () => {
+  const page = { type: "page" as const, name: "Islands", url: "/docs/astro/layouts/islands" };
+  const tree = {
+    name: "Docs",
+    children: [
+      {
+        type: "folder" as const,
+        name: "Documentation",
+        children: [
+          {
+            type: "folder" as const,
+            name: "Astro",
+            root: true,
+            children: [
+              { type: "separator" as const, name: "Customize" },
+              { type: "folder" as const, name: "Layouts", children: [page] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const ctx = { getLoader: async () => ({ getPageTree: () => tree }) };
+
+  expect(await searchBreadcrumbs(ctx as never, { url: page.url } as never)).toEqual([
+    "Customize",
+    "Layouts",
+  ]);
 });

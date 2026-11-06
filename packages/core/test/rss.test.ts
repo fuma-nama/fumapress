@@ -35,6 +35,14 @@ async function readFeed(ctx: Awaited<ReturnType<typeof createSite>>) {
   return res.text();
 }
 
+it("renders on demand on a dynamic source", async () => {
+  const ctx = await createSite(undefined, {
+    content: { files: () => [page("blog/new.mdx", { date: "2026-03-01" })] },
+  });
+
+  expect(await ctx.getApiRoutes()).toMatchObject([{ path: "/rss.xml", render: "dynamic" }]);
+});
+
 describe("buildRSS", () => {
   it("builds a valid feed", () => {
     const xml = buildRSS({

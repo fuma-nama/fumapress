@@ -3,7 +3,7 @@ import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type PressRuntime } from "@/context";
 import type { PageRouteInput } from "@/routes";
 import type { AppShape, Plugin, PluginOption } from "@/plugin";
-import { createPress, type ContentOptions, type PressConfig } from "@/press";
+import { createPress, type ContentOptions, type PressConfig, type SiteConfig } from "@/press";
 
 export const i18n: I18nConfig = { languages: ["en", "cn"], defaultLanguage: "en" };
 
@@ -14,17 +14,23 @@ export function page(path: string, data?: PageData & Record<string, unknown>): V
 
 /** a site in one object: the content, its options, the plugins and the options of `.config()` */
 export interface TestSite
-  extends ContentOptions<_Internal.AnyInput, string | undefined>, PressConfig<AppShape, any> {
+  extends
+    ContentOptions<_Internal.AnyInput, string | undefined>,
+    Omit<PressConfig<AppShape, any>, "site"> {
   content: _Internal.AnyInput;
+  site?: SiteConfig;
   plugins?: PluginOption<Plugin<AppShape, any>>[];
 }
 
 /** the stages of a site, without a preset unless `preset` is given */
 export function testPress({ content, i18n, loaderOptions, plugins = [], ...config }: TestSite) {
-  return createPress<_Internal.AnyInput, string | undefined, AppShape, {}>(content, {
-    i18n,
-    loaderOptions,
-  })
+  return createPress<_Internal.AnyInput, string | undefined, AppShape, { site?: SiteConfig }>(
+    content,
+    {
+      i18n,
+      loaderOptions,
+    },
+  )
     .plugins(...plugins)
     .config({ preset: [], ...config });
 }
@@ -36,6 +42,7 @@ export type TestRuntime = Partial<PressRuntime> & { routes?: PageRouteInput[] };
 export async function pressContext(site: TestSite, { routes = [], ...runtime }: TestRuntime = {}) {
   const ctx = await createPressContext(testPress(site), {
     base: "/",
+    baseUrl: site.site?.baseUrl,
     defaults: [],
     signal: new AbortController().signal,
     isClientReference: () => false,

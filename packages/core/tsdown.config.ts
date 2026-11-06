@@ -4,7 +4,8 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/runtime/{index,vite}.ts",
-    "src/runtime/ui.tsx",
+    "src/page-tree.ts",
+    "src/ui/*.tsx",
     "src/plugins/*.{ts,tsx}",
     "!src/plugins/*.client.{ts,tsx}",
   ],

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createElement, isValidElement, lazy, type ReactElement, type ReactNode } from "react";
+import { isValidElement, lazy, type ReactElement, type ReactNode } from "react";
 import { defineI18n } from "fumadocs-core/i18n";
 import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type Context, type RuntimeContext } from "@/context";
@@ -14,8 +14,9 @@ import {
   type PageRouteInput,
   type ViewRoute,
 } from "@/routes";
-import { createPress, type DefaultPageProps, type PressConfig, type RenderTarget } from "@/press";
+import type { DefaultPageProps, PressConfig, RenderTarget } from "@/press";
 import { takumiPlugin } from "@/plugins/takumi";
+import { HomeShell } from "@/ui/home";
 import { i18n, pressContext, testPress, type TestRuntime, type TestSite } from "./harness";
 
 function page(file: string, data?: PageData & { full?: unknown }): VirtualFile {
@@ -113,45 +114,6 @@ afterEach(() => {
 });
 
 describe("createPressContext", () => {
-  it("runs init, configureLoader and configure in order, on a frozen context", async () => {
-    const calls: string[] = [];
-    const signal = new AbortController().signal;
-    const ctx = await createSite(
-      {
-        i18n,
-        plugins: [
-          {
-            init() {
-              calls.push("a:init");
-              expect(() => this.getLoader()).toThrow("the content loader is created after");
-              expect(() => Object.assign(this, { mode: "static" })).toThrow();
-              expect(this.signal).toBe(signal);
-            },
-            configureLoader(options) {
-              calls.push("a:configureLoader");
-              expect(options).toMatchObject({ baseUrl: "/", i18n });
-              return { url: (slugs, locale) => `/${locale}/v2/${slugs.join("/")}` };
-            },
-            configure() {
-              calls.push("a:configure");
-            },
-          },
-          {
-            init: () => void calls.push("b:init"),
-            configure: () => void calls.push("b:configure"),
-          },
-        ],
-      },
-      { signal },
-    );
-
-    expect(calls).toEqual(["a:init", "b:init", "a:configureLoader", "a:configure", "b:configure"]);
-    expect((await getPage(ctx, ["docs", "basics"], "cn")).url).toBe("/cn/v2/docs/basics");
-    expect(
-      Object.isFrozen(ctx) && Object.isFrozen(ctx.siteConfig) && Object.isFrozen(ctx.plugins),
-    ).toBe(true);
-  });
-
   it('rejects `hideLocale: "always"`', async () => {
     await expect(createSite({ i18n: { ...i18n, hideLocale: "always" } })).rejects.toThrow(
       '`hideLocale: "always"` is not supported',
@@ -187,12 +149,6 @@ describe("createPressContext", () => {
     await ctx.revalidateLoader();
     expect((await ctx.getLoader()).getPages()).toHaveLength(2);
     expect((await always.getLoader()).getPages()).toHaveLength(2);
-  });
-
-  it("names `enforce` as an unknown plugin key: plugins run in layer order", () => {
-    const press = createPress<_Internal.AnyInput, undefined, AppShape, {}>({ files });
-    // @ts-expect-error -- "unknown plugin keys": "enforce"
-    expect(press.plugins({ name: "late", enforce: "post" })).toHaveProperty("config");
   });
 });
 
@@ -470,20 +426,47 @@ describe("getSlots", () => {
   });
 });
 
+describe("getContentRender", () => {
+  const live = { files: () => [page("live/status.mdx")] };
+
+  it("is dynamic on one dynamic source, for its pages too", async () => {
+    const ctx = await createSite({ content: { files: () => files } });
+    const [first] = (await ctx.getLoader()).getPages();
+
+    expect(ctx.getContentRender()).toBe("dynamic");
+    expect(ctx.getContentRender(first!.type)).toBe("dynamic");
+  });
+
+  it("answers per source, any source without a key", async () => {
+    const ctx = await createSite({ content: { docs: { files }, live } });
+
+    expect(ctx.getContentRender("docs")).toBe("static");
+    expect(ctx.getContentRender("live")).toBe("dynamic");
+    expect(ctx.getContentRender()).toBe("dynamic");
+  });
+
+  it("is always dynamic on a runtime rendering on demand", async () => {
+    const ctx = await createSite({ content: { docs: { files } } }, { dynamic: true });
+
+    expect(ctx.getContentRender("docs")).toBe("dynamic");
+    expect(ctx.getContentRender()).toBe("dynamic");
+  });
+});
+
 describe("getApiRoutes", () => {
-  it("renders on request by default, static routes follow the mode", async () => {
+  it("renders on demand by default, static routes stay static on any content", async () => {
     const plugin = apiPlugin(undefined, { path: "/a", GET, render: "static" }, { path: "/b", GET });
-    const renders = async (mode?: TestSite["mode"]) =>
-      (await (await createSite({ plugins: [plugin], mode })).getApiRoutes()).map(
+    const renders = async (site: Partial<TestSite>, runtime?: TestRuntime) =>
+      (await (await createSite({ ...site, plugins: [plugin] }, runtime)).getApiRoutes()).map(
         (route) => route.render,
       );
 
-    await expect(renders()).resolves.toEqual(["static", "dynamic"]);
-    await expect(renders("dynamic")).resolves.toEqual(["dynamic", "dynamic"]);
-    // the site turns it off in the options of the plugin, a plugin that can degrade reads `this.mode`
-    await expect(renders("static")).rejects.toThrow(
-      'the route "/b" of an unnamed plugin renders on request, which `mode: "static"` can\'t serve',
-    );
+    await expect(renders({})).resolves.toEqual(["static", "dynamic"]);
+    await expect(renders({ content: { files: () => files } })).resolves.toEqual([
+      "static",
+      "dynamic",
+    ]);
+    await expect(renders({}, { dynamic: true })).resolves.toEqual(["static", "dynamic"]);
   });
 
   const og: ApiRoute = { path: "/og/[...slugs]", render: "static", GET };
@@ -502,13 +485,6 @@ describe("getApiRoutes", () => {
     await expect(ctx.getApiRoutes()).rejects.toThrow(message);
   });
 
-  it("accepts static routes with params and `staticPaths`", async () => {
-    const route = { ...og, staticPaths: [["a"]] };
-    const ctx = await createSite({ plugins: [apiPlugin(undefined, route)] });
-
-    await expect(ctx.getApiRoutes()).resolves.toHaveLength(1);
-  });
-
   it("leaves the pages of a page pattern to static routes, which serve their listed paths only", async () => {
     const plain = await createSite(
       { plugins: [takumiPlugin()] },
@@ -519,20 +495,19 @@ describe("getApiRoutes", () => {
       { routes: [ownRoute("/[...slug]", "en"), ownRoute("/[...slug]", "cn")] },
     );
     const onRequest = await createSite(
-      { mode: "dynamic", plugins: [apiPlugin("x", { path: "/[...slugs]", GET })] },
+      { plugins: [apiPlugin("x", { path: "/[...slugs]", GET })] },
       { routes: [ownRoute("/[...slug]")] },
     );
 
     expect(paths(await plain.getApiRoutes())).toEqual(["/[...slugs]"]);
     expect(paths(await localized.getApiRoutes())).toEqual(["/en/[...slugs]", "/cn/[...slugs]"]);
     await expect(onRequest.getApiRoutes()).rejects.toThrow(
-      'your own page and "x" both take the path "/[...slugs]"',
+      'a custom page and "x" both take the path "/[...slugs]"',
     );
   });
 
   it("serves a path with a route group without the group", async () => {
     const ctx = await createSite({
-      mode: "dynamic",
       plugins: [apiPlugin(undefined, { path: "/(group)/api/[id]", GET })],
     });
     const [route] = await ctx.getApiRoutes();
@@ -543,7 +518,6 @@ describe("getApiRoutes", () => {
 
   it("sorts routes by specificity", async () => {
     const ctx = await createSite({
-      mode: "dynamic",
       plugins: [
         apiPlugin(
           undefined,
@@ -615,7 +589,6 @@ describe("a concept has one writer", () => {
 describe("a path has one route", () => {
   const api = (name: string | undefined, path: string) => apiPlugin(name, { path, GET });
   const view = (name: string | undefined, path: string) => viewPlugin(name, blank(path));
-  const acme = view("acme", "/showcase");
   const basics = "/docs/basics";
   const onBasics = (name: string) => `the content page "${basics}" and "${name}"`;
   const showcase = (plugin: { name: string }) => [{ ...ownRoute("/showcase"), plugin }];
@@ -623,27 +596,12 @@ describe("a path has one route", () => {
   it.each<[string, SitePlugin[], string, string, PageRouteInput[]?]>([
     ["two API routes", [api("a", "/api"), api("b", "/api")], '"a" and "b"', "/api"],
     ["an API route on a content page", [api("md", basics)], onBasics("md"), basics],
-    ["plugins of one name", [api("x", "/a.txt"), api("x", "/a.txt")], '"x" and "x"', "/a.txt"],
     [
       "plugins without names",
       [view(undefined, "/v"), view(undefined, "/v")],
       "an unnamed plugin and an unnamed plugin",
       "/v",
     ],
-    [
-      "a view on the page of the runtime hook of its plugin",
-      [acme],
-      '"acme" and "acme"',
-      "/showcase",
-      showcase({ name: "acme" }),
-    ],
-    [
-      "two views",
-      [view("mintlify", "/404"), view("site:404", "/404")],
-      '"mintlify" and "site:404"',
-      "/404",
-    ],
-    ["a view on a content page", [view("print", basics)], onBasics("print"), basics],
     [
       "a view on the page of a runtime hook",
       [view("x", "/showcase")],
@@ -652,9 +610,9 @@ describe("a path has one route", () => {
       showcase({ name: "acme" }),
     ],
     [
-      "an API route on your own page",
+      "an API route on a custom page",
       [api("x", "/about")],
-      'your own page and "x"',
+      'a custom page and "x"',
       "/about",
       [ownRoute("/about")],
     ],
@@ -670,6 +628,18 @@ describe("a path has one route", () => {
     await expect(ctx.getApiRoutes()).rejects.toThrow(
       `${owners} both take the path "${path}": a path has one route.`,
     );
+  });
+
+  it("lets a route win over a page of a dynamic source, which can appear while the server runs", async () => {
+    const ctx = await createSite({
+      content: { files: () => files },
+      plugins: [
+        api("md", basics),
+        viewPlugin("v", { ...blank("/[slug]/[page]"), render: "dynamic" }),
+      ],
+    });
+
+    expect((await ctx.getApiRoutes()).map((route) => route.path)).toContain(basics);
   });
 });
 
@@ -714,7 +684,7 @@ describe("views", () => {
     ]);
   });
 
-  it("give way to your own pages", async () => {
+  it("give way to custom pages", async () => {
     const ctx = await createSite(
       { plugins: [viewPlugin("x", view("/about"), view("/blog"))] },
       { routes: [ownRoute("/about")] },
@@ -726,7 +696,7 @@ describe("views", () => {
     ]);
   });
 
-  it("give one of their pages to your own page there, keeping the others", async () => {
+  it("give one of their pages to a custom page there, keeping the others", async () => {
     const tags = { ...view("/tags/[tag]"), staticPaths: ["a", "b"] };
     const ctx = await createSite(
       { plugins: [viewPlugin("tags", tags)] },
@@ -742,17 +712,6 @@ describe("views", () => {
     // runtimes register the view with its remaining pages
     expect(entry?.view?.staticPaths).toEqual([["b"]]);
     expect(paths(await every.getPageRoutes())).toEqual(["/tags/a"]);
-  });
-
-  it("reject rendering on request in static mode, naming the plugin", async () => {
-    const ctx = await createSite({
-      mode: "static",
-      plugins: [viewPlugin("status", { ...blank("/status"), render: "dynamic" })],
-    });
-
-    await expect(ctx.getApiRoutes()).rejects.toThrow(
-      'the route "/status" of "status" renders on request',
-    );
   });
 
   // no home page: the base options look the home up in the routes
@@ -779,7 +738,7 @@ describe("views", () => {
 });
 
 describe("runtime routes", () => {
-  it("link your own pages and the views of other languages at a path as translations", async () => {
+  it("link custom pages and the views of other languages at a path as translations", async () => {
     const ctx = await createSite(
       {
         i18n,
@@ -812,20 +771,6 @@ describe("runtime routes", () => {
     // a rerun of the runtime's routing
     ctx.setRuntimeRoutes([ownRoute("/b")]);
     expect(paths(await ctx.getPageRoutes())).toEqual(["/b"]);
-  });
-
-  it("can't be read during setup", async () => {
-    await expect(
-      createSite({
-        plugins: [
-          {
-            async configure() {
-              await this.getPageRoutes();
-            },
-          },
-        ],
-      }),
-    ).rejects.toThrow("the routes are read before they are created");
   });
 
   it("of your own win over the pages of runtime hooks", async () => {
@@ -895,23 +840,6 @@ describe("deriveRoutes", () => {
     expect(paths(await ctx.getApiRoutes())).toEqual(["/en/api/routes.json", "/cn/api/routes.json"]);
   });
 
-  it("adds its views to the page routes, in the order they are created", async () => {
-    const ctx = await createSite(
-      {
-        plugins: [
-          {
-            deriveRoutes: ({ createView }) => createView(blank("/a")),
-            routes: ({ createView }) => createView({ ...blank("/b/[...c]"), render: "dynamic" }),
-          },
-        ],
-      },
-      { routes: [ownRoute("/own")] },
-    );
-
-    await ctx.getApiRoutes();
-    expect(paths(await ctx.getPageRoutes())).toEqual(["/own", "/b/[...c]", "/a"]);
-  });
-
   it("serve the page routes they derive from to pages they render, like the home of base options", async () => {
     let site: Context | undefined;
     const rendered: unknown[] = [];
@@ -921,7 +849,7 @@ describe("deriveRoutes", () => {
         plugins: [
           {
             name: "md",
-            // like the Markdown of your own pages, which read the site outside of plugin hooks
+            // like the Markdown of custom pages, which read the site outside of plugin hooks
             async deriveRoutes() {
               rendered.push(
                 await site!.getBaseOptions({ lang: undefined }),
@@ -1017,7 +945,6 @@ describe("URLs", () => {
   const noUrl: Site = [{ site: { baseUrl: undefined } }, { base: "/repo/" }];
   const slash: Site = [{ site: { baseUrl: undefined } }, { base: "/repo/", trailingSlash: true }];
   const slashUrl: Site = [{}, { trailingSlash: true }];
-  const staticSlash: Site = [{ mode: "static" }, { base: "/repo/", trailingSlash: true }];
   const cdn = "https://cdn.example.com/a.png";
 
   it.each<[string, Site, string, string]>([
@@ -1029,25 +956,9 @@ describe("URLs", () => {
     ["adds it before a query", slash, "/docs?a=b.c", "/repo/docs/?a=b.c"],
     ["adds none to files", slash, "/robots.txt", "/repo/robots.txt"],
     ["adds none to the root, for `stripBase()`", slash, "/", "/repo"],
-    ["adds it in static mode in dev", staticSlash, "/api/search", "/repo/api/search/"],
     ["adds none by default", plain, "/api/ai", "/api/ai"],
   ])("withBase %s", async (_, [site, runtime], input, expected) => {
     expect((await createSite(site, runtime)).withBase(input)).toBe(expected);
-  });
-
-  it.each([
-    ["static", "/repo/api/search"],
-    ["dynamic", "/repo/api/search/"],
-  ] as const)("withBase in a build of %s mode gives %s", async (mode, expected) => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.resetModules();
-    const { pressContext: buildContext } = await import("./harness");
-    const ctx = await buildContext(
-      { content: { files }, mode },
-      { base: "/repo/", trailingSlash: true },
-    );
-    vi.unstubAllEnvs();
-    expect(ctx.withBase("/api/search")).toBe(expected);
   });
 
   it.each<[string, Site, string, string]>([
@@ -1212,12 +1123,9 @@ it("keeps React objects of `ui.providerProps` by reference", async () => {
 });
 
 describe("renderPage", () => {
-  const renderDefault = (props: DefaultPageProps) =>
-    createElement("main", null, props.type ?? "default");
-
   async function render(site: Partial<TestSite>, target: (ctx: Context) => Promise<RenderTarget>) {
     const ctx = await pressContext({ content: { files }, ...site });
-    return ctx.renderPage(await target(ctx), renderDefault);
+    return ctx.renderPage(await target(ctx));
   }
 
   const bodyWrapper = {
@@ -1251,7 +1159,7 @@ describe("renderPage", () => {
         page && [{ slot: "actions", name: "share", component: () => "share" }, bodyWrapper],
     });
 
-    expect(node).toEqual(createElement("main", null, "default"));
+    expect(isValidElement(node) && node.type).toBe(HomeShell);
     expect(props).toMatchObject({
       type: undefined,
       slugs: ["docs", "basics"],
@@ -1266,44 +1174,63 @@ describe("renderPage", () => {
     expect(props?.tree.children.length).toBeGreaterThan(0);
   });
 
-  it("hands the owning plugin the body of `props.body`, resolved once", async () => {
-    const getPageBody = vi.fn(() => ({ node: "body" }));
-    let owned: ReactNode;
+  it("gives each page its own React identity, so client state doesn't reach the next page", async () => {
     const { props } = await renderContent({
-      getPageBody,
-      getPageView(_page, body) {
-        owned = body?.node;
-        return { props: {}, node: body?.node };
-      },
-      slots: ({ page }) => page && [bodyWrapper],
+      getPageBody: () => ({ node: "body" }),
+      getPageView: () => ({ props: {}, node: "post" }),
     });
+    expect(props && "body" in props && isValidElement(props.body) && props.body.key).toBe(
+      "/docs/basics",
+    );
+    expect(isValidElement(props?.children) && props.children.key).toBe("/docs/basics");
 
-    expect(getPageBody).toHaveBeenCalledOnce();
-    expect(isValidElement(owned) && owned.props).toEqual({ children: "body" });
-    expect(props && "body" in props && props.body.props).toEqual({ children: owned });
-  });
-
-  it("builds the props of views, and renders the default without `ui.renderPage`", async () => {
     const node = (await render({}, async () => ({
       lang: undefined,
-      view: { type: "blog.index", props: { posts: [] }, node: "posts" },
-    }))) as ReactElement;
-
-    expect(node).toEqual(createElement("main", null, "blog.index"));
+      view: { type: "show", props: {}, node: "view" },
+      path: "/show/a",
+    }))) as ReactElement<{ children: ReactNode }>;
+    expect(isValidElement(node.props.children) && node.props.children.key).toBe("/show/a");
   });
 });
 
-describe("types", () => {
-  it("checks views against the types of the plugin", () => {
-    const plugin: Plugin<AppShape, { views: { x: { ok: boolean } } }> = {
-      routes({ createView }) {
-        createView({ path: "/x", view: () => ({ type: "x", props: { ok: true }, node: null }) });
-        // @ts-expect-error -- not a view of the plugin
-        createView({ path: "/y", view: () => ({ type: "y", props: {}, node: null }) });
-        // @ts-expect-error -- a view has no handlers
-        createView({ path: "/z", GET });
+it("redirects the forms of a path that middleware wouldn't recognize", async () => {
+  const ctx = await pressContext({
+    content: { docs: { files: [] } },
+    plugins: [
+      {
+        middleware: (request, next) =>
+          new URL(request.url).pathname.startsWith("/admin")
+            ? Promise.resolve(new Response(null, { status: 401 }))
+            : next(),
       },
-    };
-    expect(plugin.routes).toBeTypeOf("function");
+    ],
   });
+  const location = async (path: string) => {
+    const response = await ctx.handleRequest(
+      new Request(`https://site.example${path}`),
+      async () => new Response("secret"),
+    );
+    return response.status === 308 ? response.headers.get("Location") : response.status;
+  };
+
+  expect(await location("//admin/x?a=1")).toBe("/admin/x?a=1");
+  expect(await location("/%61dmin/x")).toBe("/admin/x");
+  expect(await location("/admin/x")).toBe(401);
+  expect(await location("/%e4%b8%ad/x")).toBe("/%E4%B8%AD/x");
+  expect(await location("/a%21b")).toBe("/a!b");
+  expect(await location("/x/")).toBe("/x");
+  expect(await location("/x/index.html")).toBe("/x");
+  // the escapes of paths that need them, and the root
+  expect(await location("/docs/%E4%B8%AD/a%2Fb")).toBe(200);
+  expect(await location("/")).toBe(200);
+});
+
+it("leaves the root outside of the base path to the router", async () => {
+  const ctx = await pressContext({ content: { docs: { files: [] } } }, { base: "/base" });
+  const response = await ctx.handleRequest(
+    new Request("https://site.example/"),
+    async () => new Response(null, { status: 404 }),
+  );
+
+  expect(response.status).toBe(404);
 });

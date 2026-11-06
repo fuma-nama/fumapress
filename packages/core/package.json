@@ -19,6 +19,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
+    "./page-tree": "./dist/page-tree.mjs",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.mjs",
     "./plugins/link-validation": "./dist/plugins/link-validation.mjs",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.mjs",
@@ -28,8 +29,9 @@
     "./plugins/sitemap": "./dist/plugins/sitemap.mjs",
     "./plugins/takumi": "./dist/plugins/takumi.mjs",
     "./runtime": "./dist/runtime/index.mjs",
-    "./runtime/ui": "./dist/runtime/ui.mjs",
     "./runtime/vite": "./dist/runtime/vite.mjs",
+    "./ui/docs": "./dist/ui/docs.mjs",
+    "./ui/home": "./dist/ui/home.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {

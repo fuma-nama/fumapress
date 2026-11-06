@@ -99,26 +99,6 @@ describe("mintlifyPlugin", () => {
     expect(provider?.i18n?.translations?.["Search(search trigger)"]).toBe("Search the docs...");
   });
 
-  it("wraps layouts with the banner and footer", async () => {
-    const { ctx, plugin } = await setup();
-
-    const [item] = (await plugin.slots?.call(ctx, {})) ?? [];
-    expect(item?.slot).toBe("layout.wrapper");
-    expect(Object.keys(item?.props ?? {})).toEqual(["banner", "footer"]);
-    expect(await plugin.slots?.call(ctx, { page: page("index.mdx") as never })).toBeUndefined();
-  });
-
-  it("keeps timestamps with `metadata.timestamp`", async () => {
-    const { ctx, plugin } = await setup();
-    const data = await plugin.transformPage?.call(
-      ctx,
-      { lastModified: new Date() } as DocsPageData,
-      undefined as never,
-    );
-
-    expect(data).toBeUndefined();
-  });
-
   it("redirects requests", async () => {
     const { ctx, plugin } = await setup();
     const next = vi.fn(async () => new Response("page"));

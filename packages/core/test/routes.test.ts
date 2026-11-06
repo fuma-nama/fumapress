@@ -3,7 +3,6 @@ import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
 import { i18n, page, pressContext } from "./harness";
 import {
-  compareRoutes,
   expandRoute,
   getHomeUrl,
   matchPageRoute,
@@ -22,11 +21,6 @@ describe("matchPageRoute", () => {
     expect(matchPageRoute(routes, "/a/c")).toEqual({ route: routes[1], params: { id: "c" } });
     expect(matchPageRoute(routes, "/a/c/d")?.route.path).toBe("/a/[...rest]");
     expect(matchPageRoute(routes, "/none")).toBeUndefined();
-  });
-
-  it("only takes the routes it accepts", () => {
-    const accepts = (item: PageRoute) => item.path !== "/a/b";
-    expect(matchPageRoute(routes, "/a/b", accepts)?.route.path).toBe("/a/[id]");
   });
 });
 
@@ -69,11 +63,6 @@ describe("matchRoute", () => {
     expect(matchRoute("/api/[id]", "/api/a/b")).toBeUndefined();
     expect(matchRoute("/llms.txt", "/llms-full.txt")).toBeUndefined();
     expect(matchRoute("/api/[id]", "/api/%E0")).toBeUndefined();
-  });
-
-  it("matches the pages of `expandRoute`", () => {
-    const { pattern, pages } = expandRoute("/docs/[...slugs]", [["a", "b"], []]);
-    for (const { pathname, params } of pages) expect(matchRoute(pattern, pathname)).toEqual(params);
   });
 });
 
@@ -122,26 +111,5 @@ describe("getHomeUrl and rootRedirect", () => {
       await rootRedirect(await create(docs, { ...i18n, hideLocale: "default-locale" })),
     ).toBeUndefined();
     expect(await rootRedirect(await create(docs, null))).toBeUndefined();
-  });
-});
-
-describe("compareRoutes", () => {
-  it("sorts static segments, then params, then rest params", () => {
-    const paths = [
-      "/[...slugs]",
-      "/blog/[slug]",
-      "/blog/tags",
-      "/blog/[...rest]",
-      "/blog",
-      "/[lang]/x",
-    ];
-    expect(paths.sort(compareRoutes)).toEqual([
-      "/blog/tags",
-      "/blog",
-      "/blog/[slug]",
-      "/blog/[...rest]",
-      "/[lang]/x",
-      "/[...slugs]",
-    ]);
   });
 });

@@ -2,12 +2,12 @@ import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { llms } from "fumadocs-core/source/llms";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { fallbackOrigin, joinPaths, matchPageRoute, stripBase } from "../routes";
+import { fallbackOrigin, joinPaths, matchPageRoute, stripBase, type PageRoute } from "../routes";
 
 export interface LLMsOptions<C extends AppShape = AppShape> {
   /**
    * Serve the Markdown of a page to requests preferring it (`Accept: text/markdown`), on pages your server handles:
-   * hosts serving prerendered pages before it, like Vercel, Netlify and Cloudflare, only negotiate pages rendered on request.
+   * hosts serving prerendered pages before it, like Vercel, Netlify and Cloudflare, only negotiate pages rendered on demand.
    *
    * @defaultValue true
    */
@@ -24,8 +24,8 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
    * Which pages get a Markdown version (`/page.md`, `/index.md` for the root):
    *
    * - `"content"`: the pages of your content sources.
-   * - `"all"`: also the page routes whose `markdown()` gives text (on Waku, pages calling `asMarkdown()`). Static pages
-   *   are prerendered, pages rendered on request render it on request.
+   * - `"all"`: also the page routes whose `markdown()` gives text, like pages calling `asMarkdown()`. Static pages
+   *   are prerendered, pages rendered on demand render it on demand.
    *
    * The Markdown renders the page without its layouts: access checks of a page belong in the page itself, or in
    * middleware that covers its `<page>.md` too. Static pages render while the routes are created, they can read
@@ -36,7 +36,7 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
   routes?: "content" | "all";
 }
 
-/** the route mirroring the `<page>.md` URLs of the page routes rendered on request, it renders their Markdown */
+/** the route mirroring the `<page>.md` URLs of the page routes rendered on demand, it renders their Markdown */
 const mirrorPath = "/_llms.txt";
 
 /** the path of the Markdown of a page: `<page>.md`, `/index.md` for the root */
@@ -83,8 +83,12 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     return markdownResponse((await getLLMText.call(ctx, page)) ?? "");
   }
 
-  /** the mirror paths of the rewrites in flight: the mirrors serve the `<page>.md` URLs only, never a request of their own */
-  const rewrites = new Map<string, number>();
+  /** the mirror paths of the rewrites in flight, each with an unguessable segment: the mirrors serve the `<page>.md` URLs only, never a request of their own */
+  const rewrites = new Set<string>();
+
+  const mirrorBase = (lang: string | undefined) => joinPaths(mirrorPath, lang ?? "");
+  const hasMirror = (route: PageRoute) =>
+    route.render === "dynamic" && route.markdown !== undefined;
 
   return {
     name: "core:llms.txt",
@@ -95,7 +99,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     async routes({ createApi }) {
       createApi({
         path: "/llms.txt",
-        render: "static",
+        render: this.getContentRender(),
         GET: async () =>
           new Response(
             llms(await this.getLoader(), {
@@ -105,7 +109,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       });
       createApi({
         path: "/llms-full.txt",
-        render: "static",
+        render: this.getContentRender(),
         GET: async () => {
           const source = await this.getLoader();
           const pending: Awaitable<string | undefined>[] = [];
@@ -119,29 +123,9 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           return new Response(texts.join("\n\n"));
         },
       });
-      if (routes === "all" && this.mode !== "static") {
-        createApi({
-          path: `${mirrorPath}/[...path]`,
-          GET: async (request) => {
-            const { pathname } = new URL(request.url);
-            const url = pageUrl(pathname.slice(pathname.indexOf(mirrorPath) + mirrorPath.length));
-            const match = matchPageRoute(
-              await this.getPageRoutes(),
-              url,
-              (route) => route.render === "dynamic" && route.markdown !== undefined,
-            );
-            const text = await match?.route.markdown?.(url, match.params);
-            return text === undefined
-              ? new Response(null, { status: 404 })
-              : markdownResponse(text);
-          },
-        });
-      }
-      // the middleware serves them, from the pages of revalidated sources
-      if (this.mode === "dynamic") return;
-
-      // a route per file, a catch-all route would take the paths of pages
+      // a route per file, a catch-all route would take the paths of pages; the middleware serves the pages of dynamic sources
       for (const page of (await this.getLoader()).getPages()) {
+        if (this.getContentRender(page.type) === "dynamic") continue;
         createApi({
           path: markdownPath(page.url),
           render: "static",
@@ -156,9 +140,14 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       for (const page of (await this.getLoader()).getPages(lang))
         markdownPaths.add(markdownPath(page.url));
 
+      let hasDynamic = false;
       for (const route of pageRoutes) {
         const render = route.markdown?.bind(route);
-        if (!render || route.render === "dynamic") continue;
+        if (!render) continue;
+        if (route.render === "dynamic") {
+          hasDynamic = true;
+          continue;
+        }
 
         // a static route that 404s would fail the build: only pages with a Markdown form get one
         for (const page of route.pages) {
@@ -170,34 +159,51 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           createApi({ path, render: "static", GET: () => markdownResponse(text) });
         }
       }
+
+      // the Markdown of pages rendered on demand
+      if (!hasDynamic) return;
+      const base = mirrorBase(lang);
+      createApi({
+        path: `${base}/[...path]`,
+        GET: async (request) => {
+          const { pathname } = new URL(request.url);
+          const path = pathname.slice(pathname.indexOf(base) + base.length);
+          const url = pageUrl(path.slice(path.indexOf("/", 1)));
+          const match = matchPageRoute(await this.getPageRoutes(), url, hasMirror);
+          const text = await match?.route.markdown?.(url, match.params);
+          return text === undefined ? new Response(null, { status: 404 }) : markdownResponse(text);
+        },
+      });
     },
     async middleware(request, next) {
-      if (this.mode === "static" || request.method !== "GET") return next();
       const path = stripBase(new URL(request.url).pathname, this.withBase("/"));
       if (path === undefined) return next();
       if (path === mirrorPath || path.startsWith(`${mirrorPath}/`))
         return rewrites.has(path) ? next() : new Response(null, { status: 404 });
+      if (request.method !== "GET") return next();
 
       if (path.endsWith(".md")) {
-        // the other modes prerender them
-        if (this.mode === "dynamic") {
-          const page = (await this.getLoader()).getPageByUrl(pageUrl(path));
-          if (page) return markdown(this, page);
-        }
+        // the Markdown of other pages is prerendered
+        const page = (await this.getLoader()).getPageByUrl(pageUrl(path));
+        if (page && this.getContentRender(page.type) === "dynamic") return markdown(this, page);
 
         const response = await next();
         if (routes !== "all" || response.headers.get("Content-Type")?.startsWith("text/markdown"))
           return response;
-        // a page rendered on request: its route mirroring the page renders the Markdown
-        const mirror = joinPaths(mirrorPath, path);
-        rewrites.set(mirror, (rewrites.get(mirror) ?? 0) + 1);
+        // a page rendered on demand: its route mirroring the page renders the Markdown
+        const match = matchPageRoute(await this.getPageRoutes(), pageUrl(path), hasMirror);
+        if (!match) return response;
+        const mirror = joinPaths(
+          mirrorBase(match.route.lang ?? this.i18nConfig?.defaultLanguage),
+          crypto.randomUUID(),
+          path,
+        );
+        rewrites.add(mirror);
         try {
           const mirrored = await next(mirror);
           return mirrored.ok ? mirrored : response;
         } finally {
-          const count = rewrites.get(mirror)! - 1;
-          if (count === 0) rewrites.delete(mirror);
-          else rewrites.set(mirror, count);
+          rewrites.delete(mirror);
         }
       }
       if (!autoRedirect) return next();

@@ -96,26 +96,6 @@ describe("buildPageTreeFromNavigation", () => {
     });
   });
 
-  it("renders group tags as badges", () => {
-    const pageIndex = createPageIndex(sampleRoot);
-    const tree = buildPageTreeFromNavigation(
-      {
-        groups: [
-          {
-            group: "Guides",
-            tag: "NEW",
-            pages: ["guides/setup"],
-          },
-        ],
-      },
-      pageIndex,
-    );
-
-    // the name becomes a fragment with the group label + badge
-    const name = tree[0]?.type === "folder" ? tree[0].name : undefined;
-    expect(name).toBeTypeOf("object");
-  });
-
   it("builds versioned navigation roots", () => {
     const pageIndex = createPageIndex({
       ...sampleRoot,

@@ -4,8 +4,8 @@ import { Scanner, type GlobEntry } from "@tailwindcss/oxide";
 
 /** the built-in UI of `@fumapress/core`, which both runtimes render */
 export const coreUiSource: GlobEntry = {
-  base: path.join(import.meta.dirname, "../core/src/runtime"),
-  pattern: "ui.tsx",
+  base: path.join(import.meta.dirname, "../core/src/ui"),
+  pattern: "*.tsx",
 };
 
 /** the Tailwind classes of the files matching `sources`, as `css/generated.css` for the package's preset */

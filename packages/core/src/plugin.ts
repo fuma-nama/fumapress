@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ReactElement, type ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { Meta, Page } from "fumadocs-core/source";
@@ -118,9 +118,9 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
   /** read by others with `this.getCapability(capability)`; complete at creation, a value of the site is a function of its context */
   api?: ProviderAPI<Declared<T, "provides">>;
   /**
-   * routes derived from the final page routes of `lang` (those rendered in `lang`, your own pages without a language in the
+   * routes derived from the final page routes of `lang` (those rendered in `lang`, custom pages without a language in the
    * default one), called once per language: API routes like their Markdown or images, and views like a print page. A path
-   * has one route, your own page wins.
+   * has one route, a custom page wins.
    */
   deriveRoutes?: (
     this: Context<C>,
@@ -294,23 +294,6 @@ export interface DocsPageData extends Pick<Page, "url" | "path" | "locale"> {
   markdownUrl?: string;
   /** the URL to view its source file */
   githubUrl?: string;
-}
-
-/** `children` inside the items of a wrapper slot, the first item outermost */
-export function wrapSlot(items: SlotItem[] = [], children: ReactNode): ReactNode {
-  return items.reduceRight<ReactNode>(
-    (out, { component, props }) => createElement(component, props, out),
-    children,
-  );
-}
-
-/** the items of a named slot by name; `getSlots()` rejects two items of one name */
-export function namedItems(items: SlotItem[] = []): Partial<Record<string, ReactElement>> {
-  const out: Partial<Record<string, ReactElement>> = {};
-  for (const item of items) {
-    if ("name" in item) out[item.name] = createElement(item.component, item.props);
-  }
-  return out;
 }
 
 export type AnyPlugin = Plugin<AppShape, any>;

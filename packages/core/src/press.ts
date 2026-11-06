@@ -121,20 +121,11 @@ export interface PressContent<C extends AppShape, R> extends PressApp<C, MergedT
   ): PressApp<C, CollectTypes<P>, R>;
 }
 
-/**
- * - `static`: always prefer static, including search etc.
- * - `dynamic`: always prefer dynamic.
- * - `default`: only certain parts like search routes are dynamic.
- */
-export type BuildMode = "static" | "dynamic" | "default";
-
 /** the options of `.config()` */
 export interface PressConfig<C extends AppShape, T extends PluginTypes> {
-  /** @defaultValue "default" */
-  mode?: BuildMode;
-  /** the default layer: entries load after your plugins unless one provides their capability; `[]` for none @defaultValue recommendedPreset() */
+  /** the default plugins: entries load after your plugins unless one provides their capability; `[]` for none @defaultValue recommendedPreset() */
   preset?: readonly PresetEntry<Plugin<C, any>>[];
-  site?: SiteConfig;
+  site?: Omit<SiteConfig, "baseUrl">;
   /** tags of every page, and of a page with `page` (or `route` and `path` on framework pages); yours win over the plugins' by key */
   head?: HeadTag[] | ((this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>);
   ui?: UIOptionsOf<C, T>;
@@ -212,14 +203,20 @@ export type RenderPagePropsOf<
 
 type TypesOfPress<A extends Press<any, any>> = NonNullable<A["~types"]>;
 
+/** the page types of a site: its source keys and the view types of its plugins */
+export type PressPageType<A extends Press<any, any>> = PageType<
+  TypesOfPress<A>["content"],
+  TypesOfPress<A>["plugins"]
+>;
+
 /** props of `ui.renderPage` in its own file: `RenderPageProps<typeof app, "docs">` */
 export type RenderPageProps<
   A extends Press<any, any>,
-  K extends PageType<TypesOfPress<A>["content"], TypesOfPress<A>["plugins"]> = PageType<
-    TypesOfPress<A>["content"],
-    TypesOfPress<A>["plugins"]
-  >,
+  K extends PressPageType<A> = PressPageType<A>,
 > = RenderPagePropsOf<TypesOfPress<A>["content"], TypesOfPress<A>["plugins"], K>;
+
+/** the languages of a site, `undefined` without i18n */
+export type PressLang<A extends Press<any, any>> = TypesOfPress<A>["content"]["lang"];
 
 /** `this` of callbacks in their own files: `PressContext<typeof app>` */
 export type PressContext<A extends Press<any, any>> = Context<TypesOfPress<A>["content"]>;
@@ -275,4 +272,4 @@ export type DefaultPageProps = RenderPageBase<AppShape> & { type: string | undef
 
 /** what the runtime renders: a content page, or the view a plugin returned */
 export type RenderTarget<C extends AppShape = AppShape> = LangEnv<C> &
-  ({ page: C["page"]; view?: undefined } | { view: View<any>; page?: undefined });
+  ({ page: C["page"]; view?: undefined } | { view: View<any>; path: string; page?: undefined });

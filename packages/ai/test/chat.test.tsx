@@ -24,9 +24,9 @@ describe("aiPlugin", () => {
   it.each<[string, Plugin<AppShape, any>]>([
     ["/api/ai", aiPlugin({ model })],
     ["/mcp", mcpPlugin()],
-  ])("refuses %s on `mode: 'static'`", async (path, plugin) => {
+  ])("serves %s on request on any site", async (path, plugin) => {
     const site = await createPressContext(
-      createPress({ files: [] }).plugins(plugin).config({ mode: "static", preset: [] }),
+      createPress({ files: [] }).plugins(plugin).config({ preset: [] }),
       {
         base: "/",
         defaults: [],
@@ -35,9 +35,7 @@ describe("aiPlugin", () => {
       },
     );
     site.setRuntimeRoutes([]);
-    await expect(site.getApiRoutes()).rejects.toThrow(
-      `the route "${path}" of "${plugin.name}" renders on request`,
-    );
+    expect(await site.getApiRoutes()).toMatchObject([{ path, render: "dynamic" }]);
   });
 
   it("provides the chat that the built-in UI docks", () => {

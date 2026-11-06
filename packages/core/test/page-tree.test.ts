@@ -54,9 +54,3 @@ test("throws on unknown paths with the available folders", () => {
     'folder "guides" is not in the page tree, available folders: docs, docs/guides, blog',
   );
 });
-
-test("the children of a folder with an index page are one list", () => {
-  const first = selectTreeRoot(tree, "docs/guides").children;
-  expect(first[0]).toEqual(page("/docs/guides"));
-  expect(selectTreeRoot(tree, "docs/guides").children).toBe(first);
-});

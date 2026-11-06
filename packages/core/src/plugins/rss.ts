@@ -178,7 +178,7 @@ export function rssPlugin<C extends AppShape = AppShape>(
     routes({ createApi }) {
       createApi({
         path,
-        render: "static",
+        render: this.getContentRender(),
         GET: async () => {
           const source = await this.getLoader();
           const pending: Awaitable<RSSItem | undefined>[] = [];

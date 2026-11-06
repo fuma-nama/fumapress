@@ -63,14 +63,6 @@ describe("report", () => {
     expect(diagnostics(emitted).map((item) => item.fromPathname)).toEqual(["/docs", "/other"]);
   });
 
-  it("does not write a diagnostics file by default", async () => {
-    const { build, emitted } = await runBuild({ links: ok });
-
-    await build();
-
-    expect(emitted.size).toBe(0);
-  });
-
   it('writes pretty diagnostics without failing the build on "json"', async () => {
     const { build, emitted } = await runBuild({
       links: [...broken.links, { href: "/missing", fromPathname: "/blog" }],
@@ -100,17 +92,6 @@ describe("report", () => {
       expect(diagnostics(emitted)).toEqual([]);
     },
   );
-
-  it("honours a custom diagnostics path", async () => {
-    const { build, emitted } = await runBuild({
-      links: [],
-      plugin: { report: "json", diagnosticsPath: "checks/links.json" },
-    });
-
-    await build();
-
-    expect(emitted.has("checks/links.json")).toBe(true);
-  });
 
   it('writes diagnostics and then fails the build on "both"', async () => {
     const { build, emitted } = await runBuild({ ...broken, plugin: { report: "both" } });

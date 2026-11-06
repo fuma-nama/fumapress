@@ -23,9 +23,11 @@ const dates: Record<string, Date> = {
   "/changelog/b": new Date("2026-02-01"),
 };
 
-function context(body = true) {
+function context(body = true, dynamicSources: string[] = []) {
   return {
     languages: ["en"],
+    getContentRender: (source: readonly string[]) =>
+      source.some((key) => dynamicSources.includes(key)) ? "dynamic" : "static",
     getLoader: async () => ({ getPages: () => pages }),
     getPageCreatedAt: async (page: { url: string }) => dates[page.url],
     getPageBody: async (page: { url: string }) => (body ? { node: page.url } : undefined),
@@ -39,7 +41,7 @@ async function views(
   const out: ViewRoute[] = [];
   await changelogPlugin(options).routes!.call(ctx, {
     createApi() {},
-    createView: (route) => out.push(route),
+    createView: (route) => out.push(route as ViewRoute),
   });
   return out;
 }
@@ -55,6 +57,16 @@ describe("changelogPlugin", () => {
       (await views({ source: "changelog", paths: { index: "/" } }))?.map(({ path }) => path),
     ).toEqual(["/"]);
     expect(await views({ source: "changelog", paths: { index: false } })).toEqual([]);
+  });
+
+  it("renders the index like its sources", async () => {
+    const options = { source: ["changelog", "releases"] };
+    const render = async (dynamicSources: string[]) =>
+      (await views(options, context(true, dynamicSources)))[0]?.render;
+
+    expect(await render([])).toBe("static");
+    expect(await render(["docs"])).toBe("static");
+    expect(await render(["releases"])).toBe("dynamic");
   });
 
   it("renders the pages of its sources, newest first", async () => {
