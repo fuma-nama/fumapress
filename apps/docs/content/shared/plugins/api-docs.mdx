@@ -1,4 +1,4 @@
-Each integration turns your spec into pages, as a [content source](../content-sources/index.mdx) of your site. Follow the one you need.
+Each integration generates pages from your spec, and adds them to your site as a [content source](../content-sources/index.mdx). Follow the one you need.
 
 ## OpenAPI
 
@@ -20,7 +20,7 @@ Add this after the imports in your stylesheet:
 
 ### Create the Source [step]
 
-Call `createOpenAPI()` with your spec, then add its pages as a content source. `baseDir` decides where the pages go.
+Call `createOpenAPI()` with your spec, then add its pages as a content source. `baseDir` sets the URL prefix of the pages.
 
 ```tsx title="press.config.tsx"
 import { createOpenAPI } from "fumadocs-openapi/server";
@@ -39,7 +39,7 @@ export default createPress({
 
 `staticSource()` also takes options of [`generateFiles()`](https://fumadocs.dev/docs/integrations/openapi/generate-files). See [Fumadocs OpenAPI](https://fumadocs.dev/docs/integrations/openapi) for all options.
 
-### Customize the Page
+### Page Customization
 
 To set the options of the page, like `shiki`, create the renderer yourself and pass it to the plugin:
 
@@ -59,7 +59,7 @@ openapiPlugin({
 });
 ```
 
-### Add a Proxy
+### Proxy
 
 A browser can't call an API that blocks cross-origin requests. A [proxy](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy) sends playground requests through your site, so the site [needs a server](../deployment.mdx#what-needs-a-server).
 
@@ -120,7 +120,7 @@ export default createPress({
 
 `staticSource()` also takes options of [`generateFiles()`](https://fumadocs.dev/docs/integrations/asyncapi/generate-files). See [Fumadocs AsyncAPI](https://fumadocs.dev/docs/integrations/asyncapi) for all options.
 
-### Customize the Page
+### Page Customization
 
 To set the options of the page, create the renderer yourself and pass it to the plugin:
 
@@ -177,9 +177,9 @@ export default createPress({
 
 See [Fumadocs GraphQL](https://fumadocs.dev/docs/integrations/graphql) for all options.
 
-### Enable the Playground
+### Playground
 
-Create the renderer yourself and pass it to the plugin. The URL is your GraphQL endpoint.
+Create the renderer yourself and pass it to the plugin. `url` is your GraphQL endpoint.
 
 ```tsx tab="src/components/graphql.tsx"
 "use client";

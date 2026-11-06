@@ -3,11 +3,11 @@ title: Manual Installation
 description: Add Fumapress to a project yourself.
 ---
 
-Set up by hand what `npm create fumapress` generates.
+This guide creates by hand the files that `npm create fumapress` generates.
 
 <Callout>Astro needs Node.js 22.23.4 or later.</Callout>
 
-## Set Up the Project
+## Setup
 
 ### Install Dependencies [step]
 
@@ -86,7 +86,7 @@ export const collections = {
 }
 ```
 
-`paths` is the alias the [Fumadocs CLI](/docs/astro/layouts#customize-fumadocs-ui) imports through.
+The [Fumadocs CLI](/docs/astro/layouts#customizing-fumadocs-ui) uses the `paths` alias in the files it copies.
 
 ### Update package.json [step]
 
@@ -123,8 +123,8 @@ This is my first document.
 npm run dev
 ```
 
-Your docs start at `/`. To keep `/` for a landing page, [give your content a URL prefix](/docs/astro/content-sources/collections#add-a-collection).
+Your docs start at `/`. To keep `/` for a landing page, [give your content a URL prefix](/docs/astro/content-sources/collections#multiple-collections).
 
-## Use Radix UI
+## Radix UI
 
 <include cwd>content/shared/manual-installation.mdx</include>

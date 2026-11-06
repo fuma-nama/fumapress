@@ -12,7 +12,7 @@ export const plugins = [
     name: "FlexSearch",
     description: <>Built-in full-text search, on your server or in the browser.</>,
     keywords: ["search", "flexsearch"],
-    docsHref: "/docs/search#engines",
+    docsHref: "/docs/search#search-engines",
     usage: `import { createPress } from "fumapress";
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 
@@ -25,7 +25,7 @@ export default createPress({
     name: "Orama Search",
     description: "Full-text search powered by ZBSearch with the same search dialog UX.",
     keywords: ["search", "orama", "zbsearch"],
-    docsHref: "/docs/search#engines",
+    docsHref: "/docs/search#search-engines",
     usage: `import { createPress } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 

@@ -45,13 +45,13 @@ export default createPress(source, {
 }).plugins(sanityPlugin());
 ```
 
-`alwaysRevalidate` shows Sanity edits right away. To refresh from a webhook instead, see [Refresh Content](#refresh-content).
+`alwaysRevalidate` shows Sanity edits right away. To refresh from a webhook instead, see [Refreshing Content](#refreshing-content).
 
-## Customize
+## Customization
 
 ### URLs
 
-URLs come from the `slug` field, which can contain `/` for nested pages. Use `baseDir` to place pages under a prefix, or `generatePath` to decide each path:
+URLs come from the `slug` field, which can contain `/` for nested pages. Use `baseDir` to place pages under a prefix, or `generatePath` to set each path:
 
 ```tsx title="press.config.tsx"
 createSanitySource({
@@ -81,6 +81,6 @@ sanityPlugin({
 });
 ```
 
-### Refresh Content
+## Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>

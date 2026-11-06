@@ -5,9 +5,9 @@ description: Set up the search dialog of your site.
 
 <include cwd>content/shared/search.mdx#intro</include>
 
-## Choose an Engine
+## Search Engines
 
-FlexSearch is the default. List a search plugin to change the engine or pass options, which go to the [Fumadocs integration](https://fumadocs.dev/docs/headless/search/flexsearch). A site has one search plugin.
+FlexSearch is the default. Add a search plugin to change the engine or pass options to the [Fumadocs integration](https://fumadocs.dev/docs/headless/search/flexsearch). A site can only have one search plugin.
 
 ```tsx tab="FlexSearch" title="press.config.tsx"
 import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
@@ -29,6 +29,6 @@ createPress(content).config({
 });
 ```
 
-An engine like Algolia is a plugin of its own. See [Add a Search Engine](/docs/plugins/authoring#add-a-search-engine).
+An engine like Algolia is a separate plugin. See [Custom Search Engine](/docs/plugins/authoring#custom-search-engine).
 
 <include cwd>content/shared/search.mdx#index</include>

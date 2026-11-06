@@ -1,6 +1,6 @@
 <section id="slots">
 
-## Add a Button
+## Slots
 
 This plugin adds a share button beside the title of every content page:
 
@@ -39,13 +39,13 @@ export function ShareButton({ url }: { url: string }) {
 }
 ```
 
-`slots` runs once for each content page with `page`, and once for the whole site without it. A slot says where the component goes, and the default layout places it there. A custom layout places it by name, with `props.actions.share`.
+`slots` runs once for each content page, with `page` set, and once for the whole site, without `page`. A slot says where the component goes, and the default layout places it there. A custom layout places it by name, with `props.actions.share`.
 
 To translate the label, add your strings with the `translations` field. See the [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations).
 
-## Choose a Slot
+### Available Slots
 
-Slots sit in this order on a content page, from the outside in:
+Slots are placed in this order on a content page, from the outside in:
 
 <Nesting>
   <Layer
@@ -57,6 +57,8 @@ Slots sit in this order on a content page, from the outside in:
     <Layer title="footer" note="Below the content. A custom layout reads props.footer." />
   </Layer>
 </Nesting>
+
+### Wrapper Slots
 
 A wrapper receives what it wraps as `children`:
 
@@ -74,15 +76,15 @@ slots({ page }) {
 </ThemeProvider>
 ```
 
-Two wrappers in one slot nest by `order`, and lower is outer. Context providers use a negative order.
+Two wrappers in one slot are nested by `order`, with the lowest on the outside. Context providers use a negative order.
 
 </section>
 
 <section id="navbar">
 
-## Change the Navbar
+## Layout Options
 
-`baseOptions` adds to the [layout options](../../configuration.mdx#navbar-and-links) of every layout. Its links come after the links of the site, and for other options the values of the site win.
+`baseOptions` adds to the [layout options](../../configuration.mdx#navbar-and-links) of every layout. Its links come after the links of the site, and for other options the values of the site take priority.
 
 ```tsx title="acme/index.tsx"
 baseOptions({ lang }) {
@@ -98,9 +100,9 @@ baseOptions({ lang }) {
 
 <section id="head">
 
-## Add Head Tags
+## Head Tags
 
-`head` runs once for the whole site without `page` or `route`, and once for each page. A tag of the site replaces a plugin tag with the same key, like a `meta` tag of the same name.
+`head` runs once for the whole site without `page` or `route`, and once for each page. A tag from the `head` option of the site replaces a plugin tag with the same key, like a `meta` tag of the same name.
 
 ```tsx title="acme/index.tsx"
 head({ page, route }) {
@@ -114,7 +116,7 @@ head({ page, route }) {
 
 <section id="render">
 
-## Render Content Pages
+## Rendering Content Pages
 
 To show the pages of one source differently, write `getPageView`. This plugin gives each page of the `reviews` source a star rating and its own UI:
 
@@ -172,33 +174,33 @@ export default app.config({
 });
 ```
 
-- `pages` names the source and the props the plugin adds to it.
+- `pages` maps a source key to the props that the plugin adds.
 - `page.type` is the source of the page. Return `undefined` for pages of other sources.
 - `body.node` is the content of the page.
-- `props` reach `ui.renderPage` as they are, and `node` becomes `props.children`.
+- `props` are passed to `ui.renderPage` as they are, and `node` becomes `props.children`.
 
 Without a `ui.renderPage`, `node` shows in the Home Layout.
 
-### What Runs for a Page
+### Page Rendering Order
 
 Each step receives the result of the one above. Write the hook of the step you want to change.
 
 <Flow>
   <FlowStep title="getPageBody(page)" result="{ node }">
-    The content. The content source answers it, so write it only for a custom source.
+    The content. The content source provides it, so only write this hook for a custom source.
   </FlowStep>
   <FlowStep title="body.wrapper slots" result="props.body">
-    Wrap the content, on every source.
+    Wrap the content of every source.
   </FlowStep>
   <FlowStep title="getPageView(page, body)" result="props.children">
-    Adds props and UI, on the source a plugin owns.
+    Adds props and UI to the pages of one source.
   </FlowStep>
   <FlowStep title="ui.renderPage(props)" result="the page">
-    Belongs to the site. It places everything above in a layout.
+    Set by the site. It renders everything above in a layout.
   </FlowStep>
 </Flow>
 
-### Change the Page Data
+### Page Data
 
 `transformPage` changes what a layout reads from `props.pageData`, like the title or the width. Return only the fields you change. Two plugins changing the same field is an error.
 

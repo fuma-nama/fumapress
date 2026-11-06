@@ -3,13 +3,13 @@ title: Upgrade to Fumapress 2
 description: Move a Fumapress 1.x site to version 2.
 ---
 
-Fumapress 2 replaces `defineConfig()` with `createPress()`, and each page now renders the way its content source does, so one site can mix prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
+Fumapress 2 replaces `defineConfig()` with `createPress()`. The render mode of each page now matches its content source, so one site can have both prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
 
-## Upgrade the Site
+## Upgrade Steps
 
 ### Update the Packages [step]
 
-Update Fumapress and Fumadocs together. Update any `@fumapress/*` plugins you use the same way.
+Update Fumapress and Fumadocs together. Also update any `@fumapress/*` plugins that you use.
 
 ```npm
 npm i fumapress@latest
@@ -17,7 +17,7 @@ npm i fumadocs-core@latest fumadocs-mdx@latest
 npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
 ```
 
-On the Radix UI build, install `fumadocs-ui@latest` on the last line.
+If you use the Radix UI build, replace the last line with `npm i fumadocs-ui@latest`.
 
 ### Rewrite the Config [step]
 
@@ -63,16 +63,16 @@ import { metaSchema, pageSchema } from "fumapress/schema";
 npm run dev
 ```
 
-If you didn't customize your site, you're done. To find the rest, search your project for imports from `fumapress/` and for the options you set, then open the matching sections below.
+If you didn't customize your site, you're done. To find the other changes, search your project for imports from `fumapress/` and for the options you set, then open the matching sections below.
 
-## Update Site Options
+## Site Options
 
 Open the options your site sets.
 
 <Accordions multiple>
 <Accordion title="MDX components">
 
-Move your components into a module, then pass it to `press()`. Relative links reach your `a` component already resolved, so `createRelativeLink()` is gone.
+Move your components into a module, then pass it to `press()`. Relative links are resolved before your `a` component receives them, so `createRelativeLink()` is removed.
 
 ```tsx tab="src/components/mdx.tsx"
 import defaultMdxComponents from "fumadocs-ui/mdx";
@@ -98,7 +98,7 @@ export default defineConfig({
 </Accordion>
 <Accordion title="Layouts">
 
-The factories of `fumapress/layouts/*` are removed. A site using `createDocsLayoutPage()` without options can delete it, since that is the default. Otherwise write the layout as JSX in `ui.renderPage`, and `props.type` picks it.
+The factories of `fumapress/layouts/*` are removed. If you call `createDocsLayoutPage()` without options, delete the call, since the Docs Layout is the default. Otherwise write the layout as JSX in `ui.renderPage`, and use `props.type` to choose it.
 
 ```tsx tab="1.x" title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -144,9 +144,9 @@ export default app.config({
 });
 ```
 
-Options like `renderLayout`, `renderBody` and `pageProps` become your JSX. Plugin buttons and forms are in `props.actions` and `props.footer`. See [Page Actions and Footers](/docs/layouts#page-actions-and-footers).
+Your JSX replaces options like `renderLayout`, `renderBody` and `pageProps`. Plugin buttons and forms are in `props.actions` and `props.footer`. See [Page Actions and Footers](/docs/layouts#page-actions-and-footers).
 
-On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#use-a-layout).
+On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts).
 
 </Accordion>
 <Accordion title="Navbar and links">
@@ -167,7 +167,7 @@ To read these options elsewhere, use `ctx.getBaseOptions({ lang })` in place of 
 </Accordion>
 <Accordion title="Root document and provider">
 
-Props of the root provider move out of `createRootLayout()`.
+Props of the root provider move from `createRootLayout()` to `ui.providerProps`.
 
 ```tsx title="press.config.tsx"
 // [!code --:4]
@@ -197,7 +197,7 @@ export default function NotFound() {
 </Accordion>
 <Accordion title="Head tags">
 
-`meta` returned JSX. `head` returns a list of tags, and a function gets the `page`.
+`meta` returned JSX. `head` takes a list of tags, or a function that receives `page`.
 
 ```tsx title="press.config.tsx"
 export default app.config({
@@ -244,15 +244,15 @@ export default app.config({
 </Accordion>
 <Accordion title="Render mode">
 
-Delete `mode`. Content from a static source, like Fumadocs MDX, is prerendered. Content from a dynamic source renders on demand, and one site can have both. Search and other generated files follow them.
+Delete `mode`. Content from a static source, like Fumadocs MDX, is prerendered. Content from a dynamic source renders on demand, and one site can have both. Search and other generated files use the same render mode.
 
 <Callout type="warn">
-  If you used `mode: "dynamic"` with a static source, its pages no longer run on demand, so
+  If you used `mode: "dynamic"` with a static source, its pages no longer render on demand, so
   middleware doesn't run for them. See [Authentication](/docs/authentication) if you relied on that.
 </Callout>
 
 <Callout type="warn">
-  Custom pages and API routes no longer follow `mode`. Pages are prerendered and API routes render
+  `mode` no longer affects custom pages and API routes. Pages are prerendered and API routes render
   on demand unless `getConfig()` says otherwise.
 </Callout>
 
@@ -273,7 +273,7 @@ Delete `preset: "recommended"`, since it is the default.
 </Accordion>
 <Accordion title="Search dialog">
 
-A custom dialog moves to `ui.providerProps`, and receives the options of the search plugin as props. See [Customize the Dialog](/docs/search#customize-the-dialog).
+A custom dialog moves to `ui.providerProps`, and receives the options of the search plugin as props. See [Custom Search Dialog](/docs/search#custom-search-dialog).
 
 ```tsx title="press.config.tsx"
 createPress(content).config({
@@ -317,7 +317,7 @@ export function getConfig() {
 </Accordion>
 <Accordion title="Server entry">
 
-Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version Fumapress uses, which is `1.0.0-rc.1`.
+Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version that Fumapress uses, `1.0.0-rc.1`.
 
 ```tsx title="src/waku.server.tsx"
 const router = await createRouter(press);
@@ -328,9 +328,9 @@ import.meta.hot?.dispose(router.dispose);
 </Accordion>
 </Accordions>
 
-## Update Plugins
+## Plugins
 
-Open the plugins your site lists.
+Open the plugins your site uses.
 
 <Accordions multiple>
 <Accordion title="Blog">
@@ -361,7 +361,7 @@ blogPlugin();
 blogPlugin({ source: "blog" });
 ```
 
-A site whose `isBlog` picked posts out of one source splits them into a source of their own. Then update your calls to the blog helpers:
+If your `isBlog` picked posts from one source, move them to a separate source. Then update your calls to the blog helpers:
 
 ```tsx
 // [!code --:3]
@@ -585,16 +585,16 @@ In a custom layout, place `props.footer.feedback`.
 </Accordion>
 <Accordion title="AI">
 
-The chat docks in the default Docs Layout. In a custom layout, follow [Use a Custom Layout](/docs/plugins/ai#use-a-custom-layout).
+The chat docks in the default Docs Layout. For a custom layout, see [Custom Layout](/docs/plugins/ai#custom-layout).
 
 `AIChatLayout` is removed, and `AIChat` takes the endpoint as its `api` prop.
 
 </Accordion>
 </Accordions>
 
-## Update Your Own Plugins
+## Custom Plugins
 
-Start with the type and the hooks that create routes. This plugin has a page, a generated file and a request header:
+Start with the type and the hooks that create routes. This plugin has a page, a generated file and a response header:
 
 ```tsx tab="1.x" title="acme/index.tsx"
 import type { AppShape, PressPlugin } from "fumapress";
@@ -657,7 +657,7 @@ export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, StatusT
 }
 ```
 
-Then rename what is left:
+Then rename these APIs:
 
 | 1.x                        | 2.0                         |
 | -------------------------- | --------------------------- |
@@ -670,14 +670,14 @@ Then rename what is left:
 | `core:get-modified-date`   | `getPageLastModified`       |
 | `unstable_onServerEntry`   | `waku.unstable_serverEntry` |
 
-`enforce` is gone, since plugins run in list order. Two more have a new shape: `preinit` becomes [`provides`](/docs/plugins/authoring#capabilities), and `this.mode` becomes [`this.getContentRender()`](/docs/plugins/authoring/routes#render-like-your-content).
+`enforce` is removed, since plugins run in list order. `preinit` becomes [`provides`](/docs/plugins/authoring#capabilities), and `this.mode` becomes [`this.getContentRender()`](/docs/plugins/authoring/routes#content-render-mode).
 
 These need more than a rename:
 
 <Accordions multiple>
 <Accordion title="Waku pages and Hono">
 
-A plugin needing Waku's own APIs moves them under `waku`, typed as `WakuPlugin`. See [Use Waku's APIs](/docs/plugins/authoring/server#use-wakus-apis).
+A plugin that needs Waku's own APIs moves them under `waku`, and uses the `WakuPlugin` type. See [Waku APIs](/docs/plugins/authoring/server#waku-apis).
 
 ```tsx title="acme/index.tsx"
 // [!code --]
@@ -701,7 +701,7 @@ export function acmePlugin<C extends WakuAppShape = WakuAppShape>(): WakuPlugin<
 </Accordion>
 <Accordion title="Rendering pages">
 
-The `renderPage` hook becomes `getPageView`. It returns `{ props, node }` for the pages of a source your plugin owns. See [Render Content Pages](/docs/plugins/authoring/ui#render-content-pages).
+The `renderPage` hook becomes `getPageView`. It returns `{ props, node }` for the pages of a source your plugin owns. See [Rendering Content Pages](/docs/plugins/authoring/ui#rendering-content-pages).
 
 ```tsx title="acme/index.tsx"
 // [!code --:4]
@@ -735,7 +735,7 @@ head({ route }) {
 </Accordion>
 <Accordion title="UI from this.data">
 
-`this.data` and its transformers and interceptors are removed. Add UI with [`slots()`](/docs/plugins/authoring/ui#add-a-button), and change page data with [`transformPage()`](/docs/plugins/authoring/ui#change-the-page-data). Plugin translations move to the `translations` field.
+`this.data` and its transformers and interceptors are removed. Add UI with [`slots()`](/docs/plugins/authoring/ui#slots), and change page data with [`transformPage()`](/docs/plugins/authoring/ui#page-data). Plugin translations move to the `translations` field.
 
 ```tsx title="acme/index.tsx"
 {

@@ -3,9 +3,9 @@ title: Manual Installation
 description: Add Fumapress to a project yourself.
 ---
 
-Set up by hand what `npm create fumapress` generates.
+This guide creates by hand the files that `npm create fumapress` generates.
 
-## Set Up the Project
+## Setup
 
 ### Install Dependencies [step]
 
@@ -91,7 +91,7 @@ export default createPress(docs.toFumadocsSource()).config({
 }
 ```
 
-`paths` is for the [Fumadocs CLI](/docs/layouts#customize-fumadocs-ui). It imports through the alias, and can't detect the framework from your dependencies.
+The [Fumadocs CLI](/docs/layouts#customizing-fumadocs-ui) uses the `paths` alias in the files it copies.
 
 ### Update package.json [step]
 
@@ -128,6 +128,6 @@ This is my first document.
 npm run dev
 ```
 
-## Use Radix UI
+## Radix UI
 
 <include cwd>content/shared/manual-installation.mdx</include>

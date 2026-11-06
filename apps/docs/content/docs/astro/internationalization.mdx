@@ -1,15 +1,15 @@
 ---
 title: Internationalization
-description: Publish your site in several languages.
+description: Publish your site in multiple languages.
 ---
 
 <include cwd>content/shared/internationalization.mdx#intro</include>
 
-## Add Languages
+## Setup
 
 ### List the Languages [step]
 
-Define them in a file of their own, since custom pages read them too, and pass them to `createPress()`:
+Define them in a separate file, since custom pages read them too, and pass them to `createPress()`:
 
 ```ts tab="src/lib/i18n.ts"
 import { defineI18n } from "fumadocs-core/i18n";
@@ -46,7 +46,7 @@ export default app.config({
 
 <include cwd>content/shared/internationalization.mdx#ui</include>
 
-## Choose the URLs
+## Language Prefixes
 
 <include cwd>content/shared/internationalization.mdx#urls</include>
 

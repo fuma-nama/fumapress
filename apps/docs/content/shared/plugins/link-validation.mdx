@@ -10,9 +10,9 @@ In "/docs/getting-started": link "/docs/missing-page" not-found
 
 <section id="rest">
 
-## Choose What It Checks
+## Ignored and External Links
 
-Full URLs are skipped by default. Use these to skip more, or to check them too:
+Full URLs are skipped by default. Use these options to skip more links, or to check full URLs too:
 
 ```tsx tab="Skip links" title="press.config.tsx"
 linkValidationPlugin({
@@ -32,7 +32,7 @@ linkValidationPlugin({
 });
 ```
 
-## Report to CI
+## CI Reports
 
 To annotate a pull request instead of parsing an error message, write the results to a file. `"json"` keeps the build passing, and `"both"` also fails it.
 

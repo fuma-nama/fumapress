@@ -7,7 +7,7 @@ description: The default content source.
 
 ## Setup
 
-A new site has it already. To add it yourself:
+New sites already include it. To add it yourself:
 
 ### Install [step]
 
@@ -52,8 +52,8 @@ export default createPress(docs.toFumadocsSource());
 ```
 
 <Callout type="warn" title="Keep processed Markdown">
-  Turn on `includeProcessedMarkdown`. The [llms.txt plugin](/docs/plugins/ai#llmstxt), on by
-  default, reads the text of pages from its output.
+  Turn on `includeProcessedMarkdown`. The [llms.txt plugin](/docs/plugins/ai#llmstxt) is on by
+  default, and reads the text of pages from the processed Markdown.
 </Callout>
 
 ## Frontmatter
@@ -77,9 +77,9 @@ const docs = defineDocs({
 });
 ```
 
-Your fields are typed on `page.data` in [`ui.renderPage`](/docs/layouts#render-pages).
+Your fields are typed on `page.data` in [`ui.renderPage`](/docs/layouts#rendering-pages).
 
-## Several Sources
+## Multiple Sources
 
 Pass an object to host docs, a blog and other content on one site. `baseDir` puts each source under a URL prefix:
 

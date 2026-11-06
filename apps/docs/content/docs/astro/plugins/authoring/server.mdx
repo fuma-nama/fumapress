@@ -1,18 +1,18 @@
 ---
 title: Middleware and Lifecycle
-description: Handle requests and run code at other points of a plugin's life.
+description: Handle requests, and run code at startup and after the build.
 ---
 
 <include cwd>content/shared/plugins/authoring/server.mdx#middleware</include>
 
 <Callout type="warn">
-  `next(path)` reaches pages from dynamic sources, plugin views and API routes. Prerendered files
-  and your `.astro` pages aren't available to it, so it responds with an empty 404.
+  `next(path)` can render pages from dynamic sources, plugin views and API routes. For prerendered
+  files and your `.astro` pages, it responds with an empty 404.
 </Callout>
 
 <include cwd>content/shared/plugins/authoring/server.mdx#lifecycle</include>
 
 <Callout type="warn">
-  The `build` hook only sees the pages Astro prerenders in the build process. See [Run Plugins After
-  the Build](/docs/astro/deployment#run-plugins-after-the-build).
+  The `build` hook only sees the pages Astro prerenders in the build process. See [Post-Build
+  Plugins](/docs/astro/deployment#post-build-plugins).
 </Callout>

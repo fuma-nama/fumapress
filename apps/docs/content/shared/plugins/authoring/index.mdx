@@ -19,9 +19,9 @@ createPress(content).plugins({
 
 <section id="reusable">
 
-### Export a Function
+### Reusable Plugins
 
-To use a plugin on more than one site, export a function that returns it. The type parameter `C` gives the hooks the types of the site that uses it. This plugin adds a page, an API route and a response header:
+To use a plugin on more than one site, export a function that returns it. The type parameter `C` gives the hooks the types of the site that uses the plugin. This plugin adds a page, an API route and a response header:
 
 ```tsx tab="acme/index.tsx"
 type Types = {
@@ -71,9 +71,9 @@ export default createPress(content)
 
 <section id="types">
 
-### Declare Types
+### Plugin Types
 
-The second type parameter of `Plugin` lists what your plugin adds, so that `ui.renderPage` and other plugins see it. Use only the keys you need:
+The second type parameter of `Plugin` lists what your plugin adds, so that `ui.renderPage` and other plugins have its types. Use only the keys you need:
 
 ```ts title="acme/index.tsx"
 type AcmeTypes = {
@@ -94,7 +94,7 @@ type AcmeTypes = {
 
 <section id="package">
 
-### Publish a Package
+### Publishing a Package
 
 To support every framework Fumapress runs on, build on the plugin API of Fumadocs, and make the plugin the default export of a `/press` entry. That API has the content hooks and `createApi()`, with no UI hooks.
 
@@ -119,11 +119,9 @@ export default function acmePlugin(): Plugin {
 
 ## Capabilities
 
-Some features can only exist once on a site, like search. A plugin claims one with `provides`. It takes the place of a default plugin that provides the same one, and two plugins you list that provide it are an error.
+Some features, like search, can only exist once on a site. A plugin declares one with `provides`. It replaces a default plugin that provides the same capability, and adding two plugins that provide it is an error.
 
-### Share an API
-
-`api` is what the plugin offers to others. They read it with `this.getCapability(name)`, which is `undefined` when no plugin provides it.
+`api` is what the plugin exposes to other plugins. They read it with `this.getCapability(name)`, which is `undefined` when no plugin provides it.
 
 ```tsx tab="acme/status.tsx"
 type Types = { provides: "acme:status" };
@@ -149,9 +147,9 @@ createApi({
   from your package, like `getBlogPosts()` of `@fumapress/blog`.
 </Callout>
 
-### Add a Search Engine
+### Custom Search Engine
 
-A search engine is a plugin that provides `search`, so it replaces FlexSearch. It returns its dialog from `providerProps`, and adds its own routes. See [Customize the Dialog](../../search.mdx#customize-the-dialog) for the parts.
+A search engine is a plugin that provides `search`, so it replaces FlexSearch. The plugin returns its dialog from `providerProps`, and adds its own routes. See [Custom Search Dialog](../../search.mdx#custom-search-dialog) for the parts.
 
 ```tsx tab="acme/index.ts"
 import { AcmeSearchDialog } from "./client";

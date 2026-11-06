@@ -6,19 +6,23 @@ Search works without setup, with FlexSearch. The build exports an index of your 
 
 <section id="index">
 
-## Search on the Server
+## Customization
 
-On a large site, the index is a big download for every reader. To keep it on the server, set `render`. The site then [needs a server](./deployment.mdx#what-needs-a-server).
+These options work with both FlexSearch and Orama.
+
+### Server-Side Search
+
+On a large site, the index is a big download for every reader. To keep the index on the server, set the `render` option of the search plugin. The site then [needs a server](./deployment.mdx#what-needs-a-server).
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins(flexsearchPlugin({ render: "dynamic" }));
 ```
 
-## Change the Index
+### Search Index
 
-The index holds the headings and text of each page, from your content source. Pages without them are searched by title.
+The index contains the headings and text of each page, from your content source. Pages without headings and text are searched by title.
 
-`buildIndex` changes the fields, on either plugin. The result must include `structuredData`, the headings and text. This example adds a `tag` to each page, so that a [dialog](#customize-the-dialog) can filter by it:
+Both plugins take `buildIndex` to change the fields. The result must include `structuredData`, the headings and text. This example adds a `tag` to each page, so that a [dialog](#custom-search-dialog) can filter by it:
 
 ```tsx title="press.config.tsx"
 flexsearchPlugin({
@@ -37,11 +41,11 @@ flexsearchPlugin({
 });
 ```
 
-Results show the same breadcrumb as the page. Return `breadcrumbs` to change it.
+Search results show the same breadcrumb as the page. To change it, return `breadcrumbs` from `buildIndex`.
 
-## Customize the Dialog
+### Custom Search Dialog
 
-Compose a dialog from the parts of Fumadocs UI and a [search hook](https://fumadocs.dev/docs/headless/search), then pass it through `ui.providerProps`. It receives the options of the search plugin as props.
+Compose a dialog from the parts of Fumadocs UI and a [search hook](https://fumadocs.dev/docs/headless/search), then pass it through `ui.providerProps`. The dialog receives the options of the search plugin as props.
 
 ```tsx tab="src/search.tsx"
 "use client";

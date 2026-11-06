@@ -44,6 +44,8 @@ createPress(content).config({
 
 <include cwd>content/shared/configuration.mdx#head</include>
 
+<include cwd>content/shared/configuration.mdx#ui-intro</include>
+
 <include cwd>content/shared/configuration.mdx#navbar</include>
 
 ### Logo
@@ -82,8 +84,6 @@ export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lan
 };
 ```
 
-## Theme
-
 ### Colors
 
 <include cwd>content/shared/configuration.mdx#theme-colors</include>
@@ -100,11 +100,9 @@ export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lan
 
 <include cwd>content/shared/configuration.mdx#theme-rest</include>
 
-<include cwd>content/shared/configuration.mdx#ui</include>
-
 ### Root Document
 
-`ui.renderRoot` replaces the `<html>` document, for a class on `<html>` or `<body>`:
+`ui.renderRoot` replaces the `<html>` document, for example to add a class to `<html>` or `<body>`:
 
 ```tsx title="press.config.tsx"
 createPress(content).config({
@@ -121,7 +119,13 @@ createPress(content).config({
 });
 ```
 
-## Vite Plugin
+<include cwd>content/shared/configuration.mdx#ui-options</include>
+
+## Build and Dev Server
+
+`press.config.tsx` doesn't configure the build or the dev server. Use these instead.
+
+### Vite Plugin
 
 `press()` takes these options:
 
@@ -140,7 +144,7 @@ export default defineConfig({
 
 <auto-type-table type="import('fumapress/vite').WakuPressOptions" />
 
-## CLI
+### CLI
 
 Run the site through `fumapress` instead of `vite`.
 
@@ -154,15 +158,15 @@ Run the site through `fumapress` instead of `vite`.
 }
 ```
 
-`dev` listens on port 3000, and `start` picks a free port from 8080. To choose, set `PORT` and `HOST` or pass a flag:
+`dev` listens on port 3000, and `start` uses the first free port from 8080. To choose, set `PORT` and `HOST` or pass a flag:
 
 ```npm
 npm run dev -- --port 4000 --host 0.0.0.0
 ```
 
-## Environment Variables
+### Environment Variables
 
-The CLI loads `.env`, `.env.local` and mode variants like `.env.production`. Variables already set in the environment win.
+The CLI loads `.env`, `.env.local` and mode variants like `.env.production`. Variables already set in the environment take priority.
 
 - **Server code and `press.config.tsx`**: any variable, through `process.env`.
 - **Client code**: only variables prefixed with `VITE_`, through `import.meta.env`.
@@ -171,11 +175,11 @@ Files that only the server can read, like key files, go in the `private` directo
 
 ## Server Entry
 
-Most sites don't need one. Create it to pass [Waku adapter options](/docs/deployment#deploy-without-a-function) or to define routes in code.
+Most sites don't need one. Create it to pass [Waku adapter options](/docs/deployment#deploying-without-a-function) or to define routes in code.
 
 ### Install Waku [step]
 
-Install the version Fumapress pins:
+Install the version that Fumapress uses:
 
 ```npm
 npm i waku@1.0.0-rc.1
@@ -203,9 +207,9 @@ const adapter = router.patchAdapter(_adapter);
 export default adapter(pages, { middlewareFns });
 ```
 
-### Define Routes in Code
+### Config-Based Routing
 
-To use [config-based routing](https://waku.gg/#routing) instead of `src/pages`, pass a callback to `createPages()`. Don't create a root element, since Fumapress has one.
+To use [config-based routing](https://waku.gg/#routing) instead of `src/pages`, pass a callback to `createPages()`. Don't create a root element, since Fumapress already creates one.
 
 ```tsx title="src/waku.server.tsx"
 // [!code --]

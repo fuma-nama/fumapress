@@ -5,7 +5,7 @@ description: Add routes, UI and other features with your own plugin.
 
 <include cwd>content/shared/plugins/authoring/index.mdx#intro</include>
 
-## Choose a Hook
+## Hooks
 
 <Cards>
   <Card href="/docs/plugins/authoring/routes" title="Routes">
@@ -22,7 +22,7 @@ description: Add routes, UI and other features with your own plugin.
   </Card>
 </Cards>
 
-## Share a Plugin
+## Sharing Plugins
 
 In these samples, `AppShape` and `Plugin` come from `fumapress`.
 
@@ -34,9 +34,9 @@ In these samples, `AppShape` and `Plugin` come from `fumapress`.
 
 <include cwd>content/shared/plugins/authoring/index.mdx#capabilities</include>
 
-### Replace a Default Plugin
+### Replacing a Default Plugin
 
-A plugin that provides what a [default plugin](/docs/plugins#default-plugins) provides takes its place. This image optimizer provides `image`, and its provider wraps every layout:
+A plugin replaces a [default plugin](/docs/plugins#default-plugins) when both have the same `provides` value. This image optimizer provides `image`, and its provider wraps every layout:
 
 ```tsx tab="press.config.tsx"
 import { createPress, type WakuAppShape, type WakuPlugin } from "fumapress";

@@ -21,7 +21,7 @@ description: Publish your Tegami release notes on a filterable page.
 
 ### Add the Collection [step]
 
-Add a [collection](/docs/astro/content-sources/collections#add-a-collection) for them, with the changelog schema, and pass its key to the site plugin:
+Add a [collection](/docs/astro/content-sources/collections#multiple-collections) for the notes, with the changelog schema, and pass its key to the site plugin:
 
 ```js tab="astro.config.mjs"
 press({
@@ -71,7 +71,7 @@ export default createPress({
 
 <include cwd>content/shared/plugins/changelog.mdx#notes</include>
 
-## Customize
+## Customization
 
 <include cwd>content/shared/plugins/changelog.mdx#rest</include>
 

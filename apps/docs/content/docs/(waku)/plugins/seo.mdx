@@ -37,7 +37,7 @@ createPress(content).plugins(
 
 ### Custom Pages
 
-A custom page gets an image from `ogImage` in `getConfig()`, in the default design unless you pass `node`. For a page with params, use a function:
+To give a custom page an image, set `ogImage` in `getConfig()`. It uses the default design unless you pass `node`. For a page with params, use a function:
 
 ```tsx tab="src/pages/pricing.tsx"
 import type { WakuRouteConfig } from "fumapress";
@@ -64,7 +64,7 @@ export function getConfig() {
 
 ### WebAssembly Build
 
-When the machine building your site can't load the native addon of Takumi, pass the WebAssembly build. A Cloudflare Worker uses it for you.
+When the machine building your site can't load the native addon of Takumi, pass the WebAssembly build. On Cloudflare Workers, it is used automatically.
 
 ```tsx title="press.config.tsx"
 import { takumiPlugin } from "fumapress/plugins/takumi";

@@ -3,7 +3,7 @@ title: Deployment
 description: Build your site and put it online.
 ---
 
-`fumapress build` writes the site to `dist/`. Choose a platform for anything that renders on demand, or a static host when nothing does.
+`fumapress build` writes the site to `dist/`. Deploy to a platform if anything renders on demand, or to a static host if nothing does.
 
 <include cwd>content/shared/deployment.mdx#routes</include>
 
@@ -11,11 +11,11 @@ description: Build your site and put it online.
 
 <include cwd>content/shared/deployment.mdx#server</include>
 
-[Self-hosted image optimization](/docs/content#image-optimization) needs one too.
+[Self-hosted image optimization](/docs/content#image-optimization) also needs a server.
 
 ## Platforms
 
-The adapter for your platform is detected at build time. Everything other than Vercel, Netlify and Cloudflare gets the Node.js adapter.
+The adapter for Vercel, Netlify or Cloudflare is detected at build time. Other platforms get the Node.js adapter.
 
 ### Node.js
 
@@ -45,7 +45,7 @@ Import the repository. The build generates a `netlify.toml`, unless your project
 
 ### Cloudflare
 
-[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected for you. To deploy from elsewhere, [set the adapter](#build-for-another-platform), build, then run:
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected for you. To deploy from elsewhere, [set the adapter](#building-for-another-platform), build, then run:
 
 ```bash
 npx wrangler deploy
@@ -60,9 +60,9 @@ The build generates a `wrangler.jsonc`, unless your project has a Wrangler confi
   Free plan.
 </Callout>
 
-### Build for Another Platform
+### Building for Another Platform
 
-To build for a platform from elsewhere, like your own CI, set `adapter`:
+To build for a platform outside of its own build system, like in your own CI, set `adapter`:
 
 ```ts title="vite.config.ts"
 press({
@@ -70,21 +70,7 @@ press({
 });
 ```
 
-## Static Hosts
-
-For GitHub Pages, a CDN or any file host, the site must have [nothing that needs a server](#what-needs-a-server).
-
-### Turn Off Image Optimization [step]
-
-If you installed `sharp`, [turn it off](/docs/content#turn-off-optimization).
-
-### Upload the Build [step]
-
-Build, then upload `dist/public`.
-
-The build emits a `404.html`, which most hosts pick up. With [internationalization](/docs/internationalization), it is in the default language.
-
-## Deploy Without a Function
+### Deploying Without a Function
 
 A platform adapter packages a function, like a Vercel Function, even when no route needs it. To leave it out, add a [server entry](/docs/configuration#server-entry) and pass the `static` option of Waku:
 
@@ -95,7 +81,21 @@ export default adapter(pages, { static: true, middlewareFns });
 
 With your own Wrangler config on Cloudflare, set `assets.directory` to `./dist/public`.
 
-## Deploy Under a Sub-path
+## Static Hosts
+
+For GitHub Pages, a CDN or any file host, the site must have [nothing that needs a server](#what-needs-a-server).
+
+### Turn Off Image Optimization [step]
+
+If you installed `sharp`, [turn off image optimization](/docs/content#disabling-optimization).
+
+### Upload the Build [step]
+
+Build, then upload `dist/public`.
+
+The build generates a `404.html`, which most hosts use automatically. With [internationalization](/docs/internationalization), it is in the default language.
+
+## Base Path
 
 For a URL like `https://user.github.io/repo/`, set `basePath` and include the path in `site.baseUrl`. On Cloudflare, this needs Wrangler 4.148 or later.
 
@@ -113,7 +113,7 @@ createPress(content).config({
 });
 ```
 
-## Fix Build Errors
+## Build Errors
 
 <Accordions>
 <Accordion title="fumapress must run through its own CLI">

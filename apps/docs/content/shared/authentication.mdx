@@ -1,12 +1,12 @@
 <section id="why">
 
-Fumapress has no built-in login. You check the session in plugin middleware, which only runs for routes rendered on demand. Prerendered pages and files in `public/` never reach it.
+Fumapress has no built-in login. You check the session in plugin middleware, which only runs for routes rendered on demand. It doesn't run for prerendered pages and files in `public/`.
 
 </section>
 
 <section id="check">
 
-`getSession()` stands for your own session check. List this plugin first, so that it wraps the others.
+`getSession()` stands for your own session check. Add this plugin first, so that its middleware wraps the others.
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
@@ -20,13 +20,13 @@ createPress(content).plugins({
 });
 ```
 
-Now every page, and every file made from your content, like `/llms.txt`, requires a session.
+Now every page, and every file generated from your content, like `/llms.txt`, requires a session.
 
 </section>
 
 <section id="rest">
 
-Do the first step above, then check that the URL starts with the prefix. This covers client navigations and `<page>.md` too.
+Follow the first step of [Protecting the Whole Site](#protecting-the-whole-site), then check in your middleware that the URL starts with the prefix. This check also covers client navigations and `<page>.md`.
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
@@ -46,15 +46,15 @@ createPress(content).plugins({
 
 With [internationalization](./internationalization.mdx), the language prefix comes first, like `/zh/internal`.
 
-Other spellings of a path, like `//internal` and `/%69nternal`, redirect to the normal one first, so your check only sees `/internal`.
+URLs like `//internal` and `/%69nternal` redirect to `/internal` first, so your check only sees `/internal`.
 
 </section>
 
 <section id="generated">
 
-### Cover Generated Routes
+### Generated Routes
 
-Plugins serve your pages at other paths, outside the prefix. Check these paths in the same middleware, filter the section out with options of the plugin, or remove the plugin.
+Plugins also serve your content at paths outside the prefix. For each route below, check its path in the same middleware, exclude the section with the options of the plugin, or remove the plugin.
 
 | Route                         | Plugin                                                           |
 | ----------------------------- | ---------------------------------------------------------------- |
@@ -65,7 +65,7 @@ Plugins serve your pages at other paths, outside the prefix. Check these paths i
 | `/rss.xml`                    | [RSS](./plugins/seo.mdx#rss)                                     |
 | `/api/ai`, `/mcp`             | [AI chat](./plugins/ai.mdx#ai-chat), [MCP](./plugins/ai.mdx#mcp) |
 
-## Hide Pages from the Sidebar
+### Hiding Pages from the Sidebar
 
 Middleware blocks a page, but its link stays in the sidebar. Remove the folder from the page tree, the data behind the sidebar:
 

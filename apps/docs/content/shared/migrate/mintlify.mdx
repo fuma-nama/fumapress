@@ -14,21 +14,21 @@ npm i @fumapress/mintlify
 
 <section id="move">
 
-Keep `docs.json` at your project root, and move your MDX pages to `content/docs`. Paths in `docs.json` resolve against that folder, and a `docs/` or `content/docs/` prefix in navigation entries is ignored.
+Keep `docs.json` at your project root, and move your MDX pages to `content/docs`. Paths in `docs.json` are resolved against that folder, and a `docs/` or `content/docs/` prefix in navigation entries is ignored.
 
 </section>
 
 <section id="after">
 
-Your [`ui.baseOptions`](../configuration.mdx#navbar-and-links) and `ui.providerProps` win over `docs.json`.
+Your [`ui.baseOptions`](../configuration.mdx#navbar-and-links) and `ui.providerProps` take priority over `docs.json`.
 
 </section>
 
 <section id="rest">
 
-### Take Manual Control
+### Feature Toggles
 
-Everything is on by default. Turn off a feature to configure it yourself, like search here:
+Everything is on by default. Turn off a feature to configure it yourself. This example turns off search:
 
 ```tsx title="press.config.tsx"
 mintlifyPlugin({
@@ -51,9 +51,9 @@ mintlifyPlugin({
 });
 ```
 
-### Style the 404 Page
+### 404 Page
 
-`errors.404` gives a `mintlify.404` page type. Restyle it in `renderPage`:
+`errors.404` creates a page with the type `mintlify.404`. Restyle it in `renderPage`:
 
 ```tsx title="press.config.tsx"
 createPress(content)
@@ -68,7 +68,7 @@ createPress(content)
   });
 ```
 
-### Add Languages
+### Languages
 
 When `docs.json` defines `navigation.languages`, create the i18n config from it:
 
@@ -88,7 +88,7 @@ export default createPress(content, { i18n })
   });
 ```
 
-### Generate API Pages
+### API Pages
 
 Forward `api.openapi` sources (file paths or URLs) to the [OpenAPI plugin](../plugins/api-docs.mdx#openapi):
 
@@ -107,11 +107,11 @@ export default createPress({
 
 `api.asyncapi` works the same way, with `createMintlifyAsyncAPI` from `@fumapress/mintlify/asyncapi` and the [AsyncAPI plugin](../plugins/api-docs.mdx#asyncapi).
 
-`api.playground.proxy` turns the [proxy](../plugins/api-docs.mdx#add-a-proxy) on or off. It is on by default, so the site [needs a server](../deployment.mdx#what-needs-a-server). Set it to `false` on a static site.
+`api.playground.proxy` turns the [proxy](../plugins/api-docs.mdx#proxy) on or off. It is on by default, so the site [needs a server](../deployment.mdx#what-needs-a-server). Set it to `false` on a static site.
 
-## What `docs.json` Covers
+## `docs.json` Support
 
-Unsupported properties are accepted and ignored, so migration never stops on them. `docs.json` can reference other JSON files with `$ref`, as long as they stay inside your project root.
+Unsupported properties are accepted and ignored, so they never stop the migration. `docs.json` can reference other JSON files with `$ref`, as long as they stay inside your project root.
 
 <Accordions>
 <Accordion title="Supported">
@@ -141,7 +141,7 @@ Unsupported properties are accepted and ignored, so migration never stops on the
 <Accordion title="Partly Supported">
 
 - `icons.library`: All icons render with [Lucide](https://lucide.dev). Lucide names map 1:1. Font Awesome and Tabler names are matched on a best-effort basis. Unknown names are skipped with a warning.
-- `colors.dark`: No separate button or hover color. `primary` and `light` drive the theme.
+- `colors.dark`: No separate button or hover color. `primary` and `light` set the theme colors.
 - `integrations`: Script-based analytics go into `<head>`: `amplitude`, `clarity`, `fathom`, `ga4`, `gtm`, `heap`, `hotjar`, `intercom`, `koala`, `logrocket`, `mixpanel`, `pirsch`, `plausible`, `posthog`, `segment`. Others aren't supported.
 - `contextual`: Pages show actions to copy Markdown and open AI tools. The `options` list and `display` position can't be configured.
 - `footer.socials`: Icons for all platforms Mintlify accepts. `website`, `earth-americas` and `podcast` use generic icons.
@@ -149,7 +149,7 @@ Unsupported properties are accepted and ignored, so migration never stops on the
 </Accordion>
 <Accordion title="Not Supported">
 
-- `theme`: Customize with [Theme](../configuration.mdx#theme).
+- `theme`: Customize with [UI options](../configuration.mdx#ui).
 - `background.decoration`: Add your own in `src/app.css`.
 - `styling.eyebrows`: Pages show breadcrumbs by default.
 - `styling.codeblocks`: Configure Shiki themes in your MDX options.

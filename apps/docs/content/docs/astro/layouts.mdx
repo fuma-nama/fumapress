@@ -3,13 +3,13 @@ title: Layouts
 description: Choose a Fumadocs layout and change what each page renders.
 ---
 
-Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another one, return an `.astro` component from `ui.renderPage`.
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, return an `.astro` component from `ui.renderPage`.
 
 <include cwd>content/shared/layouts.mdx#gallery</include>
 
-## Switch the Layout
+### Switching the Layout
 
-This example renders the `docs` source with the Notebook Layout. Other pages keep the default UI. It takes three files because Fumadocs layouts are React and pages are Astro. See [Islands](#islands).
+This example renders the `docs` source with the Notebook Layout. All other pages use the default UI. It needs three files because Fumadocs layouts are React components and pages are Astro. See [Islands](#islands).
 
 ```tsx tab="src/components/docs-island.tsx"
 import { createIsland } from "@fumapress/astro/client";
@@ -72,7 +72,7 @@ To keep the Markdown buttons of the default layout, also render `MarkdownCopyBut
 
 <include cwd>content/shared/layouts.mdx#swap</include>
 
-## Render Pages
+## Rendering Pages
 
 Every page goes through `ui.renderPage`. To give a page your own layout, return an `.astro` component from it.
 
@@ -101,7 +101,7 @@ export default app.config({
 
 ### Layout per Source
 
-Give each source a case, with its own `.astro` file. Read typed frontmatter there, and pass what the island needs.
+Add a case for each source, with its own `.astro` file. In that file, read the typed frontmatter and pass the values your island needs.
 
 ```tsx tab="press.config.tsx"
 renderPage(props) {
@@ -132,7 +132,7 @@ const { island, page } = Astro.props;
 </GuideIsland>
 ```
 
-A condition on `props.page.path` works too, like a layout for pages under `reference/`.
+You can also check `props.page.path`, for example to use another layout for pages under `reference/`.
 
 ### Sidebar
 
@@ -169,7 +169,7 @@ export const DocsIsland = createIsland(
 
 ## Islands
 
-Fumadocs layouts are React, so an Astro layout has two files. Fumapress still renders `<html>` and head tags, and runs page transitions.
+Fumadocs layouts are React components, so an Astro layout has two files. Fumapress still renders `<html>` and head tags, and runs page transitions.
 
 <Nesting>
   <Layer
@@ -178,11 +178,11 @@ Fumadocs layouts are React, so an Astro layout has two files. Fumapress still re
   >
     <Layer
       title="DocsIsland, from createIsland()"
-      note="Renders the Fumadocs layout, in the browser too. Sidebar, actions and footer live here."
+      note="Renders the Fumadocs layout, in the browser too. The sidebar, actions and footer are rendered here."
     >
       <Layer
         title="Page content"
-        note="An island of its own. Providers from the layout don't reach it."
+        note="A separate island. It can't read providers from the layout."
       />
     </Layer>
   </Layer>
@@ -250,14 +250,14 @@ export const DocsIsland = createIsland(
 
 ### The Island
 
-`IslandProps` types what comes from the site, like `tree`, `baseOptions` and `pageData`. The rest comes from your layout:
+`IslandProps` types the props from the site, like `tree`, `baseOptions` and `pageData`. Other props come from your `.astro` layout:
 
 - Named slots become props, and `children` is the default slot. `.astro` parts in slots are static.
 - Other values must be serializable. Many plugin page props aren't, like the pages in `posts` of `blog.index`.
 
-Context doesn't cross islands, so everything that shares the Fumadocs layout context goes in the one island. To wrap the page content with a provider, give the [MDX components](/docs/astro/content#components) a `wrapper`.
+React context isn't shared between islands, so everything that uses the Fumadocs layout context must be in the same island. To wrap the page content with a provider, give the [MDX components](/docs/astro/content#components) a `wrapper`.
 
-### Return JSX
+### Returning JSX
 
 `renderPage` can also return React directly, like the default UI. Client components and MDX components hydrate, and their props must be serializable. Other components render once on the server, without state or effects.
 
@@ -266,7 +266,7 @@ Context doesn't cross islands, so everything that shares the Fumadocs layout con
   the page throws an error.
 </Callout>
 
-## Customize Fumadocs UI
+## Customizing Fumadocs UI
 
 <include cwd>content/shared/layouts.mdx#cli-intro</include>
 

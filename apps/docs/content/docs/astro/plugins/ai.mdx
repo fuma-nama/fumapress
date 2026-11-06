@@ -9,7 +9,7 @@ description: Give AI tools your docs as Markdown, add a chat, or connect clients
 
 <include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
 
-List the plugin to pass options. It replaces the default one:
+Add the plugin to pass options. It replaces the default one:
 
 ```tsx title="press.config.tsx"
 import { llmsPlugin } from "@fumapress/astro/plugins/llms.txt";
@@ -35,9 +35,9 @@ createPress(content).plugins(llmsPlugin());
 
 <include cwd>content/shared/plugins/ai.mdx#chat</include>
 
-### Use a Custom Layout
+### Custom Layout
 
-The default layout docks the chat for you. With a custom [layout](/docs/astro/layouts#render-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component, and use it in your island:
+The default layout docks the chat for you. With a custom [layout](/docs/astro/layouts#rendering-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component, and use it in your island:
 
 ```tsx tab="src/chat-layout.tsx"
 "use client";

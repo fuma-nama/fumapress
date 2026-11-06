@@ -12,7 +12,7 @@ Use any of these three features:
 
 ## AI Chat
 
-The chat answers from a search of your pages and cites them as links. Its endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+The chat searches your pages to answer questions, and cites them as links. Its endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
 
 ### Install [step]
 
@@ -47,7 +47,7 @@ Add this after the imports in your stylesheet:
 
 Now the Docs Layout docks the chat, and each page has an `ai` action that opens it.
 
-### Limit Requests
+### Rate Limiting
 
 <Callout type="warn">
   The endpoint calls your model provider, and has no limit on body size or message count. Anyone who
@@ -67,7 +67,7 @@ aiPlugin({
 });
 ```
 
-### Change the Prompt
+### System Prompt
 
 ```tsx title="press.config.tsx"
 aiPlugin({
@@ -76,15 +76,13 @@ aiPlugin({
 });
 ```
 
-### Other Options
-
-`pageToIndex` controls which pages the model can search, like on [MCP](#choose-what-it-reads). To keep the endpoint without the chat UI, set `configureUI: false`.
-
 </section>
 
 <section id="chat-options">
 
 ### Chat Options
+
+`pageToIndex` controls which pages the model can search, as in [MCP](#filtering-pages). To keep the endpoint without the chat UI, set `configureUI: false`.
 
 <auto-type-table cwd path="../../packages/ai/src/chat.tsx" name="AIOptions" />
 
@@ -94,7 +92,7 @@ aiPlugin({
 
 ## MCP
 
-An [MCP](https://modelcontextprotocol.io) client, like a code editor, can search your docs through an endpoint on your site. It renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+An [MCP](https://modelcontextprotocol.io) client, like a code editor, can search your docs through an endpoint on your site. The endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
 
 ```tsx title="press.config.tsx"
 import { mcpPlugin } from "@fumapress/ai";
@@ -102,13 +100,13 @@ import { mcpPlugin } from "@fumapress/ai";
 export default createPress(content).plugins(mcpPlugin());
 ```
 
-Then point your client at `/mcp` on your site, like `https://docs.example.com/mcp`, over [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). It gets three tools:
+Then point your client at `/mcp` on your site, like `https://docs.example.com/mcp`, over [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). The client gets three tools:
 
 - `search`, which also takes a `locale` with [internationalization](../internationalization.mdx).
 - `get_page`, which returns the text of a page.
 - `list_pages`, which lists your pages.
 
-### Choose What It Reads
+### Filtering Pages
 
 Return `null` from `pageToIndex` to leave a page out:
 
@@ -128,7 +126,7 @@ mcpPlugin({
 });
 ```
 
-### Add Tools
+### Custom Tools
 
 `tools` receives the `McpServer` of [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server):
 
@@ -171,7 +169,7 @@ A new site already has these files:
 
 <section id="llms">
 
-### Change the Text
+### Page Text
 
 Return the text of a page from `getLLMText`, or `undefined` to leave it out of `/llms-full.txt`:
 
@@ -187,7 +185,7 @@ ${await this.getPageText(page)}`;
 });
 ```
 
-### Serve Markdown at the Normal URL
+### Content Negotiation
 
 An AI agent can ask for Markdown at the URL of a page, without knowing about `<page>.md`:
 
@@ -198,8 +196,9 @@ curl -H "Accept: text/markdown" https://docs.example.com/docs/install
 Turn it off with `autoRedirect: false`.
 
 <Callout>
-  It needs a server, so a static site ignores it. Vercel, Netlify and Cloudflare serve prerendered
-  pages before your server, so there it only applies to pages rendered on demand.
+  This needs a server, so a static site ignores it. On Vercel, Netlify and Cloudflare, it only
+  applies to pages rendered on demand, because these platforms serve prerendered pages before your
+  server.
 </Callout>
 
 </section>

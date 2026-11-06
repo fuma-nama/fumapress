@@ -64,9 +64,9 @@ createPress(content).config({
 
 Your tags replace plugin tags with the same key, like a `meta` tag of the same name.
 
-### Set Tags per Page
+### Tags per Page
 
-Use a function. Tags returned without a `page` apply to the whole site:
+Use a function. When `page` is undefined, the tags you return apply to the whole site:
 
 ```tsx title="press.config.tsx"
 createPress(content).config({
@@ -79,13 +79,21 @@ createPress(content).config({
 });
 ```
 
-`this.withBase()` keeps the path right for a site under a [sub-path](./deployment.mdx#deploy-under-a-sub-path).
+`this.withBase()` adds the base path for a site with a [base path](./deployment.mdx#base-path).
+
+</section>
+
+<section id="ui-intro">
+
+## UI
+
+These options change the look of your site. Most of them are under `ui` in `.config()`.
 
 </section>
 
 <section id="navbar">
 
-## Navbar and Links
+### Navbar and Links
 
 The navbar shows `site.name`, linked to your home page. `ui.baseOptions` adds links and changes the title for every layout:
 
@@ -103,7 +111,7 @@ createPress(content).config({
 });
 ```
 
-See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. Links from plugins come after yours. For other options, your value wins.
+See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. Links from plugins come after yours. For other options, your value takes priority.
 
 </section>
 
@@ -191,12 +199,12 @@ createPress(content).config({
 
 </section>
 
-<section id="ui">
+<section id="ui-options">
 
-## Other UI Options
+### Other UI Options
 
-- `ui.renderPage`: changes what each page renders. See [Render Pages](./layouts.mdx#render-pages).
-- `ui.providerProps`: the [`RootProvider` props](https://fumadocs.dev/docs/ui/layouts/root-provider), like your [search dialog](./search.mdx#customize-the-dialog).
+- `ui.renderPage`: changes what each page renders. See [Rendering Pages](./layouts.mdx#rendering-pages).
+- `ui.providerProps`: the [`RootProvider` props](https://fumadocs.dev/docs/ui/layouts/root-provider), like your [search dialog](./search.mdx#custom-search-dialog).
 - `ui.translations`: the strings of the UI. See [Translate the UI](./internationalization.mdx#translate-the-ui).
 
 </section>

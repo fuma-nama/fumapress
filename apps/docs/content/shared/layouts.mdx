@@ -12,7 +12,7 @@ The Fumadocs CLI copies Fumadocs UI into your project, so that you can change it
 <section id="cli-trap">
 
 <Callout title="Features come from plugins">
-  On a Fumapress site, the CLI only installs UI and refuses the rest. Use plugins for [AI chat and
+  On a Fumapress site, the CLI only installs UI and rejects the rest. Use plugins for [AI chat and
   MCP](./plugins/ai.mdx), [Markdown](./plugins/ai.mdx#llmstxt), [Open Graph
   images](./plugins/seo.mdx#open-graph-images), [search](./search.mdx) and
   [feedback](./plugins/feedback.mdx).
@@ -55,7 +55,7 @@ The Docs Layout with the page in an inset panel, which scrolls on its own on des
 </Tab>
 <Tab value="Home">
 
-A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#use-a-layout). [See its props](https://fumadocs.dev/docs/ui/layouts/home-layout).
+A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#layouts). [See its props](https://fumadocs.dev/docs/ui/layouts/home-layout).
 
 ![Home Layout](/layouts/home.webp)
 
@@ -66,9 +66,7 @@ A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#us
 
 <section id="swap">
 
-### Use Another Layout
-
-Swap the two imports:
+To use another built-in layout, swap the two imports:
 
 ```tsx tab="Docs"
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
@@ -101,27 +99,27 @@ Glass and Spacious also need their styles. Use `spacious.css` for Spacious.
 
 <Callout>
   Glass and Spacious are client components, so their props can't contain functions, other than the
-  slots they support. Their styles go before the theme, so replace a combined stylesheet like
-  `default.css` with the separate [theme imports](./configuration.mdx#colors).
+  slots they support. Their styles must be imported before the theme, so replace a combined
+  stylesheet like `default.css` with the separate [theme imports](./configuration.mdx#colors).
 </Callout>
 
 </section>
 
 <section id="types">
 
-`props.type` tells you what is rendering: a source key like `"docs"`, or the name of a plugin page like `"blog.index"`.
+`props.type` tells you the kind of page: a source key like `"docs"`, or the name of a plugin page like `"blog.index"`.
 
 </section>
 
 <section id="nested">
 
-Nested paths like `"docs/guides"` work too. To hide pages from the sidebar, see [Hide Pages from the Sidebar](./authentication.mdx#hide-pages-from-the-sidebar).
+Nested paths like `"docs/guides"` work too. To hide pages from the sidebar, see [Hiding Pages from the Sidebar](./authentication.mdx#hiding-pages-from-the-sidebar).
 
 </section>
 
 <section id="slots">
 
-Plugins like [AI chat](./plugins/ai.mdx#ai-chat) and [Feedback](./plugins/feedback.mdx) add UI through `actions` and `footer`, keyed by name. Place each one by name, or render them all with `Object.values(footer)`:
+Plugins like [AI chat](./plugins/ai.mdx#ai-chat) and [Feedback](./plugins/feedback.mdx) add UI through `actions` and `footer`, keyed by name. Render each one by its key, or render them all with `Object.values(footer)`:
 
 </section>
 
@@ -129,7 +127,7 @@ Plugins like [AI chat](./plugins/ai.mdx#ai-chat) and [Feedback](./plugins/feedba
 
 ### Plugin Pages
 
-Plugin pages, like the blog index, use the Home Layout by default. To restyle them, add a case with `props.children`, the plugin's content without a layout:
+Plugin pages, like the blog index, use the Home Layout by default. To restyle them, add a case to `renderPage` and render `props.children`, which is the content of the plugin page without a layout:
 
 ```tsx title="press.config.tsx"
 import { HomeLayout } from "fumadocs-ui/layouts/home";
@@ -152,6 +150,6 @@ renderPage(props) {
 },
 ```
 
-To replace the content too, use the plugin's props, like in [the blog](./plugins/blog.mdx#custom-ui).
+To replace the content too, use the props of the plugin, as in [the blog](./plugins/blog.mdx#custom-ui).
 
 </section>

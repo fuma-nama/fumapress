@@ -43,15 +43,15 @@ export default createPress({
   .plugins(blogPlugin({ source: "blog" }));
 ```
 
-## Write Posts
+## Writing Posts
 
 <include cwd>content/shared/plugins/blog.mdx#write</include>
 
-## Customize
+## Customization
 
 <include cwd>content/shared/plugins/blog.mdx#rest</include>
 
-### Allow Remote Images
+### Remote Images
 
 An optimizer rejects hosts you don't allow, including for covers and avatars:
 
@@ -68,7 +68,7 @@ vercelImage({ domains: ["avatars.githubusercontent.com"] });
 ```
 
 <Callout type="warn" title="Watch for redirects">
-  A redirect that leaves the origin is checked again, so allow the final host too. An avatar at
+  A redirect to another origin is checked again, so allow the final host too. An avatar at
   `github.com`, for example, redirects to `avatars.githubusercontent.com`.
 </Callout>
 

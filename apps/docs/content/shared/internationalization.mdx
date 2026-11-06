@@ -16,10 +16,10 @@ Add the language to the file name. This works for pages and `meta.json`:
     └── get-started.zh.mdx
 ```
 
-A language without a file inherits the page from the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language). If only the English file exists, `/zh/get-started` still does, in English.
+A language without a file inherits the page from the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language). If only the English file exists, `/zh/get-started` still exists and shows the English page.
 
 <Callout>
-  Inherited pages get `noindex` and stay out of the sitemap, RSS feed, `llms-full.txt` and Open
+  Inherited pages get `noindex` and are left out of the sitemap, RSS feed, `llms-full.txt` and Open
   Graph images, since search engines shouldn't see them as translations.
 </Callout>
 
@@ -43,7 +43,7 @@ export default app.config({
 });
 ```
 
-It has `zhCN` and `zhTW`. For other languages, or to change single strings, use `.add()`:
+The language pack has `zhCN` and `zhTW`. For other languages, or to change single strings, use `.add()`:
 
 ```tsx title="press.config.tsx"
 i18n
@@ -84,10 +84,10 @@ const i18n = defineI18n({
 With `"never"`, `/` redirects to `/en`. When `/en` has no page, like with content under a `baseDir`, the root and the navbar title link to the first page of `en`.
 
 <Callout type="warn">
-  `hideLocale: "always"` isn't supported, because languages are told apart by their prefix.
+  `hideLocale: "always"` isn't supported, because Fumapress uses the prefix to tell languages apart.
 </Callout>
 
-### Link to a Page
+### Localized Links
 
 `localizePath()` adds the prefix, unless `hideLocale` hides it. Use it in [`ui.baseOptions`](./configuration.mdx#links-per-language), in plugins, and with `getPressContext()` on custom pages.
 
@@ -95,7 +95,7 @@ With `"never"`, `/` redirects to `/en`. When `/en` has no page, like with conten
 this.localizePath("zh", "/setup"); // "/zh/setup"
 ```
 
-### Map Language Codes
+### hreflang Tags
 
 Pages link their translations for search engines, with tags like this one:
 

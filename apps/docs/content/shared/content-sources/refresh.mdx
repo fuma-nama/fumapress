@@ -1,4 +1,4 @@
-Pages read the source once, and new content doesn't appear on its own. Choose when they read it again:
+The source is read once, so new content doesn't appear on its own. Choose when to read it again:
 
 ```tsx tab="On every request" title="press.config.tsx"
 createPress(source, {
@@ -26,4 +26,4 @@ createPress(source).plugins({
 });
 ```
 
-Reading on every request suits low traffic. On a busier site, call the webhook when your content changes.
+Reading on every request works for low traffic. On a busier site, call the webhook when your content changes.

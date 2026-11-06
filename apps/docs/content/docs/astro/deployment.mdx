@@ -3,13 +3,13 @@ title: Deployment
 description: Build your site and put it online.
 ---
 
-`astro build` writes the site to `dist/`. Without an adapter, the whole site is static, so [deploy it](https://docs.astro.build/en/guides/deploy) to any static host. With one, your `output` and `prerender` settings work as they do in Astro.
+`astro build` writes the site to `dist/`. Without an adapter, the whole site is static, so [deploy it](https://docs.astro.build/en/guides/deploy) to any static host. With an adapter, your `output` and `prerender` settings work as they do in Astro.
 
 <include cwd>content/shared/deployment.mdx#routes</include>
 
 ## What Needs a Server
 
-Without an [adapter](#adapters), anything in this list fails the build and says why.
+Without an [adapter](#adapters), the build fails on anything in this list and prints the reason.
 
 <include cwd>content/shared/deployment.mdx#server</include>
 
@@ -34,7 +34,7 @@ export default defineConfig({
 NODE_ENV=production node dist/server/entry.mjs
 ```
 
-### Render Every Page on Demand
+### Rendering Every Page on Demand
 
 With `output: "server"`, pages of static sources render on demand too. Use it when every page must run middleware, like [authentication](/docs/astro/authentication).
 
@@ -46,13 +46,13 @@ export default defineConfig({
 });
 ```
 
-### Run Plugins After the Build
+### Post-Build Plugins
 
-Plugins like [link validation](/docs/astro/plugins/link-validation) read the pages Astro prerenders in the build process. A build that prerenders elsewhere, with `experimental.parallelPrerender` or an adapter prerendering outside of Node.js, fails and says why.
+Plugins like [link validation](/docs/astro/plugins/link-validation) read the pages that Astro prerenders during the build. A build that prerenders elsewhere, with `experimental.parallelPrerender` or an adapter prerendering outside of Node.js, fails and prints the reason.
 
-Files these plugins write go to your Astro `outDir`, which is public on a static host.
+Files written by these plugins go to your Astro `outDir`, which is public on a static host.
 
-## Deploy Under a Sub-path
+## Base Path
 
 For a URL like `https://user.github.io/repo/`, set `site` and `base`:
 
@@ -64,9 +64,9 @@ export default defineConfig({
 });
 ```
 
-`page.url` and other loader paths stay without `base`, so use `withBase()` on [custom pages](/docs/astro/custom-pages#read-content).
+`page.url` and other loader paths don't include `base`, so use `withBase()` on [custom pages](/docs/astro/custom-pages#reading-content).
 
-## Fix Build Errors
+## Build Errors
 
 The build stops with one of these messages:
 

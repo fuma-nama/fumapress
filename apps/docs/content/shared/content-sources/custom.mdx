@@ -1,6 +1,6 @@
 <section id="list">
 
-A source is an object with `files`. `path` decides the URL, and `data` becomes `page.data`. With `files` as a function, it is a dynamic source: pages read it on the server and render on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+A source is an object with `files`. The `path` of a file sets its URL, and its `data` becomes `page.data`. When `files` is a function, the source is dynamic: pages are read on the server and render on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
 
 ```tsx tab="Static" title="press.config.tsx"
 const data = { title: "Home", load: async () => "Hello", plainText: () => "Hello" };
@@ -22,7 +22,7 @@ export default createPress({
 
 <section id="render">
 
-A plugin renders them through content hooks, like `getPageBody`. Return `undefined` for pages it doesn't own.
+A plugin renders the pages through content hooks, like `getPageBody`. Return `undefined` for pages it doesn't handle.
 
 </section>
 
@@ -52,13 +52,13 @@ export default function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
 }
 ```
 
-To make your plugin work on every framework Fumapress runs on, see [Publish a Package](../plugins/authoring/index.mdx#publish-a-package).
+To make your plugin work on every framework Fumapress runs on, see [Publishing a Package](../plugins/authoring/index.mdx#publishing-a-package).
 
 </section>
 
 <section id="hooks">
 
-Only `getPageBody` is required. Add a hook when you want the feature it powers:
+Only `getPageBody` is required. Add other hooks for the features you need:
 
 | Hook                    | Needed for                            |
 | ----------------------- | ------------------------------------- |
@@ -84,7 +84,7 @@ getPageStructuredData(page) {
 
 <section id="refresh">
 
-## Refresh a Dynamic Source
+## Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>
 

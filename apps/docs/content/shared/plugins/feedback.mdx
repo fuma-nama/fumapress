@@ -20,7 +20,7 @@ Add this after the imports in your stylesheet:
 
 ### Choose Where Feedback Goes [step]
 
-Use one of these. They all register the same routes, so a site can't have two.
+Use one of these options. They all register the same routes, so a site can only have one.
 
 <Tabs items={["Your Server", "The Browser", "GitHub Discussions", "Email"]}>
 <Tab value="Your Server">
@@ -71,7 +71,7 @@ feedbackPlugin({ onPageFeedbackAction });
 </Tab>
 <Tab value="GitHub Discussions">
 
-Create a GitHub App, then a `Feedback` category in your GitHub Discussions. See [Managing private keys](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps) for its key.
+Create a GitHub App, then a `Feedback` category in your GitHub Discussions. See [Managing private keys](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps) for the private key of the app.
 
 ```tsx tab="press.config.tsx"
 import { githubFeedbackPlugin } from "@fumapress/feedback/github";
@@ -96,13 +96,13 @@ GITHUB_PRIVATE_KEY=...
 
 <Callout type="warn">
   GitHub has no spam filtering, and anonymous visitors can post through this plugin. Prefer another
-  service if you can, and [limit requests](#limit-requests).
+  service if you can, and [limit requests](#rate-limiting).
 </Callout>
 
 </Tab>
 <Tab value="Email">
 
-Messages go through [Resend](https://resend.com). [Create an API key](https://resend.com/api-keys), and [verify a sending domain](https://resend.com/docs/dashboard/domains/introduction) for the `from` address.
+Messages are sent through [Resend](https://resend.com). [Create an API key](https://resend.com/api-keys), and [verify a sending domain](https://resend.com/docs/dashboard/domains/introduction) for the `from` address.
 
 ```tsx tab="press.config.tsx"
 import { emailFeedbackPlugin } from "@fumapress/feedback/email";
@@ -124,7 +124,7 @@ RESEND_API_KEY=re_...
 </Tab>
 </Tabs>
 
-## Limit Requests
+## Rate Limiting
 
 <Callout type="warn">
   Anyone can post, and the plugins don't limit field lengths or URL schemes. Add rate limiting and

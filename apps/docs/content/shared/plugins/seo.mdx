@@ -12,13 +12,13 @@ A new site has these without any setup:
   files are relative.
 </Callout>
 
-To change one, list its plugin with options. It takes the place of the default one:
+To change one, add its plugin with options. It replaces the default one:
 
 </section>
 
 <section id="sitemap">
 
-It lists your content pages, then your prerendered custom pages and plugin pages. Return `undefined` from `getEntry` to leave a page out:
+The sitemap lists your content pages, then your prerendered custom pages and plugin pages. Return `undefined` from `getEntry` to leave a page out:
 
 ```tsx title="press.config.tsx"
 sitemapPlugin({
@@ -40,7 +40,7 @@ Entries also accept Google's extensions: `images`, `videos` and `news`.
 
 ### Additional Pages
 
-Custom pages with params aren't listed, like `/showcase/[slug]`. Add them yourself:
+Custom pages with params, like `/showcase/[slug]`, aren't listed. Add them yourself:
 
 ```tsx title="press.config.tsx"
 sitemapPlugin({
@@ -50,7 +50,7 @@ sitemapPlugin({
 });
 ```
 
-To serve another sitemap, turn entries into XML with `buildSitemap` from the same module, in an [API route](./authoring/routes.mdx#add-an-api-route). See [More Feeds](#more-feeds).
+To serve another sitemap, turn entries into XML with `buildSitemap`, from the same module as the plugin, in an [API route](./authoring/routes.mdx#api-routes). See [Additional Feeds](#additional-feeds).
 
 ### Sitemap Options
 
@@ -60,7 +60,7 @@ To serve another sitemap, turn entries into XML with `buildSitemap` from the sam
 
 <section id="robots">
 
-It allows all crawlers and links your sitemap. Each rule becomes one section of the file:
+The default file allows all crawlers and links to your sitemap. Each rule becomes one section of the file:
 
 ```tsx title="press.config.tsx"
 robotsPlugin({
@@ -81,7 +81,7 @@ For directives without an option, append raw text with `additionalContent`.
 
 <section id="rss">
 
-The feed has the 20 newest pages. Each page links it, so that feed readers can find it.
+The feed has the 20 newest pages. Each page links to the feed, so that feed readers can find it.
 
 <Callout type="warn" title="Pages need a date">
   A page without a date is left out of the feed. The feed uses the creation date from your content
@@ -107,9 +107,9 @@ rssPlugin({
 
 For entries that aren't pages, add `additionalItems`. Their `link` must be a full URL.
 
-### More Feeds
+### Additional Feeds
 
-`buildRSS`, from the same module as the plugin, turns a channel into XML. Serve it from an [API route](./authoring/routes.mdx#add-an-api-route):
+`buildRSS`, from the same module as the plugin, turns a channel into XML. Serve it from an [API route](./authoring/routes.mdx#api-routes):
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
@@ -149,7 +149,7 @@ createPress(content).plugins({
 
 Each content page gets an image with its title, description and site name, rendered by [Takumi](https://takumi.kane.tw).
 
-### Design the Image
+### Custom Image
 
 Return the image from `getImage` as `node`, a React element. The default size is 1200x630.
 
@@ -180,9 +180,9 @@ takumiPlugin({
 });
 ```
 
-### Load Fonts
+### Fonts
 
-`googleFonts()`, from the same module as the plugin, downloads the font files on every call. Create it outside `getImage()`:
+`googleFonts()`, from the same module as the plugin, downloads the font files on every call. Call it outside `getImage()`:
 
 ```tsx title="press.config.tsx"
 const fonts = googleFonts([{ name: "Geist", weight: [500, 800] }]);

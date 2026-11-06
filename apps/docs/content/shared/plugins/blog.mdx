@@ -41,7 +41,7 @@ Welcome to my first blog post.
 
 Posts are ordered by `date`. Each tag gets a page, and `image` shows on post cards.
 
-### Register Authors
+### Authors
 
 The keys of `authors` are the IDs in the frontmatter. An ID that isn't registered shows as the plain ID.
 
@@ -65,7 +65,7 @@ blogPlugin({
 
 <section id="rest">
 
-### Use Other Sources
+### Other Content Sources
 
 Posts can come from any content source, like Notion. The date comes from the `getPageCreatedAt` hook of its plugin. These options read the other fields when they aren't in the frontmatter:
 
@@ -78,7 +78,7 @@ blogPlugin({
 });
 ```
 
-To use several sources as posts, pass their keys:
+To use multiple sources as posts, pass their keys:
 
 ```tsx title="press.config.tsx"
 blogPlugin({
@@ -87,7 +87,7 @@ blogPlugin({
 });
 ```
 
-### Change the URLs
+### URLs
 
 Set a path to move a page, or `false` to remove it:
 
@@ -103,7 +103,7 @@ blogPlugin({
 
 ### Custom UI
 
-In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`. The other pages are `blog.index`, `blog.tags` and `blog.tag`. This example replaces the index, and keeps the built-in post in another layout:
+In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`. The other pages are `blog.index`, `blog.tags` and `blog.tag`. This example replaces the index, and renders the built-in post in another layout:
 
 ```tsx title="press.config.tsx"
 import { BlogPostView } from "@fumapress/blog";
@@ -142,7 +142,7 @@ renderPage(props) {
 
 <section id="posts-lead">
 
-### Show Posts on Other Pages
+## Listing Posts
 
 `getBlogPosts()` returns all posts, newest first:
 

@@ -9,7 +9,7 @@ description: Give AI tools your docs as Markdown, add a chat, or connect clients
 
 <include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
 
-List the plugin to pass options. It replaces the default one:
+Add the plugin to pass options. It replaces the default one:
 
 ```tsx title="press.config.tsx"
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
@@ -19,7 +19,7 @@ createPress(content).plugins(llmsPlugin());
 
 <Callout type="warn">
   Keep [`includeProcessedMarkdown`](/docs/content-sources/fumadocs-mdx#setup) on your Fumadocs MDX
-  collection. This plugin reads the text of pages from its output.
+  collection. This plugin reads the text of pages from the processed Markdown.
 </Callout>
 
 <include cwd>content/shared/plugins/ai.mdx#llms</include>
@@ -49,11 +49,10 @@ llmsPlugin({ routes: "all" });
 ```
 
 <Callout type="warn">
-  The Markdown renders without your layouts, so an access check in a layout doesn't cover it. Put it
-  in the page, or in middleware that also covers `<page>.md`.
+  The Markdown renders without your layouts, so an access check in a layout doesn't cover it. Put the check in the page, or in middleware that also covers `<page>.md`.
 </Callout>
 
-Only a server component that calls `asMarkdown()` turns into Markdown. Others stay as JSX in the output, like `<Card title="...">...</Card>`. To give a client component a Markdown form, wrap it in a server component:
+Only server components that call `asMarkdown()` are converted to Markdown. Other components stay as JSX in the output, like `<Card title="...">...</Card>`. To give a client component a Markdown version, wrap it in a server component:
 
 ```tsx
 import { asMarkdown, md } from "fumapress/markdown";
@@ -73,9 +72,9 @@ function Callout({ title, children }) {
 
 <include cwd>content/shared/plugins/ai.mdx#chat</include>
 
-### Use a Custom Layout
+### Custom Layout
 
-The default layout docks the chat for you. With a custom [`renderPage`](/docs/layouts#render-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component:
+The default layout docks the chat for you. With a custom [`renderPage`](/docs/layouts#rendering-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component:
 
 ```tsx tab="src/chat-layout.tsx"
 "use client";

@@ -9,7 +9,7 @@ Each Markdown or MDX file under `content/` is a page, and the sidebar lists them
 
 <include cwd>content/shared/content.mdx#urls</include>
 
-To put pages under a prefix like `/docs`, see [Several Sources](/docs/content-sources/fumadocs-mdx#several-sources).
+To put pages under a prefix like `/docs`, see [Multiple Sources](/docs/content-sources/fumadocs-mdx#multiple-sources).
 
 <include cwd>content/shared/content.mdx#frontmatter</include>
 
@@ -19,7 +19,7 @@ To add fields, [extend the schema](/docs/content-sources/fumadocs-mdx#frontmatte
 
 ### Last Modified Date
 
-Show the date of the last commit on each page. The sitemap and RSS feed use it too.
+Show the date of the last commit on each page. The sitemap and RSS feed also use this date.
 
 ```tsx title="press.config.tsx"
 const docs = defineDocs({
@@ -76,7 +76,7 @@ import { Image } from "fumapress/image";
 <Image src="/screenshot.png" width={1200} height={630} alt="A preview of the editor" />;
 ```
 
-Besides the usual `<img>` props, it takes:
+Besides the usual `<img>` props, `Image` takes:
 
 <auto-type-table
   cwd
@@ -86,7 +86,7 @@ Besides the usual `<img>` props, it takes:
 
 ### Image Optimization
 
-Markdown images and `Image` are optimized where your platform supports it. Without `site.baseUrl`, the self-hosted provider leaves images as they are.
+Markdown images and `Image` are optimized when your platform supports image optimization. Without `site.baseUrl`, the self-hosted provider leaves images as they are.
 
 | Platform   | Provider                                                                                              | Needs                                |
 | ---------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------ |
@@ -94,9 +94,9 @@ Markdown images and `Image` are optimized where your platform supports it. Witho
 | Cloudflare | [Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) | transformations enabled on your zone |
 | Node.js    | Self-hosted, with [Sharp](https://sharp.pixelplumbing.com)                                            | `sharp`, a server and `site.baseUrl` |
 
-### Allow Remote Images
+### Remote Images
 
-Local paths are always allowed. For remote images, list the provider with its options, which replaces the default one:
+Local paths are always allowed. For remote images, add the provider with its options. It replaces the default one:
 
 <Tabs items={["Vercel", "Cloudflare", "Self-hosted"]}>
 <Tab value="Vercel">
@@ -118,7 +118,7 @@ createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
 </Tab>
 <Tab value="Cloudflare">
 
-Remote sources are allowed in the Cloudflare dashboard.
+Allow remote sources in the Cloudflare dashboard.
 
 ```tsx title="press.config.tsx"
 import { cloudflareImage } from "fumapress/plugins/image/cloudflare";
@@ -154,9 +154,9 @@ createPress(content).plugins(selfHostedImage({ allowedHosts: ["github.com"] }));
 </Tab>
 </Tabs>
 
-### Turn Off Optimization
+### Disabling Optimization
 
-On a static host with `sharp` installed, turn it off, since the self-hosted provider needs a server:
+On a static host with `sharp` installed, turn off image optimization, since the self-hosted provider needs a server:
 
 ```tsx title="press.config.tsx"
 import { createPress, recommendedPreset } from "fumapress";
@@ -166,4 +166,4 @@ export default createPress(content).config({
 });
 ```
 
-For another optimizer, see [Replace a Default Plugin](/docs/plugins/authoring#replace-a-default-plugin).
+For another optimizer, see [Replacing a Default Plugin](/docs/plugins/authoring#replacing-a-default-plugin).

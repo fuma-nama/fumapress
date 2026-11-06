@@ -5,7 +5,7 @@ description: Move a site from the managed setup of @fumadocs/astro 0.1.
 
 The managed setup of `@fumadocs/astro` 0.1, with `src/fumadocs.config.ts`, is now `@fumapress/astro`. Do the steps in order.
 
-## Move the Site
+## Migration Steps
 
 ### Install the Packages [step]
 
@@ -17,7 +17,7 @@ npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
 
 ### Update the Integration [step]
 
-Your `layout` and `page` modules move out of the integration. If you have them, see [Update Features](#update-features).
+Your `layout` and `page` modules move out of the integration. If you have them, see [Migrating Features](#migrating-features).
 
 ```js title="astro.config.mjs"
 // [!code --]
@@ -43,7 +43,7 @@ export default defineConfig({
 
 ### Move the Config [step]
 
-Replace `src/fumadocs.config.ts` and `src/lib/source.ts` with one file at the project root. The source goes straight to `createPress()`, and `baseUrl` becomes `baseDir`.
+Replace `src/fumadocs.config.ts` and `src/lib/source.ts` with one file at the project root. The source is passed directly to `createPress()`, and `baseUrl` becomes `baseDir`.
 
 ```tsx tab="press.config.tsx"
 import { getCollection } from "astro:content";
@@ -86,7 +86,7 @@ export default defineConfig({
 
 ### Rename the Stylesheet [step]
 
-Move `src/styles/global.css` to `src/app.css`. It replaces the `css` option. `@fumapress/astro/css/default.css` has the Tailwind and Fumadocs imports:
+Move `src/styles/global.css` to `src/app.css`. This file replaces the `css` option. `@fumapress/astro/css/default.css` has the Tailwind and Fumadocs imports:
 
 ```css title="src/app.css"
 /* [!code --:3] */
@@ -105,7 +105,7 @@ npm run dev
 
 If you didn't customize your site, you're done. Otherwise, open the section for each feature you use.
 
-## Update Features
+## Migrating Features
 
 <Accordions multiple>
 <Accordion title="Your layout">
@@ -179,7 +179,7 @@ export default app.config({
 </Accordion>
 <Accordion title="Provider around the layout">
 
-`Provider` of the `layout` module becomes a [`layout.wrapper` slot](/docs/astro/plugins/authoring/ui#choose-a-slot).
+`Provider` of the `layout` module becomes a [`layout.wrapper` slot](/docs/astro/plugins/authoring/ui#available-slots).
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
@@ -193,7 +193,7 @@ createPress(content).plugins({
 </Accordion>
 <Accordion title="Search">
 
-The default search is now FlexSearch. To keep Orama, list its plugin:
+The default search is now FlexSearch. To keep Orama, add its plugin:
 
 ```tsx title="press.config.tsx"
 import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
@@ -201,7 +201,7 @@ import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
 createPress(content).plugins(oramaSearchPlugin());
 ```
 
-`SearchDialog` and `useSearch` of the `layout` module become one dialog in `ui.providerProps`. See [Customize the Dialog](/docs/astro/search#customize-the-dialog).
+`SearchDialog` and `useSearch` of the `layout` module become one dialog in `ui.providerProps`. See [Custom Search Dialog](/docs/astro/search#custom-search-dialog).
 
 ```tsx title="press.config.tsx"
 createPress(content).config({
@@ -264,10 +264,10 @@ import notionPlugin from "@fumadocs/notion/press";
 import { takumiPlugin } from "@fumapress/astro/plugins/takumi";
 ```
 
-- `asyncapi`, `graphql` and `sanity` follow `openapi`.
-- `flexsearch`, `llms.txt`, `orama-search` and `link-validation` follow `takumi`, under `@fumapress/astro/plugins/*`.
+- `asyncapi`, `graphql` and `sanity` change the same way as `openapi`.
+- `flexsearch`, `llms.txt`, `orama-search` and `link-validation` change the same way as `takumi`, to `@fumapress/astro/plugins/*`.
 
-A few are gone:
+A few are removed:
 
 - `contentSourcePlugin()`: delete it. See [Local Markdown](/docs/astro/content-sources/local-markdown).
 - `gitPlugin()`: set [`site.git`](/docs/astro/configuration#repository) and the `lastModified` option of `press()`.
@@ -290,12 +290,12 @@ import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
 ---
 ```
 
-`ReactContent.astro` is gone. Render a React component on the page, like `<Stars client:load />`.
+`ReactContent.astro` is removed. Render a React component on the page, like `<Stars client:load />`.
 
 </Accordion>
 <Accordion title="Your own plugins">
 
-`routes()` calls functions in place of returning a list, and `this` is now the press context. See [Writing Plugins](/docs/astro/plugins/authoring).
+`routes()` calls functions instead of returning a list, and `this` is now the press context. See [Writing Plugins](/docs/astro/plugins/authoring).
 
 ```tsx title="acme/index.ts"
 // [!code --:7]
@@ -312,7 +312,7 @@ routes({ createApi }) {
 },
 ```
 
-The rest are renames, with two changes in signature. `middleware` now receives a `Request`, and only runs for routes rendered on demand. `transformPage` receives the data first, and returns the changed fields.
+The other changes are renames, with two changes in signature. `middleware` now receives a `Request`, and only runs for routes rendered on demand. `transformPage` receives the data first, and returns the changed fields.
 
 | 0.1                         | Now                         |
 | --------------------------- | --------------------------- |

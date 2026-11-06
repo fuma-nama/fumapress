@@ -3,13 +3,13 @@ title: Layouts
 description: Choose a Fumadocs layout and change what each page renders.
 ---
 
-Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another one, return it from `ui.renderPage`.
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, return it from `ui.renderPage`.
 
 <include cwd>content/shared/layouts.mdx#gallery</include>
 
-## Switch the Layout
+### Switching the Layout
 
-This example renders the `docs` source with the Notebook Layout. Other pages keep the default UI.
+This example renders the `docs` source with the Notebook Layout. All other pages use the default UI.
 
 ```tsx tab="src/ui/layout.tsx"
 import type { RenderPageProps } from "fumapress";
@@ -63,7 +63,7 @@ To keep the Markdown buttons of the default layout, also render `MarkdownCopyBut
 
 <include cwd>content/shared/layouts.mdx#swap</include>
 
-## Render Pages
+## Rendering Pages
 
 Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
 
@@ -83,11 +83,11 @@ export function renderPage(props: RenderPageProps<typeof app>) {
 }
 ```
 
-A second type argument narrows the props to one page type, and your editor lists those props. `pageData` has what a layout needs, and `page.data` has your frontmatter.
+The second type argument of `RenderPageProps` narrows the props to one page type. `pageData` has the fields a layout needs, and `page.data` has your frontmatter.
 
 ### Layout per Source
 
-Give each source a case. Fields of its schema are typed on `page.data`.
+Add a case for each source. The fields of its schema are typed on `page.data`.
 
 ```tsx title="src/ui/layout.tsx"
 // [!code ++:8]
@@ -113,7 +113,7 @@ export function renderPage(props: RenderPageProps<typeof app>) {
 }
 ```
 
-A condition on `props.page.path` works too, like a layout for pages under `reference/`.
+You can also check `props.page.path`, for example to use another layout for pages under `reference/`.
 
 ### Sidebar
 
@@ -155,7 +155,7 @@ function Docs({
 
 <include cwd>content/shared/layouts.mdx#plugin-pages</include>
 
-## Customize Fumadocs UI
+## Customizing Fumadocs UI
 
 <include cwd>content/shared/layouts.mdx#cli-intro</include>
 

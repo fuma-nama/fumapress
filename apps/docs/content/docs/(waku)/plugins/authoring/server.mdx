@@ -1,15 +1,15 @@
 ---
 title: Middleware and Lifecycle
-description: Handle requests and run code at other points of a plugin's life.
+description: Handle requests, and run code at startup and after the build.
 ---
 
 <include cwd>content/shared/plugins/authoring/server.mdx#middleware</include>
 
 <include cwd>content/shared/plugins/authoring/server.mdx#lifecycle</include>
 
-## Use Waku's APIs
+## Waku APIs
 
-`WakuPlugin` adds hooks under `waku`. A plugin with these hooks only works on Waku sites, so use them when the other hooks can't do the job.
+`WakuPlugin` adds hooks under `waku`. A plugin with these hooks only works on Waku sites, so only use them when the other hooks aren't enough.
 
 ```tsx title="acme/index.tsx"
 import type { WakuAppShape, WakuPlugin } from "fumapress";
@@ -24,9 +24,9 @@ export function acmePlugin<C extends WakuAppShape = WakuAppShape>(): WakuPlugin<
 }
 ```
 
-### Add Pages and Layouts
+### Pages and Layouts
 
-`createPages` receives Waku's functions, with `lang`. It runs once, so loop over the languages. Layouts must be in a route group, like `/(showcase)`, and custom pages of the site win.
+`createPages` receives Waku's functions, with `lang`. It runs once, so loop over the languages. Layouts must be in a route group, like `/(showcase)`, and custom pages of the site take priority.
 
 ```tsx title="acme/index.tsx"
 createPages({ createLayout, createPage }) {
@@ -48,11 +48,11 @@ createPages({ createLayout, createPage }) {
 },
 ```
 
-For API routes, use [`createApi`](/docs/plugins/authoring/routes#add-an-api-route).
+For API routes, use [`createApi`](/docs/plugins/authoring/routes#api-routes).
 
-### Read the Hono Context
+### Hono Context
 
-`honoMiddleware` gives you `c.env` and `c.executionCtx`. Static files that the adapter serves don't reach it. For anything else, use [`middleware`](#handle-requests).
+`honoMiddleware` gives you `c.env` and `c.executionCtx`. It doesn't run for static files served by the adapter. For anything else, use [`middleware`](#middleware).
 
 ```tsx title="acme/index.tsx"
 honoMiddleware() {
@@ -63,7 +63,7 @@ honoMiddleware() {
 },
 ```
 
-### Wrap the Server Entry
+### Server Entry
 
 `unstable_serverEntry` changes the server entry of the adapter, like its `buildOptions`. Waku marks the entry type unstable.
 

@@ -9,17 +9,17 @@ Each MDX file in your [content collection](/docs/astro/content-sources/collectio
 
 <include cwd>content/shared/content.mdx#urls</include>
 
-To put pages under a prefix like `/docs`, see [Add a Collection](/docs/astro/content-sources/collections#add-a-collection).
+To put pages under a prefix like `/docs`, see [Multiple Collections](/docs/astro/content-sources/collections#multiple-collections).
 
 <include cwd>content/shared/content.mdx#frontmatter</include>
 
-To add fields, [extend the schema](/docs/astro/content-sources/collections#add-frontmatter-fields).
+To add fields, [extend the schema](/docs/astro/content-sources/collections#frontmatter-fields).
 
 <include cwd>content/shared/content.mdx#links</include>
 
 ### Last Modified Date
 
-Show the date of the last commit on each page. The sitemap and RSS feed use it too.
+Show the date of the last commit on each page. The sitemap and RSS feed also use this date.
 
 ```js title="astro.config.mjs"
 press({
@@ -51,20 +51,20 @@ export default defineConfig({
 
 <include cwd>content/shared/content.mdx#usage</include>
 
-### Rules for the Module
+### Rules for MDX Components
 
-The content of a page is a React island of its own, so:
+The content of a page is a separate React island, so:
 
 - **Props** must be serializable, since components hydrate by name. `<Chart data={[1, 2]} />` runs in the browser, and `<Chart onClick={() => {}} />` renders on the server only.
-- **Providers** from your layout don't reach the content. Add a `wrapper` to the MDX components instead.
-- **Imports** also load in the browser, so keep server-only code out.
+- **Providers** from your layout aren't available in the content. Add a `wrapper` to the MDX components instead.
+- **Imports** are also loaded in the browser, so don't import server-only code.
 
 <Callout type="warn" title="No cycles">
-  Don't import `press.config.tsx` or `@fumapress/astro/runtime` from the module. The cycle with your
-  content slows the build down.
+  Don't import `press.config.tsx` or `@fumapress/astro/runtime` from the module. This creates an
+  import cycle with your content, which slows down the build.
 </Callout>
 
-### One Module per Collection
+### MDX Components per Collection
 
 ```js title="astro.config.mjs"
 press({
@@ -81,9 +81,9 @@ press({
 <include cwd>content/shared/content.mdx#custom-links</include>
 
 <Callout type="warn">
-  Astro renders your `a` on its own, like in Astro MDX: no hydration, and no React context from the
-  page. It can't use state, effects or hooks like `usePathname`. The same goes for an MDX component
-  inside a link.
+  Astro renders your `a` component separately, like in Astro MDX, without hydration or React context
+  from the page. It can't use state, effects or hooks like `usePathname`. The same goes for an MDX
+  component inside a link.
 </Callout>
 
 ## Images and Files

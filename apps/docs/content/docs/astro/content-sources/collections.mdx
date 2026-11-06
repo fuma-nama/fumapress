@@ -3,7 +3,7 @@ title: Content Collections
 description: Keep your pages in Astro content collections.
 ---
 
-Your pages are MDX files in [content collections](https://docs.astro.build/en/guides/content-collections/), and a new site has one already. It takes three files:
+Your pages are MDX files in [content collections](https://docs.astro.build/en/guides/content-collections/), and new sites already include one. A collection needs three files:
 
 ```js tab="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -42,9 +42,9 @@ export default createPress(
 
 Without `collections`, `press()` reads the `docs` collection from `content/docs`. See [Integration](/docs/astro/configuration#integration) for the other options.
 
-## Add Frontmatter Fields
+## Frontmatter Fields
 
-`pageLoader()` accepts the [standard fields](/docs/astro/content#frontmatter). Extend the schema to add one, and it is typed on `page.data` in your [layout](/docs/astro/layouts#layout-per-source).
+`pageLoader()` accepts the [standard fields](/docs/astro/content#frontmatter). Extend the schema to add a field. The new field is typed on `page.data` in your [layout](/docs/astro/layouts#layout-per-source).
 
 ```ts title="src/content.config.ts"
 import { defineCollection } from "astro:content";
@@ -61,7 +61,7 @@ export const collections = {
 };
 ```
 
-## Add a Collection
+## Multiple Collections
 
 To add a blog, or to free `/` for a [landing page](/docs/astro/custom-pages), give each collection a folder and a URL prefix. After these steps, `content/docs/index.mdx` is at `/docs`, and `content/blog/hello.mdx` is at `/blog/hello`.
 
@@ -78,7 +78,7 @@ press({
 
 ### Load the Collections [step]
 
-`pageLoader("blog")` reads the `blog` folder above, and each key here is a name for `getCollection()`.
+`pageLoader("blog")` reads the `blog` folder above, and each key of this object is a name for `getCollection()`.
 
 ```ts title="src/content.config.ts"
 export const collections = {
@@ -106,5 +106,5 @@ export default createPress({
 
 <Callout>
   A collection you leave out of `createPress()` has no docs pages. You can [render it on custom
-  pages](/docs/astro/custom-pages#render-a-collection).
+  pages](/docs/astro/custom-pages#rendering-a-collection).
 </Callout>

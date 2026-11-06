@@ -1,4 +1,4 @@
-## Add a Page
+## Pages
 
 `createView()` adds a page. `view` returns its content, and `type` tells `ui.renderPage` which page it is:
 
@@ -52,11 +52,11 @@ export default createPress(content)
   });
 ```
 
-A custom page at the same path wins over a plugin page.
+A custom page at the same path takes priority over a plugin page.
 
-### Translate a Page
+### Translated Pages
 
-`view` receives the `lang` of the page, once for each language. The path gets its language prefix for you.
+`view` is called once for each language, and receives its `lang`. The language prefix is added to the path for you.
 
 ```tsx title="acme/index.tsx"
 createView({
@@ -71,7 +71,7 @@ createView({
 
 When the path differs per language, set `lang` to create the page in that language only.
 
-### Pages with Params
+### Dynamic Routes
 
 Add `[name]` to the path, and list each page in `staticPaths`. `view` receives the params.
 
@@ -87,7 +87,7 @@ createView({
 });
 ```
 
-### Render on Demand
+### On-Demand Rendering
 
 With `render: "dynamic"`, `view` also receives the request. Return `undefined` for a 404:
 
@@ -109,7 +109,7 @@ createView({
 });
 ```
 
-## Add an API Route
+## API Routes
 
 `createApi()` takes a handler per HTTP method, or `ALL` for all of them. Add `render: "static"` to generate a file from the `GET` handler at build time:
 
@@ -133,13 +133,13 @@ routes({ createApi }) {
 },
 ```
 
-A param takes a whole path segment: use `/data/[id]/info.json`, not `/data/[id].json`.
+A param must be a whole path segment: use `/data/[id]/info.json`, not `/data/[id].json`.
 
-A route at the path of a page in a static source fails the build. A dynamic source can add pages after the build, so the route wins over its page.
+A route at the path of a page in a static source fails the build. A dynamic source can add pages after the build, so the route takes priority over its page.
 
-## Render Like Your Content
+## Content Render Mode
 
-A route that lists your pages depends on them. With a dynamic source, like Notion, that list changes after the build, so the route must render on demand too. `this.getContentRender()` returns the right value:
+A route that lists your pages depends on them. With a dynamic source, like Notion, that list changes after the build, so the route must render on demand too. `this.getContentRender()` returns the render mode of your content:
 
 ```tsx title="acme/index.tsx"
 routes({ createApi }) {
@@ -155,16 +155,16 @@ routes({ createApi }) {
 },
 ```
 
-Pass a source key to follow only that source, like `this.getContentRender("blog")`.
+Pass a source key to get the render mode of that source only, like `this.getContentRender("blog")`.
 
 <Callout type="warn">
   A single route rendered on demand means the site [needs a
   server](../../deployment.mdx#what-needs-a-server). Add one only when your plugin needs it.
 </Callout>
 
-## Add a Route per Page
+## Derived Routes
 
-`deriveRoutes` runs once per language, after other routes exist. It has the same functions as `routes`, so use it for routes generated from your pages. This plugin adds a print version of each content page:
+`deriveRoutes` runs once per language, after the other routes are created. It receives the same functions as the `routes` hook, so use it for routes generated from your pages. This plugin adds a print version of each content page:
 
 ```tsx title="acme/index.tsx"
 async deriveRoutes({ createView }, { lang }) { // [!code highlight]
@@ -196,9 +196,9 @@ async deriveRoutes({ createView }, { lang }) { // [!code highlight]
 Plugin<C, { views: { print: { page: C["page"] } } }>;
 ```
 
-### Generate Routes from Other Routes
+### Reading Existing Routes
 
-The `routes` argument has the custom pages and plugin pages of that language. This plugin adds a JSON file with the params of each page, at `/meta<path>`. A prerendered route lists its `pages`, and one route rendered on demand covers them all:
+The `routes` argument has the custom pages and plugin pages of that language. This plugin adds a JSON file with the params of each page, at `/meta<path>`. For a prerendered route, it creates one file per entry in `route.pages`. For a route rendered on demand, it creates one API route:
 
 ```tsx title="acme/index.tsx"
 deriveRoutes({ createApi }, { routes }) {

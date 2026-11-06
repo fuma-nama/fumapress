@@ -28,7 +28,11 @@ export default createPress(docs.dynamicSource());
 
 `dynamicSource()` reads files on the server, so the site [needs a server](/docs/astro/deployment#what-needs-a-server). To prerender the pages instead, pass `await docs.staticSource()`.
 
-## Reload on Changes
+## Content Updates
+
+Fumapress reads your files once. To see changes, use hot reload on the dev server, and refresh the content on a deployed site.
+
+### Hot Reload
 
 The dev server doesn't watch these files by default. Add the Vite plugin, then connect your source:
 
@@ -52,7 +56,7 @@ import { watchWithVite } from "@fumadocs/local-md/dev/vite";
 if (import.meta.env.DEV) watchWithVite(docs);
 ```
 
-## Refresh Content
+### Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>
 

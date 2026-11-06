@@ -21,7 +21,7 @@ description: Publish your Tegami release notes on a filterable page.
 
 ### Create the Source [step]
 
-Create a source for them and pass its key to the site plugin:
+Create a source for the notes, and pass its key to the site plugin:
 
 ```tsx title="press.config.tsx"
 import { createPress } from "fumapress";
@@ -49,7 +49,7 @@ export default createPress({
 
 <include cwd>content/shared/plugins/changelog.mdx#notes</include>
 
-## Customize
+## Customization
 
 <include cwd>content/shared/plugins/changelog.mdx#rest</include>
 

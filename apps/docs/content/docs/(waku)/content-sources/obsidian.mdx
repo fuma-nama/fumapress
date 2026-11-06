@@ -9,7 +9,11 @@ Fumapress renders your vault with its wikilinks, embeds, callouts, block IDs and
 
 The vault is read when a page renders, so the site [needs a server](/docs/deployment#what-needs-a-server). To prerender the pages instead, pass `await vault.staticSource()`.
 
-## Reload on Changes
+## Content Updates
+
+Fumapress reads your vault once. To see changes, use hot reload on the dev server, and refresh the content on a deployed site.
+
+### Hot Reload
 
 <include cwd>content/shared/content-sources/obsidian.mdx#reload-intro</include>
 
@@ -31,10 +35,10 @@ import { watchWithVite } from "fumadocs-obsidian/dev/vite";
 if (import.meta.env.DEV) watchWithVite(vault);
 ```
 
-<include cwd>content/shared/content-sources/obsidian.mdx#components</include>
-
-## Refresh Content
+### Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>
+
+<include cwd>content/shared/content-sources/obsidian.mdx#components</include>
 
 <include cwd>content/shared/content-sources/obsidian.mdx#options</include>

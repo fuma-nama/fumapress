@@ -34,7 +34,7 @@ Add this after the imports in your stylesheet:
 
 ### Create the Source [step]
 
-Call `createNotion()` once, use it as the content source and pass it to the plugin:
+Call `createNotion()` once. Use the result as the content source, and pass it to the plugin:
 
 ```tsx title="press.config.tsx"
 import { createNotion } from "@fumadocs/notion";
@@ -64,9 +64,9 @@ export default createPress(
 ).plugins(notionPlugin({ notion }));
 ```
 
-`alwaysRevalidate` shows Notion edits right away. To refresh from a webhook instead, see [Refresh Content](#refresh-content).
+`alwaysRevalidate` shows Notion edits right away. To refresh from a webhook instead, see [Refreshing Content](#refreshing-content).
 
-## Customize
+## Customization
 
 ### Page Properties
 
@@ -80,7 +80,7 @@ A slug can contain `/` for nested URLs. Two pages with the same path fail with a
 
 ### URLs
 
-Use `baseDir` to place pages under a prefix, or `generatePath` to decide each path:
+Use `baseDir` to place pages under a prefix, or `generatePath` to set each path:
 
 ```tsx title="press.config.tsx"
 notion.dynamicSource({
@@ -118,8 +118,8 @@ notionPlugin({
 
 ### File URLs
 
-Notion file URLs last one hour, so the plugin serves them through your site. Turn this off with `fileProxy: false` only when your content uses durable external URLs, or a custom renderer copies files to durable storage.
+Notion file URLs expire after one hour, so the plugin serves them through your site. Turn off this proxy with `fileProxy: false` only when your content uses permanent external URLs, or a custom renderer copies files to permanent storage.
 
-### Refresh Content
+## Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>

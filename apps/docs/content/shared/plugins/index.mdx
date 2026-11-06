@@ -12,15 +12,15 @@ export default createPress(content).plugins(blogPlugin({ source: "blog" }));
 
 <section id="replace">
 
-### Replace a Default Plugin
+### Replacing a Default Plugin
 
-List `rssPlugin()` to pass it options. It takes the place of the default RSS plugin, because both provide `rss`. A site has one plugin per `provides` value.
+Add `rssPlugin()` to pass it options. It replaces the default RSS plugin, because both provide `rss`. A site can only have one plugin per `provides` value.
 
 </section>
 
 <section id="remove">
 
-### Remove a Default Plugin
+### Removing a Default Plugin
 
 Filter it out of `preset`, or pass an empty list to remove them all:
 
@@ -28,7 +28,7 @@ Filter it out of `preset`, or pass an empty list to remove them all:
 
 <section id="rest">
 
-## Conditional Plugins and Order
+## Conditional Plugins and Plugin Order
 
 Falsy values are skipped, so a plugin can be conditional:
 
@@ -38,7 +38,7 @@ const blog = process.env.ENABLE_BLOG && blogPlugin({ source: "blog" });
 createPress(content).plugins(blog);
 ```
 
-The order matters in two places. Middleware nests in list order, so your first plugin wraps the others. Navbar links follow the list too, after your `ui.baseOptions` links.
+The order matters in two places. Middleware is nested in list order, so your first plugin wraps the others. Navbar links also use the list order, after your `ui.baseOptions` links.
 
 </section>
 

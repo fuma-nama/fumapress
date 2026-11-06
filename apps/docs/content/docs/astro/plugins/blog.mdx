@@ -17,7 +17,7 @@ description: Add a blog with post, index and tag pages.
 
 ### Add the Collection [step]
 
-Add a [collection](/docs/astro/content-sources/collections#add-a-collection) for your posts, with the blog schema, and pass its key to the plugin:
+Add a [collection](/docs/astro/content-sources/collections#multiple-collections) for your posts, with the blog schema, and pass its key to the plugin:
 
 ```js tab="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -71,11 +71,11 @@ export default createPress({
   .plugins(blogPlugin({ source: "blog" }));
 ```
 
-## Write Posts
+## Writing Posts
 
 <include cwd>content/shared/plugins/blog.mdx#write</include>
 
-## Customize
+## Customization
 
 <include cwd>content/shared/plugins/blog.mdx#rest</include>
 
