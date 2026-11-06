@@ -266,7 +266,7 @@ title: My Page
 description: Hello World
 ---
 
-# Overview
+## Overview
 
 This is my first document.
 `,
@@ -282,6 +282,10 @@ This is my first document.
 .env.local
 dist
 .astro
+`,
+      "content/meta.json": `{
+  "pages": ["..."]
+}
 `,
       "astro.config.mjs": `// @ts-check
 import { defineConfig } from "astro/config";
@@ -331,7 +335,8 @@ export const collections = {
   "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    "paths": { "@/*": ["./src/*"] }
   }
 }
 `,
@@ -455,6 +460,8 @@ function getTsConfig() {
       skipLibCheck: true,
       noUncheckedIndexedAccess: true,
       noEmit: true,
+      types: ["node", "vite/client"],
+      paths: { "@/*": ["./src/*"] },
     },
     exclude: ["node_modules", "dist"],
   };
