@@ -50,9 +50,9 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "flexsearch": "^0.8.212",
-    "fumadocs-core": "^16.18.0",
+    "fumadocs-core": "^16.18.1",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.1",
     "react": "^19.3.0",
     "takumi-js": "^2.14.0",
     "tsdown": "0.23.0",
@@ -62,8 +62,8 @@
   "peerDependencies": {
     "@types/react": "*",
     "flexsearch": "*",
-    "fumadocs-core": "^16.18.0",
-    "fumadocs-ui": "^16.18.0",
+    "fumadocs-core": "^16.18.1",
+    "fumadocs-ui": "^16.18.1",
     "react": "^19.2.0",
     "takumi-js": "^2.14.0"
   },

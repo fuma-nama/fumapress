@@ -19,7 +19,7 @@ packages:
 - `preset` takes a list: `preset: []` replaces `preset: false`, and `recommendedPreset().filter((entry) => entry.provides !== "rss")` drops one entry.
 - The MDX renderer is built in: `press({ components: "./src/components/mdx.tsx" })` of `fumapress/vite` replaces `fumadocsMdx()` of `fumapress/adapters/mdx`.
 - `RenderPageProps<typeof app>`, `UIOptions<typeof app>`, `WakuRouteProps<typeof app, "/showcase/[slug]">` and `getPressContext<typeof app>()` type custom files, replacing `$context` and `.utils()`. `WakuRouteConfig` replaces `RouteConfig`.
-- Update `fumadocs-core` and `fumadocs-ui` to 16.18.0 or later, and `fumadocs-mdx` to 15.5.0 or later.
+- Update `fumadocs-core` and `fumadocs-ui` to 16.18.1 or later, and `fumadocs-mdx` to 15.5.0 or later.
 
 ### Changed rendering to be per route
 
