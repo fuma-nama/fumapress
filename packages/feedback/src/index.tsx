@@ -48,7 +48,7 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
         const response = await beforeRequest?.(request);
         if (response) return response;
 
-        const parsed = schema.safeParse(await request.json());
+        const parsed = schema.safeParse(await request.json().catch(() => undefined));
         if (!parsed.success) return new Response("invalid body type", { status: 400 });
         try {
           return Response.json(await action(parsed.data));

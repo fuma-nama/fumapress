@@ -16,6 +16,17 @@ import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
 import { ChatDocsLayout } from "./components/docs-layout";
 
+/** what the UI sends: other roles and parts are the server's, a `file` part makes it download the URL */
+const messageParts = new Set(["text", "data-client", "reasoning", "step-start", "tool-search"]);
+
+function isChatMessage({ role, parts }: ChatUIMessage): boolean {
+  return (
+    (role === "user" || role === "assistant") &&
+    Array.isArray(parts) &&
+    parts.every((part) => messageParts.has(part.type))
+  );
+}
+
 export type ChatUIMessage = UIMessage<
   never,
   { client: AIChatClientData & { locale: string | null } },
@@ -94,7 +105,9 @@ export function aiPlugin<C extends AppShape = AppShape>(
             if (res) return res;
           }
 
-          const reqJson: { messages: ChatUIMessage[] } = await req.json();
+          const { messages } = (await req.json()) as { messages: ChatUIMessage[] };
+          if (!Array.isArray(messages) || !messages.every(isChatMessage))
+            return new Response("invalid messages", { status: 400 });
           let locale: string | null = null;
 
           const result = streamText({
@@ -104,7 +117,7 @@ export function aiPlugin<C extends AppShape = AppShape>(
               search: searchTool,
             },
             system: systemPrompt,
-            messages: await convertToModelMessages<ChatUIMessage>(reqJson.messages, {
+            messages: await convertToModelMessages<ChatUIMessage>(messages, {
               tools: {
                 search: searchTool,
               },
