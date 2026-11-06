@@ -1,0 +1,202 @@
+<section id="content">
+
+## Content and Plugins
+
+`createPress()` takes your [content sources](./content-sources/index.mdx) and two options: `i18n` for your [languages](./internationalization.mdx), and `loaderOptions` for the [Fumadocs loader](https://fumadocs.dev/docs/headless/source-api).
+
+`.plugins()` adds [plugins](./plugins/index.mdx), and you call it once. `preset` in `.config()` changes the [default plugins](./plugins/index.mdx#default-plugins).
+
+</section>
+
+<section id="name">
+
+### Name
+
+`site.name` shows in the navbar and page metadata.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    name: "Acme Docs",
+  },
+});
+```
+
+</section>
+
+<section id="repository">
+
+### Repository
+
+`site.git` adds a repository link to the navbar and a link to the source file of each page.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    git: {
+      user: "acme",
+      repo: "docs",
+      branch: "main",
+    },
+  },
+});
+```
+
+GitHub is the default. For GitLab or Bitbucket, set `provider`. For a self-hosted instance, also set `url`.
+
+<Callout type="warn">
+  Source file links need the git root. Set `rootDir` when the build runs without a `.git` directory.
+</Callout>
+
+</section>
+
+<section id="head">
+
+## Head Tags
+
+`head` adds tags to `<head>` on every page, like analytics or fonts.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  head: [{ tag: "meta", attrs: { name: "theme-color", content: "#000000" } }],
+});
+```
+
+Your tags replace plugin tags with the same key, like a `meta` tag of the same name.
+
+### Set Tags per Page
+
+Use a function. Tags returned without a `page` apply to the whole site:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  head({ page }) {
+    if (!page)
+      return [{ tag: "link", attrs: { rel: "icon", href: this.withBase("/favicon.ico") } }];
+    if (page.data.title === "Pricing")
+      return [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }];
+  },
+});
+```
+
+`this.withBase()` keeps the path right for a site under a [sub-path](./deployment.mdx#deploy-under-a-sub-path).
+
+</section>
+
+<section id="navbar">
+
+## Navbar and Links
+
+The navbar shows `site.name`, linked to your home page. `ui.baseOptions` adds links and changes the title for every layout:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    baseOptions: {
+      nav: { title: "Acme" },
+      links: [
+        { url: "/blog", text: "Blog", active: "nested-url" },
+        { url: "https://github.com/acme", text: "GitHub", external: true },
+      ],
+    },
+  },
+});
+```
+
+See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. Links from plugins come after yours. For other options, your value wins.
+
+</section>
+
+<section id="navbar-lang">
+
+### Links per Language
+
+With [internationalization](./internationalization.mdx), use a function. `this.localizePath()` adds the language prefix.
+
+```tsx title="press.config.tsx"
+createPress(content, { i18n }).config({
+  ui: {
+    baseOptions({ lang }) {
+      return {
+        links: [
+          {
+            url: this.localizePath(lang, "/blog"),
+            text: lang === "zh" ? "部落格" : "Blog",
+          },
+        ],
+      };
+    },
+  },
+});
+```
+
+</section>
+
+<section id="navbar-file">
+
+To keep `baseOptions` in its own file, type it with `UIOptions`:
+
+</section>
+
+<section id="theme-colors">
+
+Swap the theme import in `src/app.css`. See [Fumadocs UI Themes](https://fumadocs.dev/docs/ui/theme) for the presets.
+
+</section>
+
+<section id="theme-rest">
+
+### Dark Mode
+
+Start in dark mode with `ui.providerProps`:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    providerProps: {
+      theme: { defaultTheme: "dark" },
+    },
+  },
+});
+```
+
+### Fonts
+
+Load the font in `head`, then set it in `src/app.css`:
+
+```tsx tab="press.config.tsx"
+createPress(content).config({
+  head: [
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    {
+      tag: "link",
+      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+    },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+      },
+    },
+  ],
+});
+```
+
+```css tab="src/app.css"
+@theme {
+  --default-font-family: "Inter", sans-serif;
+}
+```
+
+</section>
+
+<section id="ui">
+
+## Other UI Options
+
+- `ui.renderPage`: changes what each page renders. See [Render Pages](./layouts.mdx#render-pages).
+- `ui.providerProps`: the [`RootProvider` props](https://fumadocs.dev/docs/ui/layouts/root-provider), like your [search dialog](./search.mdx#customize-the-dialog).
+- `ui.translations`: the strings of the UI. See [Translate the UI](./internationalization.mdx#translate-the-ui).
+
+</section>

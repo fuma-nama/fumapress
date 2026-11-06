@@ -28,7 +28,6 @@ export default createPress(
 )
   .plugins(notionPlugin({ notion }), llmsPlugin(), flexsearchPlugin())
   .config({
-    mode: "dynamic",
     site: {
       name: "Notion Example",
     },

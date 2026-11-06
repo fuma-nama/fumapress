@@ -1,0 +1,246 @@
+---
+title: Configuration
+description: Every option of your site, from press.config.tsx to the Vite plugin.
+---
+
+`press.config.tsx` at the project root configures your site. Only `createPress()` is required.
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { rssPlugin } from "fumapress/plugins/rss";
+
+export const app = createPress(content, { i18n }).plugins(rssPlugin());
+
+export default app.config({
+  site: { name: "Acme" },
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
+  ui: { baseOptions, renderPage },
+});
+```
+
+<include cwd>content/shared/configuration.mdx#content</include>
+
+## Site
+
+<include cwd>content/shared/configuration.mdx#name</include>
+
+### URL
+
+Set the URL of your deployed site, with its base path if there is one. Without it, canonical links, the sitemap, RSS and Open Graph images fall back to relative URLs.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    baseUrl: "https://docs.example.com",
+  },
+});
+```
+
+<include cwd>content/shared/configuration.mdx#repository</include>
+
+### All Site Options
+
+<auto-type-table cwd path="../../packages/core/src/press.ts" name="SiteConfig" />
+
+<include cwd>content/shared/configuration.mdx#head</include>
+
+<include cwd>content/shared/configuration.mdx#navbar</include>
+
+### Logo
+
+`nav.title` can be any React element:
+
+```tsx title="press.config.tsx"
+import { Image } from "fumapress/image";
+
+createPress(content).config({
+  ui: {
+    baseOptions: {
+      nav: {
+        title: (
+          <>
+            <Image src="/logo.png" width={64} height={64} className="size-8" alt="" />
+            Acme
+          </>
+        ),
+      },
+    },
+  },
+});
+```
+
+<include cwd>content/shared/configuration.mdx#navbar-lang</include>
+
+<include cwd>content/shared/configuration.mdx#navbar-file</include>
+
+```tsx title="src/ui/base-options.tsx"
+import type { UIOptions } from "fumapress";
+import type { app } from "../../press.config";
+
+export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+  return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
+};
+```
+
+## Theme
+
+### Colors
+
+<include cwd>content/shared/configuration.mdx#theme-colors</include>
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code --] */
+@import "fumadocs-ui/css/neutral.css";
+/* [!code ++] */
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+```
+
+<include cwd>content/shared/configuration.mdx#theme-rest</include>
+
+<include cwd>content/shared/configuration.mdx#ui</include>
+
+### Root Document
+
+`ui.renderRoot` replaces the `<html>` document, for a class on `<html>` or `<body>`:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    renderRoot({ lang, head, children }) {
+      return (
+        <html lang={lang ?? "en"} className="dark" suppressHydrationWarning>
+          <head>{head}</head>
+          <body className="antialiased">{children}</body>
+        </html>
+      );
+    },
+  },
+});
+```
+
+## Vite Plugin
+
+`press()` takes these options:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import press from "fumapress/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
+
+const components = "./src/components/mdx.tsx";
+
+export default defineConfig({
+  plugins: [press({ components }), fumadocsMdx(), tailwindcss()],
+});
+```
+
+<auto-type-table type="import('fumapress/vite').WakuPressOptions" />
+
+## CLI
+
+Run the site through `fumapress` instead of `vite`.
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start"
+  }
+}
+```
+
+`dev` listens on port 3000, and `start` picks a free port from 8080. To choose, set `PORT` and `HOST` or pass a flag:
+
+```npm
+npm run dev -- --port 4000 --host 0.0.0.0
+```
+
+## Environment Variables
+
+The CLI loads `.env`, `.env.local` and mode variants like `.env.production`. Variables already set in the environment win.
+
+- **Server code and `press.config.tsx`**: any variable, through `process.env`.
+- **Client code**: only variables prefixed with `VITE_`, through `import.meta.env`.
+
+Files that only the server can read, like key files, go in the `private` directory. Change it with the `privateDir` option of `press()`.
+
+## Server Entry
+
+Most sites don't need one. Create it to pass [Waku adapter options](/docs/deployment#deploy-without-a-function) or to define routes in code.
+
+### Install Waku [step]
+
+Install the version Fumapress pins:
+
+```npm
+npm i waku@1.0.0-rc.1
+```
+
+### Create the Entry [step]
+
+```tsx title="src/waku.server.tsx"
+import _adapter from "waku/adapters/default";
+import press from "../press.config";
+import { createRouter } from "fumapress/router";
+import { fsRouterFn } from "fumapress/router/fs";
+
+const router = await createRouter(press);
+import.meta.hot?.dispose(router.dispose);
+
+const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
+  base: "/src",
+});
+
+const pages = router.createPages(fsRouterFn(modules));
+const middlewareFns = router.createMiddlewares();
+const adapter = router.patchAdapter(_adapter);
+
+export default adapter(pages, { middlewareFns });
+```
+
+### Define Routes in Code
+
+To use [config-based routing](https://waku.gg/#routing) instead of `src/pages`, pass a callback to `createPages()`. Don't create a root element, since Fumapress has one.
+
+```tsx title="src/waku.server.tsx"
+// [!code --]
+const pages = router.createPages(fsRouterFn(modules));
+// [!code ++:9]
+const pages = router.createPages(({ createPage }) => {
+  createPage({
+    render: "static",
+    path: "/hello-world",
+    component() {
+      return <main>Hello World</main>;
+    },
+  });
+});
+```
+
+## Types
+
+Export the result of `.plugins()` as `app`, and pass `typeof app` to the type helpers from `fumapress`:
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // ...
+}
+```
+
+| Helper            | For                                                            |
+| ----------------- | -------------------------------------------------------------- |
+| `RenderPageProps` | props of `ui.renderPage`, narrowed to a source or plugin page  |
+| `UIOptions`       | an option of `ui`, like `UIOptions<typeof app>["baseOptions"]` |
+| `PressContext`    | `this` in callbacks, the result of `getPressContext()`         |
+| `WakuRouteProps`  | props of custom pages                                          |
+| `WakuRouteConfig` | the result of `getConfig()`                                    |
+| `BaseOptions`     | the Fumadocs layout props                                      |
+| `ProviderProps`   | the root provider props                                        |

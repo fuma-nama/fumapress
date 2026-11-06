@@ -1,0 +1,125 @@
+## Setup
+
+### Create an Integration [step]
+
+[Create a Notion integration](https://developers.notion.com/docs/getting-started) with permission to read content, then connect your database to it.
+
+### Store the Credentials [step]
+
+Store the token and the **data source ID** in server-only environment variables.
+
+```ini title=".env.local"
+NOTION_TOKEN=ntn_...
+NOTION_DATA_SOURCE_ID=...
+```
+
+<Callout title="Data source ID">
+  It is not the database ID in the URL. See the [Notion upgrade
+  guide](https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03).
+</Callout>
+
+### Install the Packages [step]
+
+```npm
+npm i @fumadocs/notion @notionhq/client
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumadocs/notion/css/preset.css";
+```
+
+### Create the Source [step]
+
+Call `createNotion()` once, use it as the content source and pass it to the plugin:
+
+```tsx title="press.config.tsx"
+import { createNotion } from "@fumadocs/notion";
+import notionPlugin from "@fumadocs/notion/press";
+import { Client } from "@notionhq/client";
+
+const notion = createNotion({
+  client: new Client({ auth: process.env.NOTION_TOKEN }),
+  dataSourceId: process.env.NOTION_DATA_SOURCE_ID!,
+});
+
+export default createPress(
+  notion.dynamicSource({
+    properties: {
+      title: "Name",
+      slug: "Slug",
+      description: "Description",
+    },
+    query: {
+      filter: {
+        property: "Published",
+        checkbox: { equals: true },
+      },
+    },
+  }),
+  { loaderOptions: { alwaysRevalidate: true } },
+).plugins(notionPlugin({ notion }));
+```
+
+`alwaysRevalidate` shows Notion edits right away. To refresh from a webhook instead, see [Refresh Content](#refresh-content).
+
+## Customize
+
+### Page Properties
+
+Without `properties`, the source reads:
+
+- The first Notion `title` property as the page title.
+- A property named `Slug` as the URL, or a slug generated from the title.
+- A property named `Description`, when there is one.
+
+A slug can contain `/` for nested URLs. Two pages with the same path fail with an error.
+
+### URLs
+
+Use `baseDir` to place pages under a prefix, or `generatePath` to decide each path:
+
+```tsx title="press.config.tsx"
+notion.dynamicSource({
+  baseDir: "docs",
+  query: {
+    sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+  },
+  generatePath(page, info) {
+    return info.slugs.length > 0 ? `${info.slugs.join("/")}.mdx` : `${page.id}.mdx`;
+  },
+});
+```
+
+See the [Fumadocs Notion integration](https://fumadocs.dev/docs/integrations/content/notion) for all source options.
+
+### Custom Blocks
+
+Add or replace block renderers with `components`:
+
+```tsx title="press.config.tsx"
+notionPlugin({
+  notion,
+  components: {
+    callout({ block, children, renderRichText }) {
+      return (
+        <aside className="rounded-lg bg-fd-muted p-4">
+          {renderRichText(block.callout.rich_text)}
+          {children}
+        </aside>
+      );
+    },
+  },
+});
+```
+
+### File URLs
+
+Notion file URLs last one hour, so the plugin serves them through your site. Turn this off with `fileProxy: false` only when your content uses durable external URLs, or a custom renderer copies files to durable storage.
+
+### Refresh Content
+
+<include cwd>content/shared/content-sources/refresh.mdx</include>

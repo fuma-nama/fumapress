@@ -1,0 +1,31 @@
+---
+title: Authentication
+description: Restrict your site or a section of it with middleware.
+---
+
+<include cwd>content/shared/authentication.mdx#why</include>
+
+Prerendered pages are files your host serves, so to protect content, choose one:
+
+- **Use a dynamic source**: [Notion](/docs/content-sources/notion), [Sanity](/docs/content-sources/sanity), [Obsidian](/docs/content-sources/obsidian) with `dynamicSource()`, or a [custom source](/docs/content-sources/custom) with `files` as a function. Its pages render on demand, so your middleware runs for them.
+- **Protect the site at your host**: this is the way for a static source like Fumadocs MDX, whose pages are compiled at build time.
+
+## Protect the Whole Site
+
+### Use a Dynamic Source [step]
+
+This example reads pages from Notion on the server:
+
+```tsx title="press.config.tsx"
+createPress(notion.dynamicSource()).plugins(notionPlugin({ notion })); // [!code highlight]
+```
+
+### Add the Check [step]
+
+<include cwd>content/shared/authentication.mdx#check</include>
+
+## Protect One Section
+
+<include cwd>content/shared/authentication.mdx#rest</include>
+
+<include cwd>content/shared/authentication.mdx#generated</include>

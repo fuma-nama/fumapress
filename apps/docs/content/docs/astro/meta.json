@@ -3,5 +3,23 @@
   "description": "Fumapress on Astro",
   "icon": "Orbit",
   "root": true,
-  "pages": ["index", "configuration", "content", "routing", "deployment"]
+  "pages": [
+    "index",
+    "manual-installation",
+    "---Guides---",
+    "content",
+    "content-sources",
+    "layouts",
+    "custom-pages",
+    "search",
+    "internationalization",
+    "deployment",
+    "authentication",
+    "---Extend---",
+    "plugins",
+    "plugins/authoring",
+    "---Reference---",
+    "configuration",
+    "migrate"
+  ]
 }

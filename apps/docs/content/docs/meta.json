@@ -1,19 +1,4 @@
 {
   "title": "Documentation",
-  "icon": "Book",
-  "root": true,
-  "pages": [
-    "index",
-    "basics",
-    "assets",
-    "collections",
-    "deployment",
-    "internationalization",
-    "search",
-    "migrate",
-    "astro",
-    "---Reference---",
-    "routing",
-    "..."
-  ]
+  "pages": ["(waku)", "astro"]
 }

@@ -1,0 +1,104 @@
+---
+title: Blog
+description: Add a blog with post, index and tag pages.
+---
+
+<include cwd>content/shared/plugins/blog.mdx#intro</include>
+
+## Setup
+
+### Install [step]
+
+<include cwd>content/shared/plugins/blog.mdx#install</include>
+
+### Add the Styles [step]
+
+<include cwd>content/shared/plugins/blog.mdx#styles</include>
+
+### Add the Collection [step]
+
+Add a [collection](/docs/astro/content-sources/collections#add-a-collection) for your posts, with the blog schema, and pass its key to the plugin:
+
+```js tab="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  integrations: [
+    press({
+      collections: {
+        docs: { dir: "content/docs" },
+        // [!code ++]
+        blog: { dir: "content/blog" },
+      },
+    }),
+  ],
+});
+```
+
+```ts tab="src/content.config.ts"
+import { defineCollection } from "astro:content";
+import { metaLoader, pageLoader } from "@fumadocs/astro/loaders";
+// [!code ++]
+import { blogPageSchema } from "@fumapress/blog/schema";
+
+export const collections = {
+  docs: defineCollection({ loader: pageLoader() }),
+  meta: defineCollection({ loader: metaLoader() }),
+  // [!code ++:2]
+  blog: defineCollection({ loader: pageLoader("blog"), schema: blogPageSchema }),
+  blogMeta: defineCollection({ loader: metaLoader("blog") }),
+};
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+// [!code ++]
+import { blogPlugin } from "@fumapress/blog";
+
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  // [!code ++:3]
+  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
+    baseDir: "blog",
+  }),
+})
+  // [!code ++]
+  .plugins(blogPlugin({ source: "blog" }));
+```
+
+## Write Posts
+
+<include cwd>content/shared/plugins/blog.mdx#write</include>
+
+## Customize
+
+<include cwd>content/shared/plugins/blog.mdx#rest</include>
+
+<include cwd>content/shared/plugins/blog.mdx#posts-lead</include>
+
+```astro title="src/pages/index.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+import { getBlogPosts } from "@fumapress/blog";
+import type { app } from "../../press.config";
+
+const ctx = getPressContext<typeof app>();
+const posts = await getBlogPosts(ctx);
+---
+
+<HomeLayout title="Acme">
+  <ul>
+    {posts.slice(0, 3).map((post) => <li><a href={ctx.withBase(post.page.url)}>{post.page.data.title}</a></li>)}
+  </ul>
+</HomeLayout>
+```
+
+<include cwd>content/shared/plugins/blog.mdx#posts-tail</include>
+
+<include cwd>content/shared/plugins/blog.mdx#options</include>

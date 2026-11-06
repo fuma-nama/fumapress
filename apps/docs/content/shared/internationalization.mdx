@@ -1,0 +1,114 @@
+<section id="intro">
+
+List your languages, and Fumapress adds the URLs and links between translations. A page stays in one language until you add its translation.
+
+</section>
+
+<section id="pages">
+
+Add the language to the file name. This works for pages and `meta.json`:
+
+```files
+└── content
+    ├── meta.json
+    ├── meta.zh.json
+    ├── get-started.mdx
+    └── get-started.zh.mdx
+```
+
+A language without a file inherits the page from the [fallback language](https://fumadocs.dev/docs/headless/internationalization/config#fallback-language). If only the English file exists, `/zh/get-started` still does, in English.
+
+<Callout>
+  Inherited pages get `noindex` and stay out of the sitemap, RSS feed, `llms-full.txt` and Open
+  Graph images, since search engines shouldn't see them as translations.
+</Callout>
+
+</section>
+
+<section id="ui">
+
+The search dialog, table of contents and other UI have their own strings. The language pack translates them for Chinese:
+
+```npm
+npm i @fumapress/language
+```
+
+```tsx title="press.config.tsx"
+import { zhTW } from "@fumapress/language/zh-tw";
+
+export default app.config({
+  ui: {
+    translations: i18n.translations().preset("zh", zhTW()), // [!code highlight]
+  },
+});
+```
+
+It has `zhCN` and `zhTW`. For other languages, or to change single strings, use `.add()`:
+
+```tsx title="press.config.tsx"
+i18n
+  .translations()
+  .preset("zh", zhTW())
+  .add({
+    en: { displayName: "English" },
+    zh: {
+      displayName: "Chinese",
+      "Search(search dialog)": "搜尋文檔",
+      "Blog(blog)": "博客",
+    },
+  });
+```
+
+See the [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations) for details.
+
+</section>
+
+<section id="urls">
+
+Each language has a URL prefix. To drop the prefix of the default language, set `hideLocale`:
+
+```tsx
+const i18n = defineI18n({
+  languages: ["en", "zh"],
+  defaultLanguage: "en",
+  hideLocale: "default-locale", // [!code highlight]
+});
+```
+
+| Source                   | `"never"` (default)      | `"default-locale"`    |
+| ------------------------ | ------------------------ | --------------------- |
+| `content/index.mdx`      | `/en`, `/zh`             | `/`, `/zh`            |
+| `content/setup.mdx`      | `/en/setup`, `/zh/setup` | `/setup`, `/zh/setup` |
+| Blog index (plugin page) | `/en/blog`, `/zh/blog`   | `/blog`, `/zh/blog`   |
+
+With `"never"`, `/` redirects to `/en`. When `/en` has no page, like with content under a `baseDir`, the root and the navbar title link to the first page of `en`.
+
+<Callout type="warn">
+  `hideLocale: "always"` isn't supported, because languages are told apart by their prefix.
+</Callout>
+
+### Link to a Page
+
+`localizePath()` adds the prefix, unless `hideLocale` hides it. Use it in [`ui.baseOptions`](./configuration.mdx#links-per-language), in plugins, and with `getPressContext()` on custom pages.
+
+```tsx title="press.config.tsx"
+this.localizePath("zh", "/setup"); // "/zh/setup"
+```
+
+### Map Language Codes
+
+Pages link their translations for search engines, with tags like this one:
+
+```html
+<link rel="alternate" hreflang="zh-Hans" href="https://acme.dev/cn/setup" />
+```
+
+`hreflang` must be a BCP 47 tag. When a language code isn't one, map it:
+
+```tsx title="press.config.tsx"
+export default app.config({
+  site: { hreflang: { cn: "zh-Hans", tw: "zh-Hant" } },
+});
+```
+
+</section>

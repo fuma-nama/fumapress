@@ -1,0 +1,80 @@
+---
+title: Middleware and Lifecycle
+description: Handle requests and run code at other points of a plugin's life.
+---
+
+<include cwd>content/shared/plugins/authoring/server.mdx#middleware</include>
+
+<include cwd>content/shared/plugins/authoring/server.mdx#lifecycle</include>
+
+## Use Waku's APIs
+
+`WakuPlugin` adds hooks under `waku`. A plugin with these hooks only works on Waku sites, so use them when the other hooks can't do the job.
+
+```tsx title="acme/index.tsx"
+import type { WakuAppShape, WakuPlugin } from "fumapress";
+
+export function acmePlugin<C extends WakuAppShape = WakuAppShape>(): WakuPlugin<C> {
+  return {
+    name: "acme",
+    waku: {
+      // the hooks below
+    },
+  };
+}
+```
+
+### Add Pages and Layouts
+
+`createPages` receives Waku's functions, with `lang`. It runs once, so loop over the languages. Layouts must be in a route group, like `/(showcase)`, and custom pages of the site win.
+
+```tsx title="acme/index.tsx"
+createPages({ createLayout, createPage }) {
+  for (const lang of this.languages) {
+    createLayout({
+      path: "/(showcase)",
+      lang,
+      render: "static",
+      component: ({ children }: { children: ReactNode }) => <section>{children}</section>,
+    });
+    createPage({
+      path: "/(showcase)/showcase/[item]",
+      lang,
+      render: "static",
+      staticPaths: Object.keys(options.items),
+      component: ({ item }: { item: string }) => <h1>{options.items[item]?.title}</h1>,
+    });
+  }
+},
+```
+
+For API routes, use [`createApi`](/docs/plugins/authoring/routes#add-an-api-route).
+
+### Read the Hono Context
+
+`honoMiddleware` gives you `c.env` and `c.executionCtx`. Static files that the adapter serves don't reach it. For anything else, use [`middleware`](#handle-requests).
+
+```tsx title="acme/index.tsx"
+honoMiddleware() {
+  return async (c, next) => {
+    await next();
+    c.header("x-analytics-id", options.analyticsId);
+  };
+},
+```
+
+### Wrap the Server Entry
+
+`unstable_serverEntry` changes the server entry of the adapter, like its `buildOptions`. Waku marks the entry type unstable.
+
+```tsx title="acme/index.tsx"
+unstable_serverEntry(entry) {
+  return {
+    ...entry,
+    buildOptions: {
+      ...entry.buildOptions,
+      ACME_ANALYTICS_ID: options.analyticsId,
+    },
+  };
+},
+```

@@ -9,8 +9,11 @@ import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { vercelImage } from "fumapress/plugins/image/vercel";
 import { mcpPlugin } from "@fumapress/ai";
 import { defineDocs } from "fumadocs-mdx/macro";
+import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { baseOptions, renderPage } from "./src/ui/layout";
+import { frameworkOf } from "./src/ui/framework";
+import { DocsSearchDialog } from "./src/ui/search";
 
 const docsOptions = {
   async: true,
@@ -38,6 +41,41 @@ const changelog = defineDocs({
   meta: { schema: changelogMetaSchema },
 });
 
+/** pages of the published docs, they were for Waku */
+const movedPages = new Map([
+  ["/docs/adapters", "/docs/content-sources"],
+  ["/docs/adapters/mdx", "/docs/content-sources/fumadocs-mdx"],
+  ["/docs/adapters/notion", "/docs/content-sources/notion"],
+  ["/docs/adapters/obsidian", "/docs/content-sources/obsidian"],
+  ["/docs/adapters/sanity", "/docs/content-sources/sanity"],
+  ["/docs/assets", "/docs/content#images-and-files"],
+  ["/docs/basics", "/docs/content"],
+  ["/docs/collections", "/docs/content-sources"],
+  ["/docs/config", "/docs/configuration"],
+  ["/docs/layouts/docs", "/docs/layouts"],
+  ["/docs/layouts/glass", "/docs/layouts"],
+  ["/docs/layouts/home", "/docs/layouts"],
+  ["/docs/layouts/notebook", "/docs/layouts"],
+  ["/docs/layouts/spacious", "/docs/layouts"],
+  ["/docs/markdown", "/docs/plugins/ai#llmstxt"],
+  ["/docs/migrate", "/docs/migrate/v2"],
+  ["/docs/plugins/asyncapi", "/docs/plugins/api-docs#asyncapi"],
+  ["/docs/plugins/flexsearch", "/docs/search"],
+  ["/docs/plugins/graphql", "/docs/plugins/api-docs#graphql"],
+  ["/docs/plugins/image", "/docs/content#image-optimization"],
+  ["/docs/plugins/llms.txt", "/docs/plugins/ai#llmstxt"],
+  ["/docs/plugins/mcp", "/docs/plugins/ai#mcp"],
+  ["/docs/plugins/mintlify", "/docs/migrate/mintlify"],
+  ["/docs/plugins/openapi", "/docs/plugins/api-docs#openapi"],
+  ["/docs/plugins/orama-search", "/docs/search"],
+  ["/docs/plugins/robots", "/docs/plugins/seo#robotstxt"],
+  ["/docs/plugins/rss", "/docs/plugins/seo#rss"],
+  ["/docs/plugins/sitemap", "/docs/plugins/seo#sitemap"],
+  ["/docs/plugins/takumi", "/docs/plugins/seo#open-graph-images"],
+  ["/docs/plugins/tegami", "/docs/plugins/changelog"],
+  ["/docs/routing", "/docs/custom-pages"],
+]);
+
 export const app = createPress(
   {
     docs: docs.toFumadocsSource({ baseDir: "docs" }),
@@ -46,9 +84,43 @@ export const app = createPress(
   },
   { loaderOptions: { plugins: [lucideIconsPlugin()] } },
 ).plugins(
+  {
+    name: "docs:moved-pages",
+    middleware(request, next) {
+      const location = movedPages.get(new URL(request.url).pathname);
+      if (!location) return next();
+      return Promise.resolve(new Response(null, { status: 308, headers: { Location: location } }));
+    },
+  },
+  flexsearchPlugin({
+    // the dialog filters by framework on the server
+    render: "dynamic",
+    async buildIndex(page) {
+      return {
+        id: page.url,
+        title: page.data.title ?? page.path,
+        description: page.data.description,
+        url: page.url,
+        structuredData: (await this.getPageStructuredData(page)) ?? { headings: [], contents: [] },
+        tag: frameworkOf(page.url) ?? "site",
+      };
+    },
+  }),
   linkValidationPlugin(),
   mcpPlugin(),
-  llmsPlugin({ routes: "all" }),
+  llmsPlugin({
+    routes: "all",
+    // processed Markdown keeps links as authored, and shared partials can only use relative ones
+    async getLLMText(page) {
+      const [text, loader] = await Promise.all([this.getPageText(page), this.getLoader()]);
+      if (text === undefined) return;
+      const resolved = text.replace(
+        /\]\(<?(\.\.?\/[^)>]+)>?\)/g,
+        (_, href: string) => `](${loader.resolveHref(href, page)})`,
+      );
+      return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${resolved}`;
+    },
+  }),
   // `github.com/<user>.png` redirects to the avatars host, both are validated
   vercelImage({ domains: ["github.com", "avatars.githubusercontent.com"] }),
   blogPlugin({
@@ -66,6 +138,7 @@ export const app = createPress(
 );
 
 export default app.config({
+  // the optimizer of Vercel has no route elsewhere, other builds keep plain image URLs
   site: {
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
@@ -90,5 +163,9 @@ export default app.config({
     },
     { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", type: "image/x-icon" } },
   ],
-  ui: { baseOptions, renderPage },
+  ui: {
+    baseOptions,
+    renderPage,
+    providerProps: { search: { SearchDialog: DocsSearchDialog } },
+  },
 });

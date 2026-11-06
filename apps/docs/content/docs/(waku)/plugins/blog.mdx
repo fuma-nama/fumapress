@@ -1,0 +1,101 @@
+---
+title: Blog
+description: Add a blog with post, index and tag pages.
+---
+
+<include cwd>content/shared/plugins/blog.mdx#intro</include>
+
+## Setup
+
+### Install [step]
+
+<include cwd>content/shared/plugins/blog.mdx#install</include>
+
+### Add the Styles [step]
+
+<include cwd>content/shared/plugins/blog.mdx#styles</include>
+
+### Create the Source [step]
+
+Create a source for your posts and pass its key to the plugin:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+// [!code ++:2]
+import { blogPlugin } from "@fumapress/blog";
+import { blogPageSchema } from "@fumapress/blog/schema";
+
+const docs = defineDocs({ dir: "content/docs" });
+
+// [!code ++:4]
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: { schema: blogPageSchema },
+});
+
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+})
+  // [!code ++]
+  .plugins(blogPlugin({ source: "blog" }));
+```
+
+## Write Posts
+
+<include cwd>content/shared/plugins/blog.mdx#write</include>
+
+## Customize
+
+<include cwd>content/shared/plugins/blog.mdx#rest</include>
+
+### Allow Remote Images
+
+An optimizer rejects hosts you don't allow, including for covers and avatars:
+
+```tsx tab="Self-hosted" title="press.config.tsx"
+import { selfHostedImage } from "fumapress/plugins/image/self-hosted";
+
+selfHostedImage({ allowedHosts: ["avatars.githubusercontent.com"] });
+```
+
+```tsx tab="Vercel" title="press.config.tsx"
+import { vercelImage } from "fumapress/plugins/image/vercel";
+
+vercelImage({ domains: ["avatars.githubusercontent.com"] });
+```
+
+<Callout type="warn" title="Watch for redirects">
+  A redirect that leaves the origin is checked again, so allow the final host too. An avatar at
+  `github.com`, for example, redirects to `avatars.githubusercontent.com`.
+</Callout>
+
+<include cwd>content/shared/plugins/blog.mdx#posts-lead</include>
+
+```tsx title="src/pages/index.tsx"
+import { getPressContext } from "fumapress";
+import { Link } from "fumapress/client";
+import { getBlogPosts } from "@fumapress/blog";
+import type { app } from "../../press.config";
+
+export default async function Home() {
+  const posts = await getBlogPosts(getPressContext<typeof app>());
+
+  return (
+    <ul>
+      {posts.slice(0, 3).map((post) => (
+        <li key={post.page.url}>
+          <Link href={post.page.url}>{post.page.data.title}</Link>
+          {post.authors.map((author) => author.name).join(", ")}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+<include cwd>content/shared/plugins/blog.mdx#posts-tail</include>
+
+<include cwd>content/shared/plugins/blog.mdx#options</include>

@@ -1,12 +1,114 @@
 ---
 title: Configuration
-description: The integration and the press config on Astro.
-icon: Cog
+description: Every option of your site, from press.config.tsx to the integration.
 ---
+
+`press.config.tsx` at the project root configures your site. Only `createPress()` is required. The file can `await` your collections.
+
+```tsx title="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import { rssPlugin } from "@fumapress/astro/plugins/rss";
+
+export const app = createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+  { i18n },
+).plugins(rssPlugin());
+
+export default app.config({
+  site: { name: "Acme" },
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
+  ui: { baseOptions, renderPage },
+});
+```
+
+<include cwd>content/shared/configuration.mdx#content</include>
+
+## Site
+
+<include cwd>content/shared/configuration.mdx#name</include>
+
+### URL
+
+Set [`site`](https://docs.astro.build/en/reference/configuration-reference/#site) in your Astro config. Without it, canonical links, the sitemap, RSS and Open Graph images fall back to relative URLs.
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  site: "https://docs.example.com",
+  integrations: [press()],
+});
+```
+
+<include cwd>content/shared/configuration.mdx#repository</include>
+
+### All Site Options
+
+<auto-type-table cwd path="../../packages/core/src/press.ts" type="Omit<SiteConfig, 'baseUrl'>" />
+
+<include cwd>content/shared/configuration.mdx#head</include>
+
+<include cwd>content/shared/configuration.mdx#navbar</include>
+
+### Logo
+
+`nav.title` can be any React element:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    baseOptions: {
+      nav: {
+        title: (
+          <>
+            <img src="/logo.png" width={64} height={64} className="size-8" alt="" />
+            Acme
+          </>
+        ),
+      },
+    },
+  },
+});
+```
+
+<include cwd>content/shared/configuration.mdx#navbar-lang</include>
+
+<include cwd>content/shared/configuration.mdx#navbar-file</include>
+
+```tsx title="src/lib/base-options.tsx"
+import type { UIOptions } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+
+export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+  return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
+};
+```
+
+## Theme
+
+### Colors
+
+<include cwd>content/shared/configuration.mdx#theme-colors</include>
+
+`@fumapress/astro/css/default.css` is a shortcut for these imports with the `neutral` theme, so replace it with them first.
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code --] */
+@import "fumadocs-ui/css/neutral.css";
+/* [!code ++] */
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+@import "@fumapress/astro/css/preset.css";
+```
+
+<include cwd>content/shared/configuration.mdx#theme-rest</include>
+
+<include cwd>content/shared/configuration.mdx#ui</include>
 
 ## Integration
 
-`press()` takes the options of the [Fumadocs integration](https://fumadocs.dev/docs/manual-installation/astro#options), like `collections`, `includeProcessedMarkdown` and `rehypeCodeOptions`, plus the MDX components module:
+`press()` also takes the [options of `@fumadocs/astro`](https://fumadocs.dev/docs/manual-installation/astro), like `collections` and `rehypeCodeOptions`. It adds the React and MDX integrations, so don't list them yourself.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -15,65 +117,33 @@ import press from "@fumapress/astro";
 export default defineConfig({
   integrations: [
     press({
-      // the MDX components, defaults to `fumadocs-ui/mdx`
       components: "./src/components/mdx.tsx",
     }),
   ],
 });
 ```
 
-See [MDX Components](/docs/astro/content#mdx-components) for the components module.
+<auto-type-table cwd path="../../packages/astro/src/index.ts" name="AstroPressOptions" />
 
-## Press Config
+## Types
 
-`createPress` from `@fumapress/astro/config` takes the same stages as on Waku: `createPress(content, options).plugins(...).config({...})`. It runs on the server of Astro before your pages render. It can `await` your collections, and the callbacks of plugins receive the site context as `this`.
+Export the result of `.plugins()` as `app`, and pass `typeof app` to the type helpers from `@fumapress/astro/config`:
 
-Waku-only options are type errors on Astro: `ui.renderRoot`, image optimizer plugins and the `waku` hooks of plugins. See [Config](/docs/config) for every shared option.
+```astro title="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
 
-### Render Mode
-
-The [render mode](/docs/config#render-mode) follows your Astro config:
-
-| Astro config                   | `mode`    |
-| ------------------------------ | --------- |
-| no adapter                     | `static`  |
-| an adapter                     | `default` |
-| an adapter, `output: "server"` | `dynamic` |
-
-Set `mode: "static"` to build without server routes while keeping an adapter. `default` and `dynamic` without an adapter fail with an error. See [Deployment](/docs/astro/deployment).
-
-### Site URL
-
-`site.baseUrl` defaults to the [`site`](https://docs.astro.build/en/reference/configuration-reference/#site) of Astro with its `base`, and to the address of the dev server in dev. Set `site` in your Astro config rather than `site.baseUrl`:
-
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import press from "@fumapress/astro";
-
-export default defineConfig({
-  // [!code ++]
-  site: "https://docs.example.com",
-  integrations: [press()],
-});
+type Props = LayoutProps<typeof app, "docs">;
+---
 ```
 
-Without it, the sitemap and `og:image` use relative URLs, and pages have no canonical URL.
-
-## Styles
-
-`src/app.css` is loaded on every page. Start it from the default styles:
-
-```css title="src/app.css"
-@import "@fumapress/astro/css/default.css";
-/* the styles of integrations [!code ++] */
-@import "fumadocs-openapi/css/preset.css";
-```
-
-Without the file, the default styles are used: Tailwind CSS, the `neutral` theme and the preset of Fumadocs UI. For another [theme](https://fumadocs.dev/docs/ui/theme), import them yourself:
-
-```css title="src/app.css"
-@import "tailwindcss";
-@import "fumadocs-ui/css/black.css";
-@import "fumadocs-ui/css/preset.css";
-@import "@fumapress/astro/css/preset.css";
-```
+| Helper            | For                                                            |
+| ----------------- | -------------------------------------------------------------- |
+| `LayoutProps`     | props of an [`.astro` layout](./layouts.mdx#islands)           |
+| `IslandProps`     | props of its island                                            |
+| `RenderPageProps` | props of `ui.renderPage`, narrowed to a source or plugin page  |
+| `UIOptions`       | an option of `ui`, like `UIOptions<typeof app>["baseOptions"]` |
+| `PressContext`    | `this` in callbacks, the result of `getPressContext()`         |
+| `BaseOptions`     | the Fumadocs layout props                                      |
+| `ProviderProps`   | the root provider props                                        |

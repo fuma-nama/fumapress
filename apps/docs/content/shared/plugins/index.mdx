@@ -1,0 +1,58 @@
+<section id="intro">
+
+Your site starts with a set of default plugins. Add more with `.plugins()`:
+
+```tsx title="press.config.tsx"
+import { blogPlugin } from "@fumapress/blog";
+
+export default createPress(content).plugins(blogPlugin({ source: "blog" }));
+```
+
+</section>
+
+<section id="replace">
+
+### Replace a Default Plugin
+
+List `rssPlugin()` to pass it options. It takes the place of the default RSS plugin, because both provide `rss`. A site has one plugin per `provides` value.
+
+</section>
+
+<section id="remove">
+
+### Remove a Default Plugin
+
+Filter it out of `preset`, or pass an empty list to remove them all:
+
+</section>
+
+<section id="rest">
+
+## Conditional Plugins and Order
+
+Falsy values are skipped, so a plugin can be conditional:
+
+```tsx title="press.config.tsx"
+const blog = process.env.ENABLE_BLOG && blogPlugin({ source: "blog" });
+
+createPress(content).plugins(blog);
+```
+
+The order matters in two places. Middleware nests in list order, so your first plugin wraps the others. Navbar links follow the list too, after your `ui.baseOptions` links.
+
+</section>
+
+<section id="table">
+
+A site can have each of these features once. The second column is its `provides` value:
+
+| Feature                                          | `provides` |
+| ------------------------------------------------ | ---------- |
+| [Sitemap](./seo.mdx#sitemap)                     | `sitemap`  |
+| [robots.txt](./seo.mdx#robotstxt)                | `robots`   |
+| [RSS](./seo.mdx#rss)                             | `rss`      |
+| [Open Graph images](./seo.mdx#open-graph-images) | `og-image` |
+| [llms.txt](./ai.mdx#llmstxt)                     | `llms`     |
+| [Search](../search.mdx) with FlexSearch          | `search`   |
+
+</section>

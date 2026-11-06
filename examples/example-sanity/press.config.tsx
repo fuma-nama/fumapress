@@ -41,7 +41,6 @@ export default createPress(source, {
     }),
   )
   .config({
-    mode: "dynamic",
     site: {
       name: "Sanity Example",
     },

@@ -1,0 +1,75 @@
+---
+title: Writing Plugins
+description: Add routes, UI and other features with your own plugin.
+---
+
+<include cwd>content/shared/plugins/authoring/index.mdx#intro</include>
+
+## Choose a Hook
+
+<Cards>
+  <Card href="/docs/plugins/authoring/routes" title="Routes">
+    Add pages and API routes.
+  </Card>
+  <Card href="/docs/plugins/authoring/ui" title="UI">
+    Add buttons, navbar links and head tags, or render a source your way.
+  </Card>
+  <Card href="/docs/plugins/authoring/server" title="Middleware and Lifecycle">
+    Handle requests, or run code at startup and after the build.
+  </Card>
+  <Card href="/docs/content-sources/custom" title="Custom Source">
+    Render pages from anywhere, with content hooks like `getPageBody`.
+  </Card>
+</Cards>
+
+## Share a Plugin
+
+In these samples, `AppShape` and `Plugin` come from `fumapress`.
+
+<include cwd>content/shared/plugins/authoring/index.mdx#reusable</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#types</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#package</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#capabilities</include>
+
+### Replace a Default Plugin
+
+A plugin that provides what a [default plugin](/docs/plugins#default-plugins) provides takes its place. This image optimizer provides `image`, and its provider wraps every layout:
+
+```tsx tab="press.config.tsx"
+import { createPress, type WakuAppShape, type WakuPlugin } from "fumapress";
+import { CloudinaryProvider } from "./src/provider";
+
+function cloudinaryImage<C extends WakuAppShape = WakuAppShape>(options: {
+  cloud: string;
+}): WakuPlugin<C, { provides: "image" }> {
+  return {
+    name: "cloudinary:image",
+    provides: ["image"], // [!code highlight]
+    slots: ({ page }) =>
+      page
+        ? undefined
+        : [
+            {
+              slot: "layout.wrapper",
+              component: CloudinaryProvider,
+              props: { cloud: options.cloud },
+              order: -10,
+            },
+          ],
+  };
+}
+
+export default createPress(content).plugins(cloudinaryImage({ cloud: "acme" }));
+```
+
+```tsx tab="src/provider.tsx"
+"use client";
+import type { ReactNode } from "react";
+
+export function CloudinaryProvider({ cloud, children }: { cloud: string; children?: ReactNode }) {
+  return <div data-cloud={cloud}>{children}</div>;
+}
+```

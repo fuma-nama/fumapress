@@ -16,3 +16,39 @@
 .dark {
   --color-fd-primary: oklch(76.972% 0.15134 51.001);
 }
+
+:root {
+  --waku-color: hsl(16, 90%, 44%);
+  --astro-color: hsl(266, 78%, 54%);
+}
+
+.dark {
+  --waku-color: hsl(20, 95%, 68%);
+  --astro-color: hsl(266, 100%, 80%);
+}
+
+.waku {
+  --color-fd-primary: var(--waku-color);
+}
+
+.astro {
+  --color-fd-primary: var(--astro-color);
+}
+
+.waku-tab {
+  --tab-color: var(--waku-color);
+}
+
+.astro-tab {
+  --tab-color: var(--astro-color);
+}
+
+.tab-icon {
+  @apply block size-full rounded-lg text-(--tab-color) max-md:border max-md:bg-(--tab-color)/10 max-md:p-1.5 [&_svg]:size-full;
+}
+
+/* inline code keeps its box on both lines when it wraps */
+.prose :not(pre) > code {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}

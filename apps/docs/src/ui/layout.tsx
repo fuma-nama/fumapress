@@ -12,10 +12,11 @@ import {
   ViewOptionsPopover,
 } from "fumadocs-ui/layouts/notebook/page";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
-import type { LinkItemType } from "fumadocs-ui/layouts/shared";
+import { getLayoutTabs, type LinkItemType } from "fumadocs-ui/layouts/shared";
 import { SponsorsMarquee } from "@fumari/sponsors";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import type { app } from "../../press.config";
+import { frameworkOf } from "./framework";
 
 export const baseOptions: BaseOptions = {
   nav: {
@@ -71,9 +72,21 @@ function NotebookDocs({
   body,
   actions,
 }: RenderPageProps<typeof app, "docs" | "changelog">) {
+  const docsTree = selectTreeRoot(tree, "docs");
+
   return (
     // the sidebar shows the docs on every page of this layout
-    <DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")}>
+    <DocsLayout
+      {...baseOptions}
+      tree={docsTree}
+      tabs={getLayoutTabs(docsTree, {
+        transform: (option) => ({
+          ...option,
+          icon: <span className={`${frameworkOf(option.url)}-tab tab-icon`}>{option.icon}</span>,
+        }),
+      })}
+      containerProps={{ className: frameworkOf(pageData.url) }}
+    >
       <DocsPage
         toc={pageData.toc}
         full={pageData.full}

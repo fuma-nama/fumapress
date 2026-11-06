@@ -1,0 +1,72 @@
+---
+title: AI
+description: Give AI tools your docs as Markdown, add a chat, or connect clients over MCP.
+---
+
+<include cwd>content/shared/plugins/ai.mdx#intro</include>
+
+## llms.txt
+
+<include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
+
+List the plugin to pass options. It replaces the default one:
+
+```tsx title="press.config.tsx"
+import { llmsPlugin } from "@fumapress/astro/plugins/llms.txt";
+
+createPress(content).plugins(llmsPlugin());
+```
+
+<Callout>
+  Set [`includeProcessedMarkdown`](/docs/astro/content-sources/collections) in `press()` to use
+  processed Markdown. Without it, pages use their source files. Custom pages have no Markdown
+  version.
+</Callout>
+
+<include cwd>content/shared/plugins/ai.mdx#llms</include>
+
+### llms.txt Options
+
+<auto-type-table
+  cwd
+  path="../../packages/core/src/plugins/llms.txt.ts"
+  type="Omit<LLMsOptions, 'routes'>"
+/>
+
+<include cwd>content/shared/plugins/ai.mdx#chat</include>
+
+### Use a Custom Layout
+
+The default layout docks the chat for you. With a custom [layout](/docs/astro/layouts#render-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component, and use it in your island:
+
+```tsx tab="src/chat-layout.tsx"
+"use client";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import { AIChatPanel, useAIChat } from "@fumapress/ai/components/chat";
+
+export function ChatLayout(props: DocsLayoutProps) {
+  const { open, setOpen } = useAIChat();
+
+  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel /> };
+
+  return <DocsLayout {...props} aiChat={aiChat} />;
+}
+```
+
+```tsx tab="src/components/docs-island.tsx"
+export const DocsIsland = createIsland(
+  ({ baseOptions, tree, pageData, actions, children }: IslandProps<typeof app, "docs">) => (
+    <ChatLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc}>
+        <div className="flex justify-end">{actions.ai}</div>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{children}</DocsBody>
+      </DocsPage>
+    </ChatLayout>
+  ),
+);
+```
+
+<include cwd>content/shared/plugins/ai.mdx#chat-options</include>
+
+<include cwd>content/shared/plugins/ai.mdx#mcp</include>

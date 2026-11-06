@@ -1,0 +1,753 @@
+---
+title: Upgrade to Fumapress 2
+description: Move a Fumapress 1.x site to version 2.
+---
+
+Fumapress 2 replaces `defineConfig()` with `createPress()`, and each page now renders the way its content source does, so one site can mix prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
+
+## Upgrade the Site
+
+### Update the Packages [step]
+
+Update Fumapress and Fumadocs together. Update any `@fumapress/*` plugins you use the same way.
+
+```npm
+npm i fumapress@latest
+npm i fumadocs-core@latest fumadocs-mdx@latest
+npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
+```
+
+On the Radix UI build, install `fumadocs-ui@latest` on the last line.
+
+### Rewrite the Config [step]
+
+`content`, `i18n` and `loaderOptions` go to `createPress()`. Plugins go to `.plugins()`, called once. Everything else goes to `.config()`.
+
+```tsx title="press.config.tsx"
+// [!code --:2]
+import { defineConfig } from "fumapress";
+import { fumadocsMdx } from "fumapress/adapters/mdx";
+// [!code ++]
+import { createPress } from "fumapress";
+
+// [!code --:7]
+export default defineConfig({
+  content: docs.toFumadocsSource(),
+  loaderOptions: { plugins: [lucideIconsPlugin()] },
+  site: { name: "My Docs" },
+})
+  .adapters(fumadocsMdx())
+  .plugins(llmsPlugin());
+// [!code ++:5]
+export const app = createPress(docs.toFumadocsSource(), {
+  loaderOptions: { plugins: [lucideIconsPlugin()] },
+}).plugins(llmsPlugin());
+
+export default app.config({ site: { name: "My Docs" } });
+```
+
+Delete the `.adapters(fumadocsMdx())` call. MDX pages now render without it.
+
+### Update the Schema Import [step]
+
+```tsx title="press.config.tsx"
+// [!code --]
+import { metaSchema, pageSchema } from "fumapress/adapters/mdx/schema";
+// [!code ++]
+import { metaSchema, pageSchema } from "fumapress/schema";
+```
+
+### Run the Site [step]
+
+```npm
+npm run dev
+```
+
+If you didn't customize your site, you're done. To find the rest, search your project for imports from `fumapress/` and for the options you set, then open the matching sections below.
+
+## Update Site Options
+
+Open the options your site sets.
+
+<Accordions multiple>
+<Accordion title="MDX components">
+
+Move your components into a module, then pass it to `press()`. Relative links reach your `a` component already resolved, so `createRelativeLink()` is gone.
+
+```tsx tab="src/components/mdx.tsx"
+import defaultMdxComponents from "fumadocs-ui/mdx";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import type { MDXComponents } from "mdx/types";
+
+export default {
+  ...defaultMdxComponents,
+  Tab,
+  Tabs,
+} satisfies MDXComponents;
+```
+
+```ts tab="vite.config.ts"
+export default defineConfig({
+  // [!code --]
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
+  // [!code ++]
+  plugins: [press({ components: "./src/components/mdx.tsx" }), fumadocsMdx(), tailwindcss()],
+});
+```
+
+</Accordion>
+<Accordion title="Layouts">
+
+The factories of `fumapress/layouts/*` are removed. A site using `createDocsLayoutPage()` without options can delete it, since that is the default. Otherwise write the layout as JSX in `ui.renderPage`, and `props.type` picks it.
+
+```tsx tab="1.x" title="press.config.tsx"
+import { defineConfig } from "fumapress";
+import { createNotebookLayoutPage } from "fumapress/layouts/notebook";
+
+const Notebook = createNotebookLayoutPage<typeof config.$context>({
+  treeRoot: "docs",
+  render: () => ({ pageProps: { full: true } }),
+});
+
+const config = defineConfig({
+  content,
+  renderPage: (props) => <Notebook {...props} />,
+});
+
+export default config;
+```
+
+```tsx tab="2.0" title="press.config.tsx"
+import { createPress, selectTreeRoot } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+
+export const app = createPress({ docs: docs.toFumadocsSource() });
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      const { renderDefault } = props;
+      if (props.type !== "docs") return renderDefault();
+
+      return (
+        <DocsLayout {...props.baseOptions} tree={selectTreeRoot(props.tree, "docs")}>
+          <DocsPage toc={props.pageData.toc} full>
+            <DocsTitle>{props.pageData.title}</DocsTitle>
+            <DocsBody>{props.body}</DocsBody>
+            {Object.values(props.footer)}
+          </DocsPage>
+        </DocsLayout>
+      );
+    },
+  },
+});
+```
+
+Options like `renderLayout`, `renderBody` and `pageProps` become your JSX. Plugin buttons and forms are in `props.actions` and `props.footer`. See [Page Actions and Footers](/docs/layouts#page-actions-and-footers).
+
+On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#use-a-layout).
+
+</Accordion>
+<Accordion title="Navbar and links">
+
+```tsx title="press.config.tsx"
+export default app.config({
+  // [!code --]
+  defaultLayoutProps: { links: [{ url: "/blog", text: "Blog" }] },
+  // [!code ++:3]
+  ui: {
+    baseOptions: { links: [{ url: "/blog", text: "Blog" }] },
+  },
+});
+```
+
+To read these options elsewhere, use `ctx.getBaseOptions({ lang })` in place of `ctx.defaultLayoutProps({ lang })`.
+
+</Accordion>
+<Accordion title="Root document and provider">
+
+Props of the root provider move out of `createRootLayout()`.
+
+```tsx title="press.config.tsx"
+// [!code --:4]
+const Root = createRootLayout({
+  providerProps: { theme: { defaultTheme: "dark" } },
+});
+defineConfig({ content, renderRoot: (props) => <Root {...props} /> });
+// [!code ++:3]
+createPress(content).config({
+  ui: { providerProps: { theme: { defaultTheme: "dark" } } },
+});
+```
+
+A custom `ui.renderRoot` also receives `head`, the styles of your site. Render it in `<head>`, or the page has no CSS.
+
+</Accordion>
+<Accordion title="Not found page">
+
+Delete `renderNotFound`, and add the page as a file:
+
+```tsx title="src/pages/404.tsx"
+export default function NotFound() {
+  return <main>This page doesn't exist.</main>;
+}
+```
+
+</Accordion>
+<Accordion title="Head tags">
+
+`meta` returned JSX. `head` returns a list of tags, and a function gets the `page`.
+
+```tsx title="press.config.tsx"
+export default app.config({
+  // [!code --:6]
+  meta: {
+    root: () => <link rel="icon" href="/favicon.ico" />,
+    page(page) {
+      return <meta name="robots" content="noindex" />;
+    },
+  },
+  // [!code ++:4]
+  head({ page }) {
+    if (!page) return [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }];
+    return [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }];
+  },
+});
+```
+
+For tags that don't depend on the page, pass a plain list. See [Head Tags](/docs/configuration#head-tags).
+
+</Accordion>
+<Accordion title="Languages and translations">
+
+Pass `i18n` to `createPress()`, even when `translations` already had it, and move `translations` under `ui`.
+
+`fumapress/i18n` is removed, so delete `.extend(fumapressTranslations())`. Plugin and UI strings are added for you.
+
+```tsx title="press.config.tsx"
+const i18n = defineI18n({ languages: ["en", "zh"], defaultLanguage: "en" });
+
+// [!code --:4]
+export default defineConfig({
+  content,
+  translations: i18n.translations().preset("zh", zhTW()),
+});
+// [!code ++:5]
+export const app = createPress(content, { i18n });
+
+export default app.config({
+  ui: { translations: i18n.translations().preset("zh", zhTW()) },
+});
+```
+
+</Accordion>
+<Accordion title="Render mode">
+
+Delete `mode`. Content from a static source, like Fumadocs MDX, is prerendered. Content from a dynamic source renders on demand, and one site can have both. Search and other generated files follow them.
+
+<Callout type="warn">
+  If you used `mode: "dynamic"` with a static source, its pages no longer run on demand, so
+  middleware doesn't run for them. See [Authentication](/docs/authentication) if you relied on that.
+</Callout>
+
+<Callout type="warn">
+  Custom pages and API routes no longer follow `mode`. Pages are prerendered and API routes render
+  on demand unless `getConfig()` says otherwise.
+</Callout>
+
+</Accordion>
+<Accordion title="Default plugins">
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  // [!code --]
+  preset: false,
+  // [!code ++]
+  preset: [],
+});
+```
+
+Delete `preset: "recommended"`, since it is the default.
+
+</Accordion>
+<Accordion title="Search dialog">
+
+A custom dialog moves to `ui.providerProps`, and receives the options of the search plugin as props. See [Customize the Dialog](/docs/search#customize-the-dialog).
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: { providerProps: { search: { SearchDialog } } },
+});
+```
+
+The exported search index is now at `/api/search.json`. On a dynamic source, search still runs at `/api/search`.
+
+</Accordion>
+<Accordion title="Custom pages and API routes">
+
+Types and helpers are read through `app`, the result of `.plugins()`:
+
+```tsx title="src/pages/showcase/[slug].tsx"
+// [!code --:3]
+import type { RouteConfig, RouteProps } from "fumapress";
+import config from "../../../press.config";
+const ctx = config.utils().getPressContext();
+// [!code ++:3]
+import { getPressContext, type WakuRouteConfig, type WakuRouteProps } from "fumapress";
+import type { app } from "../../../press.config";
+const ctx = getPressContext<typeof app>();
+
+export function getConfig() {
+  return {
+    render: "static",
+    // [!code --]
+    takumiOptions: { title: "Showcase" },
+    // [!code ++]
+    ogImage: { title: "Showcase" },
+    // [!code --]
+  } satisfies RouteConfig;
+  // [!code ++]
+  } satisfies WakuRouteConfig;
+}
+```
+
+`typeof config.$context` is now `typeof app`. Rename `AppContext<...>` to `PressContext<typeof app>`.
+
+</Accordion>
+<Accordion title="Server entry">
+
+Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version Fumapress uses, which is `1.0.0-rc.1`.
+
+```tsx title="src/waku.server.tsx"
+const router = await createRouter(press);
+// [!code ++]
+import.meta.hot?.dispose(router.dispose);
+```
+
+</Accordion>
+</Accordions>
+
+## Update Plugins
+
+Open the plugins your site lists.
+
+<Accordions multiple>
+<Accordion title="Blog">
+
+The plugin moved to its own package, and `source` names a key of your content.
+
+```npm
+npm i @fumapress/blog
+```
+
+```css title="src/app.css"
+@import "fumapress/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/blog/css/preset.css";
+```
+
+```tsx title="press.config.tsx"
+// [!code --:2]
+import { blogPlugin } from "fumapress/plugins/blog";
+import { blogPageSchema, blogMetaSchema } from "fumapress/adapters/mdx/schema";
+// [!code ++:2]
+import { blogPlugin } from "@fumapress/blog";
+import { blogPageSchema, blogMetaSchema } from "@fumapress/blog/schema";
+
+// [!code --]
+blogPlugin();
+// [!code ++]
+blogPlugin({ source: "blog" });
+```
+
+A site whose `isBlog` picked posts out of one source splits them into a source of their own. Then update your calls to the blog helpers:
+
+```tsx
+// [!code --:3]
+import { getBlogPosts, getBlogAuthors } from "fumapress/plugins/blog";
+const posts = await getBlogPosts(ctx, lang);
+const authors = await getBlogAuthors(ctx, posts[0].page);
+// [!code ++:3]
+import { getBlogPosts } from "@fumapress/blog";
+const posts = await getBlogPosts(ctx, { lang });
+const authors = posts[0]?.authors;
+```
+
+- Posts come with `authors`, `tags` and `image`. Use `tag.url` in place of `tagSlug()`.
+- The `layouts` option becomes [`renderPage` cases](/docs/plugins/blog#custom-ui).
+- The adapter keys `blog:get-tags`, `blog:get-authors` and `blog:get-image` become the options `getTags`, `getAuthors` and `getImage`.
+
+</Accordion>
+<Accordion title="Changelog">
+
+```tsx title="press.config.tsx"
+// [!code --:3]
+changelogPlugin({
+  isChangelog: (page) => page.type === "changelog",
+});
+// [!code ++]
+changelogPlugin({ source: "changelog" });
+```
+
+`layouts`, `createChangelogLayout()`, `createChangelogIndexPage()` and `getChangelogContext()` are removed. Style the page with the [`changelog.index` case](/docs/plugins/changelog#custom-ui) of `renderPage`.
+
+</Accordion>
+<Accordion title="Images">
+
+Each provider has its own function, with the same options.
+
+```tsx title="press.config.tsx"
+// [!code --:2]
+import { imagePlugin } from "fumapress/plugins/image/vercel";
+imagePlugin({ domains: ["github.com"] });
+// [!code ++:2]
+import { vercelImage } from "fumapress/plugins/image/vercel";
+vercelImage({ domains: ["github.com"] });
+```
+
+The others are `cloudflareImage()` and `selfHostedImage()`. `selfHostedImage()` now needs [`site.baseUrl`](/docs/configuration#url).
+
+</Accordion>
+<Accordion title="Open Graph images">
+
+```tsx title="press.config.tsx"
+takumiPlugin({
+  // [!code --]
+  basePath: "/og",
+  // [!code ++]
+  path: "/og",
+  // [!code --]
+  generate(page) {
+  // [!code ++]
+  getImage(page) {
+    return { node: <h1>{page.data.title}</h1> };
+  },
+});
+```
+
+</Accordion>
+<Accordion title="OpenAPI and AsyncAPI">
+
+Only the imports change. Each plugin is now the default export of its integration.
+
+```tsx title="press.config.tsx"
+// [!code --:2]
+import { openapiPlugin } from "fumapress/plugins/openapi";
+import { asyncapiPlugin } from "fumapress/plugins/asyncapi";
+// [!code ++:2]
+import openapiPlugin from "fumadocs-openapi/press";
+import asyncapiPlugin from "@fumadocs/asyncapi/press";
+```
+
+</Accordion>
+<Accordion title="GraphQL">
+
+```npm
+npm uninstall @fumapress/graphql
+npm i @fumadocs/graphql
+```
+
+```tsx title="press.config.tsx"
+// [!code --]
+import { createGraphQL, graphqlPlugin } from "@fumapress/graphql";
+// [!code ++:2]
+import { createGraphQL } from "@fumadocs/graphql/server";
+import graphqlPlugin from "@fumadocs/graphql/press";
+```
+
+```css title="src/app.css"
+/* [!code --] */
+@import "@fumapress/graphql/css/preset.css";
+/* [!code ++] */
+@import "@fumadocs/graphql/css/preset.css";
+```
+
+</Accordion>
+<Accordion title="Notion">
+
+```npm
+npm uninstall @fumapress/notion
+npm i @fumadocs/notion
+```
+
+```tsx title="press.config.tsx"
+// [!code --]
+import { fumapressNotion, notionPlugin } from "@fumapress/notion";
+// [!code ++:2]
+import { createNotion } from "@fumadocs/notion";
+import notionPlugin from "@fumadocs/notion/press";
+
+// [!code --]
+const notion = fumapressNotion({ client, dataSourceId });
+// [!code ++]
+const notion = createNotion({ client, dataSourceId });
+
+// [!code --]
+notionPlugin(notion);
+// [!code ++]
+notionPlugin({ notion });
+```
+
+Replace `@fumapress/notion/css/preset.css` with `@fumadocs/notion/css/preset.css`. The `Renderer` option is removed, so to replace it, override `getPageBody` of the plugin:
+
+```tsx title="press.config.tsx"
+const plugin = { ...notionPlugin({ notion }), getPageBody };
+```
+
+</Accordion>
+<Accordion title="Sanity">
+
+The `PortableText` option becomes the `components` of the plugin, and `createSanitySource()` returns the source directly.
+
+```npm
+npm uninstall @fumapress/sanity
+npm i @fumadocs/sanity
+```
+
+```tsx title="press.config.tsx"
+// [!code --:7]
+import { fumapressSanity, sanityPlugin } from "@fumapress/sanity";
+const sanity = fumapressSanity({
+  client,
+  docType: "docs",
+  PortableText: ({ value }) => <PortableText value={value} components={components} />,
+});
+defineConfig({ content: sanity.dynamicSource() }).plugins(sanityPlugin(sanity));
+// [!code ++:4]
+import { createSanitySource } from "@fumadocs/sanity";
+import sanityPlugin from "@fumadocs/sanity/press";
+const source = createSanitySource({ client, docType: "docs" });
+createPress(source).plugins(sanityPlugin({ components }));
+```
+
+</Accordion>
+<Accordion title="Obsidian">
+
+```npm
+npm uninstall @fumapress/obsidian
+npm i fumadocs-obsidian
+```
+
+```tsx tab="press.config.tsx"
+// [!code --]
+import { obsidian, obsidianPlugin } from "@fumapress/obsidian";
+// [!code ++:3]
+import { obsidian } from "fumadocs-obsidian";
+import obsidianPlugin from "fumadocs-obsidian/press";
+import { watchWithVite } from "fumadocs-obsidian/dev/vite";
+
+const vault = obsidian({ dir: "public/vault", url: (file) => `/vault/${file}` });
+
+// [!code ++]
+if (import.meta.env.DEV) watchWithVite(vault);
+
+// [!code --]
+obsidianPlugin(vault);
+// [!code ++]
+obsidianPlugin({ vault });
+```
+
+```ts tab="vite.config.ts"
+// [!code --]
+import { obsidianVitePlugin } from "@fumapress/obsidian/vite";
+// [!code ++]
+import { localContentPlugin } from "fumadocs-obsidian/dev/vite";
+
+export default defineConfig({
+  // [!code --]
+  plugins: [press(), obsidianVitePlugin(), tailwindcss()],
+  // [!code ++]
+  plugins: [press(), localContentPlugin(), tailwindcss()],
+});
+```
+
+Replace `@fumapress/obsidian/css/preset.css` with `fumadocs-obsidian/css/preset.css`.
+
+</Accordion>
+<Accordion title="Feedback">
+
+Drop `"use server"` from your actions. A plain function now runs on the server, and a function from a `"use client"` module runs in the browser.
+
+```tsx title="press.config.tsx"
+feedbackPlugin({
+  async onPageFeedbackAction(feedback) {
+    // [!code --]
+    "use server";
+    await analytics.track("page-feedback", feedback);
+    return {};
+  },
+});
+```
+
+In a custom layout, place `props.footer.feedback`.
+
+</Accordion>
+<Accordion title="AI">
+
+The chat docks in the default Docs Layout. In a custom layout, follow [Use a Custom Layout](/docs/plugins/ai#use-a-custom-layout).
+
+`AIChatLayout` is removed, and `AIChat` takes the endpoint as its `api` prop.
+
+</Accordion>
+</Accordions>
+
+## Update Your Own Plugins
+
+Start with the type and the hooks that create routes. This plugin has a page, a generated file and a request header:
+
+```tsx tab="1.x" title="acme/index.tsx"
+import type { AppShape, PressPlugin } from "fumapress";
+
+export function statusPlugin<C extends AppShape = AppShape>(): PressPlugin<C> {
+  return {
+    name: "acme:status",
+    createPages({ createPage, createApiIsomorphic }) {
+      createPage({
+        path: "/status",
+        render: "static",
+        component: () => <p>OK</p>,
+      });
+      createApiIsomorphic({
+        path: "/status.json",
+        render: "static",
+        handler: async () => Response.json({ ok: true }),
+      });
+    },
+    createMiddlewares() {
+      return [
+        async (c, next) => {
+          await next();
+          c.header("x-powered-by", "acme");
+        },
+      ];
+    },
+  };
+}
+```
+
+```tsx tab="2.0" title="acme/index.tsx"
+import type { AppShape, Plugin } from "fumapress";
+
+type StatusTypes = {
+  views: { "status.page": {} };
+};
+
+export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, StatusTypes> {
+  return {
+    name: "acme:status",
+    routes({ createApi, createView }) {
+      createView({
+        path: "/status",
+        view: () => ({ type: "status.page", props: {}, node: <p>OK</p> }),
+      });
+      createApi({
+        path: "/status.json",
+        render: "static",
+        GET: () => Response.json({ ok: true }),
+      });
+    },
+    async middleware(_request, next) {
+      const response = await next();
+      const out = new Response(response.body, response);
+      out.headers.set("x-powered-by", "acme");
+      return out;
+    },
+  };
+}
+```
+
+Then rename what is left:
+
+| 1.x                        | 2.0                         |
+| -------------------------- | --------------------------- |
+| `AppContext`               | `PressContext`              |
+| `core:get-body`            | `getPageBody`               |
+| `core:get-text`            | `getPageText`               |
+| `core:render-toc`          | `getPageToc`                |
+| `core:get-structured-data` | `getPageStructuredData`     |
+| `core:get-creation-date`   | `getPageCreatedAt`          |
+| `core:get-modified-date`   | `getPageLastModified`       |
+| `unstable_onServerEntry`   | `waku.unstable_serverEntry` |
+
+`enforce` is gone, since plugins run in list order. Two more have a new shape: `preinit` becomes [`provides`](/docs/plugins/authoring#capabilities), and `this.mode` becomes [`this.getContentRender()`](/docs/plugins/authoring/routes#render-like-your-content).
+
+These need more than a rename:
+
+<Accordions multiple>
+<Accordion title="Waku pages and Hono">
+
+A plugin needing Waku's own APIs moves them under `waku`, typed as `WakuPlugin`. See [Use Waku's APIs](/docs/plugins/authoring/server#use-wakus-apis).
+
+```tsx title="acme/index.tsx"
+// [!code --]
+export function acmePlugin<C extends AppShape = AppShape>(): PressPlugin<C> {
+// [!code ++]
+export function acmePlugin<C extends WakuAppShape = WakuAppShape>(): WakuPlugin<C> {
+  return {
+    name: "acme",
+    // [!code --:2]
+    createPages({ createPage }) { /* ... */ },
+    createMiddlewares() { /* ... */ },
+    // [!code ++:4]
+    waku: {
+      createPages({ createPage }) { /* ... */ },
+      honoMiddleware() { /* ... */ },
+    },
+  };
+}
+```
+
+</Accordion>
+<Accordion title="Rendering pages">
+
+The `renderPage` hook becomes `getPageView`. It returns `{ props, node }` for the pages of a source your plugin owns. See [Render Content Pages](/docs/plugins/authoring/ui#render-content-pages).
+
+```tsx title="acme/index.tsx"
+// [!code --:4]
+renderPage({ page, fallback }) {
+  if (page.type !== "reviews") return;
+  return <article>{fallback}</article>;
+},
+// [!code ++:4]
+getPageView(page, body) {
+  if (page.type !== "reviews") return;
+  return { props: {}, node: <article>{body?.node}</article> };
+},
+```
+
+</Accordion>
+<Accordion title="Routes of other plugins">
+
+`configureRoutes` becomes `deriveRoutes`, which receives the routes of each language. Head tags from `route.meta` move to the `head` hook, which receives `route`.
+
+```tsx title="acme/index.tsx"
+// [!code --:3]
+configureRoutes({ getRoutes }) {
+  for (const route of getRoutes()) route.meta.push(() => <meta name="acme" content="1" />);
+},
+// [!code ++:3]
+head({ route }) {
+  if (route) return [{ tag: "meta", attrs: { name: "acme", content: "1" } }];
+},
+```
+
+</Accordion>
+<Accordion title="UI from this.data">
+
+`this.data` and its transformers and interceptors are removed. Add UI with [`slots()`](/docs/plugins/authoring/ui#add-a-button), and change page data with [`transformPage()`](/docs/plugins/authoring/ui#change-the-page-data). Plugin translations move to the `translations` field.
+
+```tsx title="acme/index.tsx"
+{
+  name: "acme",
+  // [!code --:3]
+  init() {
+    this.translationsConfig?.extend(acmeTranslations());
+  },
+  // [!code ++]
+  translations: acmeTranslations(),
+}
+```
+
+</Accordion>
+</Accordions>

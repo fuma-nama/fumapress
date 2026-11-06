@@ -1,0 +1,112 @@
+---
+title: Fumadocs MDX
+description: The default content source.
+---
+
+[Fumadocs MDX](https://fumadocs.dev/docs/mdx) compiles MDX files in your project, and its pages render without a plugin. See its docs for collection options.
+
+## Setup
+
+A new site has it already. To add it yourself:
+
+### Install [step]
+
+```npm
+npm i fumadocs-mdx
+```
+
+### Configure [step]
+
+```ts tab="vite.config.ts"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import press from "fumapress/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
+
+export default defineConfig({
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
+});
+```
+
+```tsx tab="press.config.tsx"
+import { createPress } from "fumapress";
+import { pageSchema, metaSchema } from "fumapress/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
+
+export default createPress(docs.toFumadocsSource());
+```
+
+<Callout type="warn" title="Keep processed Markdown">
+  Turn on `includeProcessedMarkdown`. The [llms.txt plugin](/docs/plugins/ai#llmstxt), on by
+  default, reads the text of pages from its output.
+</Callout>
+
+## Frontmatter
+
+`pageSchema` accepts the [standard fields](/docs/content#frontmatter). Extend it to add fields:
+
+```tsx title="press.config.tsx"
+import { pageSchema } from "fumapress/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { z } from "zod";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    schema: pageSchema.extend({
+      // the creation date, read by the blog and RSS plugins
+      date: z.coerce.date().optional(),
+      level: z.enum(["beginner", "advanced"]),
+    }),
+  },
+});
+```
+
+Your fields are typed on `page.data` in [`ui.renderPage`](/docs/layouts#render-pages).
+
+## Several Sources
+
+Pass an object to host docs, a blog and other content on one site. `baseDir` puts each source under a URL prefix:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { blogPlugin } from "@fumapress/blog";
+import { blogPageSchema } from "@fumapress/blog/schema";
+
+const docs = defineDocs({ dir: "content/docs" });
+const blog = defineDocs({ dir: "content/blog", docs: { schema: blogPageSchema } });
+
+export const app = createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+}).plugins(blogPlugin({ source: "blog" }));
+
+export default app;
+```
+
+Now `content/docs/index.mdx` is at `/docs`, and `content/blog/hello.mdx` is at `/blog/hello`. [Layouts](/docs/layouts#layout-per-source) and plugins refer to each source by its key.
+
+All sources share one page tree. To show one source at a time in the sidebar, make its folder a root folder:
+
+```json title="content/docs/meta.json"
+{
+  "title": "Documentation",
+  "root": true
+}
+```

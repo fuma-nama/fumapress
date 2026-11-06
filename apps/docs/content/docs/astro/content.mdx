@@ -1,137 +1,102 @@
 ---
 title: Content
-description: Content collections and the React content of plugins.
-icon: Library
+description: Write pages, organize the sidebar, and add components and images.
 ---
 
-## Content Collections [#collections]
+Each MDX file in your [content collection](/docs/astro/content-sources/collections) is a page, and the sidebar lists them for you. Callouts, code block titles, tabs and other syntax work as in [Fumadocs Markdown](https://fumadocs.dev/docs/markdown).
 
-Docs are MDX files of Astro content collections. `pageLoader()` and `metaLoader()` of `@fumadocs/astro` load the content directory, and `toFumadocsSource()` turns them into a content source. See [Getting Started](/docs/astro#manual-installation) for the files.
+## Pages
 
-Pages and `meta.json` files follow the [Fumadocs conventions](https://fumadocs.dev/docs/page-conventions), and the loaders validate frontmatter with `pageSchema` of `fumadocs-core/source/schema`. Add fields with a `schema` of your own:
+<include cwd>content/shared/content.mdx#urls</include>
 
-```ts title="src/content.config.ts"
-import { defineCollection } from "astro:content";
-import { z } from "astro/zod";
-import { pageSchema } from "fumadocs-core/source/schema";
-import { metaLoader, pageLoader } from "@fumadocs/astro/loaders";
+To put pages under a prefix like `/docs`, see [Add a Collection](/docs/astro/content-sources/collections#add-a-collection).
 
-export const collections = {
-  docs: defineCollection({
-    loader: pageLoader(),
-    // [!code ++]
-    schema: pageSchema.extend({ draft: z.boolean().optional() }),
-  }),
-  meta: defineCollection({ loader: metaLoader() }),
-};
+<include cwd>content/shared/content.mdx#frontmatter</include>
+
+To add fields, [extend the schema](/docs/astro/content-sources/collections#add-frontmatter-fields).
+
+<include cwd>content/shared/content.mdx#links</include>
+
+### Last Modified Date
+
+Show the date of the last commit on each page. The sitemap and RSS feed use it too.
+
+```js title="astro.config.mjs"
+press({
+  lastModified: true, // [!code ++]
+});
 ```
 
-### Multiple Collections
+<include cwd>content/shared/content.mdx#last-modified</include>
 
-`content/docs` is the default collection of `press()`. To add another directory, list every collection in `collections`, and give each source a `baseDir` in its third argument:
+<include cwd>content/shared/content.mdx#sidebar</include>
 
-```js tab="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import press from "@fumapress/astro";
+## Components
 
+### Create the Module [step]
+
+<include cwd>content/shared/content.mdx#module</include>
+
+### Register the Module [step]
+
+```js title="astro.config.mjs"
 export default defineConfig({
   integrations: [
-    press({
-      collections: {
-        docs: { dir: "content/docs" },
-        // [!code ++]
-        blog: { dir: "content/blog" },
-      },
-    }),
+    press({ components: "./src/components/mdx.tsx" }), // [!code highlight]
   ],
 });
 ```
 
-```ts tab="src/content.config.ts"
-export const collections = {
-  docs: defineCollection({ loader: pageLoader() }),
-  meta: defineCollection({ loader: metaLoader() }),
-  // [!code ++:2]
-  blog: defineCollection({ loader: pageLoader("blog") }),
-  blogMeta: defineCollection({ loader: metaLoader("blog") }),
-};
-```
+### Use the Components [step]
 
-```tsx tab="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
+<include cwd>content/shared/content.mdx#usage</include>
 
-export default createPress({
-  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
-    baseDir: "docs",
-  }),
-  // [!code ++]
-  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
-    baseDir: "blog",
-  }),
-}).config({});
-```
+### Rules for the Module
 
-The keys of `content` become the `type` of pages. See [Content Collections](/docs/collections). Collections take the options of `press()` as defaults, and can set their own, like `components`.
+The content of a page is a React island of its own, so:
 
-### Last Modified
+- **Props** must be serializable, since components hydrate by name. `<Chart data={[1, 2]} />` runs in the browser, and `<Chart onClick={() => {}} />` renders on the server only.
+- **Providers** from your layout don't reach the content. Add a `wrapper` to the MDX components instead.
+- **Imports** also load in the browser, so keep server-only code out.
 
-`lastModified` adds the date of the last commit to pages, from the git history of the content directory. Layouts show it, and the sitemap and RSS feed use it:
+<Callout type="warn" title="No cycles">
+  Don't import `press.config.tsx` or `@fumapress/astro/runtime` from the module. The cycle with your
+  content slows the build down.
+</Callout>
+
+### One Module per Collection
 
 ```js title="astro.config.mjs"
 press({
-  // [!code ++]
-  lastModified: true,
-});
-```
-
-It reads the history at build time: uncommitted pages have no date, and a shallow clone (common in CI) gives every page the date of the latest commit.
-
-## MDX Components
-
-Pages render with the MDX components of Fumadocs UI. To add your own, create a module whose default export is the MDX components:
-
-```tsx tab="src/components/mdx.tsx"
-import defaultMdxComponents from "fumadocs-ui/mdx";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
-import type { MDXComponents } from "mdx/types";
-
-export default {
-  ...defaultMdxComponents,
-  Tab,
-  Tabs,
-} satisfies MDXComponents;
-```
-
-```js tab="astro.config.mjs"
-press({
-  // [!code ++]
   components: "./src/components/mdx.tsx",
+  collections: {
+    docs: { dir: "content/docs" },
+    blog: { dir: "content/blog", components: "./src/components/blog-mdx.tsx" }, // [!code ++]
+  },
 });
 ```
 
-The module also applies on your own pages through `getProviderData`. See [Rendering Content](/docs/astro/routing#rendering-content).
+### Custom Links
 
-The content of a page is one React island. See the [rendering rules](https://fumadocs.dev/docs/manual-installation/astro#rendering) of Fumadocs. The module loads on every page and in the browser: keep server-only code out of it, and don't import `press.config.tsx` or `@fumapress/astro/runtime` from it. The cycle with your content slows the build down.
+<include cwd>content/shared/content.mdx#custom-links</include>
 
-## React Content
+<Callout type="warn">
+  Astro renders your `a` on its own, like in Astro MDX: no hydration, and no React context from the
+  page. It can't use state, effects or hooks like `usePathname`. The same goes for an MDX component
+  inside a link.
+</Callout>
 
-React content of plugins and the press config, like the pages of [OpenAPI](/docs/plugins/openapi), slot items and JSX in `ui.baseOptions`, renders on the server and hydrates as an island. Parts of it hydrate:
+## Images and Files
 
-- Client components, from modules starting with `"use client"`.
-- The components of your MDX components module.
+<include cwd>content/shared/content.mdx#files</include>
 
-Other components render once on the server. They cannot use state or effects. Props of hydrating components must be serializable: strings, numbers, dates, maps, JSX elements and client components work. A client component with a function prop throws an error naming the component, and an MDX component with one renders on the server.
+On custom pages, use [Astro Images](https://docs.astro.build/en/guides/images/).
 
-Navigating between pages keeps the island and its state, like the open folders of the sidebar.
+```astro title="src/pages/index.astro"
+---
+import { Image } from "astro:assets";
+import screenshot from "../assets/screenshot.png";
+---
 
-The page body is an island of its own. Providers in `ui.renderPage` and in `body.wrapper` don't reach it. Give the [MDX components](#mdx-components) their own `wrapper` instead.
-
-Feedback server actions work through routes on Astro. Client actions, like calling an external API from the browser, work as they do on Waku. See [Deployment](/docs/astro/deployment#adapters) for plugins that need a server.
-
-## Other Sources
-
-Other content sources join the `createPress` call like collections, and their plugins render them, like the pages of [OpenAPI](/docs/plugins/openapi).
-
-Sources whose pages render Markdown at runtime, like [Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md), need no plugin. They render with your MDX components, and relative links are resolved. Notion and Sanity render with the default exports of `@fumadocs/notion/press` and `@fumadocs/sanity/press`. See [Content Sources](/docs/adapters).
+<Image src={screenshot} alt="A preview of the editor" />
+```

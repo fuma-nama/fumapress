@@ -1,0 +1,275 @@
+---
+title: Layouts
+description: Choose a Fumadocs layout and change what each page renders.
+---
+
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another one, return an `.astro` component from `ui.renderPage`.
+
+<include cwd>content/shared/layouts.mdx#gallery</include>
+
+## Switch the Layout
+
+This example renders the `docs` source with the Notebook Layout. Other pages keep the default UI. It takes three files because Fumadocs layouts are React and pages are Astro. See [Islands](#islands).
+
+```tsx tab="src/components/docs-island.tsx"
+import { createIsland } from "@fumapress/astro/client";
+import type { IslandProps } from "@fumapress/astro/config";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+export const DocsIsland = createIsland(
+  ({ tree, baseOptions, pageData, actions, footer, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        <div className="flex gap-2">{Object.values(actions)}</div>
+        <DocsBody>{children}</DocsBody>
+        {Object.values(footer)}
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+```astro tab="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import { DocsIsland } from "../components/docs-island";
+
+type Props = LayoutProps<typeof app, "docs">;
+---
+
+<DocsIsland client:load transition:persist="docs" island={Astro.props.island}>
+  <slot />
+</DocsIsland>
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import Docs from "./src/layouts/Docs.astro";
+
+export const app = createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+});
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      const { renderDefault } = props;
+      if (props.type === "docs") return <Docs {...props} />;
+      return renderDefault();
+    },
+  },
+});
+```
+
+To keep the Markdown buttons of the default layout, also render `MarkdownCopyButton` and `ViewOptionsPopover` from `fumadocs-ui/layouts/notebook/page`.
+
+<include cwd>content/shared/layouts.mdx#swap</include>
+
+## Render Pages
+
+Every page goes through `ui.renderPage`. To give a page your own layout, return an `.astro` component from it.
+
+<include cwd>content/shared/layouts.mdx#types</include>
+
+```tsx title="press.config.tsx"
+import Docs from "./src/layouts/Docs.astro";
+
+export const app = createPress({ docs: docsSource });
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      // taken first: `props` is `never` in `default` once every type has a case
+      const { renderDefault } = props;
+      switch (props.type) {
+        case "docs":
+          return <Docs {...props} />;
+        default:
+          return renderDefault();
+      }
+    },
+  },
+});
+```
+
+### Layout per Source
+
+Give each source a case, with its own `.astro` file. Read typed frontmatter there, and pass what the island needs.
+
+```tsx tab="press.config.tsx"
+renderPage(props) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides": // [!code ++:2]
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+},
+```
+
+```astro tab="src/layouts/Guide.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import { GuideIsland } from "../components/guide-island";
+
+type Props = LayoutProps<typeof app, "guides">;
+const { island, page } = Astro.props;
+---
+
+<GuideIsland client:load island={island} level={page.data.level}>
+  <slot />
+</GuideIsland>
+```
+
+A condition on `props.page.path` works too, like a layout for pages under `reference/`.
+
+### Sidebar
+
+`tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+
+```tsx title="src/components/docs-island.tsx"
+import { selectTreeRoot } from "@fumapress/astro/client";
+
+<DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")} />;
+```
+
+<include cwd>content/shared/layouts.mdx#nested</include>
+
+### Page Actions and Footers
+
+<include cwd>content/shared/layouts.mdx#slots</include>
+
+```tsx title="src/components/docs-island.tsx"
+export const DocsIsland = createIsland(
+  ({ tree, baseOptions, pageData, actions, footer, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc}>
+        <div className="flex justify-end">{actions.ai}</div> {/* [!code highlight] */}
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{children}</DocsBody>
+        {footer.feedback} {/* [!code highlight] */}
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+<include cwd>content/shared/layouts.mdx#plugin-pages</include>
+
+## Islands
+
+Fumadocs layouts are React, so an Astro layout has two files. Fumapress still renders `<html>` and head tags, and runs page transitions.
+
+<Nesting>
+  <Layer
+    title="src/layouts/Docs.astro"
+    note="Runs on the server. The only file that reads page and awaits data."
+  >
+    <Layer
+      title="DocsIsland, from createIsland()"
+      note="Renders the Fumadocs layout, in the browser too. Sidebar, actions and footer live here."
+    >
+      <Layer
+        title="Page content"
+        note="An island of its own. Providers from the layout don't reach it."
+      />
+    </Layer>
+  </Layer>
+</Nesting>
+
+```astro tab="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import Banner from "../components/Banner.astro";
+import { DocsIsland } from "../components/docs-island";
+import { getStars } from "../lib/github";
+
+type Props = LayoutProps<typeof app, "docs">;
+const { island, page } = Astro.props;
+const stars = await getStars(); // [!code highlight]
+---
+
+<!-- [!code word:transition\:persist] -->
+<DocsIsland client:load transition:persist="docs" island={island} stars={stars}>
+  <Banner slot="banner" path={page.path} />
+  <slot />
+</DocsIsland>
+```
+
+```tsx tab="src/components/docs-island.tsx"
+import type { ReactNode } from "react";
+import { createIsland } from "@fumapress/astro/client";
+import type { IslandProps } from "@fumapress/astro/config";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+type Props = IslandProps<typeof app, "docs"> & { stars: number; banner?: ReactNode };
+
+export const DocsIsland = createIsland(
+  ({ tree, baseOptions, pageData, stars, banner, children }: Props) => (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc}>
+        {banner}
+        <DocsTitle>
+          {pageData.title} ({stars})
+        </DocsTitle>
+        <DocsBody>{children}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+<Callout type="warn">
+  Render the island with `client:load`, and pass `island` as it is. `client:only` doesn't work,
+  because the island also renders on the server.
+</Callout>
+
+### The `.astro` File
+
+`LayoutProps` types `Astro.props`, by source key or plugin page type. Use this file for:
+
+- **Frontmatter**: read it from `page` and pass the values on.
+- **Data**: on prerendered pages, `await` runs at build time, so a star count stays the same until the next build.
+- **State across pages**: `transition:persist` keeps the island and its state on navigation, like the open folders of the sidebar. Without it, the island remounts.
+
+`tsc` doesn't check `.astro` files. Use `astro check` from `@astrojs/check`.
+
+### The Island
+
+`IslandProps` types what comes from the site, like `tree`, `baseOptions` and `pageData`. The rest comes from your layout:
+
+- Named slots become props, and `children` is the default slot. `.astro` parts in slots are static.
+- Other values must be serializable. Many plugin page props aren't, like the pages in `posts` of `blog.index`.
+
+Context doesn't cross islands, so everything that shares the Fumadocs layout context goes in the one island. To wrap the page content with a provider, give the [MDX components](/docs/astro/content#components) a `wrapper`.
+
+### Return JSX
+
+`renderPage` can also return React directly, like the default UI. Client components and MDX components hydrate, and their props must be serializable. Other components render once on the server, without state or effects.
+
+<Callout type="warn">
+  An `.astro` component only works as the direct result of `renderPage`. Anywhere else, rendering
+  the page throws an error.
+</Callout>
+
+## Customize Fumadocs UI
+
+<include cwd>content/shared/layouts.mdx#cli-intro</include>
+
+Register a copied component in your [MDX components](/docs/astro/content#components) module, and use a copied layout from your island, with `createIsland()`.
+
+<include cwd>content/shared/layouts.mdx#cli-trap</include>

@@ -98,13 +98,11 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "export default createPress({",
     "  docs: docs.toFumadocsSource(),",
     ...activeFeatures.flatMap((feature) => feature.content ?? []),
-    "})",
     ...(plugins.length === 0
-      ? []
+      ? ["});"]
       : plugins.length === 1
-        ? [`  .plugins(${plugins[0]})`]
-        : ["  .plugins(", ...plugins.map((plugin) => `    ${plugin},`), "  )"]),
-    "  .config({});",
+        ? [`}).plugins(${plugins[0]});`]
+        : ["}).plugins(", ...plugins.map((plugin) => `  ${plugin},`), ");"]),
   ].join("\n");
 }
 
