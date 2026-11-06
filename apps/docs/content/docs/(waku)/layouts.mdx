@@ -1,0 +1,164 @@
+---
+title: Layouts
+description: Choose a Fumadocs layout and change what each page renders.
+---
+
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another one, return it from `ui.renderPage`.
+
+<include cwd>content/shared/layouts.mdx#gallery</include>
+
+## Switch the Layout
+
+This example renders the `docs` source with the Notebook Layout. Other pages keep the default UI.
+
+```tsx tab="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+function Docs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  actions,
+  footer,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        <div className="flex gap-2">{Object.values(actions)}</div>
+        <DocsBody>{body}</DocsBody>
+        {Object.values(footer)}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  if (props.type === "docs") return <Docs {...props} />;
+  return renderDefault();
+}
+```
+
+```tsx tab="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { renderPage } from "./src/ui/layout";
+
+const docs = defineDocs({ dir: "content" });
+
+export const app = createPress({ docs: docs.toFumadocsSource() });
+
+export default app.config({
+  ui: { renderPage },
+});
+```
+
+To keep the Markdown buttons of the default layout, also render `MarkdownCopyButton` and `ViewOptionsPopover` from `fumadocs-ui/layouts/notebook/page`.
+
+<include cwd>content/shared/layouts.mdx#swap</include>
+
+## Render Pages
+
+Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // taken first: `props` is `never` in `default` once every type has a case
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+A second type argument narrows the props to one page type, and your editor lists those props. `pageData` has what a layout needs, and `page.data` has your frontmatter.
+
+### Layout per Source
+
+Give each source a case. Fields of its schema are typed on `page.data`.
+
+```tsx title="src/ui/layout.tsx"
+// [!code ++:8]
+function Guide({ page, body }: RenderPageProps<typeof app, "guides">) {
+  return (
+    <article>
+      <span>{page.data.level}</span>
+      {body}
+    </article>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides": // [!code ++:2]
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+A condition on `props.page.path` works too, like a layout for pages under `reference/`.
+
+### Sidebar
+
+`tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot } from "fumapress";
+
+<DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")} />;
+```
+
+<include cwd>content/shared/layouts.mdx#nested</include>
+
+### Page Actions and Footers
+
+<include cwd>content/shared/layouts.mdx#slots</include>
+
+```tsx title="src/ui/layout.tsx"
+function Docs({
+  tree,
+  baseOptions,
+  pageData,
+  body,
+  actions,
+  footer,
+}: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc}>
+        <div className="flex justify-end">{actions.ai}</div> {/* [!code highlight] */}
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+        {footer.feedback} {/* [!code highlight] */}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+```
+
+<include cwd>content/shared/layouts.mdx#plugin-pages</include>
+
+## Customize Fumadocs UI
+
+<include cwd>content/shared/layouts.mdx#cli-intro</include>
+
+Register a copied component in your [MDX components](/docs/content#components) module, and use a copied layout from `ui.renderPage`.
+
+<include cwd>content/shared/layouts.mdx#cli-trap</include>

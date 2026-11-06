@@ -1,0 +1,326 @@
+---
+title: Migrate from @fumadocs/astro
+description: Move a site from the managed setup of @fumadocs/astro 0.1.
+---
+
+The managed setup of `@fumadocs/astro` 0.1, with `src/fumadocs.config.ts`, is now `@fumapress/astro`. Do the steps in order.
+
+## Move the Site
+
+### Install the Packages [step]
+
+```npm
+npm i @fumapress/astro
+npm i @fumadocs/astro@latest takumi-js fumadocs-core@latest
+npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
+```
+
+### Update the Integration [step]
+
+Your `layout` and `page` modules move out of the integration. If you have them, see [Update Features](#update-features).
+
+```js title="astro.config.mjs"
+// [!code --]
+import fumadocs from "@fumadocs/astro";
+// [!code ++]
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  integrations: [
+    // [!code --:5]
+    fumadocs({
+      components: "./src/components/mdx.tsx",
+      layout: "./src/lib/layout.shared.tsx",
+      page: "./src/components/docs.tsx",
+    }),
+    // [!code ++:3]
+    press({
+      components: "./src/components/mdx.tsx",
+    }),
+  ],
+});
+```
+
+### Move the Config [step]
+
+Replace `src/fumadocs.config.ts` and `src/lib/source.ts` with one file at the project root. The source goes straight to `createPress()`, and `baseUrl` becomes `baseDir`.
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+
+export const app = createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+);
+
+export default app.config({
+  site: { name: "My Docs" },
+});
+```
+
+```ts tab="src/lib/source.ts"
+// [!code --:8]
+import { getCollection } from "astro:content";
+import { loader } from "fumadocs-core/source";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+
+export const source = loader({
+  source: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+  baseUrl: "/docs",
+});
+```
+
+```ts tab="src/fumadocs.config.ts"
+// [!code --:7]
+import { defineConfig } from "@fumadocs/astro/config";
+import { source } from "./lib/source";
+
+export default defineConfig({
+  source,
+  title: "My Docs",
+});
+```
+
+### Rename the Stylesheet [step]
+
+Move `src/styles/global.css` to `src/app.css`. It replaces the `css` option. `@fumapress/astro/css/default.css` has the Tailwind and Fumadocs imports:
+
+```css title="src/app.css"
+/* [!code --:3] */
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+/* [!code ++] */
+@import "@fumapress/astro/css/default.css";
+```
+
+### Run the Site [step]
+
+```npm
+npm run dev
+```
+
+If you didn't customize your site, you're done. Otherwise, open the section for each feature you use.
+
+## Update Features
+
+<Accordions multiple>
+<Accordion title="Your layout">
+
+The `page` module becomes an `.astro` layout with a React island. `page` is now `pageData`, `layout` is `baseOptions`, and `ui.renderPage` chooses the layout. See [Islands](/docs/astro/layouts#islands) for how the two files work together.
+
+```tsx tab="src/components/docs-island.tsx"
+import { createIsland } from "@fumapress/astro/client";
+import type { IslandProps } from "@fumapress/astro/config";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import type { app } from "../../press.config";
+
+export const DocsIsland = createIsland(
+  ({ tree, pageData, baseOptions, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...baseOptions} tree={tree}>
+      <DocsPage toc={pageData.toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{children}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+```astro tab="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import { DocsIsland } from "../components/docs-island";
+
+type Props = LayoutProps<typeof app, "docs">;
+---
+
+<DocsIsland client:load transition:persist="docs" island={Astro.props.island}>
+  <slot />
+</DocsIsland>
+```
+
+```tsx tab="press.config.tsx"
+import Docs from "./src/layouts/Docs.astro";
+
+export const app = createPress({ docs: docsSource });
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      const { renderDefault } = props;
+      if (props.type === "docs") return <Docs {...props} />;
+      return renderDefault();
+    },
+  },
+});
+```
+
+</Accordion>
+<Accordion title="Navbar and links">
+
+`baseOptions()` of the `layout` module moves to `ui.baseOptions`, and receives `{ lang }` in place of `locale`.
+
+```tsx title="press.config.tsx"
+export default app.config({
+  ui: {
+    baseOptions({ lang }) {
+      return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
+    },
+  },
+});
+```
+
+</Accordion>
+<Accordion title="Provider around the layout">
+
+`Provider` of the `layout` module becomes a [`layout.wrapper` slot](/docs/astro/plugins/authoring/ui#choose-a-slot).
+
+```tsx title="press.config.tsx"
+createPress(content).plugins({
+  name: "site:provider",
+  slots({ page }) {
+    if (!page) return [{ slot: "layout.wrapper", component: Provider }];
+  },
+});
+```
+
+</Accordion>
+<Accordion title="Search">
+
+The default search is now FlexSearch. To keep Orama, list its plugin:
+
+```tsx title="press.config.tsx"
+import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
+
+createPress(content).plugins(oramaSearchPlugin());
+```
+
+`SearchDialog` and `useSearch` of the `layout` module become one dialog in `ui.providerProps`. See [Customize the Dialog](/docs/astro/search#customize-the-dialog).
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: { providerProps: { search: { SearchDialog } } },
+});
+```
+
+</Accordion>
+<Accordion title="Head tags">
+
+The `head` component becomes a list of tags. See [Head Tags](/docs/astro/configuration#head-tags).
+
+```tsx title="press.config.tsx"
+export default app.config({
+  // [!code --]
+  head: Head,
+  // [!code ++]
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.svg" } }],
+});
+```
+
+</Accordion>
+<Accordion title="Languages and translations">
+
+`i18n` moves from `loader()` to `createPress()`, and `translations` to `ui.translations`. See [Internationalization](/docs/astro/internationalization).
+
+```tsx title="press.config.tsx"
+export const app = createPress(content, { i18n });
+
+export default app.config({
+  ui: { translations: i18n.translations() },
+});
+```
+
+</Accordion>
+<Accordion title="Default plugins">
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  // [!code --]
+  preset: false,
+  // [!code ++]
+  preset: [],
+});
+```
+
+</Accordion>
+<Accordion title="Plugin imports">
+
+API docs and content sources are now the default export of their integration, and other plugins moved to `@fumapress/astro`:
+
+```tsx title="press.config.tsx"
+// [!code --:3]
+import { openapiPlugin } from "@fumadocs/astro/plugins/openapi";
+import { notionPlugin } from "@fumadocs/astro/plugins/notion";
+import { takumiPlugin } from "@fumadocs/astro/plugins/takumi";
+// [!code ++:3]
+import openapiPlugin from "fumadocs-openapi/press";
+import notionPlugin from "@fumadocs/notion/press";
+import { takumiPlugin } from "@fumapress/astro/plugins/takumi";
+```
+
+- `asyncapi`, `graphql` and `sanity` follow `openapi`.
+- `flexsearch`, `llms.txt`, `orama-search` and `link-validation` follow `takumi`, under `@fumapress/astro/plugins/*`.
+
+A few are gone:
+
+- `contentSourcePlugin()`: delete it. See [Local Markdown](/docs/astro/content-sources/local-markdown).
+- `gitPlugin()`: set [`site.git`](/docs/astro/configuration#repository) and the `lastModified` option of `press()`.
+- `plugins/mcp`: use [`mcpPlugin()`](/docs/astro/plugins/ai#mcp) of `@fumapress/ai`.
+
+</Accordion>
+<Accordion title="Open Graph images">
+
+Images move from `/og/<page>/image.webp` to `<page>.webp`, and the `prefix` option becomes `path`. Update any URL you hard-coded.
+
+</Accordion>
+<Accordion title="Custom pages">
+
+```astro title="src/pages/index.astro"
+---
+// [!code --]
+import HomeLayout from "@fumadocs/astro/components/HomeLayout.astro";
+// [!code ++]
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+```
+
+`ReactContent.astro` is gone. Render a React component on the page, like `<Stars client:load />`.
+
+</Accordion>
+<Accordion title="Your own plugins">
+
+`routes()` calls functions in place of returning a list, and `this` is now the press context. See [Writing Plugins](/docs/astro/plugins/authoring).
+
+```tsx title="acme/index.ts"
+// [!code --:7]
+routes() {
+  return [{
+    type: "file",
+    url: `${this.base}/status.json`,
+    GET: () => Response.json({ ok: true }),
+  }];
+},
+// [!code ++:3]
+routes({ createApi }) {
+  createApi({ path: "/status.json", render: "static", GET: () => Response.json({ ok: true }) });
+},
+```
+
+The rest are renames, with two changes in signature. `middleware` now receives a `Request`, and only runs for routes rendered on demand. `transformPage` receives the data first, and returns the changed fields.
+
+| 0.1                         | Now                         |
+| --------------------------- | --------------------------- |
+| `getBody`                   | `getPageBody`               |
+| `getText`                   | `getPageText`               |
+| `App`                       | `PressContext`              |
+| `middleware(context, next)` | `middleware(request, next)` |
+| `transformPage(page, data)` | `transformPage(data, page)` |
+
+</Accordion>
+</Accordions>

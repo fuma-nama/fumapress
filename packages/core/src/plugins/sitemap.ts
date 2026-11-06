@@ -1,8 +1,8 @@
-import type { Awaitable } from "@/lib/types";
-import type { PressPlugin } from "@/app/plugin";
-import { type AppContext, type AppShape, pageAlternate, type PageAlternate } from "@/app/context";
 import { js2xml, type ElementCompact } from "xml-js";
-import { inheritedFrom } from "@/lib/i18n";
+import type { Context } from "../context";
+import { pageAlternate, type PageAlternate } from "../head";
+import type { AppShape, Awaitable, Plugin } from "../plugin";
+import { fallbackOrigin } from "../routes";
 
 /**
  * How frequently a page is likely to change.
@@ -26,25 +26,11 @@ export type SitemapChangeFrequency =
 export type SitemapLastMod = Date | string;
 
 /**
- * Priority of a URL relative to other URLs on the site.
- *
- * Valid values are decimals between `0.0` and `1.0` inclusive.
- *
- * @see https://www.sitemaps.org/protocol.html#prioritydef
- */
-export type SitemapPriority = number;
-
-/**
  * An `xhtml:link rel="alternate"` language reference on a URL entry.
  *
- * @see https://www.sitemaps.org/protocol.html#xmlDefinition
+ * @see https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap
  */
-export interface SitemapAlternateLink {
-  /** BCP 47 language tag (e.g. `en`, `de`, `x-default`). */
-  hreflang: string;
-  /** Fully-qualified URL of the alternate page. */
-  href: string;
-}
+export interface SitemapAlternateLink extends Pick<PageAlternate, "hreflang" | "href"> {}
 
 /**
  * An `image:image` entry (Google image sitemap extension).
@@ -114,44 +100,24 @@ export interface SitemapNews {
 }
 
 /**
- * A single `<url>` entry in a sitemap.
+ * A `<url>` entry of a sitemap.
  *
  * @see https://www.sitemaps.org/protocol.html#xmlDefinition
  */
 export interface SitemapUrl {
-  /**
-   * Fully-qualified URL of the page.
-   *
-   * Must be less than 2,048 characters and include protocol + host per the spec.
-   */
+  /** Fully-qualified URL of the page, less than 2,048 characters. */
   loc: string;
-  /**
-   * Last modification date of the file.
-   *
-   * Search engines may use the full W3C Datetime or the date portion only.
-   */
+  /** Last modification date of the page. */
   lastmod?: SitemapLastMod;
-  /**
-   * Hint for how often the page changes.
-   *
-   * Note: The value is a hint, not a command.
-   */
+  /** Hint for how often the page changes. */
   changefreq?: SitemapChangeFrequency;
-  /**
-   * Priority relative to other URLs on your site (`0.0`–`1.0`).
-   *
-   * Default priority of pages is `0.5`; this does not affect comparison across different sites.
-   */
-  priority?: SitemapPriority;
-  /**
-   * Alternate language or regional URLs (`xhtml:link`).
-   *
-   * Requires the `xhtml` namespace on the root `urlset` when serialized.
-   */
+  /** Priority relative to other URLs of the site (`0.0`–`1.0`), search engines assume `0.5`. */
+  priority?: number;
+  /** Alternate language or regional URLs (`xhtml:link`). */
   alternates?: readonly SitemapAlternateLink[];
-  /** Image URLs associated with this page (Google image extension). */
+  /** Images of the page (Google image extension). */
   images?: readonly SitemapImage[];
-  /** Videos on this page (Google video extension). */
+  /** Videos of the page (Google video extension). */
   videos?: readonly SitemapVideo[];
   /** News article metadata (Google News extension). */
   news?: SitemapNews;
@@ -159,44 +125,55 @@ export interface SitemapUrl {
 
 export interface SitemapOptions<C extends AppShape = AppShape> {
   /**
-   * Path for the sitemap route.
+   * path of the sitemap route
    *
-   * @default "/sitemap.xml"
+   * @defaultValue "/sitemap.xml"
    */
   path?: string;
 
   /**
-   * Customize or exclude sitemap entries.
-   * Return `undefined` to exclude a page.
+   * Customize or exclude the entries of pages, return `undefined` to exclude a page.
+   *
+   * Pages shown in place of an untranslated page are left out.
    */
-  getEntry?: (this: AppContext<C>, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
+  getEntry?: (this: Context<C>, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
 
-  /**
-   * Additional entries to include in the sitemap, be careful the `loc` field must be a fully-qualified URL.
-   */
-  additionalEntries?: SitemapUrl[] | ((this: AppContext<C>) => Awaitable<SitemapUrl[]>);
+  /** entries of other pages, their `loc` must be a fully-qualified URL */
+  additionalEntries?: SitemapUrl[] | ((this: Context<C>) => Awaitable<SitemapUrl[]>);
 }
 
-function formatLastmod(value: Date | string) {
-  const date = value instanceof Date ? value : new Date(value);
-  return date.toISOString();
+declare module "@fumapress/core" {
+  interface CapabilityAPI {
+    sitemap: SitemapAPI;
+  }
+}
+
+/** the API of the `sitemap` capability, from `this.getCapability("sitemap")` */
+export interface SitemapAPI {
+  /** the path of the sitemap, without the base path */
+  path: string;
+}
+
+function formatDate(value: SitemapLastMod): string {
+  return (value instanceof Date ? value : new Date(value)).toISOString();
+}
+
+/** xml-js escapes only the quotes of attributes, URLs can have `&` */
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+}
+
+function yesNo(value: boolean): string {
+  return value ? "yes" : "no";
 }
 
 function imageToElement(image: SitemapImage): ElementCompact {
-  const element: ElementCompact = {
-    "image:loc": { _text: image.loc },
-  };
-
+  const element: ElementCompact = { "image:loc": { _text: image.loc } };
   if (image.caption) element["image:caption"] = { _text: image.caption };
   if (image.geo_location) element["image:geo_location"] = { _text: image.geo_location };
   if (image.title) element["image:title"] = { _text: image.title };
   if (image.license) element["image:license"] = { _text: image.license };
-
   return element;
-}
-
-function yesNo(value: boolean) {
-  return { _text: value ? "yes" : "no" };
 }
 
 function videoToElement(video: SitemapVideo): ElementCompact {
@@ -205,124 +182,86 @@ function videoToElement(video: SitemapVideo): ElementCompact {
     "video:title": { _text: video.title },
     "video:description": { _text: video.description },
   };
+  const { player_loc: player, uploader } = video;
 
   if (video.content_loc) element["video:content_loc"] = { _text: video.content_loc };
-  if (typeof video.player_loc === "string") {
-    element["video:player_loc"] = { _text: video.player_loc };
-  } else if (video.player_loc) {
+  if (typeof player === "string") element["video:player_loc"] = { _text: player };
+  else if (player)
     element["video:player_loc"] = {
-      ...(video.player_loc.allow_embed !== undefined && {
-        _attributes: { allow_embed: video.player_loc.allow_embed ? "yes" : "no" },
-      }),
-      _text: video.player_loc.loc,
+      _attributes: {
+        allow_embed: player.allow_embed === undefined ? undefined : yesNo(player.allow_embed),
+      },
+      _text: player.loc,
     };
-  }
   if (video.duration !== undefined) element["video:duration"] = { _text: String(video.duration) };
   if (video.expiration_date)
-    element["video:expiration_date"] = { _text: formatLastmod(video.expiration_date) };
+    element["video:expiration_date"] = { _text: formatDate(video.expiration_date) };
   if (video.rating !== undefined) element["video:rating"] = { _text: String(video.rating) };
   if (video.view_count !== undefined)
     element["video:view_count"] = { _text: String(video.view_count) };
   if (video.publication_date)
-    element["video:publication_date"] = { _text: formatLastmod(video.publication_date) };
+    element["video:publication_date"] = { _text: formatDate(video.publication_date) };
   if (video.family_friendly !== undefined)
-    element["video:family_friendly"] = yesNo(video.family_friendly);
-  if (video.restriction) {
+    element["video:family_friendly"] = { _text: yesNo(video.family_friendly) };
+  if (video.restriction)
     element["video:restriction"] = {
       _attributes: { relationship: video.restriction.relationship },
       _text: video.restriction.countries.join(" "),
     };
-  }
-  if (video.platform) {
+  if (video.platform)
     element["video:platform"] = {
       _attributes: { relationship: video.platform.relationship },
       _text: video.platform.platforms.join(" "),
     };
-  }
-  if (video.price) {
+  if (video.price)
     element["video:price"] = {
-      _attributes: {
-        currency: video.price.currency,
-        ...(video.price.type && { type: video.price.type }),
-      },
+      _attributes: { currency: video.price.currency, type: video.price.type },
       _text: String(video.price.value),
     };
-  }
   if (video.requires_subscription !== undefined)
-    element["video:requires_subscription"] = yesNo(video.requires_subscription);
-  if (typeof video.uploader === "string") {
-    element["video:uploader"] = { _text: video.uploader };
-  } else if (video.uploader) {
+    element["video:requires_subscription"] = { _text: yesNo(video.requires_subscription) };
+  if (typeof uploader === "string") element["video:uploader"] = { _text: uploader };
+  else if (uploader)
     element["video:uploader"] = {
-      ...(video.uploader.info && { _attributes: { info: video.uploader.info } }),
-      _text: video.uploader.name,
+      _attributes: { info: uploader.info ? escapeAttribute(uploader.info) : undefined },
+      _text: uploader.name,
     };
-  }
-  if (video.live !== undefined) element["video:live"] = yesNo(video.live);
-  if (video.tag) {
-    const tags = typeof video.tag === "string" ? [video.tag] : video.tag;
-    element["video:tag"] = tags.map((tag) => ({ _text: tag }));
-  }
-
+  if (video.live !== undefined) element["video:live"] = { _text: yesNo(video.live) };
+  if (video.tag)
+    element["video:tag"] = (typeof video.tag === "string" ? [video.tag] : video.tag).map((tag) => ({
+      _text: tag,
+    }));
   return element;
 }
 
-function newsToElement(news: SitemapNews): ElementCompact {
-  return {
-    "news:publication": {
-      "news:name": { _text: news.publication.name },
-      "news:language": { _text: news.publication.language },
-    },
-    "news:publication_date": { _text: formatLastmod(news.publication_date) },
-    "news:title": { _text: news.title },
-  };
-}
-
-function entryToUrlElement(entry: SitemapUrl): ElementCompact {
-  const url: ElementCompact = {
-    loc: { _text: entry.loc },
-  };
-
-  if (entry.lastmod) {
-    url.lastmod = { _text: formatLastmod(entry.lastmod) };
-  }
-  if (entry.changefreq) {
-    url.changefreq = { _text: entry.changefreq };
-  }
-  if (entry.priority !== undefined) {
-    url.priority = { _text: String(entry.priority) };
-  }
-  if (entry.alternates?.length) {
-    url["xhtml:link"] = entry.alternates.map((alternate) => ({
-      _attributes: {
-        rel: "alternate",
-        hreflang: alternate.hreflang,
-        href: alternate.href,
-      },
+function entryToElement(entry: SitemapUrl): ElementCompact {
+  const element: ElementCompact = { loc: { _text: entry.loc } };
+  if (entry.lastmod) element.lastmod = { _text: formatDate(entry.lastmod) };
+  if (entry.changefreq) element.changefreq = { _text: entry.changefreq };
+  if (entry.priority !== undefined) element.priority = { _text: String(entry.priority) };
+  if (entry.alternates?.length)
+    element["xhtml:link"] = entry.alternates.map(({ hreflang, href }) => ({
+      _attributes: { rel: "alternate", hreflang, href: escapeAttribute(href) },
     }));
-  }
-  if (entry.images?.length) {
-    url["image:image"] = entry.images.map(imageToElement);
-  }
-  if (entry.videos?.length) {
-    url["video:video"] = entry.videos.map(videoToElement);
-  }
-  if (entry.news) {
-    url["news:news"] = newsToElement(entry.news);
-  }
-
-  return url;
+  if (entry.images?.length) element["image:image"] = entry.images.map(imageToElement);
+  if (entry.videos?.length) element["video:video"] = entry.videos.map(videoToElement);
+  if (entry.news)
+    element["news:news"] = {
+      "news:publication": {
+        "news:name": { _text: entry.news.publication.name },
+        "news:language": { _text: entry.news.publication.language },
+      },
+      "news:publication_date": { _text: formatDate(entry.news.publication_date) },
+      "news:title": { _text: entry.news.title },
+    };
+  return element;
 }
 
+/** the XML of a sitemap */
 export function buildSitemap(entries: SitemapUrl[]): string {
   return js2xml(
     {
-      _declaration: {
-        _attributes: {
-          version: "1.0",
-          encoding: "UTF-8",
-        },
-      },
+      _declaration: { _attributes: { version: "1.0", encoding: "UTF-8" } },
       urlset: {
         _attributes: {
           xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9",
@@ -331,48 +270,50 @@ export function buildSitemap(entries: SitemapUrl[]): string {
           "xmlns:video": "http://www.google.com/schemas/sitemap-video/1.1",
           "xmlns:news": "http://www.google.com/schemas/sitemap-news/0.9",
         },
-        url: entries.map(entryToUrlElement),
+        url: entries.map(entryToElement),
       },
     },
     { compact: true, spaces: 0 },
   );
 }
 
+/** a sitemap of the content pages, with their translations and last modified dates, then of the pages of the framework */
 export function sitemapPlugin<C extends AppShape = AppShape>(
   options: SitemapOptions<NoInfer<C>> = {},
-): PressPlugin<C> {
+): Plugin<C, { provides: "sitemap" }> {
   const {
     path = "/sitemap.xml",
-    getEntry: _getEntry = async function getEntryDefault(page) {
-      return {
-        loc: this.absoluteUrl(page.url),
-        lastmod: await this.getPageLastModified(page),
-        priority: 0.8,
-        alternates: await this.getPageAlternates(page),
-      };
+    getEntry = async function (page) {
+      const [lastmod, alternates] = await Promise.all([
+        this.getPageLastModified(page),
+        this.getPageAlternates(page),
+      ]);
+      return { loc: this.absoluteUrl(page.url), lastmod, priority: 0.8, alternates };
     },
-    additionalEntries,
+    additionalEntries = [],
   } = options;
 
   return {
     name: "core:sitemap",
-    async createPages({ createApiIsomorphic, getRoutes }) {
-      const getEntry = _getEntry.bind(this);
-
-      createApiIsomorphic({
+    provides: ["sitemap"],
+    api: { path },
+    routes({ createApi }) {
+      createApi({
         path,
-        handler: async () => {
+        render: this.getContentRender(),
+        GET: async () => {
           const source = await this.getLoader();
           const pages = source.getPages();
-          const results = await Promise.all(
-            pages.map((page) =>
-              inheritedFrom(source, this.i18nConfig, page) ? undefined : getEntry(page),
-            ),
-          );
+          const pending: Awaitable<SitemapUrl | undefined>[] = [];
+          for (const page of pages) {
+            pending.push(
+              fallbackOrigin(source, this.i18nConfig, page) ? undefined : getEntry.call(this, page),
+            );
+          }
+          const results = await Promise.all(pending);
           const entries: SitemapUrl[] = [];
-          // content pages are listed by `getEntry` only, routes must not re-add excluded ones
+          // content pages are listed by `getEntry` only, framework pages must not re-add excluded ones
           const pageLocs = new Set<string>();
-
           for (let i = 0; i < pages.length; i++) {
             const entry = results[i];
             pageLocs.add(this.absoluteUrl(pages[i]!.url));
@@ -381,33 +322,30 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
             entries.push(entry);
           }
 
-          for (const route of getRoutes()) {
+          for (const route of await this.getPageRoutes()) {
+            // a not found page isn't a page of the site
+            if (route.path === this.localizePath(route.lang, "/404")) continue;
             for (const page of route.pages) {
               const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;
+              pageLocs.add(loc);
 
               const alternates: PageAlternate[] = [];
               if (page.translations.length > 1) {
-                for (const { locale, path } of page.translations) {
-                  alternates.push(pageAlternate(this, locale, path));
-                }
+                for (const { lang, path } of page.translations)
+                  if (lang) alternates.push(pageAlternate(this, lang, path));
               }
               entries.push({ loc, priority: 1, alternates });
             }
           }
-
-          if (additionalEntries) {
-            entries.push(
-              ...(typeof additionalEntries === "function"
-                ? await additionalEntries.call(this)
-                : additionalEntries),
-            );
-          }
+          entries.push(
+            ...(typeof additionalEntries === "function"
+              ? await additionalEntries.call(this)
+              : additionalEntries),
+          );
 
           return new Response(buildSitemap(entries), {
-            headers: {
-              "Content-Type": "application/xml",
-            },
+            headers: { "Content-Type": "application/xml" },
           });
         },
       });

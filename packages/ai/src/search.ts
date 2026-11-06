@@ -1,5 +1,5 @@
 import { Document, type DocumentData } from "flexsearch";
-import type { AppContext, AppShape } from "fumapress";
+import type { AppShape, Awaitable, Context } from "@fumapress/core";
 
 export interface PageDocument extends DocumentData {
   url: string;
@@ -9,44 +9,29 @@ export interface PageDocument extends DocumentData {
   locale: string;
 }
 
-type Awaitable<T> = T | Promise<T>;
-
 export interface SearchOptions<C extends AppShape = AppShape> {
-  pageToIndex?: (this: AppContext<C>, page: C["page"]) => Awaitable<PageDocument | null>;
+  pageToIndex?: (this: Context<C>, page: C["page"]) => Awaitable<PageDocument | null>;
 }
 
-async function chunkedAll<O>(promises: Awaitable<O>[]): Promise<O[]> {
-  const SIZE = 100;
-  const out: O[] = [];
-  for (let i = 0; i < promises.length; i += SIZE) {
-    out.push(...(await Promise.all(promises.slice(i, i + SIZE))));
-  }
-  return out;
-}
-
-export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: AppContext<C>) {
+export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx: Context<C>) {
   const { getLoader } = ctx;
   const {
     pageToIndex = async function (page): Promise<PageDocument | null> {
-      for (const adapter of this.adapters) {
-        const txt = await adapter["core:get-text"]?.call(this, page);
+      const txt = await this.getPageText(page);
+      if (txt === undefined) return null;
 
-        if (txt !== undefined) {
-          return {
-            title: page.data.title ?? "",
-            description: page.data.description ?? "",
-            url: page.url,
-            content: txt,
-            locale: page.locale ?? "",
-          };
-        }
-      }
-
-      return null;
+      return {
+        title: page.data.title ?? "",
+        description: page.data.description ?? "",
+        url: page.url,
+        content: txt,
+        locale: page.locale ?? "",
+      };
     },
   } = options;
+  const toIndex = (page: C["page"]) => pageToIndex.call(ctx, page);
 
-  type ContextLoaderOutput = Awaited<ReturnType<AppContext<C>["getLoader"]>>;
+  type ContextLoaderOutput = Awaited<ReturnType<Context<C>["getLoader"]>>;
   const searchServers = new WeakMap<ContextLoaderOutput, ReturnType<typeof createSearchServer>>();
 
   async function createSearchServer(source: ContextLoaderOutput) {
@@ -59,7 +44,7 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
       },
     });
 
-    const docs = await chunkedAll(source.getPages().map(pageToIndex.bind(ctx)));
+    const docs = await Promise.all(source.getPages().map(toIndex));
 
     for (const doc of docs) {
       if (doc) search.add(doc);
@@ -90,5 +75,5 @@ export function createSearch<C extends AppShape>(options: SearchOptions<C>, ctx:
     });
   }
 
-  return { execute, pageToIndex: pageToIndex.bind(ctx) };
+  return { execute, pageToIndex: toIndex };
 }

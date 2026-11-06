@@ -1,0 +1,167 @@
+<section id="intro">
+
+`@fumapress/mintlify` reads your `docs.json` and configures the navigation, theme, navbar and more from it. It covers `docs.json` only. Your content source handles the MDX, including Mintlify components like `<Card>` and `<Accordion>`.
+
+</section>
+
+<section id="install">
+
+```npm
+npm i @fumapress/mintlify
+```
+
+</section>
+
+<section id="move">
+
+Keep `docs.json` at your project root, and move your MDX pages to `content/docs`. Paths in `docs.json` resolve against that folder, and a `docs/` or `content/docs/` prefix in navigation entries is ignored.
+
+</section>
+
+<section id="after">
+
+Your [`ui.baseOptions`](../configuration.mdx#navbar-and-links) and `ui.providerProps` win over `docs.json`.
+
+</section>
+
+<section id="rest">
+
+### Take Manual Control
+
+Everything is on by default. Turn off a feature to configure it yourself, like search here:
+
+```tsx title="press.config.tsx"
+mintlifyPlugin({
+  // relative to the project root
+  path: "docs.json",
+  // the docs folder inside `content/`
+  docsDir: "docs",
+  features: {
+    navigation: true,
+    navbar: true,
+    theme: true,
+    appearance: true,
+    banner: true,
+    footer: true,
+    redirects: true,
+    notFound: true,
+    search: false, // [!code highlight]
+    metadata: true,
+  },
+});
+```
+
+### Style the 404 Page
+
+`errors.404` gives a `mintlify.404` page type. Restyle it in `renderPage`:
+
+```tsx title="press.config.tsx"
+createPress(content)
+  .plugins(mintlifyPlugin())
+  .config({
+    ui: {
+      renderPage(props) {
+        if (props.type === "mintlify.404") return <main>{props.title}</main>;
+        return props.renderDefault();
+      },
+    },
+  });
+```
+
+### Add Languages
+
+When `docs.json` defines `navigation.languages`, create the i18n config from it:
+
+```tsx title="press.config.tsx"
+import { defineMintlifyI18n, mintlifyPlugin, readMintlifyDocs } from "@fumapress/mintlify";
+
+const mintlifyDocs = readMintlifyDocs();
+const i18n = defineMintlifyI18n(mintlifyDocs, {
+  // optionally map Mintlify locales to your own codes
+  localeMap: { cn: "zh" },
+});
+
+export default createPress(content, { i18n })
+  .plugins(mintlifyPlugin())
+  .config({
+    ui: { translations: i18n.translations() },
+  });
+```
+
+### Generate API Pages
+
+Forward `api.openapi` sources (file paths or URLs) to the [OpenAPI plugin](../plugins/api-docs.mdx#openapi):
+
+```tsx title="press.config.tsx"
+import { mintlifyPlugin } from "@fumapress/mintlify";
+import { createMintlifyOpenAPI } from "@fumapress/mintlify/openapi";
+import openapiPlugin from "fumadocs-openapi/press";
+
+const openapi = createMintlifyOpenAPI();
+
+export default createPress({
+  docs: docsSource,
+  openapi: await openapi.staticSource(),
+}).plugins(mintlifyPlugin(), openapiPlugin({ server: openapi }));
+```
+
+`api.asyncapi` works the same way, with `createMintlifyAsyncAPI` from `@fumapress/mintlify/asyncapi` and the [AsyncAPI plugin](../plugins/api-docs.mdx#asyncapi).
+
+`api.playground.proxy` turns the [proxy](../plugins/api-docs.mdx#add-a-proxy) on or off. It is on by default, so the site [needs a server](../deployment.mdx#what-needs-a-server). Set it to `false` on a static site.
+
+## What `docs.json` Covers
+
+Unsupported properties are accepted and ignored, so migration never stops on them. `docs.json` can reference other JSON files with `$ref`, as long as they stay inside your project root.
+
+<Accordions>
+<Accordion title="Supported">
+
+- `name`: Navbar title, when no logo is set.
+- `description`: `<meta name="description">` on every page.
+- `colors.primary` / `colors.light`: `--color-fd-primary` in light and dark mode, with a computed foreground color.
+- `logo`: Single or light/dark image, optional `href`.
+- `favicon`: Single or light/dark icon.
+- `navigation`: `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions`, `languages` and `global`, in the sidebar. Also per-item `icon`, `tag`, `hidden`, `root`, `expanded` and external `href`s.
+- `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button.
+- `appearance`: `default` color scheme. `strict` hides the theme toggle, and forces the default scheme when it is explicit.
+- `background.color` / `background.image`: Applied with CSS, with light and dark variants.
+- `fonts`: Google Fonts, self-hosted `woff`/`woff2`, and separate `heading` and `body` fonts.
+- `banner`: Inline Markdown, `dismissible`, `type` and custom `color`.
+- `footer`: Social links and up to 4 link columns.
+- `redirects`: Exact paths plus `:param` and `:param*` patterns. `permanent` maps to 308 or 307.
+- `errors.404`: Redirects home by default, or a 404 page with custom `title` and `description` with `redirect: false`.
+- `seo.metatags`: Added to every page. `og:*` keys render as `property`.
+- `seo.indexing`: With `navigable` (default), pages not in the navigation get `noindex`.
+- `search.prompt`: The placeholder of the search UI.
+- `metadata.timestamp`: Last modified dates are hidden unless it is `true`.
+- `api.openapi` / `api.asyncapi`: With `createMintlifyOpenAPI()` and `createMintlifyAsyncAPI()`.
+- `api.playground.proxy`: Turns the API proxy on or off.
+
+</Accordion>
+<Accordion title="Partly Supported">
+
+- `icons.library`: All icons render with [Lucide](https://lucide.dev). Lucide names map 1:1. Font Awesome and Tabler names are matched on a best-effort basis. Unknown names are skipped with a warning.
+- `colors.dark`: No separate button or hover color. `primary` and `light` drive the theme.
+- `integrations`: Script-based analytics go into `<head>`: `amplitude`, `clarity`, `fathom`, `ga4`, `gtm`, `heap`, `hotjar`, `intercom`, `koala`, `logrocket`, `mixpanel`, `pirsch`, `plausible`, `posthog`, `segment`. Others aren't supported.
+- `contextual`: Pages show actions to copy Markdown and open AI tools. The `options` list and `display` position can't be configured.
+- `footer.socials`: Icons for all platforms Mintlify accepts. `website`, `earth-americas` and `podcast` use generic icons.
+
+</Accordion>
+<Accordion title="Not Supported">
+
+- `theme`: Customize with [Theme](../configuration.mdx#theme).
+- `background.decoration`: Add your own in `src/app.css`.
+- `styling.eyebrows`: Pages show breadcrumbs by default.
+- `styling.codeblocks`: Configure Shiki themes in your MDX options.
+- `thumbnails`: [Open Graph Images](../plugins/seo.mdx#open-graph-images) generates them.
+- `interaction.drilldown`: Sidebar folder behavior can't be configured.
+- `variables`: Templating is up to your content source.
+- `markdown.schema` / `markdown.instructions`: See [llms.txt](../plugins/ai.mdx#llmstxt).
+- `api.params` / `api.examples` / `api.url` / `api.mdx` / `api.playground.display` / `api.playground.credentials`: Fumadocs OpenAPI has no equivalent.
+- `navigation` extras: `directory`, `align`, `searchable`, `public`, `boost`, `color`, `hidden` languages/versions `href`: Fumapress has no equivalent.
+- `$schema`, `public`: They are hosting options, so they don't apply.
+
+</Accordion>
+</Accordions>
+
+</section>

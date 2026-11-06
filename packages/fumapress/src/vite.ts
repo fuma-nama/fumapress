@@ -1,0 +1,346 @@
+import type { Plugin } from "vite";
+import { crawlFrameworkPkgs } from "@fumapress/core/runtime/vite";
+import { lucideImports } from "./lib/lucide";
+import { fileURLToPath } from "node:url";
+import { readFileSync, realpathSync } from "node:fs";
+import path from "node:path";
+import * as r from "resolve.exports";
+
+export interface WakuPressOptions {
+  /**
+   * Auto-generate Vite config to handle CJS bundling.
+   *
+   * @default true
+   */
+  generateViteConfig?: boolean;
+
+  /**
+   * The base path to serve HTTP, must end with `/`.
+   *
+   * @default '/'
+   */
+  basePath?: string;
+
+  /**
+   * The source directory relative to root.
+   *
+   * @default 'src'
+   */
+  srcDir?: string;
+
+  /**
+   * The output directory of builds, relative to root.
+   *
+   * @default 'dist'
+   */
+  distDir?: string;
+
+  /**
+   * The private directory relative to root, its files are readable only on the server.
+   *
+   * @default 'private'
+   */
+  privateDir?: string;
+
+  /**
+   * Base path for HTTP requests to indicate RSC requests.
+   *
+   * @default 'RSC'
+   */
+  rscBase?: string;
+
+  /**
+   * Adapter module for your deployment target, e.g. `waku/adapters/vercel`.
+   *
+   * Defaults to a platform-specific adapter based on environment variables (Vercel, Netlify, Cloudflare), or `waku/adapters/node`.
+   */
+  adapter?: string;
+
+  /**
+   * Module whose default export is the MDX components of content pages, resolved from the root.
+   *
+   * @default "fumadocs-ui/mdx"
+   */
+  components?: string;
+}
+
+export function getDefaultAdapter(): string {
+  return process.env.VERCEL
+    ? "waku/adapters/vercel"
+    : process.env.NETLIFY
+      ? "waku/adapters/netlify"
+      : process.env.CLOUDFLARE || process.env.WORKERS_CI
+        ? "waku/adapters/cloudflare"
+        : "waku/adapters/node";
+}
+
+export default function press(options?: WakuPressOptions): Plugin[] {
+  return [
+    core(options),
+    wakuCompat(),
+    lucideImports(),
+    takumiOnWorkers(options),
+    // see https://github.com/wakujs/waku/issues/2092
+    { name: "waku:vite-plugins:fs-router-typegen" },
+    {
+      name: "fumapress:internal-flags",
+      enforce: "pre",
+      config(config) {
+        Object.assign(config, {
+          _fumadocs_skipViteConfig: true,
+        });
+      },
+    },
+  ];
+}
+
+/**
+ * Compatibility layer for running Waku as a dependency of `fumapress` instead of the app:
+ *
+ * `resolveId` maps every `waku` specifier to fumapress's own copy, since `waku` may not be installed in the app's `node_modules`:
+ *
+ * - specifiers resolved against the project root fail entirely, e.g. the configured adapter module (resolved without an importer) or imports from Waku's virtual modules.
+ * - packages with their own `waku` peer dependency (e.g. `fumadocs-core`) can otherwise resolve a second `waku` instance, which breaks the RSC runtime.
+ *
+ * Note: don't call `this.resolve()` with the same specifier during builds, Rolldown awaits the in-flight resolution of the same source and deadlocks. Build-time resolution is served from Waku's exports map, read once here.
+ *
+ * The config hooks patch Waku's assumption that `waku` and `react-server-dom-webpack` are installed at the project root:
+ *
+ * - it rewrites `optimizeDeps.include` entries like `@vitejs/plugin-rsc/x` into `waku > @vitejs/plugin-rsc/x` chains, resolved from root. Prefix them with `fumapress > ` so the optimizer resolves them through `fumapress` instead.
+ * - `react-server-dom-webpack` must be in `noExternal`: Vite's dev-time `fetchModule` externalizes bare imports BEFORE plugins run, so Waku's `patch-rsdw` plugin never gets to alias them to `@vitejs/plugin-rsc`'s vendored copy, and the runtime loads the real package without the `react-server` condition. With a root install, vitefu's crawl used to add it to `noExternal`; replicate that.
+ */
+function wakuCompat(): Plugin {
+  let waku: { dir: string; packageJson: Record<string, unknown> } | undefined;
+  try {
+    // realpath: `import.meta.resolve` keeps symlink paths, while Vite resolves to real paths — mixing them duplicates modules (and React contexts)
+    const pkgPath = realpathSync(fileURLToPath(import.meta.resolve("waku/package.json")));
+    waku = {
+      dir: path.dirname(pkgPath),
+      packageJson: JSON.parse(readFileSync(pkgPath, "utf-8")),
+    };
+  } catch {
+    // types-only install of fumapress, let Vite resolve waku
+  }
+
+  const selfImporter = realpathSync(fileURLToPath(import.meta.url));
+
+  return {
+    name: "fumapress:waku",
+    configEnvironment: {
+      // after Waku's own rewrite of `optimizeDeps.include`
+      order: "post",
+      handler(name, config) {
+        // rewrite whenever `resolveId` below is active, so the optimizer resolves the same copy of
+        // waku as the module graph — even when the app has its own root install
+        if (config.optimizeDeps?.include && waku) {
+          config.optimizeDeps.include = config.optimizeDeps.include.map((id) => {
+            if (id === "waku" || id.startsWith("waku/") || id.startsWith("waku > "))
+              return `fumapress > ${id}`;
+            if (id.startsWith("react-server-dom-webpack")) return `fumapress > waku > ${id}`;
+            return id;
+          });
+        }
+
+        if (name !== "client") {
+          return {
+            resolve: {
+              noExternal: ["react-server-dom-webpack"],
+            },
+          };
+        }
+      },
+    },
+    resolveId: waku
+      ? {
+          filter: {
+            id: [/^waku$/, /^waku\//],
+          },
+          async handler(source, importer, options) {
+            // cycle guard for the dev-mode fallback resolution below
+            if (importer === selfImporter) return;
+
+            if (this.environment?.mode === "dev") {
+              // route the resolution through Vite with an importer inside `fumapress`, so module URLs
+              // get their natural treatment (e.g. the browser's `?v=` query) — returning raw paths here
+              // gives modules a second identity, which duplicates Waku's React contexts ("Missing Router")
+              return this.resolve(source, selfImporter, { ...options, skipSelf: true });
+            }
+
+            const targets = r.exports(waku.packageJson, source.replace(/^waku/, "."), {
+              conditions: this.environment?.config.resolve.conditions ?? [],
+            });
+            // fallback
+            if (!targets || targets.length === 0) return;
+            return path.join(waku.dir, targets[0]!);
+          },
+        }
+      : undefined,
+  };
+}
+
+/**
+ * Workers can only render images with the WebAssembly build of `takumi-js`, and Waku's build imports the same bundle in
+ * Node.js, which can't import WebAssembly modules: each runtime imports its backend on demand.
+ */
+function takumiOnWorkers(options?: WakuPressOptions): Plugin {
+  const virtual = "\0fumapress:takumi-backend:";
+  const entry = "\0fumapress:takumi-wasm:";
+  const wasm = "takumi_wasm_bg.wasm";
+
+  return {
+    name: "fumapress:takumi-workers",
+    enforce: "pre",
+    apply: () => (options?.adapter ?? getDefaultAdapter()) === "waku/adapters/cloudflare",
+    async resolveId(source, importer, resolveOptions) {
+      if (!importer || this.environment.mode !== "build") return;
+      if (source === "#backend" && importer.includes("/takumi-js/"))
+        return virtual + path.dirname(importer);
+
+      if (source === "takumi-js/wasm" && importer.endsWith("/plugins/takumi.wasm.js")) {
+        const real = await this.resolve(source, importer, { ...resolveOptions, skipSelf: true });
+        return real && entry + real.id;
+      }
+
+      if (source === "@takumi-rs/wasm/auto" && importer.endsWith("/backend/wasm.mjs")) {
+        const file = await this.resolve(`@takumi-rs/wasm/${wasm}`, importer, resolveOptions);
+        // `@cloudflare/vite-plugin` handles WebAssembly modules itself
+        if (!file || file.external) return file;
+        this.emitFile({ type: "asset", fileName: `assets/${wasm}`, source: readFileSync(file.id) });
+        return { id: `./${wasm}`, external: true };
+      }
+    },
+    load(id) {
+      if (id.startsWith(entry)) {
+        return `export default globalThis.navigator?.userAgent === "Cloudflare-Workers"
+  ? undefined
+  : () => import(${JSON.stringify(id.slice(entry.length))});`;
+      }
+      if (!id.startsWith(virtual)) return;
+      const dir = id.slice(virtual.length);
+      return `export const loadBackend = async (module) => {
+  const backend = await (globalThis.navigator?.userAgent === "Cloudflare-Workers"
+    ? import(${JSON.stringify(`${dir}/backend/wasm.mjs`)})
+    : import(${JSON.stringify(`${dir}/backend/node.mjs`)}));
+  return backend.loadBackend(module);
+};`;
+    },
+  };
+}
+
+function core(options: WakuPressOptions = {}): Plugin {
+  const { generateViteConfig = true, components = "fumadocs-ui/mdx" } = options;
+
+  return {
+    name: "fumapress:core",
+    api: {
+      // read by the `fumapress` CLI to configure Waku.js
+      pressOptions: options,
+    },
+    configResolved(config) {
+      if (process.env.VITEST) return;
+      if (!config.plugins.some((plugin) => plugin.name === "waku:vite-plugins:environments")) {
+        throw new Error(
+          "fumapress must run through its own CLI: replace `vite dev`/`vite build` with `fumapress dev`/`fumapress build`.",
+        );
+      }
+    },
+    async config(config) {
+      const out = generateViteConfig
+        ? await crawlFrameworkPkgs(config.root ?? process.cwd(), "waku")
+        : undefined;
+
+      const adapter = options.adapter ?? getDefaultAdapter();
+      // the `node` platform of Rolldown calls `createRequire(import.meta.url)` on import, Workers have neither
+      const worker = { build: { rolldownOptions: { platform: "neutral" as const } } };
+
+      return {
+        environments:
+          adapter === "waku/adapters/cloudflare" ? { rsc: worker, ssr: worker } : undefined,
+        define: {
+          // baked into the bundle: runtime env vars are unreliable across platforms (e.g. Cloudflare Workers)
+          "import.meta.env.FUMAPRESS_PLATFORM": JSON.stringify(
+            adapter.startsWith("waku/adapters/") ? adapter.slice("waku/adapters/".length) : "",
+          ),
+        },
+        resolve: {
+          // React and packages with React contexts must resolve to a single copy, e.g. pnpm can otherwise
+          // instantiate `fumadocs-core` twice from its optional `waku` peer dependency, and linked
+          // packages resolve React from their own directory
+          dedupe: ["react", "react-dom", ...(out?.framework ?? [])],
+          // the dev server of Vite ignores them by default, the build doesn't
+          tsconfigPaths: true,
+        },
+        ssr: {
+          noExternal: out?.framework,
+          external: ["sharp"],
+        },
+        optimizeDeps: out && { include: out.include, exclude: out.framework },
+      };
+    },
+    transform: {
+      // runs before Waku's entries, after `@vitejs/plugin-rsc` sets its client module loader on import
+      filter: { id: /\/waku\/dist\/lib\/vite-entries\/entry\.(browser|ssr)\.js/ },
+      handler(code, id) {
+        const file = fileURLToPath(new URL("./router/client-entry.js", import.meta.url));
+        return `import "@vitejs/plugin-rsc/${id.includes("entry.ssr") ? "ssr" : "browser"}";\nimport ${JSON.stringify(file)};\n${code}`;
+      },
+    },
+    async resolveId(source, _importer, options) {
+      if (source === "virtual:fumapress/config") {
+        return this.resolve("/press.config", undefined, options);
+      }
+
+      if (source === "virtual:fumapress/components") {
+        return (
+          (components.startsWith(".") || components.startsWith("/")
+            ? await this.resolve(`/${components.replace(/^\.?\//, "")}`, undefined, options)
+            : null) ?? (await this.resolve(components, undefined, options))
+        );
+      }
+
+      if (source === "virtual:fumapress/renderers") return "\0virtual:fumapress/renderers";
+
+      if (source.startsWith("virtual:fumapress/css")) {
+        const [_id, query = ""] = source.split("?", 2);
+
+        return (
+          (await this.resolve(`/src/app.css?${query}`)) ??
+          (await this.resolve(`fumapress/css/default.css?${query}`))
+        );
+      }
+    },
+    async load(id) {
+      if (id === "\0virtual:vite-rsc-waku/server-entry-inner") return managedServerEntry;
+      if (id === "\0virtual:fumapress/renderers") {
+        // Fumadocs MDX renders MDX content, sites without it have none
+        if (await this.resolve("fumadocs-mdx/press"))
+          return `import components from 'virtual:fumapress/components';
+import mdxPlugin from 'fumadocs-mdx/press';
+export default [mdxPlugin({ components })];`;
+        if (await this.resolve("fumadocs-mdx"))
+          throw new Error(
+            "[Fumapress] Fumapress renders MDX with `fumadocs-mdx/press`: update `fumadocs-mdx` to 15.5.0 or later.",
+          );
+        return "export default [];";
+      }
+    },
+  };
+}
+
+const managedServerEntry = `import _adapter from 'waku/adapters/default';
+import press from 'virtual:fumapress/config';
+import { createRouter } from 'fumapress/router';
+import { fsRouterFn } from 'fumapress/router/fs';
+
+const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
+  base: '/src',
+});
+
+const router = await createRouter(press);
+import.meta.hot?.dispose(router.dispose);
+const pages = router.createPages(fsRouterFn(modules));
+const middlewareFns = router.createMiddlewares();
+const adapter = router.patchAdapter(_adapter);
+
+export default adapter(pages, { middlewareFns });
+`;

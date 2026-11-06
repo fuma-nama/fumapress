@@ -1,0 +1,38 @@
+---
+title: SEO
+description: The sitemap, robots.txt, RSS feed and Open Graph images of your site.
+---
+
+<include cwd>content/shared/plugins/seo.mdx#intro</include>
+
+```tsx title="press.config.tsx"
+import { sitemapPlugin } from "@fumapress/astro/plugins/sitemap";
+import { robotsPlugin } from "@fumapress/astro/plugins/robots";
+import { rssPlugin } from "@fumapress/astro/plugins/rss";
+import { takumiPlugin } from "@fumapress/astro/plugins/takumi";
+
+createPress(content).plugins(
+  sitemapPlugin({ path: "/sitemap.xml" }),
+  robotsPlugin({ sitemap: false }),
+  rssPlugin({ title: "My Docs", limit: 50 }),
+  takumiPlugin({ width: 1600, height: 840 }),
+);
+```
+
+## Sitemap
+
+<include cwd>content/shared/plugins/seo.mdx#sitemap</include>
+
+## robots.txt
+
+<include cwd>content/shared/plugins/seo.mdx#robots</include>
+
+## RSS
+
+<include cwd>content/shared/plugins/seo.mdx#rss</include>
+
+## Open Graph Images
+
+<include cwd>content/shared/plugins/seo.mdx#og</include>
+
+<include cwd>content/shared/plugins/seo.mdx#og-options</include>

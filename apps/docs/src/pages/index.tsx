@@ -9,14 +9,14 @@ import { AutoSetupCommand } from "../home.client";
 import { Image } from "fumapress/image";
 import { asMarkdown, md } from "fumapress/markdown";
 import { commands, plugins } from "../home.data";
-import type { RouteConfig } from "fumapress";
+import type { WakuRouteConfig } from "fumapress";
 
 const description = "The composable site generator powered by Fumadocs";
 
 export function getConfig() {
   return {
-    takumiOptions: { title: "Fumapress", description },
-  } satisfies RouteConfig;
+    ogImage: { title: "Fumapress", description },
+  } satisfies WakuRouteConfig;
 }
 
 export default function Page() {

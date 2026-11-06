@@ -1,0 +1,121 @@
+<section id="intro">
+
+[Tegami](https://tegami.fuma-nama.dev) is a tool that manages changelogs, versions and publishing in a monorepo. This plugin shows its release notes on your site at `/changelog`, with filters and search.
+
+`@fumapress/tegami` has two plugins, one for Tegami and one for your site:
+
+<Flow>
+  <FlowStep title="fumapressPlugin()" result="tegami.config.ts">
+    When you apply a Tegami draft, it writes each release as an MDX file in content/changelog.
+  </FlowStep>
+  <FlowStep title="changelogPlugin()" result="press.config.tsx">
+    Reads these files as a content source, and shows them at /changelog.
+  </FlowStep>
+</Flow>
+
+</section>
+
+<section id="install">
+
+```npm
+npm i @fumapress/tegami tegami
+```
+
+</section>
+
+<section id="styles">
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/tegami/css/preset.css";
+```
+
+</section>
+
+<section id="tegami">
+
+```ts title="tegami.config.ts"
+import { tegami } from "tegami";
+import { fumapressPlugin } from "@fumapress/tegami/tegami";
+
+export default tegami({
+  plugins: [
+    fumapressPlugin({
+      dir: "content/changelog",
+    }),
+  ],
+});
+```
+
+Each note it writes looks like this. The schema requires `date` and `packages`:
+
+```mdx title="content/changelog/2026-08-24-example.mdx"
+---
+title: Markdown for every route
+date: 2026-08-24T15:26:51.468Z
+packages:
+  fumapress:
+    version: 1.1.0
+---
+```
+
+</section>
+
+<section id="notes">
+
+With another content source, entries take their date from the `getPageCreatedAt` hook of its plugin.
+
+</section>
+
+<section id="rest">
+
+### Change the URL
+
+```tsx title="press.config.tsx"
+changelogPlugin({
+  source: "changelog",
+  paths: {
+    index: "/releases", // [!code highlight]
+  },
+});
+```
+
+Set `index` to `false` to remove the page.
+
+### Custom UI
+
+The page type is `changelog.index`. Replace it in [`renderPage`](../layouts.mdx#plugin-pages), or filter its entries:
+
+```tsx title="press.config.tsx"
+import { ChangelogIndexView } from "@fumapress/tegami";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+
+renderPage(props) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "changelog.index":
+      return (
+        <HomeLayout {...props.baseOptions}>
+          <ChangelogIndexView
+            entries={props.entries.filter((entry) => entry.packages.length > 0)}
+          />
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+},
+```
+
+`ChangelogIndexView` also takes `heading`, `description` and `pageSize`.
+
+</section>
+
+<section id="options">
+
+## Options
+
+<auto-type-table cwd path="../../packages/tegami/src/plugin.tsx" name="ChangelogPluginOptions" />
+
+</section>

@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "../../lib/cn";
+import { cn } from "cn";
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { CornerDownRightIcon, ThumbsDown, ThumbsUp } from "lucide-react";
@@ -26,6 +26,7 @@ import {
 import { z } from "zod/mini";
 import { usePathname } from "fumadocs-core/framework";
 import { useTranslations } from "@fuma-translate/react";
+import type { FeedbackPluginOptions } from "../../index";
 
 const rateButtonVariants = cva(
   "inline-flex items-center gap-2 px-3 py-2 rounded-full font-medium border text-sm [&_svg]:size-4 disabled:cursor-not-allowed",
@@ -47,13 +48,28 @@ const blockFeedbackResult = z.extend(blockFeedback, {
   response: actionResponse,
 });
 
+/** with a client function, or to the URL of its route on the server */
+async function send<T>(
+  action: string | ((feedback: T) => Promise<ActionResponse>),
+  feedback: T,
+): Promise<ActionResponse> {
+  if (typeof action === "function") return action(feedback);
+  const result = await fetch(action, {
+    method: "POST",
+    body: JSON.stringify(feedback),
+  });
+
+  if (!result.ok) throw new Error(await result.text());
+  return result.json();
+}
+
 /**
  * A feedback component to be attached at the end of page
  */
 export function Feedback({
-  onSendAction,
+  action,
 }: {
-  onSendAction: (feedback: PageFeedback) => Promise<ActionResponse>;
+  action: string | NonNullable<FeedbackPluginOptions["onPageFeedbackAction"]>;
 }) {
   const t = useTranslations({ note: "feedback" });
   const pathname = usePathname();
@@ -75,7 +91,7 @@ export function Feedback({
         message,
       };
 
-      const response = await onSendAction(feedback);
+      const response = await send(action, feedback);
       setPrevious({
         response,
         ...feedback,
@@ -194,17 +210,18 @@ export function Feedback({
   );
 }
 
-export interface FeedbackTextProps {
-  onSendAction: (feedback: BlockFeedback) => Promise<ActionResponse>;
-  children?: ReactNode;
-}
-
 /**
  * A feedback component for each content block in page, should be used with `remark-feedback-block`.
  *
  * See https://fumadocs.dev/docs/integrations/feedback.
  */
-export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
+export function FeedbackText({
+  action,
+  children,
+}: {
+  action: string | NonNullable<FeedbackPluginOptions["onTextFeedbackAction"]>;
+  children?: ReactNode;
+}) {
   const t = useTranslations({ note: "feedback popover" });
   const [popup, _setPopup] = useState<{
     mode: "tooltip" | "expanded";
@@ -358,9 +375,9 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
             </div>
           ) : (
             <FeedbackTextForm
+              action={action}
               blockId={popup.blockId}
               selection={popup.selection}
-              onSendAction={onSendAction}
               onClose={closePopup}
               container={{ className: "p-2 w-[300px] h-32 max-w-[98vw] animate-fd-fade-in" }}
             />
@@ -372,16 +389,16 @@ export function FeedbackText({ onSendAction, children }: FeedbackTextProps) {
 }
 
 function FeedbackTextForm({
+  action,
   blockId,
   selection,
-  onSendAction,
   onClose,
   container,
 }: {
+  action: string | NonNullable<FeedbackPluginOptions["onTextFeedbackAction"]>;
   container: HTMLAttributes<HTMLElement>;
   blockId: string;
   selection: string;
-  onSendAction: (feedback: BlockFeedback) => Promise<ActionResponse>;
   onClose: () => void;
 }) {
   const t = useTranslations();
@@ -404,7 +421,7 @@ function FeedbackTextForm({
         message,
       };
 
-      const response = await onSendAction(feedback);
+      const response = await send(action, feedback);
       setPrevious({
         response,
         ...feedback,

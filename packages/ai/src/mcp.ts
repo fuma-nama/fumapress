@@ -2,7 +2,7 @@ import { createMcpHandler, type Implementation, McpServer } from "@modelcontextp
 import { registerSourceTools } from "fumadocs-core/mcp";
 import type { LoaderOutput } from "fumadocs-core/source";
 import { llms } from "fumadocs-core/source/llms";
-import type { AppContext, AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Context, Plugin } from "@fumapress/core";
 import { z } from "zod";
 import { createSearch, type SearchOptions } from "./search";
 
@@ -19,21 +19,17 @@ export interface McpOptions<C extends AppShape = AppShape> extends SearchOptions
   /**
    * Register additional tools on the MCP server.
    */
-  tools?: (this: AppContext<C>, server: McpServer) => void | Promise<void>;
+  tools?: (this: Context<C>, server: McpServer) => void | Promise<void>;
 }
 
 export function mcpPlugin<C extends AppShape = AppShape>(
   options: McpOptions<NoInfer<C>> = {},
-): PressPlugin<C> {
+): Plugin<C> {
   const { path = "/mcp", server: serverInfo, tools: registerTools } = options;
 
   return {
     name: "ai:mcp",
-    async createPages({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error("[Fumapress] MCP server is not compatible with static mode");
-      }
-
+    routes({ createApi }) {
       const { execute, pageToIndex } = createSearch(options, this);
       // the loader config of a generic app can't be inferred
       const getLoader = this.getLoader as () => Promise<LoaderOutput>;
@@ -87,13 +83,7 @@ export function mcpPlugin<C extends AppShape = AppShape>(
         return server;
       });
 
-      createApi({
-        render: "dynamic",
-        path,
-        handlers: {
-          all: (req: Request) => handler.fetch(req),
-        },
-      });
+      createApi({ path, ALL: (request) => handler.fetch(request) });
     },
   };
 }

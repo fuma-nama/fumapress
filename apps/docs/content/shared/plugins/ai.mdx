@@ -1,0 +1,205 @@
+<section id="intro">
+
+Use any of these three features:
+
+- [llms.txt](#llmstxt) gives AI tools your docs as Markdown. It is on by default.
+- [AI Chat](#ai-chat) answers your readers on your site.
+- [MCP](#mcp) lets tools like code editors search your docs.
+
+</section>
+
+<section id="chat">
+
+## AI Chat
+
+The chat answers from a search of your pages and cites them as links. Its endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+### Install [step]
+
+```npm
+npm i @fumapress/ai
+```
+
+### Add the Plugin [step]
+
+Pass a model: an [AI Gateway](https://ai-sdk.dev/docs/ai-sdk-core/settings#setting-the-model) model ID, or a model from a [provider package](https://ai-sdk.dev/docs/foundations/providers-and-models).
+
+```tsx tab="AI Gateway" title="press.config.tsx"
+import { aiPlugin } from "@fumapress/ai";
+
+export default createPress(content).plugins(aiPlugin({ model: "openai/gpt-5" }));
+```
+
+```tsx tab="Provider Package" title="press.config.tsx"
+import { aiPlugin } from "@fumapress/ai";
+import { openai } from "@ai-sdk/openai";
+
+export default createPress(content).plugins(aiPlugin({ model: openai("gpt-5") }));
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/ai/css/preset.css";
+```
+
+Now the Docs Layout docks the chat, and each page has an `ai` action that opens it.
+
+### Limit Requests
+
+<Callout type="warn">
+  The endpoint calls your model provider, and has no limit on body size or message count. Anyone who
+  can reach it can spend your budget, so add rate limiting before you go live.
+</Callout>
+
+Return a `Response` from `beforeRequest` to reject a request:
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: "openai/gpt-5",
+  async beforeRequest(req) {
+    if (await isRateLimited(req)) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
+  },
+});
+```
+
+### Change the Prompt
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: "openai/gpt-5",
+  systemPrompt: "You are the assistant for the Acme docs. Keep answers short, with links.",
+});
+```
+
+### Other Options
+
+`pageToIndex` controls which pages the model can search, like on [MCP](#choose-what-it-reads). To keep the endpoint without the chat UI, set `configureUI: false`.
+
+</section>
+
+<section id="chat-options">
+
+### Chat Options
+
+<auto-type-table cwd path="../../packages/ai/src/chat.tsx" name="AIOptions" />
+
+</section>
+
+<section id="mcp">
+
+## MCP
+
+An [MCP](https://modelcontextprotocol.io) client, like a code editor, can search your docs through an endpoint on your site. It renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+```tsx title="press.config.tsx"
+import { mcpPlugin } from "@fumapress/ai";
+
+export default createPress(content).plugins(mcpPlugin());
+```
+
+Then point your client at `/mcp` on your site, like `https://docs.example.com/mcp`, over [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). It gets three tools:
+
+- `search`, which also takes a `locale` with [internationalization](../internationalization.mdx).
+- `get_page`, which returns the text of a page.
+- `list_pages`, which lists your pages.
+
+### Choose What It Reads
+
+Return `null` from `pageToIndex` to leave a page out:
+
+```tsx title="press.config.tsx"
+mcpPlugin({
+  async pageToIndex(page) {
+    if (page.path.startsWith("internal/")) return null;
+
+    return {
+      title: page.data.title ?? "",
+      description: page.data.description ?? "",
+      url: page.url,
+      content: (await this.getPageText(page)) ?? "",
+      locale: page.locale ?? "",
+    };
+  },
+});
+```
+
+### Add Tools
+
+`tools` receives the `McpServer` of [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server):
+
+```tsx title="press.config.tsx"
+import { mcpPlugin } from "@fumapress/ai";
+import { z } from "zod";
+
+mcpPlugin({
+  tools(server) {
+    server.registerTool(
+      "get_site_name",
+      {
+        title: "Get Site Name",
+        description: "Return the site name from the config",
+        inputSchema: z.object({}),
+      },
+      async () => ({
+        content: [{ type: "text", text: this.siteConfig.name }],
+      }),
+    );
+  },
+});
+```
+
+### MCP Options
+
+<auto-type-table cwd path="../../packages/ai/src/mcp.ts" name="McpOptions" />
+
+</section>
+
+<section id="llms-intro">
+
+A new site already has these files:
+
+- `/llms.txt`: an index of your pages.
+- `/llms-full.txt`: the text of all pages in one file.
+- `<page>.md`: a Markdown version of each page, like `/docs/install.md`. The root page is `/index.md`.
+
+</section>
+
+<section id="llms">
+
+### Change the Text
+
+Return the text of a page from `getLLMText`, or `undefined` to leave it out of `/llms-full.txt`:
+
+```tsx title="press.config.tsx"
+llmsPlugin({
+  async getLLMText(page) {
+    if (page.path.startsWith("internal/")) return;
+
+    return `# ${page.data.title} (${this.absoluteUrl(page.url)})
+
+${await this.getPageText(page)}`;
+  },
+});
+```
+
+### Serve Markdown at the Normal URL
+
+An AI agent can ask for Markdown at the URL of a page, without knowing about `<page>.md`:
+
+```bash
+curl -H "Accept: text/markdown" https://docs.example.com/docs/install
+```
+
+Turn it off with `autoRedirect: false`.
+
+<Callout>
+  It needs a server, so a static site ignores it. Vercel, Netlify and Cloudflare serve prerendered
+  pages before your server, so there it only applies to pages rendered on demand.
+</Callout>
+
+</section>

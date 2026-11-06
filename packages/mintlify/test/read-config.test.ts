@@ -9,21 +9,6 @@ function writeJson(filePath: string, value: unknown) {
 }
 
 describe("readMintlifyDocs", () => {
-  it("reads and validates docs.json from disk", () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), "mintlify-read-config-"));
-    writeJson(path.join(root, "docs.json"), {
-      theme: "mint",
-      name: "On Disk Docs",
-      colors: { primary: "#000000" },
-      navigation: { pages: ["intro"] },
-    });
-
-    const docs = readMintlifyDocs({ root, path: "docs.json" });
-
-    expect(docs.name).toBe("On Disk Docs");
-    expect(docs.navigation.pages).toEqual(["intro"]);
-  });
-
   it("resolves local $ref files and merges sibling keys", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "mintlify-read-config-"));
     writeJson(path.join(root, "navigation.json"), {

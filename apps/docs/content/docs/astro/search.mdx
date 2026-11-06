@@ -1,0 +1,34 @@
+---
+title: Search
+description: Set up the search dialog of your site.
+---
+
+<include cwd>content/shared/search.mdx#intro</include>
+
+## Choose an Engine
+
+FlexSearch is the default. List a search plugin to change the engine or pass options, which go to the [Fumadocs integration](https://fumadocs.dev/docs/headless/search/flexsearch). A site has one search plugin.
+
+```tsx tab="FlexSearch" title="press.config.tsx"
+import { flexsearchPlugin } from "@fumapress/astro/plugins/flexsearch";
+
+createPress(content).plugins(flexsearchPlugin());
+```
+
+```tsx tab="Orama" title="press.config.tsx"
+import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
+
+createPress(content).plugins(oramaSearchPlugin());
+```
+
+```tsx tab="None" title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+
+createPress(content).config({
+  preset: recommendedPreset().filter((entry) => entry.provides !== "search"),
+});
+```
+
+An engine like Algolia is a plugin of its own. See [Add a Search Engine](/docs/astro/plugins/authoring#add-a-search-engine).
+
+<include cwd>content/shared/search.mdx#index</include>

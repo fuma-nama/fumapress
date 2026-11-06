@@ -1,0 +1,102 @@
+---
+title: Content
+description: Write pages, organize the sidebar, and add components and images.
+---
+
+Each MDX file in your [content collection](/docs/astro/content-sources/collections) is a page, and the sidebar lists them for you. Callouts, code block titles, tabs and other syntax work as in [Fumadocs Markdown](https://fumadocs.dev/docs/markdown).
+
+## Pages
+
+<include cwd>content/shared/content.mdx#urls</include>
+
+To put pages under a prefix like `/docs`, see [Add a Collection](/docs/astro/content-sources/collections#add-a-collection).
+
+<include cwd>content/shared/content.mdx#frontmatter</include>
+
+To add fields, [extend the schema](/docs/astro/content-sources/collections#add-frontmatter-fields).
+
+<include cwd>content/shared/content.mdx#links</include>
+
+### Last Modified Date
+
+Show the date of the last commit on each page. The sitemap and RSS feed use it too.
+
+```js title="astro.config.mjs"
+press({
+  lastModified: true, // [!code ++]
+});
+```
+
+<include cwd>content/shared/content.mdx#last-modified</include>
+
+<include cwd>content/shared/content.mdx#sidebar</include>
+
+## Components
+
+### Create the Module [step]
+
+<include cwd>content/shared/content.mdx#module</include>
+
+### Register the Module [step]
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  integrations: [
+    press({ components: "./src/components/mdx.tsx" }), // [!code highlight]
+  ],
+});
+```
+
+### Use the Components [step]
+
+<include cwd>content/shared/content.mdx#usage</include>
+
+### Rules for the Module
+
+The content of a page is a React island of its own, so:
+
+- **Props** must be serializable, since components hydrate by name. `<Chart data={[1, 2]} />` runs in the browser, and `<Chart onClick={() => {}} />` renders on the server only.
+- **Providers** from your layout don't reach the content. Add a `wrapper` to the MDX components instead.
+- **Imports** also load in the browser, so keep server-only code out.
+
+<Callout type="warn" title="No cycles">
+  Don't import `press.config.tsx` or `@fumapress/astro/runtime` from the module. The cycle with your
+  content slows the build down.
+</Callout>
+
+### One Module per Collection
+
+```js title="astro.config.mjs"
+press({
+  components: "./src/components/mdx.tsx",
+  collections: {
+    docs: { dir: "content/docs" },
+    blog: { dir: "content/blog", components: "./src/components/blog-mdx.tsx" }, // [!code ++]
+  },
+});
+```
+
+### Custom Links
+
+<include cwd>content/shared/content.mdx#custom-links</include>
+
+<Callout type="warn">
+  Astro renders your `a` on its own, like in Astro MDX: no hydration, and no React context from the
+  page. It can't use state, effects or hooks like `usePathname`. The same goes for an MDX component
+  inside a link.
+</Callout>
+
+## Images and Files
+
+<include cwd>content/shared/content.mdx#files</include>
+
+On custom pages, use [Astro Images](https://docs.astro.build/en/guides/images/).
+
+```astro title="src/pages/index.astro"
+---
+import { Image } from "astro:assets";
+import screenshot from "../assets/screenshot.png";
+---
+
+<Image src={screenshot} alt="A preview of the editor" />
+```

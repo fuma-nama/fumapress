@@ -1,0 +1,169 @@
+---
+title: Content
+description: Write pages, organize the sidebar, and add components and images.
+---
+
+Each Markdown or MDX file under `content/` is a page, and the sidebar lists them for you. Callouts, code block titles, tabs and other syntax work as in [Fumadocs Markdown](https://fumadocs.dev/docs/markdown).
+
+## Pages
+
+<include cwd>content/shared/content.mdx#urls</include>
+
+To put pages under a prefix like `/docs`, see [Several Sources](/docs/content-sources/fumadocs-mdx#several-sources).
+
+<include cwd>content/shared/content.mdx#frontmatter</include>
+
+To add fields, [extend the schema](/docs/content-sources/fumadocs-mdx#frontmatter).
+
+<include cwd>content/shared/content.mdx#links</include>
+
+### Last Modified Date
+
+Show the date of the last commit on each page. The sitemap and RSS feed use it too.
+
+```tsx title="press.config.tsx"
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    lastModified: true, // [!code ++]
+  },
+});
+```
+
+<include cwd>content/shared/content.mdx#last-modified</include>
+
+<include cwd>content/shared/content.mdx#sidebar</include>
+
+## Components
+
+### Create the Module [step]
+
+<include cwd>content/shared/content.mdx#module</include>
+
+### Register the Module [step]
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  plugins: [
+    press({ components: "./src/components/mdx.tsx" }), // [!code highlight]
+    fumadocsMdx(),
+    tailwindcss(),
+  ],
+});
+```
+
+### Use the Components [step]
+
+<include cwd>content/shared/content.mdx#usage</include>
+
+You can also import a component directly in an MDX file.
+
+### Custom Links
+
+<include cwd>content/shared/content.mdx#custom-links</include>
+
+To use hooks like `usePathname` from `fumadocs-core/framework`, add `"use client"` to the component.
+
+## Images and Files
+
+<include cwd>content/shared/content.mdx#files</include>
+
+In components, import `Image`:
+
+```tsx title="src/pages/index.tsx"
+import { Image } from "fumapress/image";
+
+<Image src="/screenshot.png" width={1200} height={630} alt="A preview of the editor" />;
+```
+
+Besides the usual `<img>` props, it takes:
+
+<auto-type-table
+  cwd
+  path="../../packages/fumapress/src/components/image.tsx"
+  type="Pick<ImageProps, 'quality' | 'unoptimized' | 'preload'>"
+/>
+
+### Image Optimization
+
+Markdown images and `Image` are optimized where your platform supports it. Without `site.baseUrl`, the self-hosted provider leaves images as they are.
+
+| Platform   | Provider                                                                                              | Needs                                |
+| ---------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Vercel     | [Vercel Image Optimization](https://vercel.com/docs/image-optimization)                               | nothing                              |
+| Cloudflare | [Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) | transformations enabled on your zone |
+| Node.js    | Self-hosted, with [Sharp](https://sharp.pixelplumbing.com)                                            | `sharp`, a server and `site.baseUrl` |
+
+### Allow Remote Images
+
+Local paths are always allowed. For remote images, list the provider with its options, which replaces the default one:
+
+<Tabs items={["Vercel", "Cloudflare", "Self-hosted"]}>
+<Tab value="Vercel">
+
+```tsx title="press.config.tsx"
+import { vercelImage } from "fumapress/plugins/image/vercel";
+
+createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/vercel').VercelImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+<Tab value="Cloudflare">
+
+Remote sources are allowed in the Cloudflare dashboard.
+
+```tsx title="press.config.tsx"
+import { cloudflareImage } from "fumapress/plugins/image/cloudflare";
+
+createPress(content).plugins(cloudflareImage({ format: "auto" }));
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/cloudflare').CloudflareImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+<Tab value="Self-hosted">
+
+```tsx title="press.config.tsx"
+import { selfHostedImage } from "fumapress/plugins/image/self-hosted";
+
+createPress(content).plugins(selfHostedImage({ allowedHosts: ["github.com"] }));
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/self-hosted').SelfHostedImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+</Tabs>
+
+### Turn Off Optimization
+
+On a static host with `sharp` installed, turn it off, since the self-hosted provider needs a server:
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+export default createPress(content).config({
+  preset: recommendedPreset().filter((entry) => entry.provides !== "image"),
+});
+```
+
+For another optimizer, see [Replace a Default Plugin](/docs/plugins/authoring#replace-a-default-plugin).

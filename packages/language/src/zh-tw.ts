@@ -1,8 +1,8 @@
 import type { TranslationPreset } from "fumadocs-core/i18n";
 import { zhTW as zhTWBase } from "@fumadocs/language/zh-tw";
 import type { Translations as AITranslations } from "@fumapress/ai/i18n";
+import type { Translations as BlogTranslations } from "@fumapress/blog/i18n";
 import type { Translations as FeedbackTranslations } from "@fumapress/feedback/i18n";
-import type { Translations as FumapressTranslations } from "fumapress/i18n";
 
 const feedback = {
   "How is this guide?(feedback)": "這份指南怎麼樣？",
@@ -48,7 +48,7 @@ const ai = {
   "Try again(AI chat)": "再試一次",
 } satisfies AITranslations;
 
-const fumapress = {
+const blog = {
   "Blog(blog)": "部落格",
   "All Tags(blog tags page)": "全部標籤",
   "{count} tags in total.(blog tags page)": "共 {count} 個標籤。",
@@ -60,13 +60,13 @@ const fumapress = {
   "Copied(blog panel)": "已複製",
   "Newer post(blog post navigation)": "較新文章",
   "Older post(blog post navigation)": "較舊文章",
-} satisfies FumapressTranslations;
+} satisfies BlogTranslations;
 
 type Keys =
   | (ReturnType<typeof zhTWBase> extends TranslationPreset<infer K> ? K : never)
-  | keyof FumapressTranslations
-  | keyof FeedbackTranslations
-  | keyof AITranslations;
+  | keyof typeof blog
+  | keyof typeof feedback
+  | keyof typeof ai;
 
 /**
  * Traditional Chinese, including Fumadocs UI, OpenAPI, Story, and Fumapress translations.
@@ -77,7 +77,7 @@ export function zhTW(): TranslationPreset<Keys> {
     name: base.name,
     value: {
       ...base.value,
-      ...fumapress,
+      ...blog,
       ...feedback,
       ...ai,
     },

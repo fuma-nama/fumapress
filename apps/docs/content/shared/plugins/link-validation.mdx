@@ -1,0 +1,73 @@
+<section id="intro">
+
+After the build, this plugin checks the links on your prerendered pages, and a broken link fails the build:
+
+```text
+In "/docs/getting-started": link "/docs/missing-page" not-found
+```
+
+</section>
+
+<section id="rest">
+
+## Choose What It Checks
+
+Full URLs are skipped by default. Use these to skip more, or to check them too:
+
+```tsx tab="Skip links" title="press.config.tsx"
+linkValidationPlugin({
+  ignored(href) {
+    return href.startsWith("/preview/");
+  },
+});
+```
+
+```tsx tab="Check full URLs" title="press.config.tsx"
+linkValidationPlugin({
+  // "not-found" for a broken link, `null` for a valid one
+  async externalLink(href) {
+    const res = await fetch(href, { method: "HEAD" });
+    return res.ok ? null : "not-found";
+  },
+});
+```
+
+## Report to CI
+
+To annotate a pull request instead of parsing an error message, write the results to a file. `"json"` keeps the build passing, and `"both"` also fails it.
+
+```tsx tab="press.config.tsx"
+linkValidationPlugin({
+  report: "json", // [!code ++]
+});
+```
+
+```json tab="dist/fumapress-diagnostics.json"
+{
+  "diagnostics": [
+    {
+      "severity": "error",
+      "rule": "link-validation/not-found",
+      "message": "link \"/missing\" not-found",
+      "fromPathname": "/docs",
+      "href": "/missing"
+    }
+  ]
+}
+```
+
+An empty list means validation ran and found nothing. Change the file name with `diagnosticsPath`.
+
+</section>
+
+<section id="options">
+
+## Options
+
+<auto-type-table
+  cwd
+  path="../../packages/core/src/plugins/link-validation.ts"
+  name="LinkValidationOptions"
+/>
+
+</section>

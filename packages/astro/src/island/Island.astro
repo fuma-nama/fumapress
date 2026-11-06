@@ -1,0 +1,29 @@
+---
+import { PressIsland } from "virtual:fumapress/island";
+import type { ProviderData } from "../ui/content";
+import type { IslandData } from "./serialize";
+
+interface Props extends Pick<IslandData, "tree" | "slots"> {
+  /** the props of the provider of Astro content in its slots */
+  provider: ProviderData;
+  /** the name of `transition:persist`, the island is kept on navigation */
+  persist?: string;
+}
+
+const { tree, slots, provider, persist } = Astro.props;
+---
+
+<PressIsland client:load tree={tree} transition:persist={persist}>
+  {
+    slots.map((content, i) =>
+      typeof content === "string" ? (
+        <Fragment slot={`s${i}`} set:html={content} />
+      ) : (
+        <Fragment slot={`s${i}`}>
+          <content.component provider={provider} components={content.components} />
+        </Fragment>
+      ),
+    )
+  }
+  <slot />
+</PressIsland>

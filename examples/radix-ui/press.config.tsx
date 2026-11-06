@@ -1,8 +1,7 @@
-import { defineConfig } from "fumapress";
+import { createPress } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { fumadocsMdx } from "fumapress/adapters/mdx";
-import { openapiPlugin } from "fumapress/plugins/openapi";
+import openapiPlugin from "fumadocs-openapi/press";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { pageSchema, metaSchema } from "fumadocs-core/source/schema";
 
@@ -26,28 +25,31 @@ const docs = defineDocs({
   },
 });
 
-export default defineConfig({
-  content: {
+export default createPress(
+  {
     docs: docs.toFumadocsSource(),
     openapi: await openapi.staticSource(),
   },
-  loaderOptions: {
-    plugins: [lucideIconsPlugin()],
-  },
-  meta: {
-    root() {
-      return (
-        <>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
-            rel="stylesheet"
-          />
-        </>
-      );
+  {
+    loaderOptions: {
+      plugins: [lucideIconsPlugin()],
     },
   },
-})
-  .adapters(fumadocsMdx())
-  .plugins(openapiPlugin({ server: openapi, createProxy: true }));
+)
+  .plugins(openapiPlugin({ server: openapi, createProxy: true }))
+  .config({
+    head: [
+      { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+      {
+        tag: "link",
+        attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+      },
+      {
+        tag: "link",
+        attrs: {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+        },
+      },
+    ],
+  });

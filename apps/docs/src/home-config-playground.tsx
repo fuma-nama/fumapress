@@ -13,7 +13,7 @@ interface Feature {
   id: FeatureId;
   name: string;
   description: string;
-  imports: { from: string; names: string[] }[];
+  imports: { from: string; default?: string; names?: string[] }[];
   setup?: string[];
   content?: string[];
   plugin: string;
@@ -43,36 +43,37 @@ const features: Feature[] = [
     description: "Generates API reference pages from your OpenAPI spec.",
     imports: [
       { from: "fumadocs-openapi/server", names: ["createOpenAPI"] },
-      { from: "fumapress/plugins/openapi", names: ["openapiPlugin"] },
+      { from: "fumadocs-openapi/press", default: "openapiPlugin" },
     ],
     setup: ['const openapi = createOpenAPI({ input: ["./openapi.json"] });'],
-    content: ["    openapi: await openapi.staticSource(),"],
+    content: ["  openapi: await openapi.staticSource(),"],
     plugin: "openapiPlugin({ server: openapi })",
   },
   {
     id: "blog",
     name: "Blog",
     description: "Turns content collections into a polished blog.",
-    imports: [{ from: "fumapress/plugins/blog", names: ["blogPlugin"] }],
+    imports: [{ from: "@fumapress/blog", names: ["blogPlugin"] }],
     setup: [
       "const blog = defineDocs({",
       '  dir: "content/blog",',
       "  docs: { async: true },",
       "});",
     ],
-    content: ['    blog: blog.toFumadocsSource({ baseDir: "blog" }),'],
-    plugin: "blogPlugin()",
+    content: ['  blog: blog.toFumadocsSource({ baseDir: "blog" }),'],
+    plugin: 'blogPlugin({ source: "blog" })',
   },
 ];
 
 function createConfigCode(selected: readonly FeatureId[]) {
   const activeFeatures = features.filter((feature) => selected.includes(feature.id));
 
-  const importsByModule = new Map<string, string[]>();
+  const importsByModule = new Map<string, { default?: string; names: string[] }>();
   for (const feature of activeFeatures) {
-    for (const { from, names } of feature.imports) {
-      const merged = importsByModule.get(from) ?? [];
-      for (const name of names) if (!merged.includes(name)) merged.push(name);
+    for (const { from, default: defaultName, names = [] } of feature.imports) {
+      const merged = importsByModule.get(from) ?? { names: [] };
+      merged.default ??= defaultName;
+      for (const name of names) if (!merged.names.includes(name)) merged.names.push(name);
       importsByModule.set(from, merged);
     }
   }
@@ -80,12 +81,12 @@ function createConfigCode(selected: readonly FeatureId[]) {
   const plugins = activeFeatures.map((feature) => feature.plugin);
 
   return [
-    'import { defineConfig } from "fumapress";',
-    'import { fumadocsMdx } from "fumapress/adapters/mdx";',
-    ...Array.from(
-      importsByModule,
-      ([from, names]) => `import { ${names.join(", ")} } from "${from}";`,
-    ),
+    'import { createPress } from "fumapress";',
+    ...Array.from(importsByModule, ([from, { default: defaultName, names }]) => {
+      const named = names.length > 0 ? `{ ${names.join(", ")} }` : undefined;
+      const specifiers = defaultName && named ? `${defaultName}, ${named}` : (defaultName ?? named);
+      return `import ${specifiers} from "${from}";`;
+    }),
     'import { defineDocs } from "fumadocs-mdx/macro";',
     "",
     "const docs = defineDocs({",
@@ -94,18 +95,14 @@ function createConfigCode(selected: readonly FeatureId[]) {
     "});",
     ...activeFeatures.flatMap((feature) => (feature.setup ? ["", ...feature.setup] : [])),
     "",
-    "export default defineConfig({",
-    "  content: {",
-    "    docs: docs.toFumadocsSource(),",
+    "export default createPress({",
+    "  docs: docs.toFumadocsSource(),",
     ...activeFeatures.flatMap((feature) => feature.content ?? []),
-    "  },",
-    "})",
     ...(plugins.length === 0
-      ? []
+      ? ["});"]
       : plugins.length === 1
-        ? [`  .plugins(${plugins[0]})`]
-        : ["  .plugins(", ...plugins.map((plugin) => `    ${plugin},`), "  )"]),
-    "  .adapters(fumadocsMdx());",
+        ? [`}).plugins(${plugins[0]});`]
+        : ["}).plugins(", ...plugins.map((plugin) => `  ${plugin},`), ");"]),
   ].join("\n");
 }
 

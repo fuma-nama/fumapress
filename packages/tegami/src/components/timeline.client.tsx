@@ -11,8 +11,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ChangelogEntryView } from "../lib/types.ts";
+import type { ChangelogEntry } from "../plugin.tsx";
 import { DateRangePicker, type DateRange } from "./date-range-picker.client.tsx";
+
+/** an entry of the timeline, serializable */
+export interface ChangelogEntryView extends Pick<ChangelogEntry, "packages" | "body"> {
+  url: string;
+  title: string;
+  description?: string;
+  date: Date;
+}
 
 interface ChangelogTimelineContextValue {
   allPackages: string[];

@@ -1,14 +1,15 @@
-import type { Awaitable } from "@/lib/types";
-import type { PressPlugin } from "@/app/plugin";
-import type { AppContext, AppShape } from "@/app/context";
-import { unstable_notFound } from "waku/router/server";
 import type { ReactNode } from "react";
 import { ImageResponse, type ImageResponseOptions } from "takumi-js/response";
-import { joinPaths } from "@/lib/pathname";
-import { inheritedFrom } from "@/lib/i18n";
-import type { RouteParams } from "@/lib/routes";
-
-export { fontFromUrl, googleFonts } from "takumi-js/helpers";
+import type { Context } from "../context";
+import type { HeadTag } from "../head";
+import type { AppShape, Awaitable, Plugin } from "../plugin";
+import {
+  fallbackOrigin,
+  joinPaths,
+  type PageRoute,
+  type RouteHandler,
+  type RouteParams,
+} from "../routes";
 
 /** `ImageResponseOptions` of a WebP image, the plugin sets `format` itself */
 export type TakumiImageOptions = ImageResponseOptions extends infer T
@@ -21,208 +22,200 @@ export interface TakumiOptions<C extends AppShape = AppShape> {
   /**
    * The base route for generated images.
    *
-   * By default, it is `/` (static mode) or `/_takumi` (dynamic mode).
+   * By default, it is `/` for images of static routes, `/_takumi` for the ones rendered on demand.
    */
-  basePath?: string;
-  /** @default 1200 */
+  path?: string;
+  /** @defaultValue 1200 */
   width?: number;
-  /** @default 630 */
+  /** @defaultValue 630 */
   height?: number;
 
   /**
-   * Options shared by every image, `generate()` overrides them per page.
+   * Options shared by every image, `getImage()` overrides them per page.
    *
-   * Values resolved once belong here, like the fonts from `googleFonts()`.
+   * Values resolved once belong here, like the fonts from `googleFonts()` of `takumi-js/helpers`.
+   * On runtimes that can't load the native addon, pass the WebAssembly build of `takumi-js/wasm` as `module`.
    */
   options?: TakumiImageOptions;
 
-  generate?: (
-    this: AppContext<C>,
-    page: C["page"],
-  ) => Awaitable<{
-    node: ReactNode;
-    options?: TakumiImageOptions;
-  }>;
+  /** the image of a content page, defaults to its title, description and the site name */
+  getImage?: (this: Context<C>, page: C["page"]) => Awaitable<TakumiImage>;
 }
 
-/** The image of a route: a `node` to draw, or `title` and `description` for the default template. */
-export interface TakumiRouteImage {
-  node?: ReactNode;
-  title?: string;
-  description?: string;
-  /** image response options of this route, over the shared `options` */
+export interface TakumiImage {
+  node: ReactNode;
+  /** over the shared `options` */
   options?: TakumiImageOptions;
 }
 
-/**
- * The `takumiOptions` of a route config. A function receives the route params of the rendered path
- * (`lang` included for `autoI18n` pages), `this` is the app context.
- */
-export type TakumiRouteOptions<C extends AppShape = AppShape> =
-  | TakumiRouteImage
-  | ((this: AppContext<C>, params: RouteParams) => Awaitable<TakumiRouteImage>);
+/** the image of a page route (`ogImage` of its options): a `node` to draw, or `title` and `description` for the default template */
+export interface OGImageRoute extends Partial<TakumiImage> {
+  title?: string;
+  description?: string;
+}
 
+declare module "@fumapress/core" {
+  interface CapabilityAPI {
+    "og-image": OGImageAPI;
+  }
+
+  interface RouteOptions {
+    /** the Open Graph image of the route, drawn by the `og-image` plugin of the preset; a function gets the params of the rendered path */
+    ogImage?: OGImageRoute | ((this: Context, params: RouteParams) => Awaitable<OGImageRoute>);
+  }
+}
+
+/** the API of the `og-image` capability, from `this.getCapability("og-image")` */
+export interface OGImageAPI {
+  /** the response of an image, with the size and the shared `options` of the plugin */
+  render: (image: TakumiImage) => ImageResponse;
+  /** the head tags of the image at `url` */
+  tags: (url: string) => HeadTag[];
+}
+
+/** the path segments of a page's image, `index.webp` for the root page */
+function imageSegments(slugs: string[]): string[] {
+  if (slugs.length === 0) return ["index.webp"];
+  const out = slugs.slice(0, -1);
+  out.push(`${slugs[slugs.length - 1]}.webp`);
+  return out;
+}
+
+/** the slugs of a page from the segments of its image path */
+function pageSlugs(segments: string[]): string[] {
+  const out = segments.slice();
+  if (out.length > 0) out[out.length - 1] = out[out.length - 1]!.replace(/\.webp$/, "");
+  if (out.length === 1 && out[0] === "index") out.pop();
+  return out;
+}
+
+/**
+ * Open Graph images of content pages with Takumi, requires `takumi-js`.
+ *
+ * Every language gets an image route, fallback pages use the image of the page they fall back to. Page routes with
+ * `ogImage` get one too: prerendered for static routes, rendered on demand for dynamic ones.
+ */
 export function takumiPlugin<C extends AppShape = AppShape>(
   options: TakumiOptions<NoInfer<C>> = {},
-): PressPlugin<C> {
-  const {
-    width = 1200,
-    height = 630,
-    options: shared,
-    generate = function fn(page) {
-      return {
-        node: generateDefault({
-          title: page.data.title,
-          description: page.data.description,
-          site: this.siteConfig.name,
-        }),
-      };
-    },
-  } = options;
-  let basePath: string;
-  let renderMode: "static" | "dynamic";
+): Plugin<C, { provides: "og-image" }> {
+  const { width = 1200, height = 630 } = options;
+  const api: OGImageAPI = {
+    render: (image) =>
+      new ImageResponse(image.node, {
+        width,
+        height,
+        ...options.options,
+        ...image.options,
+        format: "webp",
+      }),
+    tags: (url) => [
+      { tag: "meta", attrs: { property: "og:image", content: url } },
+      { tag: "meta", attrs: { property: "og:image:width", content: String(width) } },
+      { tag: "meta", attrs: { property: "og:image:height", content: String(height) } },
+      { tag: "meta", attrs: { property: "twitter:card", content: "summary_large_image" } },
+    ],
+  };
 
-  function render(node: ReactNode, options?: TakumiImageOptions) {
-    return new ImageResponse(node, {
-      width,
-      height,
-      ...shared,
-      ...options,
-      format: "webp",
-    });
+  function defaultImage(this: Context<C>, page: C["page"]): TakumiImage {
+    const { title, description } = page.data;
+    return { node: generate({ title, description, site: this.siteConfig.name }) };
   }
 
-  function slugsToImagePath(slugs: string[]) {
-    const segments = [...slugs];
-    if (segments.length === 0) {
-      segments.push("index.webp");
-    } else {
-      segments[segments.length - 1] += ".webp";
-    }
-
-    return segments;
+  /** the base route of images without a trailing slash, empty at the root */
+  function basePath(render: PageRoute["render"]): string {
+    const path = options.path ?? "/";
+    const base = path.replace(/^\/?/, "/").replace(/\/$/, "");
+    // at the root it would take every path
+    return render === "dynamic" ? base || "/_takumi" : base;
   }
 
-  function imagePathToSlugs(segs: string[]) {
-    if (segs.length === 0) return segs;
-
-    const slugs = [...segs];
-    slugs[slugs.length - 1] = slugs[slugs.length - 1]!.replace(/\.webp$/, "");
-    if (slugs.length === 1 && slugs[0] === "index") slugs.pop();
-
-    return slugs;
-  }
-
-  /** static routes get a `.webp` file next to the page, dynamic ones an image route under `/_takumi` */
-  function routeImagePath(pathname: string, dynamic: boolean) {
-    if (dynamic) return joinPaths("/", basePath === "/" ? "/_takumi" : basePath, pathname);
-    return joinPaths("/", basePath, pathname === "/" ? "index.webp" : `${pathname}.webp`);
-  }
-
-  function imageMeta(url: string) {
-    return (
-      <>
-        <meta property="og:image" content={url} />
-        <meta property="og:image:width" content={`${width}`} />
-        <meta property="og:image:height" content={`${height}`} />
-        <meta property="twitter:card" content="summary_large_image" />
-      </>
-    );
+  /** a static page gets a `.webp` file next to it, a dynamic page an image route with its params under `/_takumi` */
+  function routeImagePath(route: PageRoute<C>, pathname: string): string {
+    const base = basePath(route.render);
+    if (route.render === "dynamic") return joinPaths("/", base, pathname);
+    return joinPaths("/", base, pathname === "/" ? "index.webp" : `${pathname}.webp`);
   }
 
   return {
     name: "core:takumi",
-    init() {
-      renderMode = this.mode === "default" ? "static" : this.mode;
-      basePath = options.basePath ?? (renderMode === "dynamic" ? "/_takumi" : "/");
-
-      // fallback pages have no image of their own, point at the source page's
-      const PageImage = async ({ page }: { page: C["page"] }) => {
-        const origin = inheritedFrom(await this.getLoader(), this.i18nConfig, page);
-        return imageMeta(
-          this.absoluteUrl(
-            this.localizePath(
-              (origin ?? page).locale,
-              joinPaths("/", basePath, ...slugsToImagePath(page.slugs)),
-            ),
+    provides: ["og-image"],
+    api,
+    async head({ page, route, path }) {
+      if (route?.options.ogImage && path !== undefined)
+        return api.tags(this.absoluteUrl(routeImagePath(route, path)));
+      if (!page) return;
+      // fallback pages have no image of their own, point at the origin's
+      const target = fallbackOrigin(await this.getLoader(), this.i18nConfig, page) ?? page;
+      return api.tags(
+        this.absoluteUrl(
+          this.localizePath(
+            target.locale,
+            `${basePath(this.getContentRender(target.type))}/${imageSegments(page.slugs).join("/")}`,
           ),
-        );
-      };
-
-      this.interceptPageMeta(({ page, next }) => (
-        <>
-          {next()}
-          <PageImage page={page} />
-        </>
-      ));
+        ),
+      );
     },
-    configureRoutes({ createApiIsomorphic, getRoutes }) {
-      for (const route of getRoutes()) {
-        const image = route.takumiOptions as TakumiRouteOptions<C> | undefined;
-        if (!image) continue;
+    async routes({ createApi }) {
+      const source = await this.getLoader();
 
-        const renderImage = async (params: RouteParams) => {
-          const { node, title, description, options } =
-            typeof image === "function" ? await image.call(this, params) : image;
-
-          return render(
-            node ?? generateDefault({ title, description, site: this.siteConfig.name }),
-            options,
-          );
-        };
-        const dynamic = route.render === "dynamic";
-
-        if (dynamic) {
-          createApiIsomorphic({
-            render: "dynamic",
-            path: routeImagePath(route.path, true),
-            handler: (_, { params }) => renderImage(params),
-          });
-        } else {
-          for (const { path, params } of route.pages) {
-            createApiIsomorphic({
-              render: "static",
-              path: routeImagePath(path, false),
-              handler: () => renderImage(params),
-            });
-          }
+      for (const lang of this.languages) {
+        const staticPaths: string[][] = [];
+        for (const page of source.getPages(lang)) {
+          if (
+            this.getContentRender(page.type) === "static" &&
+            !fallbackOrigin(source, this.i18nConfig, page)
+          )
+            staticPaths.push(imageSegments(page.slugs));
         }
 
-        route.meta.push((props) =>
-          imageMeta(this.absoluteUrl(routeImagePath(props.path, dynamic))),
-        );
+        const GET: RouteHandler = async (_request, { params }) => {
+          const page =
+            Array.isArray(params.slugs) &&
+            (await this.getLoader()).getPage(pageSlugs(params.slugs), lang);
+          if (!page) return new Response(null, { status: 404 });
+
+          return api.render(await (options.getImage ?? defaultImage).call(this, page));
+        };
+        const path = (render: PageRoute["render"]) =>
+          this.localizePath(lang, `${basePath(render)}/[...slugs]`);
+        if (staticPaths.length > 0 || this.getContentRender() === "static")
+          createApi({ path: path("static"), render: "static", staticPaths, GET });
+        if (this.getContentRender() === "dynamic") createApi({ path: path("dynamic"), GET });
       }
     },
-    async createPages({ createApiIsomorphic }) {
-      const staticPathsByLang = new Map<string | undefined, string[][]>();
-      const source = await this.getLoader();
-      for (const page of source.getPages()) {
-        if (inheritedFrom(source, this.i18nConfig, page)) continue;
-        const paths = staticPathsByLang.get(page.locale);
-        if (paths) paths.push(slugsToImagePath(page.slugs));
-        else staticPathsByLang.set(page.locale, [slugsToImagePath(page.slugs)]);
-      }
+    deriveRoutes({ createApi }, { routes }) {
+      for (const route of routes) {
+        const image = route.options.ogImage;
+        if (!image) continue;
 
-      for (const lang of this.i18nConfig?.languages ?? [undefined]) {
-        createApiIsomorphic({
-          render: renderMode,
-          path: this.localizePath(lang, joinPaths("/", basePath, "[...slugs]")),
-          staticPaths: staticPathsByLang.get(lang) ?? [],
-          handler: async (_, { params }) => {
-            const source = await this.getLoader();
-            const page = source.getPage(imagePathToSlugs(params.slugs as string[]), lang);
-            if (!page) unstable_notFound();
-
-            const { node, options } = await generate.call(this, page);
-            return render(node, options);
-          },
-        });
+        const render = async (params: RouteParams) => {
+          const { node, title, description, options } =
+            typeof image === "function" ? await image.call(this, params) : image;
+          return api.render({
+            node: node ?? generate({ title, description, site: this.siteConfig.name }),
+            options,
+          });
+        };
+        if (route.render === "dynamic") {
+          createApi({
+            path: routeImagePath(route, route.path),
+            GET: (_, { params }) => render(params),
+          });
+          continue;
+        }
+        for (const { path, params } of route.pages)
+          createApi({
+            path: routeImagePath(route, path),
+            render: "static",
+            GET: () => render(params),
+          });
       }
     },
   };
 }
 
-function generateDefault({
+/** the default image: the title, description and site name */
+export function generate({
   site,
   title,
   description,
@@ -230,25 +223,10 @@ function generateDefault({
   title?: string;
   description?: string;
   site?: string;
-}) {
+}): ReactNode {
   const primaryColor = "rgba(255,150,255,0.3)";
   const primaryTextColor = "rgb(255,150,255)";
-  const icon = (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="56"
-      height="56"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="lucide lucide-book-icon lucide-book"
-    >
-      <circle cx="12" cy="12" r="11" stroke={primaryTextColor} strokeWidth="2" />
-    </svg>
-  );
+
   return (
     <div
       style={{
@@ -262,15 +240,7 @@ function generateDefault({
         borderBottom: `18px solid ${primaryColor}`,
       }}
     >
-      <p
-        style={{
-          fontWeight: 800,
-          fontSize: "82px",
-          margin: 0,
-        }}
-      >
-        {title}
-      </p>
+      <p style={{ fontWeight: 800, fontSize: "82px", margin: 0 }}>{title}</p>
       <p
         style={{
           fontSize: "52px",
@@ -283,7 +253,6 @@ function generateDefault({
       >
         {description}
       </p>
-
       <div
         style={{
           display: "flex",
@@ -294,18 +263,16 @@ function generateDefault({
           color: primaryTextColor,
         }}
       >
-        {icon}
-        {site && (
-          <p
-            style={{
-              fontSize: "56px",
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            {site}
-          </p>
-        )}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="56"
+          height="56"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle cx="12" cy="12" r="11" stroke={primaryTextColor} strokeWidth="2" />
+        </svg>
+        {site && <p style={{ fontSize: "56px", fontWeight: 600, margin: 0 }}>{site}</p>}
       </div>
     </div>
   );

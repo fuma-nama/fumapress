@@ -1,0 +1,29 @@
+Pages read the source once, and new content doesn't appear on its own. Choose when they read it again:
+
+```tsx tab="On every request" title="press.config.tsx"
+createPress(source, {
+  loaderOptions: {
+    alwaysRevalidate: true, // [!code highlight]
+  },
+});
+```
+
+```tsx tab="From a webhook" title="press.config.tsx"
+createPress(source).plugins({
+  name: "site:revalidate",
+  routes({ createApi }) {
+    createApi({
+      path: "/api/revalidate",
+      POST: async (request) => {
+        if (request.headers.get("authorization") !== `Bearer ${process.env.WEBHOOK_TOKEN}`)
+          return new Response(null, { status: 401 });
+
+        await this.revalidateLoader(); // [!code highlight]
+        return new Response();
+      },
+    });
+  },
+});
+```
+
+Reading on every request suits low traffic. On a busier site, call the webhook when your content changes.

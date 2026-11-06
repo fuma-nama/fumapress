@@ -1,0 +1,59 @@
+---
+title: Plugins
+description: Add, replace and remove the features of your site.
+---
+
+<include cwd>content/shared/plugins/index.mdx#intro</include>
+
+<Cards>
+  <Card href="/docs/plugins/seo" title="SEO">
+    Sitemap, robots.txt, RSS and Open Graph images.
+  </Card>
+  <Card href="/docs/plugins/ai" title="AI">
+    llms.txt, AI chat and MCP.
+  </Card>
+  <Card href="/docs/plugins/api-docs" title="API Docs">
+    OpenAPI, AsyncAPI and GraphQL.
+  </Card>
+  <Card href="/docs/plugins/blog" title="Blog">
+    Posts, an index and tag pages.
+  </Card>
+  <Card href="/docs/plugins/changelog" title="Changelog">
+    Your Tegami release notes.
+  </Card>
+  <Card href="/docs/plugins/feedback" title="Feedback">
+    A form on pages and selected text.
+  </Card>
+  <Card href="/docs/plugins/link-validation" title="Link Validation">
+    Find broken links at build time.
+  </Card>
+  <Card href="/docs/plugins/authoring" title="Writing Plugins">
+    Add anything else.
+  </Card>
+</Cards>
+
+## Default Plugins
+
+<include cwd>content/shared/plugins/index.mdx#table</include>
+
+They also pick an [image optimizer](/docs/content#image-optimization) for your platform, under `image`.
+
+<include cwd>content/shared/plugins/index.mdx#replace</include>
+
+```tsx title="press.config.tsx"
+import { rssPlugin } from "fumapress/plugins/rss";
+
+createPress(content).plugins(rssPlugin({ limit: 50 }));
+```
+
+<include cwd>content/shared/plugins/index.mdx#remove</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+createPress(content).config({
+  preset: recommendedPreset().filter((entry) => entry.provides !== "rss"),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#rest</include>

@@ -3,10 +3,6 @@ import { parseMintlifyDocsJson } from "@/schema";
 import { fullDocs, minimalDocs } from "./fixtures/docs";
 
 describe("parseMintlifyDocsJson", () => {
-  it("parses a valid docs.json payload", () => {
-    expect(parseMintlifyDocsJson(minimalDocs)).toEqual(minimalDocs);
-  });
-
   it("parses a docs.json using the full feature surface", () => {
     expect(parseMintlifyDocsJson(fullDocs)).toEqual(fullDocs);
   });

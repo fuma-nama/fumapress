@@ -1,0 +1,89 @@
+<section id="intro">
+
+Search works without setup, with FlexSearch. The build exports an index of your pages, and the browser downloads and searches it. With a dynamic source, like [Notion](./content-sources/notion.mdx), search runs on your server instead, since the pages change after the build.
+
+</section>
+
+<section id="index">
+
+## Search on the Server
+
+On a large site, the index is a big download for every reader. To keep it on the server, set `render`. The site then [needs a server](./deployment.mdx#what-needs-a-server).
+
+```tsx title="press.config.tsx"
+createPress(content).plugins(flexsearchPlugin({ render: "dynamic" }));
+```
+
+## Change the Index
+
+The index holds the headings and text of each page, from your content source. Pages without them are searched by title.
+
+`buildIndex` changes the fields, on either plugin. The result must include `structuredData`, the headings and text. This example adds a `tag` to each page, so that a [dialog](#customize-the-dialog) can filter by it:
+
+```tsx title="press.config.tsx"
+flexsearchPlugin({
+  async buildIndex(page) {
+    const data = await this.getPageStructuredData(page);
+
+    return {
+      id: page.url,
+      title: page.data.title ?? page.path,
+      description: page.data.description,
+      url: page.url,
+      structuredData: data ?? { headings: [], contents: [] },
+      tag: page.path.split("/")[0], // [!code highlight]
+    };
+  },
+});
+```
+
+Results show the same breadcrumb as the page. Return `breadcrumbs` to change it.
+
+## Customize the Dialog
+
+Compose a dialog from the parts of Fumadocs UI and a [search hook](https://fumadocs.dev/docs/headless/search), then pass it through `ui.providerProps`. It receives the options of the search plugin as props.
+
+```tsx tab="src/search.tsx"
+"use client";
+import {
+  useFlexsearchStatic,
+  type FlexsearchStaticOptions,
+} from "fumadocs-core/search/client/flexsearch-static";
+import {
+  SearchDialog as Dialog,
+  SearchDialogContent,
+  SearchDialogHeader,
+  SearchDialogInput,
+  SearchDialogList,
+  SearchDialogOverlay,
+  type SharedProps,
+} from "fumadocs-ui/components/dialog/search";
+
+type Props = SharedProps & FlexsearchStaticOptions;
+
+export function SearchDialog({ from, locale, ...props }: Props) {
+  return (
+    <Dialog {...props} {...useFlexsearchStatic({ from, locale, tag: "guides" })}>
+      <SearchDialogOverlay />
+      <SearchDialogContent>
+        <SearchDialogHeader>
+          <SearchDialogInput />
+        </SearchDialogHeader>
+        <SearchDialogList />
+      </SearchDialogContent>
+    </Dialog>
+  );
+}
+```
+
+```tsx tab="press.config.tsx"
+import { SearchDialog } from "./src/search";
+
+createPress(content).config({
+  ui: { providerProps: { search: { SearchDialog } } },
+});
+```
+
+When search runs on the server, the props are `api` and `locale`, and the hook is `useFetchSearch` from `fumadocs-core/search/client/fetch`.
+
+</section>

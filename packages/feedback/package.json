@@ -31,11 +31,13 @@
   "scripts": {
     "dev": "tsdown --watch",
     "build": "tsdown",
+    "test": "vitest",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
     "@floating-ui/react-dom": "^2.1.9",
     "@fuma-translate/react": "^1.0.2",
+    "@fumapress/core": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "lucide-react": "^1.47.0",
@@ -43,12 +45,10 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tailwindcss/oxide": "^4.3.3",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.16.2",
-    "fumadocs-ui": "^16.16.2",
-    "fumapress": "workspace:*",
+    "fumadocs-core": "^16.18.1",
+    "fumadocs-ui": "^16.18.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tsdown": "0.23.0",
@@ -59,7 +59,6 @@
     "@types/react": "*",
     "fumadocs-core": "*",
     "fumadocs-ui": "*",
-    "fumapress": "workspace:^",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -27,45 +27,38 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch --clean false",
+    "test": "vitest",
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
+    "@fumapress/core": "workspace:^",
     "lucide-react": "^1.47.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@fumadocs/asyncapi": "^0.4.2",
+    "@fumadocs/asyncapi": "^0.6.0",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.16.2",
-    "fumadocs-openapi": "^12.3.0",
-    "fumadocs-ui": "^16.16.2",
-    "fumapress": "workspace:*",
-    "hono": "^4.13.9",
+    "fumadocs-core": "^16.18.1",
+    "fumadocs-openapi": "^12.6.0",
+    "fumadocs-ui": "^16.18.1",
     "react": "^19.3.0",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
-    "waku": "1.0.0-rc.1"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "*",
     "fumadocs-core": "*",
     "fumadocs-openapi": "*",
     "fumadocs-ui": "*",
-    "fumapress": "workspace:^",
-    "hono": "*",
-    "react": "*",
-    "waku": "*"
+    "react": "*"
   },
   "peerDependenciesMeta": {
     "@fumadocs/asyncapi": {
       "optional": true
     },
     "fumadocs-openapi": {
-      "optional": true
-    },
-    "hono": {
       "optional": true
     }
   }

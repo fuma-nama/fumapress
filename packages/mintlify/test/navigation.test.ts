@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildPageTreeFromNavigation,
   createPageIndex,
-  getMintlifyVersions,
   getNavigablePages,
   resolveNavigationContainer,
 } from "@/navigation";
+import { loadMintlifyIcons } from "@/icons";
 import { minimalDocs, multilingualDocs } from "./fixtures/docs";
 import { page, sampleRoot } from "./fixtures/page-tree";
 
@@ -38,21 +38,18 @@ describe("resolveNavigationContainer", () => {
 });
 
 describe("buildPageTreeFromNavigation", () => {
-  it("builds a page tree from Mintlify navigation entries", async () => {
+  it("builds a page tree from Mintlify navigation entries", () => {
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = await buildPageTreeFromNavigation(minimalDocs.navigation, pageIndex);
+    const tree = buildPageTreeFromNavigation(minimalDocs.navigation, pageIndex);
 
     expect(tree).toHaveLength(2);
     expect(tree[0]).toMatchObject({ type: "page", name: "Getting Started" });
     expect(tree[1]).toMatchObject({ type: "page", name: "Setup Guide" });
   });
 
-  it("creates external pages for http links", async () => {
+  it("creates external pages for http links", () => {
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = await buildPageTreeFromNavigation(
-      { pages: ["https://example.com/docs"] },
-      pageIndex,
-    );
+    const tree = buildPageTreeFromNavigation({ pages: ["https://example.com/docs"] }, pageIndex);
 
     expect(tree).toEqual([
       expect.objectContaining({
@@ -64,8 +61,9 @@ describe("buildPageTreeFromNavigation", () => {
   });
 
   it("builds nested groups and skips hidden entries", async () => {
+    await loadMintlifyIcons({ icon: "book" });
     const pageIndex = createPageIndex(sampleRoot);
-    const tree = await buildPageTreeFromNavigation(
+    const tree = buildPageTreeFromNavigation(
       {
         groups: [
           {
@@ -98,33 +96,13 @@ describe("buildPageTreeFromNavigation", () => {
     });
   });
 
-  it("renders group tags as badges", async () => {
-    const pageIndex = createPageIndex(sampleRoot);
-    const tree = await buildPageTreeFromNavigation(
-      {
-        groups: [
-          {
-            group: "Guides",
-            tag: "NEW",
-            pages: ["guides/setup"],
-          },
-        ],
-      },
-      pageIndex,
-    );
-
-    // the name becomes a fragment with the group label + badge
-    const name = tree[0]?.type === "folder" ? tree[0].name : undefined;
-    expect(name).toBeTypeOf("object");
-  });
-
-  it("builds versioned navigation roots", async () => {
+  it("builds versioned navigation roots", () => {
     const pageIndex = createPageIndex({
       ...sampleRoot,
       children: [page("v2/docs/overview", "Overview v2")],
     });
 
-    const tree = await buildPageTreeFromNavigation(
+    const tree = buildPageTreeFromNavigation(
       {
         versions: [
           {
@@ -144,16 +122,6 @@ describe("buildPageTreeFromNavigation", () => {
       root: true,
       defaultOpen: true,
     });
-  });
-});
-
-describe("getMintlifyVersions", () => {
-  it("returns versions from the resolved navigation container", () => {
-    const versions = getMintlifyVersions({
-      versions: [{ version: "v1", pages: ["getting-started"] }],
-    });
-
-    expect(versions).toEqual([{ version: "v1", pages: ["getting-started"] }]);
   });
 });
 

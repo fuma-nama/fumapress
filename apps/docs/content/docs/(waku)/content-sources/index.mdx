@@ -1,0 +1,38 @@
+---
+title: Content Sources
+description: Choose where your pages come from.
+---
+
+Keep your pages in your project with Fumadocs MDX. Choose another source only when your content already lives elsewhere.
+
+<Cards>
+  <Card href="/docs/content-sources/fumadocs-mdx" title="Fumadocs MDX" className="col-span-full">
+    MDX files in your project. New sites start here.
+  </Card>
+  <Card href="/docs/content-sources/notion" title="Notion">
+    Your team writes in a Notion database.
+  </Card>
+  <Card href="/docs/content-sources/sanity" title="Sanity">
+    Your team writes in Sanity Studio.
+  </Card>
+  <Card href="/docs/content-sources/obsidian" title="Obsidian">
+    You publish an Obsidian vault.
+  </Card>
+  <Card href="/docs/content-sources/custom" title="Custom Source">
+    Your pages come from anywhere else.
+  </Card>
+</Cards>
+
+## Use Several Sources
+
+Pass an object to combine them on one site. Each key names a source, and `baseDir` is its URL prefix.
+
+```tsx title="press.config.tsx"
+// [!code word:baseDir]
+export default createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  guides: notion.dynamicSource({ baseDir: "guides" }),
+}).plugins(notionPlugin({ notion }));
+```
+
+Now your MDX pages are under `/docs`, and the Notion pages are under `/guides`. Use the key `"guides"` to give those pages [their own layout](/docs/layouts#layout-per-source).

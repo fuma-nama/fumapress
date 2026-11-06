@@ -1,6 +1,6 @@
 # Obsidian example
 
-This example renders the Markdown notes in `public/vault` directly with `@fumapress/obsidian`.
+This example renders the Markdown notes in `public/vault` directly with `fumadocs-obsidian`.
 
 ## Run the example
 
