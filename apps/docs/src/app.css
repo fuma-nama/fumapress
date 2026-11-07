@@ -6,6 +6,13 @@
 @import "@fumapress/tegami/css/preset.css";
 @import "@fumari/sponsors/style.css";
 @import "./landing/washi.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist/wght-italic.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+/* with the optical sizes, so headings and small text each get their own cut */
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
 
 /* the mark in the navbar, see ui/logo.tsx: the landing's paints, with a lighter ink at night */
 .fp-logo {
@@ -26,45 +33,20 @@
   --logo-cream: #cfc59a;
   --logo-shadow: rgb(0 0 0 / 0.45);
 }
-.fp-logo-ink,
-.fp-logo-gloss-line {
-  stroke: var(--logo-ink);
-}
-.fp-logo-gloss-line {
-  stroke: #fff;
-  opacity: 0.7;
-}
-.fp-logo-paper {
-  fill: var(--logo-paper);
-}
-.fp-logo-cream {
-  fill: var(--logo-cream);
-}
-.fp-logo-indigo {
-  fill: var(--logo-indigo);
-}
-.fp-logo-deep {
-  fill: var(--logo-deep);
-}
-.fp-logo-gloss {
-  fill: #fff;
-}
-.fp-logo-green {
-  fill: var(--logo-green);
-}
-.fp-logo-shadow {
-  fill: var(--logo-shadow);
-}
 
-/* the name of the site, in the serif of the landing */
-.fp-title {
-  font-family: "Newsreader", Georgia, serif;
-  font-optical-sizing: auto;
+@theme inline {
+  --color-logo-ink: var(--logo-ink);
+  --color-logo-paper: var(--logo-paper);
+  --color-logo-indigo: var(--logo-indigo);
+  --color-logo-deep: var(--logo-deep);
+  --color-logo-green: var(--logo-green);
+  --color-logo-cream: var(--logo-cream);
+  --color-logo-shadow: var(--logo-shadow);
 }
 
 @theme {
-  --font-mono: "JetBrains Mono", monospace;
-  --default-font-family: "Geist", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+  --default-font-family: "Geist Variable", sans-serif;
 
   --color-fd-primary: oklch(55.639% 0.16448 43.087);
 }
@@ -74,12 +56,13 @@
 }
 
 :root {
-  --waku-color: hsl(16, 90%, 44%);
+  /* the cyan-leaning blue of the landing's drawings */
+  --waku-color: #3d6f98;
   --astro-color: hsl(266, 78%, 54%);
 }
 
 .dark {
-  --waku-color: hsl(20, 95%, 68%);
+  --waku-color: #8fbbd9;
   --astro-color: hsl(266, 100%, 80%);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 /** a CSS `cubic-bezier()` as a function of progress */
 function bezier(x1: number, y1: number, x2: number, y2: number) {
@@ -20,16 +20,33 @@ function bezier(x1: number, y1: number, x2: number, y2: number) {
 
 const ease = bezier(0.4, 0, 0.2, 1);
 
-/** crops a part's box to the bounds of its drawing; a turning part gets a square around its centre */
-function crop(part: HTMLElement) {
+const noop = () => () => {};
+
+/**
+ * Whether the component renders on the server or hydrates its HTML, when an inline script of it runs before the first
+ * paint. A script React adds on the client never runs, so it is left out then.
+ */
+export function useEarly(): boolean {
+  return useSyncExternalStore(
+    noop,
+    () => false,
+    () => true,
+  );
+}
+
+/**
+ * Crops a part's box to the bounds of its drawing, once; a turning part gets a square around its centre. Returns false
+ * when the part can't be measured yet. Self-contained, so the inline script of `Parts` can run it before the first paint.
+ */
+function crop(part: HTMLElement): boolean {
+  if (part.hasAttribute("data-cropped")) return true;
   const svg = part.firstElementChild;
-  if (!(svg instanceof SVGSVGElement)) return;
-  const root = svg.firstElementChild;
-  if (!(root instanceof SVGGraphicsElement)) return;
+  const root = svg?.firstElementChild;
+  if (!(svg instanceof SVGSVGElement) || !(root instanceof SVGGraphicsElement)) return false;
   const box = root.getBBox();
   // copied: `baseVal` is live and changes with the viewBox set below
   const { x: vx, y: vy, width: vw, height: vh } = svg.viewBox.baseVal;
-  if (!box.width || !box.height || !vw) return;
+  if (!box.width || !box.height || !vw) return false;
   let { x, y, width: w, height: h } = box;
   if (/\bw-turn/.test(part.className)) {
     const r = Math.hypot(w, h) / 2 + 2;
@@ -48,7 +65,15 @@ function crop(part: HTMLElement) {
   part.style.top = `${((y - vy) / vh) * 100}%`;
   part.style.width = `${(w / vw) * 100}%`;
   part.style.height = `${(h / vh) * 100}%`;
+  part.setAttribute("data-cropped", "");
+  return true;
 }
+
+/**
+ * Crops the parts while the page is parsed, before the first paint, so hydration has nothing to move and the page has
+ * no layout shift. `Parts` crops what this could not measure.
+ */
+const cropEarly = `(function(){var o=document.currentScript&&document.currentScript.parentElement;if(o)o.querySelectorAll(":scope>[data-part]").forEach(${crop.toString()})})()`;
 
 /**
  * The keyframes of a part travelling its path once per cycle, in pixels of the overlay: it grows out of the start,
@@ -94,19 +119,15 @@ function travel(
  */
 export function Parts() {
   const ref = useRef<HTMLSpanElement>(null);
+  const early = useEarly();
 
   useLayoutEffect(() => {
     const overlay = ref.current?.parentElement;
     if (!overlay) return;
-    // once per part: the effect can run twice in development, and a second crop would measure the first
-    for (const part of overlay.querySelectorAll<HTMLElement>(
-      ":scope > .w-part:not(.w-travel):not([data-cropped])",
-    )) {
-      part.dataset.cropped = "";
-      crop(part);
-    }
+    // `crop` runs once per part: the effect can run twice in development, and a second crop would measure the first
+    for (const part of overlay.querySelectorAll<HTMLElement>(":scope > [data-part]")) crop(part);
 
-    const travellers = [...overlay.querySelectorAll<HTMLElement>(":scope > .w-travel")];
+    const travellers = [...overlay.querySelectorAll<HTMLElement>(":scope > [data-travel-part]")];
     const figure = overlay.previousElementSibling?.querySelector("svg");
     if (
       travellers.length === 0 ||
@@ -172,5 +193,10 @@ export function Parts() {
     };
   }, []);
 
-  return <span ref={ref} hidden />;
+  return (
+    <>
+      <span ref={ref} hidden />
+      {early && <script dangerouslySetInnerHTML={{ __html: cropEarly }} suppressHydrationWarning />}
+    </>
+  );
 }

@@ -1,4 +1,5 @@
 import {
+  Children,
   cloneElement,
   createElement,
   Fragment,
@@ -237,18 +238,59 @@ export function circle(cx: number, cy: number, r: number) {
   return `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0`;
 }
 
+/** the paints of the brushes and pens, as literal classes so Tailwind finds them */
+const fills = {
+  ink: "fill-w-ink",
+  "ink-soft": "fill-w-ink-soft",
+  gloss: "fill-w-gloss",
+  deep: "fill-w-deep",
+  "indigo-wash": "fill-w-indigo-wash",
+  "blue-light": "fill-w-blue-light",
+  label: "fill-w-label",
+  sheet: "fill-w-sheet",
+  paper: "fill-w-paper",
+  cream: "fill-w-cream",
+  green: "fill-w-green",
+  "green-deep": "fill-w-green-deep",
+  shadow: "fill-w-shadow",
+  muted: "fill-w-muted",
+  seal: "fill-w-seal",
+  rule: "fill-w-rule",
+} as const;
+
+export type Paint = keyof typeof fills;
+
+export const strokes: Record<Paint, string> = {
+  ink: "stroke-w-ink",
+  "ink-soft": "stroke-w-ink-soft",
+  gloss: "stroke-w-gloss",
+  deep: "stroke-w-deep",
+  "indigo-wash": "stroke-w-indigo-wash",
+  "blue-light": "stroke-w-blue-light",
+  label: "stroke-w-label",
+  sheet: "stroke-w-sheet",
+  paper: "stroke-w-paper",
+  cream: "stroke-w-cream",
+  green: "stroke-w-green",
+  "green-deep": "stroke-w-green-deep",
+  shadow: "stroke-w-shadow",
+  muted: "stroke-w-muted",
+  seal: "stroke-w-seal",
+  rule: "stroke-w-rule",
+};
+
 export interface LineProps {
   d: string;
   w?: number;
-  c?: string;
+  c?: Paint;
   o?: number;
 }
 
-export function Line({ d, w = 1.4, c = "w-s-ink", o }: LineProps) {
+export function Line({ d, w = 1.4, c = "ink", o }: LineProps) {
   return (
     <path
       d={d}
-      className={c}
+      className={strokes[c]}
       strokeWidth={w}
       opacity={o}
       fill="none"
@@ -259,7 +301,7 @@ export function Line({ d, w = 1.4, c = "w-s-ink", o }: LineProps) {
 }
 
 /** a line drawn twice, the second pass a little off */
-export function Sketch({ d, w = 1.4, c = "w-s-ink", o }: LineProps) {
+export function Sketch({ d, w = 1.4, c = "ink", o }: LineProps) {
   let h = 0;
   for (let i = 0; i < d.length; i++) h = (h * 31 + d.charCodeAt(i)) >>> 0;
   const dx = ((h % 100) / 100 - 0.5) * 1.1;
@@ -274,8 +316,8 @@ export function Sketch({ d, w = 1.4, c = "w-s-ink", o }: LineProps) {
   );
 }
 
-export function Fill({ d, c, o }: { d: string; c: string; o?: number }) {
-  return <path d={d} className={c} opacity={o} />;
+export function Fill({ d, c, o }: { d: string; c: Paint; o?: number }) {
+  return <path d={d} className={fills[c]} opacity={o} />;
 }
 
 /** glyphs set one under another, so the vertical type does not depend on SVG writing modes */
@@ -461,7 +503,38 @@ function strokeOutline(
     left.push([p[0] + nx * h, p[1] + ny * h]);
     right.push([p[0] - nx * h, p[1] - ny * h]);
   }
-  return compactPolygon([...left, ...right.reverse()]);
+  return compactPolygon([...simplify(left), ...simplify(right).reverse()]);
+}
+
+/**
+ * Drops the points of an edge that stay within a quarter unit of the line through their neighbours (Ramer–Douglas–
+ * Peucker): a stroke is sampled every few units for its swell, and the straight runs between need none of them.
+ */
+function simplify(pts: Pt[], tolerance = 0.25): Pt[] {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const spans: [number, number][] = [[0, pts.length - 1]];
+  while (spans.length) {
+    const [a, b] = spans.pop()!;
+    const [ax, ay] = pts[a]!;
+    const dx = pts[b]![0] - ax;
+    const dy = pts[b]![1] - ay;
+    const length = Math.hypot(dx, dy) || 1;
+    let far = -1;
+    let distance = tolerance;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((pts[i]![0] - ax) * dy - (pts[i]![1] - ay) * dx) / length;
+      if (d > distance) {
+        distance = d;
+        far = i;
+      }
+    }
+    if (far < 0) continue;
+    keep[far] = 1;
+    spans.push([a, far], [far, b]);
+  }
+  return pts.filter((_, i) => keep[i]);
 }
 
 /** a closed polygon as path data: relative moves to one decimal, so a painting weighs a fraction of absolute ones */
@@ -502,8 +575,7 @@ interface BrushProps {
   d?: string;
   pts?: Pt[];
   w?: number;
-  /** a fill class of washi.css, e.g. `w-f-ink` */
-  c?: string;
+  c?: Paint;
   o?: number;
   seed?: number;
   /** paint a closed shape as this many overlapping strokes */
@@ -513,17 +585,7 @@ interface BrushProps {
 }
 
 /** a painted stroke: put it in `<g filter="url(#w-paint)">` for the dry edge of the paint */
-export function Brush({
-  d,
-  pts,
-  w = 2,
-  c = "w-f-ink",
-  o,
-  seed,
-  loop,
-  taper,
-  pressure,
-}: BrushProps) {
+export function Brush({ d, pts, w = 2, c = "ink", o, seed, loop, taper, pressure }: BrushProps) {
   const points = pts ?? (d ? ptsOfPath(d) : []);
   const s =
     seed ?? (points.length ? points[0]![0] * 0.37 + points[0]![1] * 0.61 + points.length : 1);
@@ -534,10 +596,61 @@ export function Brush({
         <path
           key={k}
           d={strokeOutline(p, w, { seed: s + k * 3.1, taper, pressure })}
-          className={c}
+          className={fills[c]}
           opacity={o}
         />
       ))}
+    </>
+  );
+}
+
+/* shared by the figures */
+
+/** a circle of absolute commands, so a brush can follow it */
+export function ring(cx: number, cy: number, r: number) {
+  const k = r * 0.5523;
+  const f = (n: number) => +n.toFixed(2);
+  return `M${f(cx + r)} ${f(cy)}C${f(cx + r)} ${f(cy + k)} ${f(cx + k)} ${f(cy + r)} ${f(cx)} ${f(cy + r)}C${f(cx - k)} ${f(cy + r)} ${f(cx - r)} ${f(cy + k)} ${f(cx - r)} ${f(cy)}C${f(cx - r)} ${f(cy - k)} ${f(cx - k)} ${f(cy - r)} ${f(cx)} ${f(cy - r)}C${f(cx + k)} ${f(cy - r)} ${f(cx + r)} ${f(cy - k)} ${f(cx + r)} ${f(cy)}Z`;
+}
+
+/**
+ * Brush strokes along each part of a path: open parts taper, closed parts are painted as
+ * overlapping strokes. `bold` lays a contour in three strokes.
+ */
+export function Stroke({
+  d,
+  w = 1.4,
+  c = "ink",
+  o,
+  bold,
+  taper,
+  pressure,
+}: {
+  d: string;
+  w?: number;
+  c?: Paint;
+  o?: number;
+  bold?: boolean;
+  taper?: [number, number];
+  pressure?: number;
+}) {
+  return (
+    <>
+      {(d.match(/M[^M]+/g) ?? []).map((part, k) => {
+        const closed = /Z\s*$/.test(part);
+        return (
+          <Brush
+            key={k}
+            d={part}
+            w={w * 1.35}
+            c={c}
+            o={o}
+            loop={closed ? (bold ? 3 : 2) : undefined}
+            taper={taper ?? (closed ? undefined : [0.1, 0.35])}
+            pressure={pressure ?? (bold ? 0.32 : undefined)}
+          />
+        );
+      })}
     </>
   );
 }
@@ -578,8 +691,10 @@ export function cast(outline: string, dx: number, dy: number): string {
 
 /** classes of the parts that keep moving, see `.w-turn` and the others in washi.css */
 const MOVING = /\bw-(?:turn|turn-slow|breathe|blink)\b/;
+/** classes of the intros, which play once inside the painting, see `.w-light` and the others in washi.css */
+const INTRO = /\bw-(?:light|thread|print|slide-card|spin)\b/;
 
-type Props = {
+export type Props = {
   children?: ReactNode;
   className?: unknown;
   filter?: unknown;
@@ -593,9 +708,23 @@ function clone(node: ReactElement<Props>, props: Props, children: ReactNode): Re
     : cloneElement(node, props, children);
 }
 
+/**
+ * Maps a list of children. A nested list without keys holds static children passed on as `{children}`: it stays a
+ * fragment of them, as JSX passes them, since copies in a list of their own would need keys.
+ */
+function mapChildren(list: ReactNode[], fn: (node: ReactNode) => ReactNode): ReactNode[] {
+  return list.map((child) => {
+    if (!Array.isArray(child)) return fn(child);
+    const out = mapChildren(child, fn);
+    return child.some((c) => isValidElement(c) && c.key == null)
+      ? createElement(Fragment, null, ...out)
+      : out;
+  });
+}
+
 /** the figure as host elements only: its components are pure drawings without hooks, so they are called here */
 function expand(node: ReactNode): ReactNode {
-  if (Array.isArray(node)) return node.map(expand);
+  if (Array.isArray(node)) return mapChildren(node, expand);
   if (!isValidElement<Props>(node)) return node;
   if (typeof node.type === "function") {
     const out = expand((node.type as (props: Props) => ReactNode)(node.props));
@@ -603,7 +732,7 @@ function expand(node: ReactNode): ReactNode {
     if (node.key == null) return out;
     return isValidElement(out)
       ? cloneElement(out, { key: node.key })
-      : createElement(Fragment, { key: node.key }, out);
+      : createElement(Fragment, { key: node.key }, ...(Array.isArray(out) ? out : [out]));
   }
   if (node.props.children === undefined) return node;
   return clone(node, {}, expand(node.props.children));
@@ -617,7 +746,7 @@ function isMoving(node: ReactElement<Props>): boolean {
 
 /** the painting without its moving parts */
 function withoutMoving(node: ReactNode): ReactNode {
-  if (Array.isArray(node)) return node.map(withoutMoving);
+  if (Array.isArray(node)) return mapChildren(node, withoutMoving);
   if (!isValidElement<Props>(node)) return node;
   if (isMoving(node)) return null;
   if (node.props.children === undefined) return node;
@@ -625,7 +754,7 @@ function withoutMoving(node: ReactNode): ReactNode {
 }
 
 function withoutFilters(node: ReactNode): ReactNode {
-  if (Array.isArray(node)) return node.map(withoutFilters);
+  if (Array.isArray(node)) return mapChildren(node, withoutFilters);
   if (!isValidElement<Props>(node)) return node;
   // only elements of the page take a filter; a fragment takes nothing but children
   const props = typeof node.type === "string" ? { filter: undefined } : {};
@@ -661,6 +790,50 @@ function wrap({ chain }: Part, inner: ReactNode): ReactNode {
   return out;
 }
 
+export function hasIntro(node: ReactNode): boolean {
+  if (Array.isArray(node)) return node.some(hasIntro);
+  if (!isValidElement<Props>(node)) return false;
+  if (typeof node.props.className === "string" && INTRO.test(node.props.className)) return true;
+  return hasIntro(node.props.children);
+}
+
+/** the painting of a figure without its moving parts, as `Layered` paints it */
+export function paintingOf(children: ReactNode): ReactElement<Props> | undefined {
+  const figure = expand(children);
+  return isValidElement<Props>(figure) ? (withoutMoving(figure) as ReactElement<Props>) : undefined;
+}
+
+/**
+ * The painting cut at its intros, in drawing order: a run of top-level groups without intros, then the groups with
+ * one, and so on, each its own SVG over the last. The groups with an intro get a compositor layer of their own, so an
+ * intro repaints just them, not the filtered painting around it.
+ */
+function slices(painting: ReactElement<Props>): ReactNode {
+  const { children, viewBox } = painting.props;
+  const groups = Children.toArray(children);
+  const runs: { intro: boolean; nodes: ReactNode[] }[] = [];
+  for (const node of groups) {
+    const intro = hasIntro(node);
+    if (runs.at(-1)?.intro === intro) runs.at(-1)!.nodes.push(node);
+    else runs.push({ intro, nodes: [node] });
+  }
+  if (runs.length < 2) return painting;
+  return runs.map((run, i) =>
+    i === 0 ? (
+      cloneElement(painting, { key: i }, ...run.nodes)
+    ) : (
+      <svg
+        key={i}
+        viewBox={viewBox as string}
+        className={`absolute inset-0 size-full overflow-visible${run.intro ? " will-change-transform" : ""}`}
+        aria-hidden
+      >
+        {run.nodes}
+      </svg>
+    ),
+  );
+}
+
 /**
  * Renders a painted SVG figure in layers: below, the painting with its filters and without the moving parts, so it
  * never repaints; above, each moving part in a box of its own, without filters. The part's motion class moves onto
@@ -668,7 +841,16 @@ function wrap({ chain }: Part, inner: ReactNode): ReactNode {
  * (it does not for an `<svg>` element). `Parts` shrinks each box to its part's bounds, and carries the parts that
  * travel along a path (`data-travel`). The figure is pruned here, so no copy carries another's nodes.
  */
-export function Layered({ children, className }: { children: ReactNode; className?: string }) {
+export function Layered({
+  children,
+  className,
+  paint = slices,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** renders the painting without its moving parts, by default inline and cut at its intros */
+  paint?: (painting: ReactElement<Props>) => ReactNode;
+}) {
   const figure = expand(children);
   if (!isValidElement<Props>(figure)) return <div className={className}>{figure}</div>;
 
@@ -679,24 +861,27 @@ export function Layered({ children, className }: { children: ReactNode; classNam
   const [, , vw = 1, vh = 1] = (viewBox ?? "").split(/\s+/).map(Number);
 
   return (
-    <div className={className ? `relative ${className}` : "relative"}>
-      <div className="w-static">{withoutMoving(figure)}</div>
+    <div className={className ? `relative @container ${className}` : "relative @container"}>
+      <div className="w-static">{paint(withoutMoving(figure) as ReactElement<Props>)}</div>
       {parts.length + travels.length > 0 && (
-        <div className="w-overlay" aria-hidden>
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
           {travels.map(({ node }, i) => {
             const { children: inside, ...data } = node.props;
             // a slip of 16 units, laid at the top left and carried along its path by `Parts`
             return (
               <div
                 key={`t${i}`}
-                className="w-part w-travel"
+                data-travel-part=""
+                className="absolute top-0 left-0 opacity-0"
                 data-travel={data["data-travel"] as string}
                 data-cycle={data["data-cycle"] as number}
                 data-share={data["data-share"] as number}
                 data-delay={data["data-delay"] as number}
                 style={{ width: `${(16 / vw) * 100}%`, height: `${(16 / vh) * 100}%` }}
               >
-                <svg viewBox="-8 -8 16 16">{withoutFilters(inside as ReactNode)}</svg>
+                <svg viewBox="-8 -8 16 16" className="block size-full overflow-visible">
+                  {Children.toArray(withoutFilters(inside as ReactNode))}
+                </svg>
               </div>
             );
           })}
@@ -724,10 +909,17 @@ export function Layered({ children, className }: { children: ReactNode; classNam
             return (
               <div
                 key={i}
-                className={`w-part ${names.filter((c) => MOVING.test(c)).join(" ")}`}
+                data-part=""
+                className={`absolute inset-0 ${names.filter((c) => MOVING.test(c)).join(" ")}`}
                 style={vars}
+                // cropped by the inline script of `Parts` before hydration
+                suppressHydrationWarning
               >
-                <svg viewBox={viewBox}>
+                <svg
+                  viewBox={viewBox}
+                  className="block size-full overflow-visible"
+                  suppressHydrationWarning
+                >
                   <g>{wrap(part, inner)}</g>
                 </svg>
               </div>

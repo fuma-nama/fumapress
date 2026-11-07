@@ -1,4 +1,4 @@
-import { Brush, Fill, circle, ptsOfCircle, rr } from "../pen";
+import { Brush, Fill, circle, ptsOfCircle, rr, type Paint } from "../pen";
 
 /*
  * figure: the ending, a closed window on a rainy afternoon, seen from a quiet room.
@@ -262,14 +262,14 @@ function Layer({
   const all = union(houses, (h) => [h.roof, ...h.walls, h.shade]);
   return (
     <>
-      <Fill d={all} c="w-f-sheet" />
-      <Fill d={all} c="w-f-blue" o={0.26} />
-      <Fill d={all} c="w-f-deep" o={0.12} />
-      <Fill d={all} c="w-f-gloss" o={0.14} />
-      {blue > 0 && <Fill d={all} c="w-f-blue" o={blue} />}
-      <Fill d={union(houses, (h) => h.walls)} c="w-f-deep" o={wall} />
-      <Fill d={union(houses, (h) => [h.shade])} c="w-f-deep" o={wall + 0.08} />
-      <Fill d={union(houses, (h) => [h.roof])} c="w-f-deep" o={roof} />
+      <Fill d={all} c="sheet" />
+      <Fill d={all} c="blue-light" o={0.26} />
+      <Fill d={all} c="deep" o={0.12} />
+      <Fill d={all} c="gloss" o={0.14} />
+      {blue > 0 && <Fill d={all} c="blue-light" o={blue} />}
+      <Fill d={union(houses, (h) => h.walls)} c="deep" o={wall} />
+      <Fill d={union(houses, (h) => [h.shade])} c="deep" o={wall + 0.08} />
+      <Fill d={union(houses, (h) => [h.roof])} c="deep" o={roof} />
     </>
   );
 }
@@ -344,44 +344,44 @@ function OutsideContent() {
     >
       {/* the sky: low cloud, heavier above, a paler band of light over the roofs */}
       <g filter="url(#w-bloom)">
-        <Fill d={rect(40, 10, 560, 400)} c="w-f-sheet" />
-        <Fill d={rect(40, 10, 560, 400)} c="w-f-blue" o={0.26} />
-        <Fill d={rect(40, 10, 560, 400)} c="w-f-deep" o={0.15} />
-        <Fill d={rect(40, 10, 560, 80)} c="w-f-deep" o={0.08} />
-        <Fill d={rect(40, 10, 560, 130)} c="w-f-deep" o={0.05} />
-        <Fill d={rect(40, 10, 560, 170)} c="w-f-deep" o={0.03} />
-        <Fill d={rect(40, 168, 560, 90)} c="w-f-gloss" o={0.12} />
-        <Fill d={rect(40, 190, 560, 56)} c="w-f-gloss" o={0.12} />
-        <Fill d={rect(40, 206, 560, 30)} c="w-f-cream" o={0.08} />
+        <Fill d={rect(40, 10, 560, 400)} c="sheet" />
+        <Fill d={rect(40, 10, 560, 400)} c="blue-light" o={0.26} />
+        <Fill d={rect(40, 10, 560, 400)} c="deep" o={0.15} />
+        <Fill d={rect(40, 10, 560, 80)} c="deep" o={0.08} />
+        <Fill d={rect(40, 10, 560, 130)} c="deep" o={0.05} />
+        <Fill d={rect(40, 10, 560, 170)} c="deep" o={0.03} />
+        <Fill d={rect(40, 168, 560, 90)} c="gloss" o={0.12} />
+        <Fill d={rect(40, 190, 560, 56)} c="gloss" o={0.12} />
+        <Fill d={rect(40, 206, 560, 30)} c="cream" o={0.08} />
         {/* clouds, drifting a little downhill */}
-        <Brush d="M60 70Q220 56 380 78Q470 88 590 70" w={40} c="w-f-deep" o={0.09} />
-        <Brush d="M110 96Q190 84 280 100" w={18} c="w-f-gloss" o={0.12} />
-        <Brush d="M140 120Q300 106 460 126" w={26} c="w-f-deep" o={0.08} />
-        <Brush d="M70 152Q170 140 260 152" w={20} c="w-f-gloss" o={0.18} />
-        <Brush d="M300 140Q380 132 450 144" w={12} c="w-f-deep" o={0.07} />
-        <Brush d="M360 164Q470 152 590 166" w={22} c="w-f-gloss" o={0.16} />
-        <Brush d="M200 188Q330 178 470 192" w={16} c="w-f-gloss" o={0.14} />
-        <Brush d="M420 104Q500 94 590 112" w={30} c="w-f-deep" o={0.07} />
-        <Brush d="M60 196Q120 190 180 198" w={12} c="w-f-deep" o={0.05} />
+        <Brush d="M60 70Q220 56 380 78Q470 88 590 70" w={40} c="deep" o={0.09} />
+        <Brush d="M110 96Q190 84 280 100" w={18} c="gloss" o={0.12} />
+        <Brush d="M140 120Q300 106 460 126" w={26} c="deep" o={0.08} />
+        <Brush d="M70 152Q170 140 260 152" w={20} c="gloss" o={0.18} />
+        <Brush d="M300 140Q380 132 450 144" w={12} c="deep" o={0.07} />
+        <Brush d="M360 164Q470 152 590 166" w={22} c="gloss" o={0.16} />
+        <Brush d="M200 188Q330 178 470 192" w={16} c="gloss" o={0.14} />
+        <Brush d="M420 104Q500 94 590 112" w={30} c="deep" o={0.07} />
+        <Brush d="M60 196Q120 190 180 198" w={12} c="deep" o={0.05} />
       </g>
 
       {/* hills behind the town, nearly gone in the rain */}
       <g filter="url(#w-haze-far)">
         <Fill
           d="M60 226Q100 206 150 210Q200 198 250 214Q290 206 330 216Q380 200 430 208Q480 196 530 212Q560 206 590 214V300H60Z"
-          c="w-f-deep"
+          c="deep"
           o={0.06}
         />
         <Fill
           d="M60 226Q100 206 150 210Q200 198 250 214Q290 206 330 216Q380 200 430 208Q480 196 530 212Q560 206 590 214V300H60Z"
-          c="w-f-blue"
+          c="blue-light"
           o={0.1}
         />
         {/* the farthest roofs */}
-        <Fill d={farSkyline} c="w-f-deep" o={0.1} />
-        <Fill d={farSkyline} c="w-f-blue" o={0.14} />
+        <Fill d={farSkyline} c="deep" o={0.1} />
+        <Fill d={farSkyline} c="blue-light" o={0.14} />
         {/* mist lying over them */}
-        <Fill d={rect(40, 236, 560, 70)} c="w-f-gloss" o={0.1} />
+        <Fill d={rect(40, 236, 560, 70)} c="gloss" o={0.1} />
       </g>
 
       {/* the town beyond the lane, blue with distance */}
@@ -390,17 +390,17 @@ function OutsideContent() {
         {/* the windows of the far flats, one of them lit */}
         {[234, 246, 258, 270].flatMap((y) =>
           [430, 440, 450, 460].map((x) => (
-            <Fill key={`${x}-${y}`} d={rect(x - 2, y, 5, 4)} c="w-f-deep" o={0.14} />
+            <Fill key={`${x}-${y}`} d={rect(x - 2, y, 5, 4)} c="deep" o={0.14} />
           )),
         )}
-        <Fill d={rect(438, 246, 5, 4)} c="w-f-cream" />
-        <Brush d="M422 225H468" w={2} c="w-f-deep" o={0.2} taper={[0.1, 0.1]} />
+        <Fill d={rect(438, 246, 5, 4)} c="cream" />
+        <Brush d="M422 225H468" w={2} c="deep" o={0.2} taper={[0.1, 0.1]} />
         {layer3.map((h, i) => (
           <Brush
             key={i}
             pts={[h.eave[0], lerp(h.eave[0], h.eave[1], 0.5), h.eave[1]]}
             w={1.4}
-            c="w-f-deep"
+            c="deep"
             o={0.22}
             taper={[0.1, 0.1]}
           />
@@ -411,18 +411,18 @@ function OutsideContent() {
               key={i}
               pts={[lerp(h.slope[0], h.slope[1], 0.45), lerp(h.slope[3], h.slope[2], 0.45)]}
               w={2}
-              c="w-f-gloss"
+              c="gloss"
               o={0.18}
               taper={[0.3, 0.3]}
             />
           ) : null,
         )}
         {/* a mist rising off the wet roofs */}
-        <Fill d={rect(40, 268, 560, 60)} c="w-f-gloss" o={0.07} />
-        <Fill d={rect(40, 280, 560, 40)} c="w-f-blue" o={0.06} />
+        <Fill d={rect(40, 268, 560, 60)} c="gloss" o={0.07} />
+        <Fill d={rect(40, 280, 560, 40)} c="blue-light" o={0.06} />
       </g>
       <g filter="url(#w-bloom)">
-        <Fill d={ellipse(441, 248, 10, 7)} c="w-f-cream" o={0.4} />
+        <Fill d={ellipse(441, 248, 10, 7)} c="cream" o={0.4} />
       </g>
 
       {/* the houses across the lane */}
@@ -440,7 +440,7 @@ function OutsideContent() {
               key={`${i}-${k}`}
               d={`M${(x0 + (x1 - x0) * t).toFixed(1)} ${y0}V${F2 - 18}`}
               w={(x1 - x0) * 0.22}
-              c={k === 1 ? "w-f-deep" : "w-f-gloss"}
+              c={k === 1 ? "deep" : "gloss"}
               o={k === 1 ? 0.05 : 0.08}
               taper={[0.1, 0.4]}
               pressure={0.3}
@@ -454,14 +454,14 @@ function OutsideContent() {
               <Brush
                 pts={[lerp(h.slope[0], h.slope[1], 0.3), lerp(h.slope[3], h.slope[2], 0.3)]}
                 w={5}
-                c="w-f-gloss"
+                c="gloss"
                 o={0.16}
                 taper={[0.3, 0.3]}
               />
               <Brush
                 pts={[lerp(h.slope[0], h.slope[1], 0.75), lerp(h.slope[3], h.slope[2], 0.75)]}
                 w={3}
-                c="w-f-gloss"
+                c="gloss"
                 o={0.1}
                 taper={[0.3, 0.3]}
               />
@@ -476,7 +476,7 @@ function OutsideContent() {
                   key={k}
                   d={l.d}
                   w={l.kind === "col" ? 0.7 : 0.6}
-                  c={l.kind === "col" ? "w-f-deep" : "w-f-gloss"}
+                  c={l.kind === "col" ? "deep" : "gloss"}
                   o={l.kind === "col" ? 0.22 : 0.16}
                   taper={[0.1, 0.1]}
                   pressure={0.1}
@@ -491,7 +491,7 @@ function OutsideContent() {
             <Brush
               pts={[h.eave[0], lerp(h.eave[0], h.eave[1], 0.5), h.eave[1]]}
               w={2.2}
-              c="w-f-deep"
+              c="deep"
               o={0.5}
               taper={[0.05, 0.08]}
               pressure={0.15}
@@ -502,7 +502,7 @@ function OutsideContent() {
                 [h.eave[1][0] - 6, h.eave[1][1] + 3],
               ]}
               w={3}
-              c="w-f-deep"
+              c="deep"
               o={0.14}
               taper={[0.2, 0.2]}
             />
@@ -510,7 +510,7 @@ function OutsideContent() {
               <Brush
                 pts={[h.ridge[0], h.ridge[1]]}
                 w={2.4}
-                c="w-f-deep"
+                c="deep"
                 o={0.45}
                 taper={[0.05, 0.05]}
                 pressure={0.1}
@@ -519,67 +519,67 @@ function OutsideContent() {
           </g>
         ))}
         {/* the bargeboards of the gable */}
-        <Brush d="M141 294L167 272L193 294" w={1.6} c="w-f-deep" o={0.5} taper={[0.05, 0.05]} />
-        <Fill d={rect(160, 300, 9, 8)} c="w-f-deep" o={0.28} />
-        <Brush d="M350 306H398" w={1.2} c="w-f-deep" o={0.28} taper={[0.1, 0.1]} />
-        <Fill d={rect(252, 304, 16, 7)} c="w-f-deep" o={0.24} />
-        <Fill d={rect(276, 304, 14, 7)} c="w-f-deep" o={0.24} />
+        <Brush d="M141 294L167 272L193 294" w={1.6} c="deep" o={0.5} taper={[0.05, 0.05]} />
+        <Fill d={rect(160, 300, 9, 8)} c="deep" o={0.28} />
+        <Brush d="M350 306H398" w={1.2} c="deep" o={0.28} taper={[0.1, 0.1]} />
+        <Fill d={rect(252, 304, 16, 7)} c="deep" o={0.24} />
+        <Fill d={rect(276, 304, 14, 7)} c="deep" o={0.24} />
 
         {/* the block of flats on the left: balconies, and a window lit */}
         {[278, 296, 314].map((y) => (
           <g key={y}>
-            <Fill d={rect(74, y, 60, 6)} c="w-f-deep" o={0.16} />
-            <Brush d={`M74 ${y}H134`} w={1.2} c="w-f-gloss" o={0.3} taper={[0.05, 0.05]} />
-            <Fill d={rect(80, y - 11, 10, 9)} c="w-f-deep" o={0.22} />
-            <Fill d={rect(100, y - 11, 10, 9)} c="w-f-deep" o={0.22} />
-            <Fill d={rect(120, y - 11, 9, 9)} c="w-f-deep" o={0.22} />
+            <Fill d={rect(74, y, 60, 6)} c="deep" o={0.16} />
+            <Brush d={`M74 ${y}H134`} w={1.2} c="gloss" o={0.3} taper={[0.05, 0.05]} />
+            <Fill d={rect(80, y - 11, 10, 9)} c="deep" o={0.22} />
+            <Fill d={rect(100, y - 11, 10, 9)} c="deep" o={0.22} />
+            <Fill d={rect(120, y - 11, 9, 9)} c="deep" o={0.22} />
           </g>
         ))}
-        <Fill d={rect(100, 285, 10, 9)} c="w-f-cream" o={0.95} />
-        <Brush d="M100 290H110" w={1} c="w-f-deep" o={0.25} />
-        <Brush d="M73 262V336" w={1.6} c="w-f-deep" o={0.3} taper={[0.05, 0.05]} />
+        <Fill d={rect(100, 285, 10, 9)} c="cream" o={0.95} />
+        <Brush d="M100 290H110" w={1} c="deep" o={0.25} />
+        <Brush d="M73 262V336" w={1.6} c="deep" o={0.3} taper={[0.05, 0.05]} />
 
         {/* a narrow house of three floors: laundry poles on its balcony, a towel left out */}
-        <Fill d={rect(422, 278, 10, 8)} c="w-f-deep" o={0.24} />
-        <Fill d={rect(440, 278, 10, 8)} c="w-f-deep" o={0.24} />
-        <Fill d={rect(416, 300, 42, 8)} c="w-f-deep" o={0.2} />
-        <Brush d="M414 292H460" w={0.9} c="w-f-deep" o={0.55} taper={[0.05, 0.05]} />
-        <Brush d="M414 295H460" w={0.8} c="w-f-deep" o={0.45} taper={[0.05, 0.05]} />
-        <Brush d="M416 292V300M458 292V300" w={0.8} c="w-f-deep" o={0.5} />
-        <Fill d="M444 292.5H452L451.5 302Q448 303 444.4 301.6Z" c="w-f-gloss" o={0.55} />
-        <Brush d="M445 296V301" w={0.7} c="w-f-deep" o={0.2} />
+        <Fill d={rect(422, 278, 10, 8)} c="deep" o={0.24} />
+        <Fill d={rect(440, 278, 10, 8)} c="deep" o={0.24} />
+        <Fill d={rect(416, 300, 42, 8)} c="deep" o={0.2} />
+        <Brush d="M414 292H460" w={0.9} c="deep" o={0.55} taper={[0.05, 0.05]} />
+        <Brush d="M414 295H460" w={0.8} c="deep" o={0.45} taper={[0.05, 0.05]} />
+        <Brush d="M416 292V300M458 292V300" w={0.8} c="deep" o={0.5} />
+        <Fill d="M444 292.5H452L451.5 302Q448 303 444.4 301.6Z" c="gloss" o={0.55} />
+        <Brush d="M445 296V301" w={0.7} c="deep" o={0.2} />
 
         {/* the flats on the right: a water tank on the roof, a fire ladder down the side */}
-        <Fill d={rect(526, 240, 22, 12)} c="w-f-deep" o={0.42} />
-        <Brush d="M526 240H548" w={1.2} c="w-f-gloss" o={0.3} taper={[0.05, 0.05]} />
-        <Brush d="M533 241V251M540 241V251M527 246H547" w={0.6} c="w-f-gloss" o={0.18} />
-        <Brush d="M529 252V256M545 252V256" w={1.2} c="w-f-deep" o={0.5} />
-        <Brush d="M478 252H566" w={1} c="w-f-deep" o={0.35} />
-        <Brush d="M478 249V255M498 249V255M518 249V255M556 249V255" w={0.8} c="w-f-deep" o={0.3} />
+        <Fill d={rect(526, 240, 22, 12)} c="deep" o={0.42} />
+        <Brush d="M526 240H548" w={1.2} c="gloss" o={0.3} taper={[0.05, 0.05]} />
+        <Brush d="M533 241V251M540 241V251M527 246H547" w={0.6} c="gloss" o={0.18} />
+        <Brush d="M529 252V256M545 252V256" w={1.2} c="deep" o={0.5} />
+        <Brush d="M478 252H566" w={1} c="deep" o={0.35} />
+        <Brush d="M478 249V255M498 249V255M518 249V255M556 249V255" w={0.8} c="deep" o={0.3} />
         {[268, 286, 304, 322].map((y) => (
           <g key={y}>
-            <Fill d={rect(474, y + 6, 96, 5)} c="w-f-deep" o={0.14} />
-            <Brush d={`M474 ${y + 6}H570`} w={1} c="w-f-gloss" o={0.24} taper={[0.05, 0.05]} />
+            <Fill d={rect(474, y + 6, 96, 5)} c="deep" o={0.14} />
+            <Brush d={`M474 ${y + 6}H570`} w={1} c="gloss" o={0.24} taper={[0.05, 0.05]} />
             {[486, 506, 526, 546].map((x) => (
-              <Fill key={x} d={rect(x, y - 6, 12, 10)} c="w-f-deep" o={0.2} />
+              <Fill key={x} d={rect(x, y - 6, 12, 10)} c="deep" o={0.2} />
             ))}
           </g>
         ))}
-        <Fill d={rect(506, 280, 12, 10)} c="w-f-cream" o={0.3} />
-        <Brush d="M477 258V336M482 258V336" w={0.9} c="w-f-deep" o={0.55} taper={[0.02, 0.02]} />
+        <Fill d={rect(506, 280, 12, 10)} c="cream" o={0.3} />
+        <Brush d="M477 258V336M482 258V336" w={0.9} c="deep" o={0.55} taper={[0.02, 0.02]} />
         <Brush
           d={Array.from({ length: 19 }, (_, k) => `M477 ${260 + k * 4}H482`).join("")}
           w={0.7}
-          c="w-f-deep"
+          c="deep"
           o={0.45}
         />
-        <Brush d="M474 256V336" w={1.4} c="w-f-deep" o={0.35} taper={[0.02, 0.02]} />
+        <Brush d="M474 256V336" w={1.4} c="deep" o={0.35} taper={[0.02, 0.02]} />
 
         {/* a garden pine over the wall, heavy with rain */}
         <Brush
           d="M214 318Q213 306 218 296Q221 290 226 287"
           w={2.4}
-          c="w-f-deep"
+          c="deep"
           o={0.6}
           taper={[0.05, 0.3]}
         />
@@ -588,105 +588,95 @@ function OutsideContent() {
             key={i}
             d={`M${(x - l / 2).toFixed(1)} ${(y + 0.6).toFixed(1)}Q${x.toFixed(1)} ${(y - 1.4).toFixed(1)} ${(x + l / 2).toFixed(1)} ${(y - 0.2).toFixed(1)}`}
             w={w}
-            c={light ? "w-f-gloss" : "w-f-deep"}
+            c={light ? "gloss" : "deep"}
             o={light ? 0.14 : 0.3}
             taper={[0.3, 0.4]}
           />
         ))}
 
         {/* the block wall along the lane */}
-        <Fill d={rect(40, 316, 560, 20)} c="w-f-sheet" />
-        <Fill d={rect(40, 316, 560, 20)} c="w-f-blue" o={0.2} />
-        <Fill d={rect(40, 316, 560, 20)} c="w-f-deep" o={0.36} />
-        <Brush d="M70 316.5H570" w={2.6} c="w-f-deep" o={0.5} taper={[0.02, 0.02]} />
-        <Brush d="M70 318.5H570" w={1} c="w-f-gloss" o={0.25} taper={[0.02, 0.02]} />
-        <Brush d="M70 324H570M70 330H570" w={0.5} c="w-f-deep" o={0.14} taper={[0.02, 0.02]} />
+        <Fill d={rect(40, 316, 560, 20)} c="sheet" />
+        <Fill d={rect(40, 316, 560, 20)} c="blue-light" o={0.2} />
+        <Fill d={rect(40, 316, 560, 20)} c="deep" o={0.36} />
+        <Brush d="M70 316.5H570" w={2.6} c="deep" o={0.5} taper={[0.02, 0.02]} />
+        <Brush d="M70 318.5H570" w={1} c="gloss" o={0.25} taper={[0.02, 0.02]} />
+        <Brush d="M70 324H570M70 330H570" w={0.5} c="deep" o={0.14} taper={[0.02, 0.02]} />
         <Brush
           d={Array.from({ length: 50 }, (_, k) => {
             const x = 72 + k * 10;
             return `M${x} 319V324M${x + 5} 324V330M${x} 330V336`;
           }).join("")}
           w={0.5}
-          c="w-f-deep"
+          c="deep"
           o={0.1}
         />
-        <Brush d="M200 322Q204 328 201 336M392 320Q394 330 392 336" w={1.6} c="w-f-deep" o={0.16} />
+        <Brush d="M200 322Q204 328 201 336M392 320Q394 330 392 336" w={1.6} c="deep" o={0.16} />
       </g>
 
       {/* the lane, wet: it holds the light of the sky */}
       <g filter="url(#w-paint)">
-        <Fill d={rect(40, 336, 560, 60)} c="w-f-sheet" />
-        <Fill d={rect(40, 336, 560, 60)} c="w-f-blue" o={0.22} />
-        <Fill d={rect(40, 336, 560, 60)} c="w-f-deep" o={0.6} />
-        <Fill d={rect(40, 336, 560, 8)} c="w-f-deep" o={0.12} />
-        <Brush d="M70 338H570" w={3} c="w-f-deep" o={0.3} taper={[0.02, 0.02]} />
-        <Brush d="M80 349Q300 345 560 351" w={6} c="w-f-gloss" o={0.12} taper={[0.2, 0.3]} />
-        <Brush d="M140 361Q320 357 520 363" w={4} c="w-f-gloss" o={0.1} taper={[0.3, 0.3]} />
-        <Brush d="M300 372Q420 369 560 373" w={5} c="w-f-gloss" o={0.08} taper={[0.3, 0.3]} />
+        <Fill d={rect(40, 336, 560, 60)} c="sheet" />
+        <Fill d={rect(40, 336, 560, 60)} c="blue-light" o={0.22} />
+        <Fill d={rect(40, 336, 560, 60)} c="deep" o={0.6} />
+        <Fill d={rect(40, 336, 560, 8)} c="deep" o={0.12} />
+        <Brush d="M70 338H570" w={3} c="deep" o={0.3} taper={[0.02, 0.02]} />
+        <Brush d="M80 349Q300 345 560 351" w={6} c="gloss" o={0.12} taper={[0.2, 0.3]} />
+        <Brush d="M140 361Q320 357 520 363" w={4} c="gloss" o={0.1} taper={[0.3, 0.3]} />
+        <Brush d="M300 372Q420 369 560 373" w={5} c="gloss" o={0.08} taper={[0.3, 0.3]} />
       </g>
       {/* long reflections standing in the water */}
       <g filter="url(#w-haze)">
         {[
-          [105, 0.55, 3, "w-f-cream"],
-          [441, 0.35, 2, "w-f-cream"],
-          [512, 0.25, 2.4, "w-f-cream"],
-          [168, 0.22, 5, "w-f-gloss"],
-          [262, 0.2, 6, "w-f-gloss"],
-          [372, 0.2, 5, "w-f-gloss"],
-          [544, 0.18, 5, "w-f-gloss"],
+          [105, 0.55, 3, "cream"],
+          [441, 0.35, 2, "cream"],
+          [512, 0.25, 2.4, "cream"],
+          [168, 0.22, 5, "gloss"],
+          [262, 0.2, 6, "gloss"],
+          [372, 0.2, 5, "gloss"],
+          [544, 0.18, 5, "gloss"],
         ].map(([x, o, w, c]) => (
           <g key={x as number}>
             <Brush
               d={`M${x} 339V352`}
               w={w as number}
-              c={c as string}
+              c={c as Paint}
               o={o as number}
               taper={[0.1, 0.4]}
             />
             <Brush
               d={`M${(x as number) + 0.5} 354V368`}
               w={(w as number) * 0.7}
-              c={c as string}
+              c={c as Paint}
               o={(o as number) * 0.6}
               taper={[0.3, 0.6]}
             />
           </g>
         ))}
         {/* the lamp, upside down in the lane */}
-        <Brush d={`M${lamp.x} 338V362`} w={12} c="w-f-cream" o={0.3} taper={[0.05, 0.5]} />
-        <Brush d={`M${lamp.x} 338V354`} w={3.4} c="w-f-cream" o={1} taper={[0.05, 0.5]} />
-        <Brush d={`M${lamp.x + 0.6} 356V365`} w={2.4} c="w-f-cream" o={0.75} taper={[0.3, 0.5]} />
-        <Brush d={`M${lamp.x - 0.4} 368V378`} w={1.6} c="w-f-cream" o={0.5} taper={[0.3, 0.5]} />
+        <Brush d={`M${lamp.x} 338V362`} w={12} c="cream" o={0.3} taper={[0.05, 0.5]} />
+        <Brush d={`M${lamp.x} 338V354`} w={3.4} c="cream" o={1} taper={[0.05, 0.5]} />
+        <Brush d={`M${lamp.x + 0.6} 356V365`} w={2.4} c="cream" o={0.75} taper={[0.3, 0.5]} />
+        <Brush d={`M${lamp.x - 0.4} 368V378`} w={1.6} c="cream" o={0.5} taper={[0.3, 0.5]} />
         {/* the umbrella, and its reflection */}
-        <Fill d="M244 357Q250 352 256 357Q250 356 244 357Z" c="w-f-green" o={0.35} />
+        <Fill d="M244 357Q250 352 256 357Q250 356 244 357Z" c="green" o={0.35} />
       </g>
       <g filter="url(#w-bloom)">
-        <Fill d={ellipse(lamp.x, 342, 30, 7)} c="w-f-cream" o={0.22} />
+        <Fill d={ellipse(lamp.x, 342, 30, 7)} c="cream" o={0.22} />
       </g>
 
       {/* someone walking home under a pale green umbrella */}
       <g filter="url(#w-paint)">
-        <Fill
-          d="M241 343Q242 334 250 333Q258 334 259 343Q250 341 241 343Z"
-          c="w-f-green"
-          o={0.92}
-        />
-        <Brush d="M243 341Q250 336 257 341" w={1.2} c="w-f-gloss" o={0.4} taper={[0.2, 0.2]} />
-        <Brush d="M250 333V346" w={0.6} c="w-f-deep" o={0.7} />
-        <Fill d="M246.5 343H253.5L253 351H247Z" c="w-f-deep" o={0.7} />
-        <Brush
-          d="M248.5 350V356M251.6 350V355.5"
-          w={1.2}
-          c="w-f-deep"
-          o={0.7}
-          taper={[0.05, 0.3]}
-        />
+        <Fill d="M241 343Q242 334 250 333Q258 334 259 343Q250 341 241 343Z" c="green" o={0.92} />
+        <Brush d="M243 341Q250 336 257 341" w={1.2} c="gloss" o={0.4} taper={[0.2, 0.2]} />
+        <Brush d="M250 333V346" w={0.6} c="deep" o={0.7} />
+        <Fill d="M246.5 343H253.5L253 351H247Z" c="deep" o={0.7} />
+        <Brush d="M248.5 350V356M251.6 350V355.5" w={1.2} c="deep" o={0.7} taper={[0.05, 0.3]} />
       </g>
 
       {/* the neighbour's roof, just under the window */}
       <g filter="url(#w-paint)">
-        <Fill d="M40 350L130 338L214 390H40Z" c="w-f-sheet" />
-        <Fill d="M40 350L130 338L214 390H40Z" c="w-f-deep" o={0.74} />
+        <Fill d="M40 350L130 338L214 390H40Z" c="sheet" />
+        <Fill d="M40 350L130 338L214 390H40Z" c="deep" o={0.74} />
         {Array.from({ length: 13 }, (_, k) => {
           const t = k / 12;
           const top = lerp([66, 346], [130, 338], t);
@@ -696,27 +686,27 @@ function OutsideContent() {
               key={k}
               pts={[top, bottom]}
               w={1}
-              c="w-f-gloss"
+              c="gloss"
               o={0.16}
               taper={[0.1, 0.2]}
               pressure={0.1}
             />
           );
         })}
-        <Brush d="M60 362L150 352M66 374L170 364" w={0.8} c="w-f-deep" o={0.4} />
-        <Brush d="M44 349L131 337L216 390" w={3} c="w-f-deep" o={0.55} taper={[0.02, 0.05]} />
-        <Brush d="M70 346L128 339L178 368" w={2} c="w-f-gloss" o={0.22} taper={[0.2, 0.4]} />
+        <Brush d="M60 362L150 352M66 374L170 364" w={0.8} c="deep" o={0.4} />
+        <Brush d="M44 349L131 337L216 390" w={3} c="deep" o={0.55} taper={[0.02, 0.05]} />
+        <Brush d="M70 346L128 339L178 368" w={2} c="gloss" o={0.22} taper={[0.2, 0.4]} />
       </g>
 
       {/* the street lamp, its light spread by the rain */}
       <g filter="url(#w-bloom)">
-        <Fill d={circle(lamp.x, lamp.y + 2, 58)} c="w-f-cream" o={0.16} />
-        <Fill d={circle(lamp.x, lamp.y + 3, 36)} c="w-f-cream" o={0.24} />
-        <Fill d={circle(lamp.x, lamp.y + 3, 20)} c="w-f-cream" o={0.4} />
-        <Fill d={circle(lamp.x, lamp.y + 3, 9)} c="w-f-gloss" o={0.6} />
+        <Fill d={circle(lamp.x, lamp.y + 2, 58)} c="cream" o={0.16} />
+        <Fill d={circle(lamp.x, lamp.y + 3, 36)} c="cream" o={0.24} />
+        <Fill d={circle(lamp.x, lamp.y + 3, 20)} c="cream" o={0.4} />
+        <Fill d={circle(lamp.x, lamp.y + 3, 9)} c="gloss" o={0.6} />
         <Fill
           d={`M${lamp.x - 6} ${lamp.y + 4}L${lamp.x - 34} 336H${lamp.x + 34}L${lamp.x + 6} ${lamp.y + 4}Z`}
-          c="w-f-cream"
+          c="cream"
           o={0.08}
         />
       </g>
@@ -726,18 +716,12 @@ function OutsideContent() {
         <Brush
           d="M431 30Q429.5 200 432 392"
           w={6.6}
-          c="w-f-deep"
+          c="deep"
           o={0.82}
           taper={[0, 0]}
           pressure={0.06}
         />
-        <Brush
-          d="M429.6 36Q428.4 200 430.6 388"
-          w={1.4}
-          c="w-f-gloss"
-          o={0.22}
-          taper={[0.05, 0.05]}
-        />
+        <Brush d="M429.6 36Q428.4 200 430.6 388" w={1.4} c="gloss" o={0.22} taper={[0.05, 0.05]} />
         {/* the steps up the pole */}
         <Brush
           d={Array.from({ length: 11 }, (_, k) => {
@@ -745,100 +729,65 @@ function OutsideContent() {
             return k % 2 ? `M434 ${y}H436.6` : `M428 ${y + 0.4}H425.4`;
           }).join("")}
           w={0.9}
-          c="w-f-deep"
+          c="deep"
           o={0.7}
           taper={[0, 0]}
           pressure={0}
         />
         {/* crossarms and insulators */}
-        <Brush d="M404 92Q430 91 456 92" w={3.4} c="w-f-deep" o={0.8} taper={[0.02, 0.02]} />
-        <Brush d="M410 108Q430 107 450 108" w={3} c="w-f-deep" o={0.75} taper={[0.02, 0.02]} />
+        <Brush d="M404 92Q430 91 456 92" w={3.4} c="deep" o={0.8} taper={[0.02, 0.02]} />
+        <Brush d="M410 108Q430 107 450 108" w={3} c="deep" o={0.75} taper={[0.02, 0.02]} />
         {[408, 420, 442, 452].map((x) => (
           <g key={x}>
-            <Fill d={rr(x - 1.8, 84, 3.6, 7, 1.4)} c="w-f-gloss" o={0.6} />
-            <Fill d={rr(x - 1.8, 84, 3.6, 7, 1.4)} c="w-f-deep" o={0.3} />
+            <Fill d={rr(x - 1.8, 84, 3.6, 7, 1.4)} c="gloss" o={0.6} />
+            <Fill d={rr(x - 1.8, 84, 3.6, 7, 1.4)} c="deep" o={0.3} />
           </g>
         ))}
         {/* the transformer */}
-        <Fill d={rr(435, 124, 15, 26, 3)} c="w-f-deep" o={0.75} />
-        <Brush d="M438 127V147" w={1.6} c="w-f-gloss" o={0.3} taper={[0.1, 0.1]} />
-        <Brush d="M434 130H436M434 144H436" w={1.6} c="w-f-deep" o={0.8} />
-        <Brush d="M442 124Q442 116 446 108" w={0.8} c="w-f-deep" o={0.7} />
+        <Fill d={rr(435, 124, 15, 26, 3)} c="deep" o={0.75} />
+        <Brush d="M438 127V147" w={1.6} c="gloss" o={0.3} taper={[0.1, 0.1]} />
+        <Brush d="M434 130H436M434 144H436" w={1.6} c="deep" o={0.8} />
+        <Brush d="M442 124Q442 116 446 108" w={0.8} c="deep" o={0.7} />
         {/* a sign on the pole */}
-        <Fill d={rect(427.4, 196, 7.4, 22)} c="w-f-gloss" o={0.42} />
-        <Brush d="M431 199V215" w={1.2} c="w-f-deep" o={0.4} pressure={0.1} />
+        <Fill d={rect(427.4, 196, 7.4, 22)} c="gloss" o={0.42} />
+        <Brush d="M431 199V215" w={1.2} c="deep" o={0.4} pressure={0.1} />
         {/* the lamp arm and its hood */}
         <Brush
           d={`M432 ${lamp.y + 8}Q446 ${lamp.y - 6} ${lamp.x + 2} ${lamp.y - 2}`}
           w={2}
-          c="w-f-deep"
+          c="deep"
           o={0.8}
           taper={[0.02, 0.1]}
         />
         <Fill
           d={`M${lamp.x - 9} ${lamp.y + 2}Q${lamp.x} ${lamp.y - 4} ${lamp.x + 9} ${lamp.y + 2}L${lamp.x + 7} ${lamp.y + 4}H${lamp.x - 7}Z`}
-          c="w-f-deep"
+          c="deep"
           o={0.85}
         />
         <Fill
           d={`M${lamp.x - 6} ${lamp.y + 4}H${lamp.x + 6}Q${lamp.x} ${lamp.y + 8} ${lamp.x - 6} ${lamp.y + 4}Z`}
-          c="w-f-cream"
+          c="cream"
         />
-        <Fill d={ellipse(lamp.x, lamp.y + 5, 3.4, 1.4)} c="w-f-gloss" />
+        <Fill d={ellipse(lamp.x, lamp.y + 5, 3.4, 1.4)} c="gloss" />
 
         {/* the wires, sagging under their own weight */}
-        <Brush
-          d="M404 90Q240 170 60 122"
-          w={1.2}
-          c="w-f-deep"
-          o={0.7}
-          taper={[0, 0]}
-          pressure={0.1}
-        />
-        <Brush
-          d="M420 90Q250 188 60 142"
-          w={1.1}
-          c="w-f-deep"
-          o={0.65}
-          taper={[0, 0]}
-          pressure={0.1}
-        />
-        <Brush
-          d="M412 106Q262 196 60 164"
-          w={1}
-          c="w-f-deep"
-          o={0.6}
-          taper={[0, 0]}
-          pressure={0.1}
-        />
-        <Brush
-          d="M442 90Q512 126 590 112"
-          w={1.2}
-          c="w-f-deep"
-          o={0.7}
-          taper={[0, 0]}
-          pressure={0.1}
-        />
+        <Brush d="M404 90Q240 170 60 122" w={1.2} c="deep" o={0.7} taper={[0, 0]} pressure={0.1} />
+        <Brush d="M420 90Q250 188 60 142" w={1.1} c="deep" o={0.65} taper={[0, 0]} pressure={0.1} />
+        <Brush d="M412 106Q262 196 60 164" w={1} c="deep" o={0.6} taper={[0, 0]} pressure={0.1} />
+        <Brush d="M442 90Q512 126 590 112" w={1.2} c="deep" o={0.7} taper={[0, 0]} pressure={0.1} />
         <Brush
           d="M452 90Q520 140 590 134"
           w={1.1}
-          c="w-f-deep"
+          c="deep"
           o={0.65}
           taper={[0, 0]}
           pressure={0.1}
         />
-        <Brush
-          d="M450 108Q524 156 590 160"
-          w={1}
-          c="w-f-deep"
-          o={0.55}
-          taper={[0, 0]}
-          pressure={0.1}
-        />
+        <Brush d="M450 108Q524 156 590 160" w={1} c="deep" o={0.55} taper={[0, 0]} pressure={0.1} />
         <Brush
           d="M432 152Q330 236 268 290"
           w={0.9}
-          c="w-f-deep"
+          c="deep"
           o={0.5}
           taper={[0, 0.1]}
           pressure={0.1}
@@ -846,7 +795,7 @@ function OutsideContent() {
         <Brush
           d="M432 160Q470 220 520 252"
           w={0.8}
-          c="w-f-deep"
+          c="deep"
           o={0.45}
           taper={[0, 0.1]}
           pressure={0.1}
@@ -855,7 +804,7 @@ function OutsideContent() {
         {[110, 160, 205, 252, 300, 344, 480, 530].map((x, i) => {
           const y =
             i < 6 ? 142 + Math.sin(((x - 60) / 350) * Math.PI) * 40 : 132 + (x - 452) * 0.12;
-          return <Fill key={x} d={circle(x, y + 1.6, 0.9)} c="w-f-gloss" o={0.6} />;
+          return <Fill key={x} d={circle(x, y + 1.6, 0.9)} c="gloss" o={0.6} />;
         })}
       </g>
     </svg>
@@ -934,14 +883,14 @@ function VBar({
       <Brush
         d={`M${cx} ${y + 1}V${y + h - 1}`}
         w={w}
-        c="w-f-indigo"
+        c="indigo-wash"
         taper={[0.02, 0.02]}
         pressure={0.12}
       />
       <Brush
         d={`M${x + w * 0.3} ${y + 4}V${y + h - 4}`}
         w={w * 0.34}
-        c="w-f-gloss"
+        c="gloss"
         o={0.34}
         taper={[0.03, 0.05]}
         pressure={0.2}
@@ -949,7 +898,7 @@ function VBar({
       <Brush
         d={`M${x + w * 0.82} ${y + 3}V${y + h - 3}`}
         w={w * 0.3}
-        c="w-f-deep"
+        c="deep"
         o={dark}
         taper={[0.03, 0.03]}
         pressure={0.15}
@@ -977,14 +926,14 @@ function HBar({
       <Brush
         d={`M${x + 1} ${cy}H${x + w - 1}`}
         w={h}
-        c="w-f-indigo"
+        c="indigo-wash"
         taper={[0.02, 0.02]}
         pressure={0.12}
       />
       <Brush
         d={`M${x + 4} ${y + h * 0.3}H${x + w - 4}`}
         w={h * 0.32}
-        c="w-f-gloss"
+        c="gloss"
         o={0.34}
         taper={[0.03, 0.05]}
         pressure={0.2}
@@ -992,7 +941,7 @@ function HBar({
       <Brush
         d={`M${x + 3} ${y + h * 0.82}H${x + w - 3}`}
         w={h * 0.3}
-        c="w-f-deep"
+        c="deep"
         o={dark}
         taper={[0.03, 0.03]}
         pressure={0.15}
@@ -1006,11 +955,8 @@ function FrontContent() {
     <>
       {/* flat shadows on the wall, right of the casing and under the sill */}
       <g filter="url(#w-flat)">
-        <Fill d="M584 46H596Q608 46 608 58V398H584Z" c="w-f-shadow" />
-        <Fill
-          d="M34 428H630Q640 428 640 440V462Q640 474 628 474H58Q46 474 44 462Z"
-          c="w-f-shadow"
-        />
+        <Fill d="M584 46H596Q608 46 608 58V398H584Z" c="shadow" />
+        <Fill d="M34 428H630Q640 428 640 440V462Q640 474 628 474H58Q46 474 44 462Z" c="shadow" />
       </g>
 
       {/* on the glass, clipped to it by a nested viewport, since ids would repeat */}
@@ -1024,53 +970,59 @@ function FrontContent() {
       >
         {/* the glass: a cool tint, the room faintly warm in it */}
         <g filter="url(#w-bloom)">
-          <Fill d={rect(glass.x, glass.y, glass.w, glass.h)} c="w-f-blue" o={0.06} />
-          <Fill d={rect(glass.x, 300, glass.w, 80)} c="w-f-cream" o={0.06} />
+          <Fill d={rect(glass.x, glass.y, glass.w, glass.h)} c="blue-light" o={0.06} />
+          <Fill d={rect(glass.x, 300, glass.w, 80)} c="cream" o={0.06} />
         </g>
 
         {/* condensation, thickest in the lower corners */}
         <g filter="url(#w-bloom)">
-          <Fill d={ellipse(85, 374, 78, 48)} c="w-f-gloss" o={0.07} />
-          <Fill d={ellipse(85, 372, 44, 28)} c="w-f-gloss" o={0.1} />
-          <Fill d={ellipse(85, 370, 20, 14)} c="w-f-gloss" o={0.12} />
-          <Fill d={ellipse(556, 374, 84, 50)} c="w-f-gloss" o={0.07} />
-          <Fill d={ellipse(556, 372, 46, 30)} c="w-f-gloss" o={0.1} />
-          <Fill d={ellipse(556, 370, 22, 14)} c="w-f-gloss" o={0.12} />
-          <Fill d={ellipse(312, 370, 50, 24)} c="w-f-gloss" o={0.09} />
-          <Fill d={ellipse(328, 370, 50, 24)} c="w-f-gloss" o={0.09} />
-          <Fill d={rect(85, 354, 471, 14)} c="w-f-gloss" o={0.07} />
-          <Fill d={rect(85, 148, 471, 10)} c="w-f-gloss" o={0.06} />
-          <Fill d={ellipse(85, 158, 30, 14)} c="w-f-gloss" o={0.1} />
-          <Fill d={ellipse(556, 158, 34, 16)} c="w-f-gloss" o={0.1} />
+          <Fill d={ellipse(85, 374, 78, 48)} c="gloss" o={0.07} />
+          <Fill d={ellipse(85, 372, 44, 28)} c="gloss" o={0.1} />
+          <Fill d={ellipse(85, 370, 20, 14)} c="gloss" o={0.12} />
+          <Fill d={ellipse(556, 374, 84, 50)} c="gloss" o={0.07} />
+          <Fill d={ellipse(556, 372, 46, 30)} c="gloss" o={0.1} />
+          <Fill d={ellipse(556, 370, 22, 14)} c="gloss" o={0.12} />
+          <Fill d={ellipse(312, 370, 50, 24)} c="gloss" o={0.09} />
+          <Fill d={ellipse(328, 370, 50, 24)} c="gloss" o={0.09} />
+          <Fill d={rect(85, 354, 471, 14)} c="gloss" o={0.07} />
+          <Fill d={rect(85, 148, 471, 10)} c="gloss" o={0.06} />
+          <Fill d={ellipse(85, 158, 30, 14)} c="gloss" o={0.1} />
+          <Fill d={ellipse(556, 158, 34, 16)} c="gloss" o={0.1} />
         </g>
         <g>
           {mistDots.map(({ x, y, r }, i) => (
-            <circle key={i} cx={x} cy={y} r={r} className="w-f-gloss" opacity={0.45} />
+            <circle key={i} cx={x} cy={y} r={r} className="fill-w-gloss" opacity={0.45} />
           ))}
         </g>
 
         {/* the glare of the grey sky on the glass */}
         <g filter="url(#w-haze-far)">
-          <Brush d="M98 364L206 160" w={30} c="w-f-gloss" o={0.08} taper={[0.3, 0.3]} />
-          <Brush d="M336 154L384 56" w={22} c="w-f-gloss" o={0.08} taper={[0.3, 0.3]} />
-          <Brush d="M478 364L552 206" w={22} c="w-f-gloss" o={0.06} taper={[0.3, 0.3]} />
+          <Brush d="M98 364L206 160" w={30} c="gloss" o={0.08} taper={[0.3, 0.3]} />
+          <Brush d="M336 154L384 56" w={22} c="gloss" o={0.08} taper={[0.3, 0.3]} />
+          <Brush d="M478 364L552 206" w={22} c="gloss" o={0.06} taper={[0.3, 0.3]} />
         </g>
         <g filter="url(#w-paint)">
-          <Brush d="M120 364L208 190" w={1} c="w-f-gloss" o={0.18} taper={[0.3, 0.3]} />
-          <Brush d="M354 152L390 70" w={0.9} c="w-f-gloss" o={0.2} taper={[0.3, 0.3]} />
+          <Brush d="M120 364L208 190" w={1} c="gloss" o={0.18} taper={[0.3, 0.3]} />
+          <Brush d="M354 152L390 70" w={0.9} c="gloss" o={0.2} taper={[0.3, 0.3]} />
         </g>
 
         {/* drops resting on the glass: a darker rim above, the light gathered below, a bright point */}
         <g>
           {restingDrops.map(({ x, y, r }, i) => (
             <g key={i}>
-              <circle cx={x} cy={y} r={r} className="w-f-deep" opacity={0.14} />
-              <circle cx={x} cy={y + r * 0.28} r={r * 0.72} className="w-f-gloss" opacity={0.4} />
+              <circle cx={x} cy={y} r={r} className="fill-w-deep" opacity={0.14} />
+              <circle
+                cx={x}
+                cy={y + r * 0.28}
+                r={r * 0.72}
+                className="fill-w-gloss"
+                opacity={0.4}
+              />
               {r > 1.2 && (
                 <Brush
                   pts={ptsOfCircle(x, y, r * 0.86, Math.PI * 1.05, Math.PI * 1.95)}
                   w={r * 0.32}
-                  c="w-f-deep"
+                  c="deep"
                   o={0.32}
                   taper={[0.3, 0.3]}
                   pressure={0}
@@ -1080,7 +1032,7 @@ function FrontContent() {
                 cx={x - r * 0.34}
                 cy={y - r * 0.32}
                 r={Math.max(0.32, r * 0.26)}
-                className="w-f-gloss"
+                className="fill-w-gloss"
                 opacity={0.95}
               />
             </g>
@@ -1090,19 +1042,19 @@ function FrontContent() {
 
       {/* the casing and the two sashes, painted cobalt */}
       <g filter="url(#w-wash)">
-        <Fill d={rr(52, 20, 536, 24, 4)} c="w-f-indigo" o={0.9} />
-        <Fill d={rr(52, 20, 24, 374, 4)} c="w-f-indigo" o={0.9} />
-        <Fill d={rr(564, 20, 24, 374, 4)} c="w-f-indigo" o={0.9} />
-        <Fill d={rr(52, 376, 536, 18, 3)} c="w-f-indigo" o={0.9} />
-        <Fill d={rr(74, 42, 11, 338, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(74, 42, 248, 10, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(74, 366, 248, 14, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(84, 156, 230, 6, 1)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(312, 42, 16, 338, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(318, 42, 248, 10, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(318, 366, 248, 14, 2)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(326, 156, 232, 6, 1)} c="w-f-indigo" o={0.85} />
-        <Fill d={rr(556, 42, 10, 338, 2)} c="w-f-indigo" o={0.85} />
+        <Fill d={rr(52, 20, 536, 24, 4)} c="indigo-wash" o={0.9} />
+        <Fill d={rr(52, 20, 24, 374, 4)} c="indigo-wash" o={0.9} />
+        <Fill d={rr(564, 20, 24, 374, 4)} c="indigo-wash" o={0.9} />
+        <Fill d={rr(52, 376, 536, 18, 3)} c="indigo-wash" o={0.9} />
+        <Fill d={rr(74, 42, 11, 338, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(74, 42, 248, 10, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(74, 366, 248, 14, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(84, 156, 230, 6, 1)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(312, 42, 16, 338, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(318, 42, 248, 10, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(318, 366, 248, 14, 2)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(326, 156, 232, 6, 1)} c="indigo-wash" o={0.85} />
+        <Fill d={rr(556, 42, 10, 338, 2)} c="indigo-wash" o={0.85} />
       </g>
       <g filter="url(#w-paint)">
         {/* casing */}
@@ -1111,15 +1063,15 @@ function FrontContent() {
         <VBar x={566} y={22} w={22} h={370} dark={0.6} />
         <HBar x={56} y={378} w={528} h={14} dark={0.55} />
         {/* the inner edge of the casing, in shade */}
-        <Brush d="M74 44H566" w={3.4} c="w-f-deep" o={0.5} taper={[0.02, 0.02]} />
-        <Brush d="M76 44V378" w={3} c="w-f-deep" o={0.4} taper={[0.02, 0.02]} />
-        <Brush d="M564 44V378" w={3} c="w-f-gloss" o={0.3} taper={[0.02, 0.02]} />
-        <Brush d="M58 26H582" w={2.4} c="w-f-gloss" o={0.4} taper={[0.05, 0.08]} pressure={0.25} />
-        <Brush d="M57 28V388" w={2.2} c="w-f-gloss" o={0.36} taper={[0.05, 0.08]} pressure={0.25} />
-        <Brush d="M140 31H300" w={7} c="w-f-blue" o={0.22} taper={[0.4, 0.4]} />
-        <Brush d="M380 32H520" w={6} c="w-f-label" o={0.3} taper={[0.4, 0.4]} />
-        <Brush d="M62 120V250" w={7} c="w-f-blue" o={0.2} taper={[0.4, 0.4]} />
-        <Brush d="M578 160V320" w={7} c="w-f-label" o={0.35} taper={[0.4, 0.4]} />
+        <Brush d="M74 44H566" w={3.4} c="deep" o={0.5} taper={[0.02, 0.02]} />
+        <Brush d="M76 44V378" w={3} c="deep" o={0.4} taper={[0.02, 0.02]} />
+        <Brush d="M564 44V378" w={3} c="gloss" o={0.3} taper={[0.02, 0.02]} />
+        <Brush d="M58 26H582" w={2.4} c="gloss" o={0.4} taper={[0.05, 0.08]} pressure={0.25} />
+        <Brush d="M57 28V388" w={2.2} c="gloss" o={0.36} taper={[0.05, 0.08]} pressure={0.25} />
+        <Brush d="M140 31H300" w={7} c="blue-light" o={0.22} taper={[0.4, 0.4]} />
+        <Brush d="M380 32H520" w={6} c="label" o={0.3} taper={[0.4, 0.4]} />
+        <Brush d="M62 120V250" w={7} c="blue-light" o={0.2} taper={[0.4, 0.4]} />
+        <Brush d="M578 160V320" w={7} c="label" o={0.35} taper={[0.4, 0.4]} />
 
         {/* the left sash */}
         <VBar x={74} y={42} w={11} h={338} />
@@ -1133,37 +1085,37 @@ function FrontContent() {
         <HBar x={326} y={156} w={232} h={6} />
         <HBar x={318} y={366} w={248} h={14} dark={0.55} />
         <VBar x={556} y={42} w={10} h={338} dark={0.55} />
-        <Brush d="M316 46V376" w={2.6} c="w-f-deep" o={0.65} taper={[0.03, 0.03]} />
+        <Brush d="M316 46V376" w={2.6} c="deep" o={0.65} taper={[0.03, 0.03]} />
         {/* the finger pulls */}
-        <Fill d={rr(314, 228, 6, 34, 3)} c="w-f-deep" o={0.6} />
-        <Fill d={rr(320, 230, 6, 30, 3)} c="w-f-deep" o={0.55} />
-        <Brush d="M323 234V256" w={1.2} c="w-f-gloss" o={0.5} taper={[0.2, 0.2]} />
+        <Fill d={rr(314, 228, 6, 34, 3)} c="deep" o={0.6} />
+        <Fill d={rr(320, 230, 6, 30, 3)} c="deep" o={0.55} />
+        <Brush d="M323 234V256" w={1.2} c="gloss" o={0.5} taper={[0.2, 0.2]} />
         {/* the latch between the sashes */}
-        <Fill d={rr(311, 196, 18, 9, 2)} c="w-f-soft" o={0.9} />
-        <Brush d="M313 198H327" w={1.4} c="w-f-gloss" o={0.6} taper={[0.2, 0.2]} />
-        <Brush d="M90 47H220" w={5} c="w-f-blue" o={0.2} taper={[0.4, 0.4]} />
-        <Brush d="M400 47H520" w={5} c="w-f-label" o={0.3} taper={[0.4, 0.4]} />
-        <Brush d="M79 180V300" w={6} c="w-f-blue" o={0.2} taper={[0.4, 0.4]} />
-        <Brush d="M561 90V200" w={6} c="w-f-label" o={0.35} taper={[0.4, 0.4]} />
-        <Brush d="M130 373H260" w={7} c="w-f-label" o={0.3} taper={[0.4, 0.4]} />
-        <Brush d="M380 372H500" w={7} c="w-f-blue" o={0.18} taper={[0.4, 0.4]} />
+        <Fill d={rr(311, 196, 18, 9, 2)} c="ink-soft" o={0.9} />
+        <Brush d="M313 198H327" w={1.4} c="gloss" o={0.6} taper={[0.2, 0.2]} />
+        <Brush d="M90 47H220" w={5} c="blue-light" o={0.2} taper={[0.4, 0.4]} />
+        <Brush d="M400 47H520" w={5} c="label" o={0.3} taper={[0.4, 0.4]} />
+        <Brush d="M79 180V300" w={6} c="blue-light" o={0.2} taper={[0.4, 0.4]} />
+        <Brush d="M561 90V200" w={6} c="label" o={0.35} taper={[0.4, 0.4]} />
+        <Brush d="M130 373H260" w={7} c="label" o={0.3} taper={[0.4, 0.4]} />
+        <Brush d="M380 372H500" w={7} c="blue-light" o={0.18} taper={[0.4, 0.4]} />
       </g>
 
       {/* a teru teru bozu, hung for fine weather; it is still raining */}
       <g filter="url(#w-wash)">
-        <Fill d={circle(doll.x + 4, doll.y + 3, 12)} c="w-f-ink" o={0.12} />
+        <Fill d={circle(doll.x + 4, doll.y + 3, 12)} c="ink" o={0.12} />
         <Fill
           d={`M${doll.x - 9} ${doll.y + 6}Q${doll.x - 18} ${doll.y + 28} ${doll.x - 15} ${doll.y + 40}Q${doll.x - 4} ${doll.y + 36} ${doll.x + 2} ${doll.y + 42}Q${doll.x + 10} ${doll.y + 36} ${doll.x + 17} ${doll.y + 40}Q${doll.x + 16} ${doll.y + 26} ${doll.x + 9} ${doll.y + 6}Z`}
-          c="w-f-gloss"
+          c="gloss"
           o={0.92}
         />
-        <Fill d={circle(doll.x, doll.y, 11)} c="w-f-gloss" o={0.92} />
+        <Fill d={circle(doll.x, doll.y, 11)} c="gloss" o={0.92} />
       </g>
       <g filter="url(#w-paint)">
         <Brush
           d={`M${doll.x} 42V${doll.y - 10}`}
           w={1}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.85}
           taper={[0, 0.1]}
           pressure={0.1}
@@ -1171,43 +1123,43 @@ function FrontContent() {
         <Brush
           pts={ptsOfCircle(doll.x, doll.y, 11, -0.6, 2.4)}
           w={2.4}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.45}
           taper={[0.3, 0.3]}
         />
         <Brush
           pts={ptsOfCircle(doll.x, doll.y, 11, 2.2, 5)}
           w={1.2}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.6}
           taper={[0.3, 0.3]}
         />
-        <Brush pts={ptsOfCircle(doll.x - 3, doll.y - 3, 4, 3.4, 5.2)} w={2} c="w-f-gloss" o={0.9} />
+        <Brush pts={ptsOfCircle(doll.x - 3, doll.y - 3, 4, 3.4, 5.2)} w={2} c="gloss" o={0.9} />
         <Brush
           d={`M${doll.x - 10} ${doll.y + 9}Q${doll.x} ${doll.y + 13} ${doll.x + 10} ${doll.y + 9}`}
           w={1.6}
-          c="w-f-indigo"
+          c="indigo-wash"
           o={0.8}
           taper={[0.2, 0.2]}
         />
         <Brush
           d={`M${doll.x + 8} ${doll.y + 14}Q${doll.x + 14} ${doll.y + 26} ${doll.x + 15} ${doll.y + 38}`}
           w={2.6}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.35}
           taper={[0.3, 0.3]}
         />
         <Brush
           d={`M${doll.x - 9} ${doll.y + 14}Q${doll.x - 14} ${doll.y + 26} ${doll.x - 14} ${doll.y + 38}`}
           w={1}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.5}
           taper={[0.3, 0.3]}
         />
         <Brush
           d={`M${doll.x + 1} ${doll.y + 18}Q${doll.x + 3} ${doll.y + 30} ${doll.x + 2} ${doll.y + 40}`}
           w={0.9}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.4}
           taper={[0.3, 0.3]}
         />
@@ -1215,67 +1167,67 @@ function FrontContent() {
 
       {/* the deep sill, painted like the frame, the grain showing through */}
       <g filter="url(#w-wash)">
-        <Fill d="M44 390H596L618 414H22Z" c="w-f-indigo" />
-        <Fill d={rr(20, 412, 600, 22, 3)} c="w-f-indigo" />
-        <Fill d={rr(20, 412, 600, 22, 3)} c="w-f-label" o={0.45} />
+        <Fill d="M44 390H596L618 414H22Z" c="indigo-wash" />
+        <Fill d={rr(20, 412, 600, 22, 3)} c="indigo-wash" />
+        <Fill d={rr(20, 412, 600, 22, 3)} c="label" o={0.45} />
       </g>
       <g filter="url(#w-paint)">
-        <Brush d="M46 393H594" w={6} c="w-f-deep" o={0.5} taper={[0.02, 0.02]} />
+        <Brush d="M46 393H594" w={6} c="deep" o={0.5} taper={[0.02, 0.02]} />
         <Brush
           d="M40 400Q320 398 602 401"
           w={8}
-          c="w-f-gloss"
+          c="gloss"
           o={0.24}
           taper={[0.05, 0.1]}
           pressure={0.25}
         />
-        <Brush d="M32 407Q320 405 610 408" w={7} c="w-f-blue" o={0.2} taper={[0.1, 0.1]} />
+        <Brush d="M32 407Q320 405 610 408" w={7} c="blue-light" o={0.2} taper={[0.1, 0.1]} />
         <Brush
           d="M70 398Q160 400 250 397Q330 395 400 399"
           w={1}
-          c="w-f-gloss"
+          c="gloss"
           o={0.4}
           taper={[0.2, 0.3]}
         />
         <Brush
           d="M130 405Q250 402 330 406Q420 409 560 404"
           w={0.9}
-          c="w-f-gloss"
+          c="gloss"
           o={0.32}
           taper={[0.2, 0.3]}
         />
-        <Brush d="M380 395Q460 398 580 396" w={0.9} c="w-f-label" o={0.5} taper={[0.2, 0.3]} />
-        <Brush d="M24 413H616" w={2.6} c="w-f-gloss" o={0.55} taper={[0.03, 0.05]} pressure={0.2} />
+        <Brush d="M380 395Q460 398 580 396" w={0.9} c="label" o={0.5} taper={[0.2, 0.3]} />
+        <Brush d="M24 413H616" w={2.6} c="gloss" o={0.55} taper={[0.03, 0.05]} pressure={0.2} />
         <Brush
           d="M26 420Q200 418 400 421Q520 423 614 420"
           w={5}
-          c="w-f-indigo"
+          c="indigo-wash"
           o={0.5}
           taper={[0.05, 0.05]}
         />
-        <Brush d="M40 424Q140 426 240 423" w={1} c="w-f-blue" o={0.4} taper={[0.2, 0.3]} />
-        <Brush d="M300 426Q420 423 590 427" w={1} c="w-f-blue" o={0.32} taper={[0.2, 0.3]} />
-        <Brush d="M24 432H616" w={3} c="w-f-deep" o={0.7} taper={[0.02, 0.02]} />
-        <Brush d="M612 414V432" w={4} c="w-f-deep" o={0.5} taper={[0.1, 0.1]} />
+        <Brush d="M40 424Q140 426 240 423" w={1} c="blue-light" o={0.4} taper={[0.2, 0.3]} />
+        <Brush d="M300 426Q420 423 590 427" w={1} c="blue-light" o={0.32} taper={[0.2, 0.3]} />
+        <Brush d="M24 432H616" w={3} c="deep" o={0.7} taper={[0.02, 0.02]} />
+        <Brush d="M612 414V432" w={4} c="deep" o={0.5} taper={[0.1, 0.1]} />
       </g>
 
       {/* a cup of tea gone cold, on the right of the sill */}
       <g filter="url(#w-flat)">
         <Fill
           d={`M${cup.x - 6} ${cup.bottom - 3}Q${cup.x + 30} ${cup.bottom - 9} ${cup.x + 52} ${cup.bottom - 3}Q${cup.x + 30} ${cup.bottom + 4} ${cup.x - 6} ${cup.bottom + 3}Z`}
-          c="w-f-deep"
+          c="deep"
           o={0.45}
         />
       </g>
       <g filter="url(#w-wash-dense)">
         <Fill
           d={`M${cup.x - 15} ${cup.top}Q${cup.x - 16} ${cup.top + 30} ${cup.x - 13} ${cup.bottom - 3}Q${cup.x} ${cup.bottom + 2} ${cup.x + 13} ${cup.bottom - 3}Q${cup.x + 16} ${cup.top + 30} ${cup.x + 15} ${cup.top}Z`}
-          c="w-f-gloss"
+          c="gloss"
           o={0.95}
         />
         <Fill
           d={`M${cup.x - 15} ${cup.top}L${cup.x - 15.6} ${cup.top + 20}Q${cup.x - 12} ${cup.top + 25} ${cup.x - 9} ${cup.top + 21}Q${cup.x - 7} ${cup.top + 31} ${cup.x - 4} ${cup.top + 22}Q${cup.x + 1} ${cup.top + 26} ${cup.x + 5} ${cup.top + 21}Q${cup.x + 8} ${cup.top + 28} ${cup.x + 10} ${cup.top + 22}Q${cup.x + 13} ${cup.top + 24} ${cup.x + 15.6} ${cup.top + 20}L${cup.x + 15} ${cup.top}Z`}
-          c="w-f-indigo"
+          c="indigo-wash"
           o={0.92}
         />
       </g>
@@ -1283,73 +1235,73 @@ function FrontContent() {
         <Brush
           d={`M${cup.x + 10} ${cup.top + 6}Q${cup.x + 12} ${cup.top + 30} ${cup.x + 9} ${cup.bottom - 6}`}
           w={6}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.3}
           taper={[0.1, 0.1]}
         />
         <Brush
           d={`M${cup.x + 12.5} ${cup.top + 3}V${cup.top + 19}`}
           w={3.4}
-          c="w-f-deep"
+          c="deep"
           o={0.5}
           taper={[0.1, 0.2]}
         />
         <Brush
           d={`M${cup.x - 9.5} ${cup.top + 4}V${cup.top + 18}`}
           w={2.2}
-          c="w-f-gloss"
+          c="gloss"
           o={0.7}
           taper={[0.2, 0.3]}
         />
         <Brush
           d={`M${cup.x - 10} ${cup.top + 30}Q${cup.x - 11} ${cup.top + 38} ${cup.x - 9} ${cup.bottom - 7}`}
           w={2}
-          c="w-f-gloss"
+          c="gloss"
           o={0.9}
           taper={[0.2, 0.3]}
         />
         <Brush
           d={`M${cup.x - 13} ${cup.bottom - 4}Q${cup.x} ${cup.bottom + 1.5} ${cup.x + 13} ${cup.bottom - 4}`}
           w={2.6}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.6}
           taper={[0.1, 0.1]}
         />
         <Brush
           d={`M${cup.x - 12} ${cup.bottom - 8}Q${cup.x} ${cup.bottom - 3} ${cup.x + 12} ${cup.bottom - 8}`}
           w={0.9}
-          c="w-f-soft"
+          c="ink-soft"
           o={0.45}
           taper={[0.2, 0.2]}
         />
         {/* the rim and the cold tea inside, low in the cup */}
         <Fill
           d={`M${cup.x - 15} ${cup.top}Q${cup.x} ${cup.top - 7} ${cup.x + 15} ${cup.top}Q${cup.x} ${cup.top + 7} ${cup.x - 15} ${cup.top}Z`}
-          c="w-f-label"
+          c="label"
         />
         <Fill
           d={`M${cup.x - 11} ${cup.top + 1.4}Q${cup.x} ${cup.top - 2} ${cup.x + 11} ${cup.top + 1.4}Q${cup.x} ${cup.top + 5.4} ${cup.x - 11} ${cup.top + 1.4}Z`}
-          c="w-f-green-deep"
+          c="green-deep"
           o={0.8}
         />
         <Brush
           d={`M${cup.x - 7} ${cup.top + 2.4}Q${cup.x} ${cup.top + 4.6} ${cup.x + 8} ${cup.top + 2.4}`}
           w={1.8}
-          c="w-f-green"
+          c="green"
           o={0.7}
           taper={[0.2, 0.2]}
         />
         <Brush
           d={`M${cup.x - 15} ${cup.top}Q${cup.x} ${cup.top - 7} ${cup.x + 15} ${cup.top}`}
           w={1.6}
-          c="w-f-gloss"
+          c="gloss"
           o={0.55}
           taper={[0.1, 0.1]}
         />
         <Brush
           d={`M${cup.x - 15} ${cup.top}Q${cup.x} ${cup.top + 7} ${cup.x + 15} ${cup.top}`}
           w={1.8}
-          c="w-f-gloss"
+          c="gloss"
           o={0.7}
           taper={[0.1, 0.1]}
         />

@@ -313,7 +313,7 @@ function Fields({ fields }: { fields: Field[] }): ReactNode {
       {fields.map((field) => (
         <div key={field.name} className="border-t py-2.5 first:border-t-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[0.8125rem] font-medium text-fd-primary">
+            <span className="font-mono text-sm font-medium text-fd-primary">
               {field.name}
               {field.required && <span className="text-red-400">*</span>}
             </span>
@@ -348,7 +348,7 @@ function responseExample(operation: Operation): string {
 export function OperationBody({ operation }: { operation: Operation }) {
   return (
     <div className="@container">
-      <div className="not-prose mb-6 flex h-9 items-center gap-2 rounded-xl border bg-fd-card ps-2.5 pe-1 text-[0.8125rem]">
+      <div className="not-prose mb-6 flex h-9 items-center gap-2 rounded-xl border bg-fd-card ps-2.5 pe-1 text-sm">
         <MethodLabel method={operation.method} className="text-xs" />
         <span className="truncate font-mono text-fd-muted-foreground">{operation.path}</span>
       </div>
@@ -363,7 +363,7 @@ export function OperationBody({ operation }: { operation: Operation }) {
           <h2 className={cn(!operation.body && "mt-0!")}>Response Body</h2>
           <Fields fields={operation.response} />
         </div>
-        <div className="@4xl:sticky @4xl:top-[calc(var(--fd-docs-row-3,0px)+1rem)] @4xl:w-[340px]">
+        <div className="@4xl:sticky @4xl:top-4 @4xl:w-85">
           <Code title="cURL" code={operation.example} />
           <Code title="200" code={responseExample(operation)} />
         </div>

@@ -13,6 +13,7 @@ import {
 } from "react";
 import { cn } from "../../cn";
 import { Jack } from "../plugs";
+import { Sheet } from "../sheet";
 import {
   codeFiles,
   defaultConfig,
@@ -87,27 +88,9 @@ const inkColors: Record<TokenKind, string> = {
 };
 
 const focusRing =
-  "outline-none focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-(--w-ink)";
-/** the ink fill of a selected control, as `.w-button` */
-const inkFill = "bg-(--w-label) text-[#f1eee7] [.dark_&]:bg-(--w-ink) [.dark_&]:text-(--w-paper)";
-
-/** `Sheet` of `ink.tsx`, kept here so the client bundle doesn't take the drawings of the page */
-function Sheet({
-  children,
-  className,
-  wrapperClassName,
-}: {
-  children: ReactNode;
-  className?: string;
-  wrapperClassName?: string;
-}) {
-  return (
-    <div className={cn("relative", wrapperClassName)}>
-      <div className="w-sheet-shadow" aria-hidden />
-      <div className={cn("w-sheet", className)}>{children}</div>
-    </div>
-  );
-}
+  "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-w-ink";
+/** the ink fill of a selected control, as on the buttons */
+const inkFill = "bg-w-label text-w-paper [.dark_&]:bg-w-ink [.dark_&]:text-w-paper";
 
 /** arrow keys of a radio group or tab list: move the selection, and the focus with it */
 function arrowKeys(event: KeyboardEvent<HTMLElement>, index: number, count: number) {
@@ -149,7 +132,7 @@ function Segmented<V extends string | number | boolean>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="grid h-7 auto-cols-fr grid-flow-col gap-0.5 rounded-md border border-(--w-ink)/25 bg-(--w-paper)/70 p-0.5"
+      className="grid h-7 auto-cols-fr grid-flow-col gap-0.5 rounded-md border border-w-ink/25 bg-w-paper/70 p-0.5"
     >
       {choices.map((choice, i) => {
         const checked = choice.value === value;
@@ -167,9 +150,9 @@ function Segmented<V extends string | number | boolean>({
               if (next !== undefined) onChange(choices[next]!.value);
             }}
             className={cn(
-              "min-w-0 truncate rounded-[4px] px-1.5 text-xs hover:transition-colors",
+              "min-w-0 truncate rounded-sm px-1.5 text-xs hover:transition-colors",
               focusRing,
-              checked ? inkFill : "text-(--w-muted) hover:text-(--w-ink)",
+              checked ? inkFill : "text-w-muted hover:text-w-ink",
             )}
           >
             {choice.label}
@@ -210,15 +193,15 @@ function ThemeSwatches({
               }}
               style={{ "--sw-light": theme.light, "--sw-dark": theme.dark } as CSSProperties}
               className={cn(
-                "size-4 rounded-full border border-(--w-ink)/30 bg-(--sw-light) [.dark_&]:bg-(--sw-dark)",
+                "size-4 rounded-full border border-w-ink/30 bg-(--sw-light) [.dark_&]:bg-(--sw-dark)",
                 focusRing,
-                checked && "ring-1 ring-(--w-ink) ring-offset-2 ring-offset-(--w-sheet)",
+                checked && "ring-1 ring-w-ink ring-offset-2 ring-offset-w-sheet",
               )}
             />
           );
         })}
       </div>
-      <span className="min-w-0 truncate text-xs text-(--w-muted)">{current?.label}</span>
+      <span className="min-w-0 truncate text-xs text-w-muted">{current?.label}</span>
     </div>
   );
 }
@@ -238,7 +221,7 @@ function FeatureSwitch({
   const id = useId();
   return (
     <div className="flex h-7 min-w-0 items-center gap-2" title={hint}>
-      <label htmlFor={id} className="min-w-0 flex-1 truncate text-[13px] text-(--w-ink)">
+      <label htmlFor={id} className="min-w-0 flex-1 truncate text-sm text-w-ink">
         {label}
       </label>
       <button
@@ -251,14 +234,12 @@ function FeatureSwitch({
           "relative h-5 w-9 shrink-0 rounded-full border transition-colors",
           focusRing,
           // off: a pale empty track; on: a lit green track, as a lamp would be
-          checked
-            ? "border-(--w-green-deep) bg-(--w-green-deep)"
-            : "border-(--w-ink)/25 bg-(--w-ink)/5",
+          checked ? "border-w-green-deep bg-w-green-deep" : "border-w-ink/25 bg-w-ink/5",
         )}
       >
         <span
           className={cn(
-            "absolute top-1/2 left-0.5 size-3.5 -translate-y-1/2 rounded-full border border-(--w-ink)/25 bg-(--w-sheet) shadow-[0_1px_1px_rgb(0_0_0/0.15)] transition-transform",
+            "absolute top-1/2 left-0.5 size-3.5 -translate-y-1/2 rounded-full border border-w-ink/25 bg-w-sheet shadow-xs transition-transform",
             checked && "translate-x-4 border-transparent",
           )}
         />
@@ -296,7 +277,7 @@ function NameInput({
         autoComplete="off"
         placeholder={defaultConfig.name}
         onChange={(event) => onChange(event.target.value)}
-        className="h-7 w-full min-w-0 rounded-md border border-(--w-ink)/25 bg-(--w-paper)/70 px-2.5 text-[13px] text-(--w-ink) outline-none transition-colors placeholder:text-(--w-muted) focus:border-(--w-ink)/70"
+        className="h-7 w-full min-w-0 rounded-md border border-w-ink/25 bg-w-paper/70 px-2.5 text-sm text-w-ink outline-none transition-colors placeholder:text-w-muted focus:border-w-ink/70"
       />
       <datalist id={`${id}-presets`}>
         {namePresets.map((name) => (
@@ -310,9 +291,9 @@ function NameInput({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h4 className="w-serif mb-2 flex items-center gap-3 text-[15px] text-(--w-ink-soft) italic">
+      <h4 className="font-serif mb-2 flex items-center gap-3 text-base text-w-ink-soft italic">
         {title}
-        <span className="h-px flex-1 bg-(--w-ink)/20" />
+        <span className="h-px flex-1 bg-w-ink/20" />
       </h4>
       <div className="flex flex-col gap-1.5">{children}</div>
     </section>
@@ -331,11 +312,11 @@ function Row({
 }) {
   const Label = htmlFor ? "label" : "span";
   return (
-    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-3">
-      <Label htmlFor={htmlFor} className="truncate text-[13px] text-(--w-ink)">
+    <div className="flex items-center gap-x-3">
+      <Label htmlFor={htmlFor} className="w-22 shrink-0 truncate text-sm text-w-ink">
         {label}
       </Label>
-      {children}
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -355,15 +336,15 @@ function Panel({
   );
 
   return (
-    <Sheet wrapperClassName="h-full" className="h-full px-5 pt-4 pb-5">
+    <Sheet className="min-w-0 xl:flex-1" paperClassName="h-full px-5 pt-4 pb-5">
       <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="w-serif text-xl text-(--w-ink)">Settings</h3>
+        <h3 className="font-serif text-xl text-w-ink">Settings</h3>
         <button
           type="button"
           onClick={onReset}
           disabled={isDefault}
           className={cn(
-            "rounded-sm text-xs text-(--w-muted) transition-colors hover:text-(--w-ink) disabled:pointer-events-none disabled:opacity-40",
+            "rounded-sm text-xs text-w-muted transition-colors hover:text-w-ink disabled:pointer-events-none disabled:opacity-40",
             focusRing,
           )}
         >
@@ -478,10 +459,7 @@ function CodeLines({
       ref={box}
       tabIndex={0}
       aria-label="Code"
-      className={cn(
-        "w-code w-scroll relative max-h-[24rem] overflow-auto xl:max-h-[30rem]",
-        focusRing,
-      )}
+      className={cn("w-code relative max-h-96 overflow-auto xl:max-h-120", focusRing)}
     >
       <pre className="overflow-visible! px-0! pt-4! pb-5!">
         <code className="inline-block min-w-full">
@@ -493,16 +471,16 @@ function CodeLines({
                 data-changed={changed ? "" : undefined}
                 className={cn(
                   "flex transition-colors duration-700",
-                  changed ? "bg-(--w-green)/15" : "bg-transparent",
+                  changed ? "bg-w-green/15" : "bg-transparent",
                 )}
               >
                 <span
                   aria-hidden
-                  className="relative w-11 shrink-0 pr-4 text-right text-(--w-code-comment)/70 select-none"
+                  className="relative w-11 shrink-0 pr-4 text-right text-w-code-comment/70 select-none"
                 >
                   <span
                     className={cn(
-                      "absolute inset-y-0 left-0 w-[3px] bg-(--w-green) transition-opacity duration-700",
+                      "absolute inset-y-0 left-0 w-0.75 bg-w-green transition-opacity duration-700",
                       changed ? "opacity-100" : "opacity-0",
                     )}
                   />
@@ -551,7 +529,7 @@ function CodeSheet({
       <div
         role="tablist"
         aria-label="Files"
-        className="flex gap-1 overflow-x-auto border-b border-(--w-ink)/20 px-3 [scrollbar-width:none]"
+        className="flex gap-1 overflow-x-auto border-b border-w-ink/20 px-3"
       >
         {files.map((item, i) => {
           const isActive = i === active;
@@ -573,11 +551,9 @@ function CodeSheet({
               }}
               className={cn(
                 // the underline is drawn inside the tab, so the scrolling row never overflows downward
-                "relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-mono text-[12.5px] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] hover:transition-colors",
+                "relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-mono text-xs after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 hover:transition-colors",
                 focusRing,
-                isActive
-                  ? "text-(--w-ink) after:bg-(--w-ink)"
-                  : "text-(--w-muted) hover:text-(--w-ink)",
+                isActive ? "text-w-ink after:bg-w-ink" : "text-w-muted hover:text-w-ink",
               )}
             >
               {item.name}
@@ -585,7 +561,7 @@ function CodeSheet({
               <span
                 aria-hidden
                 className={cn(
-                  "size-1.5 rounded-full bg-(--w-green-deep) transition-opacity duration-700",
+                  "size-1.5 rounded-full bg-w-green-deep transition-opacity duration-700",
                   changed && !isActive ? "opacity-100" : "opacity-0",
                 )}
               />
@@ -678,7 +654,7 @@ function Preview({ config, device }: { config: PlaygroundConfig; device: ReactNo
       {device}
       {/* the address on the plate of the device */}
       <span
-        className="absolute flex items-center justify-center truncate px-[3%] font-mono text-[clamp(8px,1.5vw,11px)] text-(--w-muted)"
+        className="absolute flex items-center justify-center truncate px-2 font-mono text-xs text-w-muted"
         style={percentOf({ x: 200, y: 15, w: 240, h: 24 })}
         aria-hidden
       >
@@ -687,7 +663,7 @@ function Preview({ config, device }: { config: PlaygroundConfig; device: ReactNo
       {/* the glass: the real docs UI, scaled to fit */}
       <div
         ref={screen}
-        className="absolute overflow-hidden rounded-[2px] bg-(--w-paper)"
+        className="absolute overflow-hidden rounded-xs bg-w-paper"
         style={percentOf(glass)}
       >
         {near && (
@@ -742,8 +718,8 @@ export function Playground({ device }: { device: ReactNode }) {
   return (
     <div className="flex flex-col gap-y-14 xl:gap-y-16">
       {/* the panel beside the canvas from 1280px, its controls need about 320px */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-12 xl:grid-cols-[minmax(0,17fr)_minmax(0,8fr)] xl:items-stretch">
-        <div className="relative self-start">
+      <div className="flex flex-col gap-x-10 gap-y-12 xl:flex-row xl:items-stretch">
+        <div className="relative min-w-0 self-start xl:flex-2">
           {/* the cord plugs into the top of the device and leaves from its foot */}
           <Jack edge="top" x={94} y={1.8} />
           <Preview config={config} device={device} />

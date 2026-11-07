@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { cn } from "../cn";
 
 /**
  * Rain behind a window's glass, and drops running down it.
@@ -91,10 +92,10 @@ export function Rain({
     height: pct(r.h, viewBox.h),
   });
   return (
-    <div className={className ? `w-rain-root ${className}` : "w-rain-root"} aria-hidden>
-      <div className="w-rain-pane" style={box(glass)}>
+    <div className={cn("pointer-events-none absolute inset-0", className)} aria-hidden>
+      <div className="absolute overflow-hidden" style={box(glass)}>
         {tiles.map((image, d) => (
-          <div key={d} className="w-rain-slant">
+          <div key={d} className="absolute -inset-x-1/3 -inset-y-2/5">
             <div
               className="w-rain-fall"
               style={
@@ -111,7 +112,7 @@ export function Rain({
         ))}
       </div>
       {panes.map((p, i) => (
-        <div key={i} className="w-rain-pane" style={box(p)}>
+        <div key={i} className="absolute overflow-hidden" style={box(p)}>
           {drops
             .filter((drop) => drop.pane === i)
             .map((drop, k) => (

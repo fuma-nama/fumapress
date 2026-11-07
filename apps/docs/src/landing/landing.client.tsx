@@ -15,6 +15,8 @@ import { Link } from "fumapress/client";
 import { cn } from "../cn";
 import { PluginCartridge } from "./figures/cartridge";
 import { Layered } from "./pen";
+import { useEarly } from "./parts.client";
+import { Sheet } from "./sheet";
 
 /**
  * The path of the cord through the plugs under `root`, in the root's own units. Self-contained, so the inline script
@@ -45,9 +47,12 @@ function drawCord(root: HTMLElement): string | undefined {
   const wide = window.matchMedia("(min-width: 1280px)").matches;
   const anchors = Array.from(root.querySelectorAll<HTMLElement>("[data-cord]")).map((el) => {
     const r = el.getBoundingClientRect();
+    // the top of the figure or sheet that holds the plug
+    const holder = el.parentElement?.offsetParent?.getBoundingClientRect() ?? r;
     return {
       x: (r.left + r.width / 2 - box.left) / scale,
       y: (r.top + r.height / 2 - box.top) / scale,
+      top: (holder.top - box.top) / scale,
       kind: el.dataset.cord,
       wander: el.dataset.wander?.split(",").map(Number),
     };
@@ -85,15 +90,19 @@ function drawCord(root: HTMLElement): string | undefined {
         b,
       ];
     } else {
-      // down a gutter just left of the column, clear of the text, then across the space above the figure;
-      // never closer than 7px to the edge of the page
+      // down a gutter just left of the column, clear of the text, then across the space above the figure, clear
+      // of its labels, and down into the plug; never closer than 7px to the edge of the page
       const g = Math.max(7, column - 12) / scale - box.left / scale;
+      const over = b.kind === "in" ? Math.min(b.y - 28, b.top - 16) : b.y - 28;
+      const down = a.y + Math.min(70, gap * 0.2);
       pts = [
         a,
         { x: a.x, y: a.y + 20 },
-        { x: g, y: a.y + Math.min(70, gap * 0.2) },
-        { x: g, y: b.y - 28 },
-        { x: b.x, y: b.y - 6 },
+        { x: g, y: down },
+        // a point just above the turn, so the long run down the gutter does not bow the curve past it
+        ...(over - down > 60 ? [{ x: g, y: over - 30 }] : []),
+        { x: g, y: over },
+        { x: b.x, y: Math.min(b.y - 6, over + 22) },
         b,
       ];
     }
@@ -115,6 +124,7 @@ const drawEarly = `(function(){var s=document.currentScript,r=s&&s.parentElement
 export function CordLayer({ children, className }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [d, setD] = useState<string>();
+  const early = useEarly();
 
   useEffect(() => {
     const root = ref.current;
@@ -163,7 +173,7 @@ export function CordLayer({ children, className }: { children: ReactNode; classN
       </svg>
       <div className="relative">{children}</div>
       {/* the server and client bundles compile `drawCord` differently; only the server's copy runs */}
-      <script dangerouslySetInnerHTML={{ __html: drawEarly }} suppressHydrationWarning />
+      {early && <script dangerouslySetInnerHTML={{ __html: drawEarly }} suppressHydrationWarning />}
     </div>
   );
 }
@@ -181,17 +191,6 @@ function useVisible(ref: RefObject<HTMLElement | null>) {
     return () => observer.disconnect();
   }, [ref]);
   return visible;
-}
-
-/** runs the ambient motion of its children while they are on screen */
-export function Alive({ children, className }: { children: ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const visible = useVisible(ref);
-  return (
-    <div ref={ref} className={className} data-visible={visible ? "" : undefined}>
-      {children}
-    </div>
-  );
 }
 
 /**
@@ -261,14 +260,14 @@ export function CopyCommand({ command, className }: { command: string; className
         });
       }}
       className={cn(
-        "group inline-flex items-center gap-3 font-mono text-[13px] text-(--w-text) transition-colors",
+        "group inline-flex items-center gap-3 font-mono text-sm text-w-text transition-colors",
         className,
       )}
       aria-label={`Copy ${command}`}
     >
-      <span className="text-(--w-muted) select-none">$</span>
+      <span className="text-w-muted select-none">$</span>
       <span>{command}</span>
-      <span className="text-(--w-muted) transition-colors group-hover:text-(--w-ink)">
+      <span className="text-w-muted transition-colors group-hover:text-w-ink">
         {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
       </span>
     </button>
@@ -313,7 +312,7 @@ export function PluginList() {
   const { plugins, active, setActive } = usePlugins();
 
   return (
-    <ol className="mt-10 border-t border-(--w-rule)/40">
+    <ol className="mt-10 border-t border-w-rule/40">
       {plugins.map((plugin, i) => (
         <li key={plugin.id}>
           <button
@@ -321,20 +320,23 @@ export function PluginList() {
             onClick={() => setActive(plugin.id)}
             aria-pressed={plugin.id === active}
             className={cn(
-              "group flex w-full items-baseline py-2.5 text-left text-[15px] hover:transition-colors",
-              plugin.id === active ? "text-(--w-ink)" : "text-(--w-muted) hover:text-(--w-text)",
+              "group flex w-full flex-wrap items-baseline py-2.5 text-left text-base hover:transition-colors",
+              plugin.id === active ? "text-w-ink" : "text-w-muted hover:text-w-text",
             )}
           >
-            <span className="w-serif w-7 shrink-0 text-[14px] text-(--w-muted)">{i + 1}</span>
-            <span className="w-serif text-[17px]">{plugin.name}</span>
-            <span className="w-leader" />
-            <span className="w-serif shrink-0 text-[15px]">{plugin.short}</span>
-            <span
-              className={cn(
-                "ml-2 size-1.5 shrink-0 self-center rounded-full",
-                plugin.id === active ? "bg-(--w-green-deep)" : "bg-transparent",
-              )}
-            />
+            <span className="font-serif w-7 shrink-0 text-sm text-w-muted">{i + 1}</span>
+            <span className="font-serif shrink-0 text-lg">{plugin.name}</span>
+            <span className="mx-2 min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-w-ink/40 max-sm:hidden" />
+            {/* on phones every description sits under its name, otherwise at the end of a dotted leader */}
+            <span className="font-serif flex items-center gap-2 text-sm max-sm:basis-full max-sm:pl-7 sm:ml-auto">
+              {plugin.short}
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  plugin.id === active ? "bg-w-green-deep" : "bg-transparent",
+                )}
+              />
+            </span>
           </button>
         </li>
       ))}
@@ -404,24 +406,24 @@ export function PluginCard({ top, bottom }: { top?: ReactNode; bottom?: ReactNod
         </Layered>
       </div>
       {/* and its setup on a slip below */}
-      <div className="relative mt-6">
-        <div className="w-sheet-shadow" aria-hidden />
-        <div className="w-sheet">
-          <p className="w-serif px-5 pt-4 text-[15px]/[1.6] text-(--w-muted)">
-            {plugin.description}
-          </p>
-          <p className="mt-4 border-t border-(--w-ink)/25 px-5 pt-3 font-mono text-xs text-(--w-muted)">
-            press.config.tsx
-          </p>
-          <CodeFeed id={plugin.id} html={plugin.html} />
-          <div className="border-t border-(--w-ink)/25 px-5 py-3 w-serif text-[15px]">
-            <Link href={plugin.docsHref} className="w-link text-(--w-ink)">
-              Read the {plugin.name} docs
-            </Link>
-          </div>
-          {bottom}
+      <Sheet className="mt-6">
+        <p className="font-serif px-5 pt-4 text-base leading-relaxed text-w-muted">
+          {plugin.description}
+        </p>
+        <p className="mt-4 border-t border-w-ink/25 px-5 pt-3 font-mono text-xs text-w-muted">
+          press.config.tsx
+        </p>
+        <CodeFeed id={plugin.id} html={plugin.html} />
+        <div className="border-t border-w-ink/25 px-5 py-3 font-serif text-base">
+          <Link
+            href={plugin.docsHref}
+            className="text-w-ink underline decoration-w-ink/35 underline-offset-4 transition-colors hover:decoration-w-ink"
+          >
+            Read the {plugin.name} docs
+          </Link>
         </div>
-      </div>
+        {bottom}
+      </Sheet>
     </>
   );
 }

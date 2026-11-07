@@ -23,7 +23,7 @@ export const baseOptions: BaseOptions = {
     title: (
       <>
         <Logo className="fp-logo size-9 -my-1 shrink-0" />
-        <span className="fp-title text-[21px] font-normal tracking-[-0.01em]">Fumapress</span>
+        <span className="font-serif text-xl font-normal">Fumapress</span>
       </>
     ),
   },

@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
     "@fumapress/ai": "workspace:*",
     "@fumapress/blog": "workspace:*",
     "@fumapress/tegami": "workspace:*",

@@ -67,6 +67,64 @@
   --w-code-constant: #e0896f;
 }
 
+/* the tokens as Tailwind colors, read when used, so the page's light and dark values apply: `fill-w-ink`, `text-w-ink/80` */
+@theme inline {
+  --color-w-paper: var(--w-paper);
+  --color-w-sheet: var(--w-sheet);
+  --color-w-text: var(--w-text);
+  --color-w-muted: var(--w-muted);
+  --color-w-ink: var(--w-ink);
+  --color-w-ink-soft: var(--w-ink-soft);
+  --color-w-indigo: var(--w-indigo);
+  --color-w-indigo-wash: var(--w-indigo-wash);
+  --color-w-blue-light: var(--w-blue-light);
+  --color-w-deep: var(--w-deep);
+  --color-w-label: var(--w-label);
+  --color-w-green: var(--w-green);
+  --color-w-green-deep: var(--w-green-deep);
+  --color-w-cream: var(--w-cream);
+  --color-w-gloss: var(--w-gloss);
+  --color-w-shadow: var(--w-shadow);
+  --color-w-shadow-glaze: var(--w-shadow-glaze);
+  --color-w-rule: var(--w-rule);
+  --color-w-seal: var(--w-seal);
+  --color-w-code-comment: var(--w-code-comment);
+}
+
+/*
+ * Times New Roman scaled to the width and height of Newsreader, shown until the web font loads, so the text keeps its
+ * lines when the font arrives.
+ */
+@font-face {
+  font-family: "Newsreader Fallback";
+  /* Liberation Serif has the metrics of Times New Roman, on Linux */
+  src: local("Times New Roman"), local("Times"), local("Liberation Serif");
+  size-adjust: 100.5%;
+  ascent-override: 73.63%;
+  descent-override: 25.87%;
+  line-gap-override: 0%;
+}
+
+@theme {
+  --font-serif:
+    "Newsreader Variable", "Newsreader Fallback", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  /* the flat offset shadow of the drawings, on buttons */
+  --shadow-flat: 6px 4px 0 0 var(--w-shadow);
+  --shadow-flat-sm: 3px 2px 0 0 var(--w-shadow);
+  /* the spacing of vertical type, as on the spine of a book */
+  --tracking-spine: 0.35em;
+}
+
+/* vertical type: upright, as on the spine of a book, or turned, as a gloss beside it */
+@utility tate {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+@utility sideways {
+  writing-mode: vertical-rl;
+}
+
 html:has([data-washi]) body {
   background-color: var(--w-paper);
   background-image:
@@ -79,133 +137,12 @@ html:has([data-washi]) body {
   background-image: var(--w-noise);
 }
 
-[data-washi] {
-  color: var(--w-text);
-}
-
-.w-serif {
-  font-family: "Newsreader", "Shippori Mincho", Georgia, serif;
-  font-optical-sizing: auto;
-}
-
-.w-mincho {
-  font-family: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
-}
-
-/* vertical type between thin rules, as on the spine of a book */
-.w-tate {
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-}
-
-.w-sideways {
-  writing-mode: vertical-rl;
-}
-
-/* SVG paint, so the drawings follow the theme */
-.w-s-ink {
-  stroke: var(--w-ink);
-}
-.w-s-soft {
-  stroke: var(--w-ink-soft);
-}
-.w-s-gloss {
-  stroke: var(--w-gloss);
-}
-.w-s-blue {
-  stroke: var(--w-blue-light);
-}
-.w-s-cream {
-  stroke: var(--w-cream);
-}
-.w-s-green {
-  stroke: var(--w-green-deep);
-}
-.w-s-seal {
-  stroke: var(--w-seal);
-}
-.w-s-rule {
-  stroke: var(--w-rule);
-}
-.w-f-indigo {
-  fill: var(--w-indigo-wash);
-}
-.w-f-deep {
-  fill: var(--w-deep);
-}
-.w-f-label {
-  fill: var(--w-label);
-}
-.w-f-sheet {
-  fill: var(--w-sheet);
-}
-.w-f-paper {
-  fill: var(--w-paper);
-}
-.w-f-green {
-  fill: var(--w-green);
-}
-.w-f-shadow {
-  fill: var(--w-shadow);
-}
-.w-f-shadow-glaze {
-  fill: var(--w-shadow-glaze);
-}
-.w-f-ink {
-  fill: var(--w-ink);
-}
-.w-f-soft {
-  fill: var(--w-ink-soft);
-}
-.w-f-gloss {
-  fill: var(--w-gloss);
-}
-.w-f-seal {
-  fill: var(--w-seal);
-}
-.w-f-text {
-  fill: var(--w-text);
-}
-.w-f-muted {
-  fill: var(--w-muted);
-}
-.w-f-blue {
-  fill: var(--w-blue-light);
-}
-.w-f-cream {
-  fill: var(--w-cream);
-}
-.w-f-green-deep {
-  fill: var(--w-green-deep);
-}
-
-/* a sheet of paper resting on the page, with the flat offset shadow of the illustration */
-.w-sheet {
-  position: relative;
-  z-index: 1;
-  background-color: var(--w-sheet);
-  background-image: var(--w-noise);
-  border: 1px solid color-mix(in oklab, var(--w-ink) 62%, transparent);
-  border-radius: 3px;
-}
-
-/* the second, lighter pass of the pen */
-.w-sheet::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border: 0.5px solid color-mix(in oklab, var(--w-ink) 40%, transparent);
-  border-radius: 4px;
-  transform: translate(1px, -1px) rotate(0.12deg);
-  pointer-events: none;
-}
-
 /*
  * The shadow a sheet casts down and right, with the fibers of the paper showing through: everything the sheet sweeps
  * through on its way to the offset (`--sx`, `--sy`), so it stays joined to the sheet with diagonal edges at the top
  * right and bottom left corners, rather than a second rectangle behind it.
  */
-.w-sheet-shadow {
+.sheet-shadow {
   --sx: 16px;
   --sy: 11px;
   position: absolute;
@@ -225,14 +162,10 @@ html:has([data-washi]) body {
 
 /* a shorter shadow in the single column, so it stays on the page */
 @media (width < 80rem) {
-  .w-sheet-shadow {
+  .sheet-shadow {
     --sx: 10px;
     --sy: 7px;
   }
-}
-
-.dark .w-sheet {
-  border-color: color-mix(in oklab, var(--w-ink) 35%, transparent);
 }
 
 .w-code pre {
@@ -252,53 +185,6 @@ html:has([data-washi]) body {
   font-family: var(--font-mono);
 }
 
-/* the dotted leaders of a table of contents */
-.w-leader {
-  flex: 1;
-  min-width: 1.5rem;
-  margin: 0 0.5rem;
-  border-bottom: 1.5px dotted color-mix(in oklab, var(--w-ink) 45%, transparent);
-  transform: translateY(-0.3em);
-}
-
-.w-link {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, var(--w-ink) 35%, transparent);
-  text-underline-offset: 4px;
-  text-decoration-thickness: 1px;
-  transition: text-decoration-color 0.2s;
-}
-
-.w-link:hover {
-  text-decoration-color: var(--w-ink);
-}
-
-.w-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.125rem;
-  border-radius: 999px;
-  background: var(--w-label);
-  color: #f1eee7;
-  font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 6px 4px 0 0 var(--w-shadow);
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
-}
-
-.dark .w-button {
-  background: var(--w-ink);
-  color: var(--w-paper);
-}
-
-.w-button:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 3px 2px 0 0 var(--w-shadow);
-}
-
 /* figures play once when they enter the view */
 .w-thread {
   stroke-dasharray: 1;
@@ -311,12 +197,39 @@ html:has([data-washi]) body {
   transition-delay: calc(var(--i) * 0.45s + 0.2s);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .w-thread {
-    stroke-dashoffset: 0;
+/*
+ * The layers of a painting (`Layered`) cover the whole figure. Each takes the pointer only where it paints, so a hover
+ * reaches the layers under it.
+ */
+.w-static > svg {
+  pointer-events: none;
+}
+.w-static > svg > * {
+  pointer-events: visiblePainted;
+}
+
+/*
+ * Captions of a large figure (`Layered`), centered on their own or in a box, are drawn in the figure's units, so they
+ * grow with it. As the figure widens they are set smaller, staying at caption size (11 to 14px) beside 16px text.
+ * Type that lines up with the drawing keeps its proportions.
+ */
+.w-caption {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@container (width >= 32rem) {
+  .w-caption {
+    scale: 0.85;
   }
-  [data-inview] .w-thread {
-    transition: none;
+}
+@container (width >= 38rem) {
+  .w-caption {
+    scale: 0.75;
+  }
+}
+@container (width >= 44rem) {
+  .w-caption {
+    scale: 0.65;
   }
 }
 
@@ -456,7 +369,7 @@ html:has([data-washi]) body {
 
 /*
  * Ambient motion, so the machines feel like working devices: smooth at the display's rate, and only while the figure
- * is on screen (`[data-visible]`, set by `InView` or `Alive`). `Layered` gives each moving part an element of its own,
+ * is on screen (`[data-visible]`, set by `InView`). `Layered` gives each moving part an element of its own,
  * so the browser runs these on the compositor and the page does no work per frame.
  */
 
@@ -515,76 +428,10 @@ html:has([data-washi]) body {
   animation-play-state: running;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .w-light {
-    opacity: 1;
-  }
-  [data-inview] .w-light {
-    transition: none;
-  }
-  .w-spin,
-  .w-print,
-  .w-turn,
-  .w-turn-slow,
-  .w-breathe,
-  .w-blink {
-    animation: none;
-  }
-  .w-slide-card,
-  [data-inview] .w-slide-card {
-    transform: none;
-    animation: none;
-  }
-}
-
-/* the layers of a painted SVG, see `Layered`: each moving part over the filtered painting, on its own */
-.w-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* one moving part: a box of the page, which the browser turns or fades on the compositor, with its drawing inside */
-.w-part {
-  position: absolute;
-  inset: 0;
-}
-
-.w-part > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-/* a part that travels a path, see `Parts`: placed by its animation, hidden until it starts */
-.w-travel {
-  inset: auto;
-  top: 0;
-  left: 0;
-  opacity: 0;
-}
-
 /*
  * Rain behind the window's glass (see rain.tsx): a pane clips three depths of streaks; each depth is a tile of vertical
  * streaks on a slanted layer that falls by exactly one tile and loops, as a composited transform.
  */
-.w-rain-root {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.w-rain-pane {
-  position: absolute;
-  overflow: hidden;
-}
-
-.w-rain-slant {
-  position: absolute;
-  inset: -40% -30%;
-}
-
 /* one transform tilts the streaks and moves them along their tilt, so rain always falls the way it leans */
 .w-rain-fall {
   position: absolute;
@@ -704,31 +551,6 @@ html:has([data-washi]) body {
   animation-play-state: running;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .w-rain-fall,
-  .w-drop-track,
-  .w-drop::before {
-    animation: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* still ends, so the old code is removed */
-  .w-feed-in,
-  .w-feed-out {
-    animation-duration: 1ms;
-  }
-  .w-feed {
-    transition: none;
-  }
-}
-
-/* a scrolling box on the page: a thin scrollbar in the ink of the drawings */
-.w-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--w-ink) 28%, transparent) transparent;
-}
-
 /* the ring of words around the colophon, turning slowly while in view, on the compositor */
 .w-ring {
   animation: w-ring 120s linear infinite;
@@ -742,8 +564,39 @@ html:has([data-washi]) body {
     transform: rotate(360deg);
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
+  .w-thread {
+    stroke-dashoffset: 0;
+  }
+  .w-light {
+    opacity: 1;
+  }
+  [data-inview] .w-thread,
+  [data-inview] .w-light,
+  .w-feed {
+    transition: none;
+  }
+  .w-spin,
+  .w-print,
+  .w-turn,
+  .w-turn-slow,
+  .w-breathe,
+  .w-blink,
+  .w-rain-fall,
+  .w-drop-track,
+  .w-drop::before,
   .w-ring {
     animation: none;
+  }
+  .w-slide-card,
+  [data-inview] .w-slide-card {
+    transform: none;
+    animation: none;
+  }
+  /* still ends, so the old code is removed */
+  .w-feed-in,
+  .w-feed-out {
+    animation-duration: 1ms;
   }
 }

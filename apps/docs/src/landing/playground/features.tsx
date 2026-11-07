@@ -69,10 +69,7 @@ function Text({ text }: { text: string }) {
     <p className="text-sm leading-relaxed">
       {text.split(/(`[^`]+`)/).map((part, i) =>
         part.startsWith("`") ? (
-          <code
-            key={i}
-            className="rounded border bg-fd-muted px-1 py-0.5 font-mono text-[0.8125rem]"
-          >
+          <code key={i} className="rounded border bg-fd-muted px-1 py-0.5 font-mono text-sm">
             {part.slice(1, -1)}
           </code>
         ) : (
@@ -129,7 +126,7 @@ export function AIChatPanel({ onClose }: { onClose: () => void }) {
           {messages.map((message, i) =>
             message.role === "user" ? (
               <div key={i} className="flex justify-end">
-                <p className="max-w-[85%] rounded-xl bg-fd-secondary px-3 py-1.5 text-sm whitespace-pre-wrap text-fd-secondary-foreground">
+                <p className="max-w-xs rounded-xl bg-fd-secondary px-3 py-1.5 text-sm whitespace-pre-wrap text-fd-secondary-foreground">
                   {message.text}
                 </p>
               </div>
@@ -153,7 +150,7 @@ export function AIChatPanel({ onClose }: { onClose: () => void }) {
                         href={source.url}
                         className="flex h-7 max-w-56 items-center gap-1.5 rounded-lg border bg-fd-card ps-1.5 pe-2 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
                       >
-                        <span className="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-md bg-fd-secondary px-1 font-mono text-[10.5px] tabular-nums">
+                        <span className="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-md bg-fd-secondary px-1 font-mono text-xs tabular-nums">
                           {j + 1}
                         </span>
                         <span className="truncate">{source.title}</span>

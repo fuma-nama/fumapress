@@ -5,16 +5,12 @@ import { cn } from "../cn";
 import { asMarkdown, md } from "fumapress/markdown";
 import type { WakuRouteConfig } from "fumapress";
 import { commands, plugins } from "../home.data";
-import { HeroPress, InkDefs, Jack, Socket, Mark, Sheet, pressJack } from "../landing/ink";
-import { Layered } from "../landing/pen";
-import { FilesFigure } from "../landing/figures/files";
-import { SourcesFigure } from "../landing/figures/sources";
-import { LayoutsFigure } from "../landing/figures/layouts";
+import { InkDefs, Jack, Socket, Mark, Sheet, pressJack } from "../landing/ink";
+import { Painting } from "../landing/painting";
 import { VIEWBOX, WindowFront, WindowOutside, glass, panes } from "../landing/figures/window";
 import { Rain } from "../landing/rain";
 import { Envelopes, MdxManuscript, SwatchFan, Welcome } from "../landing/marginalia";
 import {
-  Alive,
   CopyCommand,
   CordLayer,
   InView,
@@ -34,8 +30,6 @@ export function getConfig() {
     ogImage: { title: "Fumapress", description },
   } satisfies WakuRouteConfig;
 }
-
-const fonts = "https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap";
 
 const copy = {
   title: "Turn your Markdown into a documentation site.",
@@ -60,11 +54,9 @@ const copy = {
   },
   playground: {
     title: "Try it here before you install anything.",
-    body: "What you see is the real docs UI, and the config under it is all it takes.",
   },
   support: {
     title: "A star helps Fumapress reach the next writer.",
-    body: "It is free, MIT licensed and built in the open. If it serves your docs well, a star on GitHub is the simplest way to say so.",
   },
   plugins: {
     title: "When your docs grow, the site grows with them.",
@@ -72,7 +64,6 @@ const copy = {
   },
   start: {
     title: "Your first page is one command away.",
-    body: "On Waku or Astro, with the same plugins, layouts and search.",
   },
 };
 
@@ -144,10 +135,9 @@ export default function Page() {
       <title>Fumapress</title>
       <meta property="og:title" content="Fumapress" />
       <meta property="og:description" content={description} />
-      <link rel="stylesheet" href={fonts} precedence="default" />
       <div
         data-washi=""
-        className="-mx-4 w-[calc(100%+2rem)] px-4 xl:mx-auto xl:w-full xl:max-w-[1180px] xl:px-2"
+        className="-mx-4 px-4 text-w-text xl:mx-auto xl:w-full xl:max-w-6xl xl:px-2"
       >
         <InkDefs />
         <CordLayer>
@@ -163,9 +153,7 @@ export default function Page() {
               // the devices stand on the page; the cord plugs into the book and leaves from the clipboard
               <InView className="relative">
                 <Jack edge="top" x={86.5} y={7.2} />
-                <Layered>
-                  <FilesFigure />
-                </Layered>
+                <Painting name="files" />
                 <Jack edge="bottom" x={11.5} y={83.7} wander={[0.44, 0.5]} />
               </InView>
             }
@@ -182,9 +170,7 @@ export default function Page() {
                 {/* the cord plugs into the last source; the config that joins them is on a slip below */}
                 <InView className="relative">
                   <Jack edge="top" x={90.4} y={17.9} />
-                  <Layered>
-                    <SourcesFigure />
-                  </Layered>
+                  <Painting name="sources" />
                 </InView>
                 <Sheet className="mt-8">
                   <div
@@ -206,9 +192,7 @@ export default function Page() {
               // into the Docs plate, out of the card box of your project
               <InView className="relative">
                 <Jack edge="top" x={11.5} y={6.4} />
-                <Layered>
-                  <LayoutsFigure />
-                </Layered>
+                <Painting name="layouts" />
                 <Jack edge="bottom" x={69} y={96.4} wander={[0.74, 0.7]} />
               </InView>
             }
@@ -222,31 +206,28 @@ export default function Page() {
               body={copy.plugins.body}
               aside={<PluginList />}
               figure={
-                <Alive>
+                <InView>
                   <PluginCard
                     top={<Jack edge="top" x={23} y={6.3} />}
                     bottom={<Jack edge="bottom" x={60} wander={[0.8, 0.76]} />}
                   />
-                </Alive>
+                </InView>
               }
             />
           </PluginIndex>
 
           <section
             id="playground"
-            className="mx-auto w-full max-w-[46rem] xl:max-w-none grid scroll-mt-16 grid-cols-[minmax(0,1fr)] gap-y-8 py-20 xl:grid-cols-[minmax(0,1fr)_3.5rem] xl:gap-x-14 xl:py-36"
+            className="mx-auto flex w-full max-w-3xl scroll-mt-16 flex-col gap-y-8 py-20 xl:max-w-none xl:flex-row xl:gap-x-14 xl:py-36"
           >
-            <div className="xl:col-start-2 xl:row-start-1">
+            <div className="xl:order-last xl:w-14 xl:shrink-0">
               <Mark gloss="Test print">試し刷り</Mark>
             </div>
-            <div className="xl:col-start-1 xl:row-start-1 xl:pt-3">
-              <h2 className="w-serif max-w-xl text-[2rem]/[1.15] font-light tracking-[-0.01em] text-balance text-(--w-ink) xl:text-[2.5rem]/[1.12]">
+            <div className="min-w-0 xl:flex-1 xl:pt-3">
+              <h2 className="font-serif max-w-xl text-3xl font-light tracking-tight text-balance text-w-ink xl:text-4xl">
                 {copy.playground.title}
               </h2>
-              <p className="w-serif mt-6 max-w-xl text-[18px]/[1.7] text-(--w-text)/80">
-                {copy.playground.body}
-              </p>
-              <div className="mt-20 xl:mt-14">
+              <div className="mt-14">
                 <Playground device={<PreviewDevice />} />
               </div>
             </div>
@@ -256,7 +237,6 @@ export default function Page() {
             mark="奥付"
             gloss="Colophon"
             title={copy.start.title}
-            body={copy.start.body}
             figure={
               <Sheet>
                 <Jack edge="top" x={70} />
@@ -264,22 +244,22 @@ export default function Page() {
                   <div
                     key={fw.name}
                     className={cn(
-                      "grid gap-x-8 gap-y-4 p-6 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-center",
-                      i > 0 && "border-t border-(--w-ink)/25",
+                      "flex flex-col gap-x-8 gap-y-4 p-6 sm:flex-row sm:items-center",
+                      i > 0 && "border-t border-w-ink/25",
                     )}
                   >
-                    <div>
-                      <p className="w-serif text-2xl text-(--w-ink)">{fw.name}</p>
+                    <div className="sm:w-40 sm:shrink-0">
+                      <p className="font-serif text-2xl text-w-ink">{fw.name}</p>
                       <Link
                         href={fw.href}
-                        className="w-serif w-link mt-1 inline-block text-[15px] text-(--w-muted)"
+                        className="mt-1 inline-block font-serif text-base text-w-muted underline decoration-w-ink/35 underline-offset-4 transition-colors hover:decoration-w-ink"
                       >
                         Quick Start
                       </Link>
                     </div>
-                    <div>
-                      <p className="w-serif text-[15px] text-(--w-muted)">{fw.note}</p>
-                      <CopyCommand command={fw.command} className="mt-3 text-left text-[12.5px]" />
+                    <div className="min-w-0">
+                      <p className="font-serif text-base text-w-muted">{fw.note}</p>
+                      <CopyCommand command={fw.command} className="mt-3 text-left text-xs" />
                     </div>
                   </div>
                 ))}
@@ -302,27 +282,31 @@ export default function Page() {
 
 function Hero() {
   return (
-    <section className="mx-auto w-full max-w-[46rem] xl:max-w-none grid grid-cols-[minmax(0,1fr)] gap-y-10 pt-6 pb-8 xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)_3.5rem] xl:gap-x-10 xl:pt-14 xl:pb-4">
-      <div className="flex flex-col xl:pt-38">
-        <h1 className="w-serif text-[2.5rem]/[1.1] font-light tracking-[-0.015em] text-balance text-(--w-ink) sm:text-5xl/[1.08] xl:text-[3.3rem]/[1.06]">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-y-10 pt-6 pb-8 xl:max-w-none xl:flex-row xl:gap-x-10 xl:pt-14 xl:pb-4">
+      <div className="flex min-w-0 flex-col xl:flex-5 xl:pt-38">
+        <h1 className="font-serif text-4xl font-light tracking-tight text-balance text-w-ink sm:text-5xl">
           {copy.title}
         </h1>
-        <p className="w-serif mt-7 max-w-[27rem] text-[18px]/[1.7] text-(--w-text)/80">
+        <p className="font-serif mt-7 max-w-md text-lg leading-relaxed text-w-text/80">
           {copy.lead}
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <Link href="/docs" className="w-button w-serif">
+          <Link
+            href="/docs"
+            className="inline-flex items-center gap-2 rounded-full bg-w-label px-4.5 py-2.5 font-serif text-sm font-medium text-w-paper shadow-flat transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-flat-sm dark:bg-w-ink"
+          >
             Quick Start
           </Link>
-          <a href="#playground" className="w-serif w-link text-[16px] text-(--w-ink)">
+          <a
+            href="#playground"
+            className="font-serif text-base text-w-ink underline decoration-w-ink/35 underline-offset-4 transition-colors hover:decoration-w-ink"
+          >
             or try it in the playground
           </a>
         </div>
       </div>
-      <Alive className="relative mx-auto w-full max-w-[540px]">
-        <Layered>
-          <HeroPress className="h-auto w-full" />
-        </Layered>
+      <InView className="relative mx-auto w-full max-w-lg xl:flex-6">
+        <Painting name="hero" />
         <span
           data-cord="start"
           data-wander="0.6,0.56"
@@ -332,13 +316,13 @@ function Hero() {
             top: `${((pressJack.y - pressJack.top) / pressJack.height) * 100}%`,
           }}
         />
-      </Alive>
-      <div className="hidden flex-col items-center gap-5 pt-16 xl:flex" aria-hidden>
-        <span className="h-24 w-px bg-(--w-rule)" />
-        <span className="w-tate w-mincho text-[1.6rem] leading-none tracking-[0.4em] text-(--w-ink)">
+      </InView>
+      <div className="hidden w-14 shrink-0 flex-col items-center gap-5 pt-16 xl:flex" aria-hidden>
+        <span className="h-24 w-px bg-w-rule" />
+        <span className="tate font-serif text-2xl leading-none tracking-spine text-w-ink">
           言の葉を刷る
         </span>
-        <span className="h-24 w-px bg-(--w-rule)" />
+        <span className="h-24 w-px bg-w-rule" />
       </div>
     </section>
   );
@@ -356,25 +340,25 @@ function Chapter({
   gloss: string;
   title: string;
   /** one string per paragraph, with objects set between them */
-  body: ReactNode | ReactNode[];
+  body?: ReactNode | ReactNode[];
   aside?: ReactNode;
   figure: ReactNode;
 }) {
   return (
-    <section className="mx-auto w-full max-w-[46rem] xl:max-w-none grid grid-cols-[minmax(0,1fr)] gap-y-8 py-20 xl:grid-cols-[minmax(0,4fr)_minmax(0,7fr)_3.5rem] xl:items-start xl:gap-x-14 xl:py-36">
-      <div className="xl:col-start-3 xl:row-start-1">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-y-8 py-20 xl:max-w-none xl:flex-row xl:items-start xl:gap-x-14 xl:py-36">
+      <div className="xl:order-last xl:w-14 xl:shrink-0">
         <Mark gloss={gloss}>{mark}</Mark>
       </div>
-      <div className="xl:col-start-1 xl:row-start-1 xl:pt-3">
-        <h2 className="w-serif text-[2rem]/[1.15] font-light tracking-[-0.01em] text-balance text-(--w-ink) xl:text-[2.5rem]/[1.12]">
+      <div className="min-w-0 xl:flex-4 xl:pt-3">
+        <h2 className="font-serif text-3xl font-light tracking-tight text-balance text-w-ink xl:text-4xl">
           {title}
         </h2>
-        {(Array.isArray(body) ? body : [body]).map((paragraph, i) =>
+        {(Array.isArray(body) ? body : body === undefined ? [] : [body]).map((paragraph, i) =>
           typeof paragraph === "string" ? (
             <p
               key={i}
               className={cn(
-                "w-serif max-w-md text-[18px]/[1.7] text-(--w-text)/80",
+                "font-serif max-w-md text-lg leading-relaxed text-w-text/80",
                 i === 0 ? "mt-6" : "mt-4",
               )}
             >
@@ -386,7 +370,7 @@ function Chapter({
         )}
         {aside}
       </div>
-      <div className="mt-20 xl:col-start-2 xl:row-start-1 xl:mt-0">{figure}</div>
+      <div className="mt-20 min-w-0 xl:mt-0 xl:flex-7">{figure}</div>
     </section>
   );
 }
@@ -394,27 +378,26 @@ function Chapter({
 /** the last page: rain at a window, the cord ending in the socket on the wall beside it */
 function Ending() {
   return (
-    <div className="mx-auto w-full max-w-[46rem] xl:max-w-none relative grid grid-cols-[minmax(0,1fr)] gap-y-12 pt-8 pb-20 xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)_3.5rem] xl:items-center xl:gap-x-12 xl:pt-10 xl:pb-28">
+    <div className="relative mx-auto flex w-full max-w-3xl flex-col gap-y-12 pt-8 pb-20 xl:max-w-none xl:flex-row xl:items-center xl:gap-x-12 xl:pt-10 xl:pb-28">
       {/* room for the socket on the wall: on the left, and under the sill on phones */}
-      <div className="max-xl:pb-20 xl:pl-24">
-        <Alive className="relative w-full max-w-[640px]">
+      <div className="min-w-0 max-xl:pb-20 xl:flex-7 xl:pl-24">
+        <InView className="relative w-full max-w-2xl">
           {/* the town outside, the rain, then the glass and the room in front of it */}
           <WindowOutside className="block h-auto w-full" />
           <Rain glass={glass} panes={panes} viewBox={VIEWBOX} />
           <WindowFront className="absolute inset-0 size-full" />
           {/* the cord ends in the socket on the wall: left of the window, under its sill on phones */}
-          <Socket className="absolute! top-[100%] left-[6%] xl:top-[62%] xl:left-[-15%]" />
-        </Alive>
+          <Socket className="absolute! top-full left-1/16 xl:top-3/5 xl:-left-1/7" />
+        </InView>
       </div>
       {/* the call to support, beside the scene, and under it on phones */}
-      <div className="max-w-md">
-        <h2 className="w-serif text-[28px]/[1.25] text-balance text-(--w-ink) xl:text-[32px]">
+      <div className="max-w-md xl:flex-4">
+        <h2 className="font-serif text-3xl font-light text-balance text-w-ink">
           {copy.support.title}
         </h2>
-        <p className="w-serif mt-5 text-[17px]/[1.7] text-(--w-text)/80">{copy.support.body}</p>
         <a
           href="https://github.com/fuma-nama/fumapress"
-          className="w-button w-serif mt-8 inline-flex items-center gap-2.5"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-w-label px-4.5 py-2.5 font-serif text-sm font-medium text-w-paper shadow-flat transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-flat-sm dark:bg-w-ink"
         >
           <StarIcon className="size-4" strokeWidth={1.5} />
           Star on GitHub
@@ -422,14 +405,14 @@ function Ending() {
       </div>
       {/* set vertically at the edge of the page, and across it under the call on phones */}
       <div
-        className="flex items-center justify-center gap-4 xl:flex-col xl:gap-5 xl:self-start"
+        className="flex items-center justify-center gap-4 xl:w-14 xl:shrink-0 xl:flex-col xl:gap-5 xl:self-start"
         aria-hidden
       >
-        <span className="h-px w-10 bg-(--w-rule) xl:h-20 xl:w-px" />
-        <span className="w-mincho text-base leading-none tracking-[0.2em] whitespace-nowrap text-(--w-ink-soft) xl:text-lg xl:tracking-[0.4em] xl:[text-orientation:upright] xl:[writing-mode:vertical-rl]">
+        <span className="h-px w-10 bg-w-rule xl:h-20 xl:w-px" />
+        <span className="font-serif text-base leading-none tracking-widest whitespace-nowrap text-w-ink-soft xl:text-lg xl:tate xl:tracking-spine">
           続きは、あなたの手で
         </span>
-        <span className="h-px w-10 bg-(--w-rule) xl:h-20 xl:w-px" />
+        <span className="h-px w-10 bg-w-rule xl:h-20 xl:w-px" />
       </div>
     </div>
   );
@@ -488,13 +471,7 @@ ${plugin.usage}
 `;
 })}
 
-## ${copy.playground.title}
-
-${copy.playground.body}
-
 ## ${copy.start.title}
-
-${copy.start.body}
 
 Fumapress is written by Fuma Nama, built on Fumadocs and released under the MIT license.
 
@@ -512,6 +489,6 @@ ${fw.command}
 
 ## ${copy.support.title}
 
-${copy.support.body} [Star on GitHub](https://github.com/fuma-nama/fumapress)
+[Star on GitHub](https://github.com/fuma-nama/fumapress)
 `;
 }
