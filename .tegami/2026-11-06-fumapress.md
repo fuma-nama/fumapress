@@ -12,8 +12,8 @@ packages:
 - `press.config` exports `createPress(content, options).plugins(...).config({...})`, replacing `defineConfig()`, `.adapters()` and `.layouts()`.
 - Removed `loaderOptions`: its fields are options of `createPress()`, and `loaderPlugins` replaces `loaderOptions.plugins`.
 - `.config()` is optional: `createPress(content).plugins(...)` is a complete site.
-- `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI.
-- Removed the layout factories of `fumapress/layouts/*`, use the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, "docs")` of `fumapress` replaces their `treeRoot` option.
+- `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI: `layout` picks a Fumadocs layout, `layoutProps` and `pageProps` are typed by it, and `body`, `pageData`, `actions` and `footer` replace what it renders.
+- Removed the layout factories of `fumapress/layouts/*`, use `renderDefault({ layout })` or the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, "docs")` of `fumapress` replaces their `treeRoot` option.
 - `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.baseOptions` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the keyed `head` tags replace `meta`.
 - `ui.providerProps` sets the root provider of every page, like `theme` or a custom `search.SearchDialog`.
 - Removed `renderNotFound`. The 404 page is a custom `src/pages/404.tsx`, else a plugin view at `/404`, else the built-in page in the Home Layout.
@@ -37,7 +37,9 @@ packages:
 - Hooks: `routes({ createApi, createView })`, `deriveRoutes()`, `middleware()`, `head()`, `slots()`, `baseOptions()`, `providerProps()`, `configureLoader()`, `transformPage()`, `getPageView()` and `build()`.
 - The `waku` hooks `createPages`, `honoMiddleware` and `unstable_serverEntry` replace `createPages`, `createMiddlewares` and `unstable_onServerEntry`. Plugin layouts live in route groups only.
 - A plugin `provides` a capability and others read its `api` with `this.getCapability()`. A listed plugin replaces the preset entry of its capability.
-- Slots reach `ui.renderPage` as `props.actions` and `props.footer`. The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
+- `useLayoutProps()` of `fumapress/client` and `@fumapress/astro/client` returns the layout props that plugins give from client state, like the AI chat: spread it into a custom layout. The built-in UI applies them.
+- `props.actions` starts with the built-in buttons, `markdown` and `view-options`.
+- Slots reach `ui.renderPage` as `props.actions` and `props.footer`, which the built-in UI places on the Docs page. The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
 - Removed `preinit`, `configureRoutes`, plugin `renderPage`, `this.data` and `Adapter`.
 - `fumapress` exports the types that plugins use, like `Context`, `HeadTag`, `SlotItem` and `DocsPageData`.
 

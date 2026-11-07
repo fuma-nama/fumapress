@@ -41,6 +41,8 @@ export function ShareButton({ url }: { url: string }) {
 
 `slots` runs once for each content page, with `page` set, and once for the whole site, without `page`. A slot says where the component goes, and the default layout places it there. A custom layout places it by name, with `props.actions.share`.
 
+`actions` is for buttons about the page, like sharing it. Put UI for the whole site, like a floating button, in `layout.wrapper`.
+
 To translate the label, add your strings with the `translations` field. See the [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations).
 
 ### Available Slots
@@ -52,9 +54,15 @@ Slots are placed in this order on a content page, from the outside in:
     title="layout.wrapper"
     note="Around the layout of every page. The only slot that runs without page."
   >
-    <Layer title="actions" note="Beside the title. A custom layout reads props.actions." />
+    <Layer
+      title="actions"
+      note="Below the title. A custom layout reads props.actions. Not on pages a plugin owns, like blog posts."
+    />
     <Layer title="body.wrapper" note="Around the content. A custom layout reads props.body." />
-    <Layer title="footer" note="Below the content. A custom layout reads props.footer." />
+    <Layer
+      title="footer"
+      note="Below the content. A custom layout reads props.footer. Not on pages a plugin owns."
+    />
   </Layer>
 </Nesting>
 

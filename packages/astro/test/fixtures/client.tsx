@@ -26,7 +26,3 @@ export function TreeName({ tree }: { tree: PageTree.Root }) {
 export function TestDialog(_props: object): null {
   return null;
 }
-
-export function TestLayout({ children }: { children?: ReactNode }) {
-  return children;
-}

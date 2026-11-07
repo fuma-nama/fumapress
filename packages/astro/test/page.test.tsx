@@ -74,6 +74,7 @@ beforeAll(async () => {
   registerReference("provider", await import("@/ui/provider"));
   registerReference("home", await import("@/ui/home"));
   registerReference("docs", await import("@fumapress/core/ui/docs"));
+  registerReference("page-actions", await import("fumadocs-ui/layouts/docs/page"));
   registerReference("shell", await import("@fumapress/core/ui/home"));
   registerReference("layout", await import("@/ui/layout-root"));
   registerReference("client", client);
@@ -130,18 +131,6 @@ describe("layouts", () => {
 });
 
 describe("pages", () => {
-  it("render the Docs Layout of the `ai-chat` capability in the default UI", async () => {
-    const ctx = await site({
-      provides: ["ai-chat"],
-      api: { DocsLayout: client.TestLayout },
-    } as Plugin<AppShape, { provides: "ai-chat" }>);
-    const [page] = (await ctx.getLoader()).getPages();
-    const { island } = await renderedPage({ page: page! });
-
-    expect(island.tree).toContain('"DefaultDocs"');
-    expect(JSON.stringify(islandTree(island.tree))).toContain('"layout":"TestLayout"');
-  });
-
   it("render the default UI with the page tree as a file, preloaded", async () => {
     const ctx = await site();
     const [page] = (await ctx.getLoader()).getPages();

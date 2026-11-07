@@ -64,31 +64,26 @@ A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#la
 
 </section>
 
-<section id="swap">
+<section id="default-ui">
 
-To use another built-in layout, swap the two imports:
+### Switching the Layout
 
-```tsx tab="Docs"
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+Pass a Fumadocs layout to `renderDefault()`. This example renders the `docs` source with the Notebook Layout:
+
+```tsx title="press.config.tsx"
+export default app.config({
+  ui: {
+    renderPage(props) {
+      if (props.type === "docs") return props.renderDefault({ layout: "notebook" });
+      return props.renderDefault();
+    },
+  },
+});
 ```
 
-```tsx tab="Notebook"
-import { DocsLayout } from "fumadocs-ui/layouts/notebook";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
-```
+`layout` is one of `"docs"`, `"notebook"`, `"glass"`, `"spacious"` and `"flux"`. Plugin pages, like the blog, keep the Home Layout.
 
-```tsx tab="Glass"
-import { DocsLayout } from "fumadocs-ui/layouts/glass";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/glass/page";
-```
-
-```tsx tab="Spacious"
-import { DocsLayout } from "fumadocs-ui/layouts/spacious";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/spacious/page";
-```
-
-Glass and Spacious also need their styles. Use `spacious.css` for Spacious.
+Glass and Spacious also need their styles, imported before the theme. Use `spacious.css` for Spacious:
 
 ```css title="src/app.css"
 @import "tailwindcss";
@@ -97,11 +92,57 @@ Glass and Spacious also need their styles. Use `spacious.css` for Spacious.
 @import "fumadocs-ui/css/neutral.css";
 ```
 
-<Callout>
-  Glass and Spacious are client components, so their props can't contain functions, other than the
-  slots they support. Their styles must be imported before the theme, so replace a combined
-  stylesheet like `default.css` with the separate [theme imports](./configuration.mdx#colors).
-</Callout>
+A combined stylesheet like `default.css` can't go after them, so use the separate [theme imports](./configuration.mdx#colors).
+
+### Layout Props
+
+`layoutProps` go to the layout, and `pageProps` to the page. Their types follow `layout`:
+
+```tsx title="press.config.tsx"
+props.renderDefault({
+  layout: "notebook",
+  layoutProps: { tabMode: "navbar" },
+  pageProps: { tableOfContent: { style: "clerk" } },
+});
+```
+
+The layout is a client component, so a function in these props, like the `transform` of `tabs`, must come from a `'use client'` file:
+
+```tsx tab="src/tabs.ts"
+"use client";
+import type { LayoutTab } from "fumadocs-ui/layouts/shared";
+
+export function transformTab(tab: LayoutTab): LayoutTab {
+  return { ...tab, description: undefined };
+}
+```
+
+```tsx tab="press.config.tsx"
+import { transformTab } from "./src/tabs";
+
+props.renderDefault({
+  layoutProps: { tabs: { transform: transformTab } },
+});
+```
+
+### Replacing Parts
+
+`renderDefault()` also takes the parts it renders, so you can change one part without writing the whole page:
+
+```tsx title="press.config.tsx"
+props.renderDefault({
+  body: (
+    <>
+      {props.body}
+      <Comments />
+    </>
+  ),
+  pageData: { ...props.pageData, lastModified: undefined },
+  actions: { ...props.actions, "view-options": undefined },
+});
+```
+
+`actions` has the built-in buttons, `markdown` and `view-options`, and then the buttons of plugins. To hide them all, pass `actions: {}`.
 
 </section>
 
@@ -119,7 +160,7 @@ Nested paths like `"docs/guides"` work too. To hide pages from the sidebar, see 
 
 <section id="slots">
 
-Plugins like [AI chat](./plugins/ai.mdx#ai-chat) and [Feedback](./plugins/feedback.mdx) add UI through `actions` and `footer`, keyed by name. Render each one by its key, or render them all with `Object.values(footer)`:
+Plugins add buttons about the page through `actions`, and UI after the content through `footer`, like the form of [Feedback](./plugins/feedback.mdx). Both are keyed by name. Render each one by its key, or render them all with `Object.values(footer)`:
 
 </section>
 
@@ -141,7 +182,7 @@ renderPage(props) {
     case "blog.tag":
       return (
         <HomeLayout {...props.baseOptions}>
-          <main className="mx-auto max-w-[1400px] px-4 py-6">{props.children}</main>
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-6">{props.children}</div>
         </HomeLayout>
       );
     default:

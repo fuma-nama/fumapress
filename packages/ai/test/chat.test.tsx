@@ -30,10 +30,12 @@ describe("aiPlugin", () => {
     expect(await site.getApiRoutes()).toMatchObject([{ path, render: "dynamic" }]);
   });
 
-  it("wraps every page in the chat of its endpoint", async () => {
-    expect(await aiPlugin({ model }).slots!.call(ctx, {})).toEqual([
+  it("wraps every page in the chat of its endpoint, with no page actions", async () => {
+    const plugin = aiPlugin({ model });
+    expect(await plugin.slots!.call(ctx, {})).toEqual([
       { slot: "layout.wrapper", component: AIChat, props: { api: "/docs/api/ai" }, order: -1 },
     ]);
+    expect(await plugin.slots!.call(ctx, { page: {} as never })).toBeUndefined();
   });
 
   it("adds no UI without `configureUI`", async () => {

@@ -3,6 +3,7 @@ import { PressIsland } from "virtual:fumapress/island";
 import { LayoutRootContext, type layoutRootKeys } from "./ui/layout-root";
 
 export { selectTreeRoot } from "@fumapress/core/page-tree";
+export { useLayoutProps } from "@fumapress/core/ui/docs";
 
 /**
  * The React root of an `.astro` layout from `ui.renderPage`, for `client:load`: `component` hydrates in the root provider of

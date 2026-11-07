@@ -1,9 +1,13 @@
 import { createElement, Fragment, type ReactElement, type ReactNode } from "react";
 import { i18nProvider } from "fumadocs-ui/i18n";
+import { MarkdownCopyButton, ViewOptionsPopover } from "fumadocs-ui/layouts/docs/page";
 import type { Context, RuntimeContext } from "../context";
-import type { AppShape, LangEnv, SlotItem } from "../plugin";
+import type { AppShape, DocsPageData, LangEnv, PluginTypes, SlotItem } from "../plugin";
 import type {
+  ContentInputs,
+  DefaultAction,
   DefaultPageProps,
+  DefaultUIOptions,
   PageNode,
   PressConfig,
   ProviderProps,
@@ -29,19 +33,45 @@ function namedItems(items: SlotItem[] = []): Partial<Record<string, ReactElement
   return out;
 }
 
+/** the built-in buttons of a content page, before the plugins' in `actions` */
+function defaultActions({
+  markdownUrl,
+  githubUrl,
+}: DocsPageData): Partial<Record<DefaultAction, ReactElement>> {
+  return {
+    ...(markdownUrl && { markdown: createElement(MarkdownCopyButton, { markdownUrl }) }),
+    "view-options": createElement(ViewOptionsPopover, { markdownUrl, githubUrl }),
+  };
+}
+
 /** the built-in UI: `DefaultDocs` for content pages, `HomeShell` around the content of plugins */
-function renderDefault(ctx: Context, props: DefaultPageProps): PageNode {
-  if (props.page && !props.children)
-    return createElement(DefaultDocs, {
-      layout: ctx.getCapability("ai-chat")?.DocsLayout,
-      tree: props.tree,
-      baseOptions: props.baseOptions,
-      pageData: props.pageData,
-      actions: createElement(Fragment, null, ...Object.values(props.actions)),
-      footer: createElement(Fragment, null, ...Object.values(props.footer)),
-      children: props.body,
-    });
-  return createElement(HomeShell, { baseOptions: props.baseOptions, children: props.children });
+function renderDefault(
+  props: DefaultPageProps,
+  options: DefaultUIOptions<ContentInputs<PluginTypes>> = {},
+): PageNode {
+  if (!props.page || props.children)
+    return createElement(HomeShell, { baseOptions: props.baseOptions, children: props.children });
+
+  const {
+    layout,
+    layoutProps,
+    pageProps,
+    pageData = props.pageData,
+    body = props.body,
+    actions = props.actions,
+    footer = props.footer,
+  } = options;
+  return createElement(DefaultDocs, {
+    layout,
+    layoutProps,
+    pageProps,
+    tree: props.tree,
+    baseOptions: props.baseOptions,
+    pageData,
+    actions: createElement(Fragment, null, ...Object.values(actions)),
+    footer: createElement(Fragment, null, ...Object.values(footer)),
+    children: body,
+  });
 }
 
 /** the page of `ui.renderPage`, or of the built-in UI without it */
@@ -57,7 +87,8 @@ export async function renderPage(
     lang,
     tree: loader.getPageTree(lang),
     baseOptions,
-    renderDefault: () => renderDefault(ctx, props),
+    renderDefault: (options?: DefaultUIOptions<ContentInputs<PluginTypes>>) =>
+      renderDefault(props, options),
   };
   let props: DefaultPageProps;
 
@@ -86,13 +117,13 @@ export async function renderPage(
       slugs: page.slugs,
       pageData,
       body: createElement(Fragment, { key: page.url }, node),
-      actions: namedItems(slots.actions),
+      actions: { ...defaultActions(pageData), ...namedItems(slots.actions) },
       footer: namedItems(slots.footer),
       children: view && createElement(Fragment, { key: page.url }, view.node),
     };
   }
 
-  return ui?.renderPage ? ui.renderPage.call(ctx, props) : renderDefault(ctx, props);
+  return ui?.renderPage ? ui.renderPage.call(ctx, props) : renderDefault(props);
 }
 
 /** the root provider's `i18n` from the site's translations in `lang` */

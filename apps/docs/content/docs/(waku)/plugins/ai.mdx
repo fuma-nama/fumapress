@@ -74,38 +74,35 @@ function Callout({ title, children }) {
 
 ### Custom Layout
 
-The default layout docks the chat for you. With a custom [`renderPage`](/docs/layouts#rendering-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component:
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a custom [`renderPage`](/docs/layouts#rendering-pages), read it in a client component around the layout:
 
-```tsx tab="src/chat-layout.tsx"
+```tsx tab="src/components/layout.tsx"
 "use client";
-import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { AIChatPanel, useAIChat } from "@fumapress/ai/components/chat";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
+import { useLayoutProps } from "fumapress/client";
 
-export function ChatLayout(props: DocsLayoutProps) {
-  const { open, setOpen } = useAIChat();
-
-  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel /> };
-
-  return <DocsLayout {...props} aiChat={aiChat} />;
+export function Layout(props: DocsLayoutProps) {
+  return <DocsLayout {...props} {...useLayoutProps()} />;
 }
 ```
 
 ```tsx tab="src/ui/layout.tsx"
-import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
-import { ChatLayout } from "../chat-layout";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import { Layout } from "../components/layout";
 
-function Docs({ baseOptions, tree, pageData, body, actions }: RenderPageProps<typeof app, "docs">) {
+function Docs({ baseOptions, tree, pageData, body }: RenderPageProps<typeof app, "docs">) {
   return (
-    <ChatLayout {...baseOptions} tree={tree}>
+    <Layout {...baseOptions} tree={tree}>
       <DocsPage toc={pageData.toc}>
-        <div className="flex justify-end">{actions.ai}</div>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{body}</DocsBody>
       </DocsPage>
-    </ChatLayout>
+    </Layout>
   );
 }
 ```
+
+The Docs and Notebook layouts open the chat with a floating "Ask AI" button. The Glass and Spacious layouts show their own button.
 
 <include cwd>content/shared/plugins/ai.mdx#chat-options</include>
 

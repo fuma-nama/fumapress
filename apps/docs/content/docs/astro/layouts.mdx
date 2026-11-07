@@ -3,74 +3,11 @@ title: Layouts
 description: Choose a Fumadocs layout and change what each page renders.
 ---
 
-Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, return an `.astro` component from `ui.renderPage`.
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, pass it to `renderDefault()` in `ui.renderPage`, or return your own `.astro` layout.
 
 <include cwd>content/shared/layouts.mdx#gallery</include>
 
-### Switching the Layout
-
-This example renders the `docs` source with the Notebook Layout. All other pages use the default UI. It needs three files because Fumadocs layouts are React components and pages are Astro. See [Islands](#islands).
-
-```tsx tab="src/components/docs-island.tsx"
-import { createIsland } from "@fumapress/astro/client";
-import type { IslandProps } from "@fumapress/astro/config";
-import { DocsLayout } from "fumadocs-ui/layouts/notebook";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
-import type { app } from "../../press.config";
-
-export const DocsIsland = createIsland(
-  ({ tree, baseOptions, pageData, actions, footer, children }: IslandProps<typeof app, "docs">) => (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc} full={pageData.full}>
-        <DocsTitle>{pageData.title}</DocsTitle>
-        <DocsDescription>{pageData.description}</DocsDescription>
-        <div className="flex gap-2">{Object.values(actions)}</div>
-        <DocsBody>{children}</DocsBody>
-        {Object.values(footer)}
-      </DocsPage>
-    </DocsLayout>
-  ),
-);
-```
-
-```astro tab="src/layouts/Docs.astro"
----
-import type { LayoutProps } from "@fumapress/astro/config";
-import type { app } from "../../press.config";
-import { DocsIsland } from "../components/docs-island";
-
-type Props = LayoutProps<typeof app, "docs">;
----
-
-<DocsIsland client:load transition:persist="docs" island={Astro.props.island}>
-  <slot />
-</DocsIsland>
-```
-
-```tsx tab="press.config.tsx"
-import { getCollection } from "astro:content";
-import { toFumadocsSource } from "@fumadocs/astro/source";
-import { createPress } from "@fumapress/astro/config";
-import Docs from "./src/layouts/Docs.astro";
-
-export const app = createPress({
-  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
-});
-
-export default app.config({
-  ui: {
-    renderPage(props) {
-      const { renderDefault } = props;
-      if (props.type === "docs") return <Docs {...props} />;
-      return renderDefault();
-    },
-  },
-});
-```
-
-To keep the Markdown buttons of the default layout, also render `MarkdownCopyButton` and `ViewOptionsPopover` from `fumadocs-ui/layouts/notebook/page`.
-
-<include cwd>content/shared/layouts.mdx#swap</include>
+<include cwd>content/shared/layouts.mdx#default-ui</include>
 
 ## Rendering Pages
 
@@ -155,8 +92,8 @@ export const DocsIsland = createIsland(
   ({ tree, baseOptions, pageData, actions, footer, children }: IslandProps<typeof app, "docs">) => (
     <DocsLayout {...baseOptions} tree={tree}>
       <DocsPage toc={pageData.toc}>
-        <div className="flex justify-end">{actions.ai}</div> {/* [!code highlight] */}
         <DocsTitle>{pageData.title}</DocsTitle>
+        <div className="flex gap-2">{Object.values(actions)}</div> {/* [!code highlight] */}
         <DocsBody>{children}</DocsBody>
         {footer.feedback} {/* [!code highlight] */}
       </DocsPage>

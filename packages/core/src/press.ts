@@ -4,6 +4,16 @@ import type * as PageTree from "fumadocs-core/page-tree";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { _Internal, LoaderOptions, SourceUnion } from "fumadocs-core/source";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
+import type { DocsPageProps } from "fumadocs-ui/layouts/docs/page";
+import type { DocsLayoutProps as NotebookLayoutProps } from "fumadocs-ui/layouts/notebook";
+import type { DocsPageProps as NotebookPageProps } from "fumadocs-ui/layouts/notebook/page";
+import type { DocsLayoutProps as GlassLayoutProps } from "fumadocs-ui/layouts/glass";
+import type { DocsPageProps as GlassPageProps } from "fumadocs-ui/layouts/glass/page";
+import type { DocsLayoutProps as SpaciousLayoutProps } from "fumadocs-ui/layouts/spacious";
+import type { DocsPageProps as SpaciousPageProps } from "fumadocs-ui/layouts/spacious/page";
+import type { DocsLayoutProps as FluxLayoutProps } from "fumadocs-ui/layouts/flux";
+import type { DocsPageProps as FluxPageProps } from "fumadocs-ui/layouts/flux/page";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
 import type { Context } from "./context";
 import type { GitProvider } from "./git";
@@ -16,7 +26,6 @@ import type {
   DocsPageData,
   LangEnv,
   MergedTypes,
-  NamedSlot,
   Plugin,
   PluginOption,
   PluginTypes,
@@ -78,10 +87,7 @@ export type SourcePage<C extends AppShape, K extends C["source"]> = Extract<C["p
  * The options of the content stage: the site's languages, and the Fumadocs `loader()` options like `url` and `slugs`.
  * `baseUrl` is the site's, and `loaderPlugins` is the `plugins` of `loader()`.
  */
-export type ContentOptions<
-  I extends _Internal.AnyInput,
-  Lang extends string | undefined,
-> = Omit<
+export type ContentOptions<I extends _Internal.AnyInput, Lang extends string | undefined> = Omit<
   LoaderOptions<_Internal.GenerateStorage<I>, InferI18nConfig<Lang>>,
   "baseUrl" | "i18n" | "plugins"
 > & {
@@ -154,12 +160,48 @@ interface UIOptionsOf<C extends AppShape, T extends PluginTypes> {
   renderPage?: (this: Context<C>, props: RenderPagePropsOf<C, T>) => Awaitable<PageNode>;
 }
 
+/** the Fumadocs layouts of the built-in UI, with the props of their layout and page */
+interface DefaultLayouts {
+  docs: { layout: DocsLayoutProps; page: DocsPageProps };
+  notebook: { layout: NotebookLayoutProps; page: NotebookPageProps };
+  glass: { layout: GlassLayoutProps; page: GlassPageProps };
+  spacious: { layout: SpaciousLayoutProps; page: SpaciousPageProps };
+  flux: { layout: FluxLayoutProps; page: FluxPageProps };
+}
+
+/** the built-in buttons of a content page in `actions`: copy its Markdown, and open it in GitHub or AI apps */
+export type DefaultAction = "markdown" | "view-options";
+
+/**
+ * `renderDefault()` options of a content page: the Fumadocs layout and the props of its layout and page, and the inputs
+ * of the built-in UI to replace, like `body` or `actions`. The layout is a client component, so a function in its props,
+ * like the `transform` of `tabs`, is an export of a `'use client'` module.
+ */
+export type DefaultUIOptions<Inputs = {}> = {
+  [K in keyof DefaultLayouts]: (K extends "docs" ? { layout?: K } : { layout: K }) & {
+    /** over the layout props of `baseOptions`, `tree` and `useLayoutProps()` */
+    layoutProps?: Partial<DefaultLayouts[K]["layout"]>;
+    /** over the page props of `pageData` */
+    pageProps?: Partial<DefaultLayouts[K]["page"]>;
+  };
+}[keyof DefaultLayouts] &
+  Partial<Inputs>;
+
 type RenderPageBase<C extends AppShape> = LangEnv<C> & {
   tree: PageTree.Root;
   /** `ui.baseOptions` with the plugins' contributions */
   baseOptions: BaseOptions;
-  /** the built-in UI: the Docs Layout and page, or the plugin's content in the Home Layout */
-  renderDefault(): PageNode;
+};
+
+/** what the built-in UI renders of a content page, which its `renderDefault()` options can replace */
+export type ContentInputs<T extends PluginTypes> = {
+  /** `getPageData()`: title, description, toc, full, lastModified, markdownUrl, githubUrl after `transformPage` */
+  pageData: DocsPageData;
+  /** the rendered content, with `body.wrapper` applied */
+  body: ReactElement;
+  /** the buttons about the page: the built-in ones, then the plugins' */
+  actions: Partial<Record<DefaultAction | Declared<T, "actions">, ReactElement>>;
+  footer: Partial<Record<Declared<T, "footer">, ReactElement>>;
 };
 
 /** a content page of the source key `K` */
@@ -167,19 +209,21 @@ export type ContentPageProps<
   K extends C["source"],
   C extends AppShape,
   T extends PluginTypes,
-> = RenderPageBase<C> & {
-  type: K;
-  page: SourcePage<C, K>;
-  slugs: string[];
-  /** `getPageData()`: title, description, toc, full, lastModified, markdownUrl, githubUrl after `transformPage` */
-  pageData: DocsPageData;
-  /** the rendered content, with `body.wrapper` applied */
-  body: ReactElement;
-} & {
-  [S in NamedSlot]: Partial<Record<Declared<T, S>, ReactElement>>;
-} & (K extends keyof Declared<T, "pages">
-    ? Declared<T, "pages">[K] & { children: ReactElement }
-    : {});
+> = RenderPageBase<C> &
+  ContentInputs<T> & {
+    type: K;
+    page: SourcePage<C, K>;
+    slugs: string[];
+  } & (K extends keyof Declared<T, "pages">
+    ? Declared<T, "pages">[K] & {
+        children: ReactElement;
+        /** the plugin's content in the Home Layout: `actions` and `footer` are yours to place */
+        renderDefault(): PageNode;
+      }
+    : {
+        /** the built-in UI: a Fumadocs docs layout and page, the Docs Layout by default */
+        renderDefault(options?: DefaultUIOptions<ContentInputs<T>>): PageNode;
+      });
 
 /** a plugin view of type `K`; `children` is its content without a layout */
 export type ViewPageProps<
@@ -189,6 +233,8 @@ export type ViewPageProps<
 > = RenderPageBase<C> & {
   type: K;
   children: ReactElement;
+  /** the built-in UI: `children` in the Home Layout */
+  renderDefault(): PageNode;
 } & Declared<T, "views">[K];
 
 export type PageType<C extends AppShape, T extends PluginTypes> =
@@ -263,15 +309,17 @@ export function createPress(
 }
 
 /** `renderPage` props of any site, as the runtime's `renderDefault` reads them */
-export type DefaultPageProps = RenderPageBase<AppShape> & { type: string | undefined } & (
-    | (Pick<
-        ContentPageProps<AppShape["source"], AppShape, PluginTypes>,
-        "page" | "slugs" | "pageData" | "body" | NamedSlot
-      > & {
+export type DefaultPageProps = RenderPageBase<AppShape> & {
+  type: string | undefined;
+  renderDefault(options?: DefaultUIOptions<ContentInputs<PluginTypes>>): PageNode;
+} & (
+    | (ContentInputs<PluginTypes> & {
+        page: AppShape["page"];
+        slugs: string[];
         /** the content of the plugin owning the page */
         children?: ReactElement;
       })
-    | (Pick<ViewPageProps<never, AppShape, PluginTypes>, "children"> & { page?: undefined })
+    | { children: ReactElement; page?: undefined }
   );
 
 /** what the runtime renders: a content page, or the view a plugin returned */

@@ -34,13 +34,11 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.116",
-    "@fuma-translate/react": "^1.0.2",
     "@fumadocs/ai-chat": "^0.1.0",
     "@fumapress/core": "workspace:^",
     "@modelcontextprotocol/server": "^2.3.0",
     "ai": "^7.0.113",
     "flexsearch": "^0.8.212",
-    "lucide-react": "^1.47.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

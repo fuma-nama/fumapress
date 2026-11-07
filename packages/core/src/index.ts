@@ -23,6 +23,7 @@ export {
   createPress,
   type BaseOptions,
   type ContentOptions,
+  type DefaultUIOptions,
   type InferAppShape,
   type PageNode,
   type Press,

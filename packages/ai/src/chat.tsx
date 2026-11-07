@@ -14,7 +14,6 @@ import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
-import { ChatDocsLayout } from "./components/docs-layout";
 
 /** what the UI sends: other roles and parts are the server's, a `file` part makes it download the URL */
 const messageParts = new Set(["text", "data-client", "reasoning", "step-start", "tool-search"]);
@@ -34,7 +33,7 @@ export type ChatUIMessage = UIMessage<
 >;
 
 export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
-  /** add the chat around every page, docked by the built-in UI, and the `ai` page action @default true */
+  /** add the chat around every page, docked by every layout reading `useLayoutProps()` @default true */
   configureUI?: boolean;
 
   model: LanguageModel;
@@ -44,21 +43,19 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** AI chat: the `/api/ai` endpoint, the chat that the built-in UI docks, and the `ai` page action that opens it */
+/** AI chat: the `/api/ai` endpoint, and the chat that layouts dock through the `aiChat` of `useLayoutProps()` */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): Plugin<C, { actions: "ai"; provides: "ai-chat" }> {
+): Plugin<C, { provides: "ai-chat" }> {
   const { configureUI = true } = options;
 
   return {
     name: "ai:main",
     provides: configureUI ? ["ai-chat"] : [],
-    api: { DocsLayout: ChatDocsLayout },
     translations: aiTranslations(),
     async slots({ page }) {
-      if (!configureUI) return;
-      const { AIChat, AIChatAction } = await import("./components/chat");
-      if (page) return [{ slot: "actions", name: "ai", component: AIChatAction }];
+      if (!configureUI || page) return;
+      const { AIChat } = await import("./components/chat");
       return [
         {
           slot: "layout.wrapper",

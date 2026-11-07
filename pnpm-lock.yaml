@@ -633,9 +633,6 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.116
         version: 4.0.116(react@19.3.1)(zod@4.6.7)
-      '@fuma-translate/react':
-        specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fumadocs/ai-chat':
         specifier: ^0.1.0
         version: 0.1.0(51e5c3e264e00fc7d574b3627275bf5e)
@@ -651,9 +648,6 @@ importers:
       flexsearch:
         specifier: ^0.8.212
         version: 0.8.212
-      lucide-react:
-        specifier: ^1.47.0
-        version: 1.68.0(@types/react@19.3.0)(react@19.3.1)
       zod:
         specifier: ^4.6.5
         version: 4.6.7

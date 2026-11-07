@@ -1,6 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
-import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
 import type { Meta, Page } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
 import type { Context } from "./context";
@@ -201,8 +200,12 @@ interface SlotBase {
 /**
  * UI in places every layout renders:
  *
- * - `actions`: beside the page actions of a content page, `props.actions[name]` of `ui.renderPage`.
+ * - `actions`: beside the page actions of a content page, `props.actions[name]` of `ui.renderPage`. Only for buttons
+ *   about the page, like sharing it: UI of the whole site, like a floating button, goes in `layout.wrapper`.
  * - `footer`: after the content of a content page, `props.footer[name]`.
+ *
+ * The built-in UI places `actions` and `footer` on the Docs page, not on a page a plugin owns (`getPageView`): there,
+ * `ui.renderPage` places them.
  * - `body.wrapper`: around the content of a content page, the component receives it as `children`.
  * - `layout.wrapper`: around the layout of every page, inside the root provider, like `body.wrapper`.
  */
@@ -213,8 +216,7 @@ export type SlotItem<T extends PluginTypes = PluginTypes> =
 /** the API of each capability, from `this.getCapability(capability)`; plugin modules add theirs by declaration merging */
 export interface CapabilityAPI {
   search: unknown;
-  /** the chat docked by the built-in UI: `DocsLayout` is a client component rendering the Docs Layout with it */
-  "ai-chat": { DocsLayout: ComponentType<DocsLayoutProps> };
+  "ai-chat": unknown;
   robots: unknown;
   llms: unknown;
   rss: unknown;

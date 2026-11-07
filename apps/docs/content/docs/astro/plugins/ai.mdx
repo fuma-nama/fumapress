@@ -37,35 +37,24 @@ createPress(content).plugins(llmsPlugin());
 
 ### Custom Layout
 
-The default layout docks the chat for you. With a custom [layout](/docs/astro/layouts#rendering-pages), place the action and dock the chat yourself. Wrap `DocsLayout` in a client component, and use it in your island:
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a custom [layout](/docs/astro/layouts#rendering-pages), your island reads it:
 
-```tsx tab="src/chat-layout.tsx"
-"use client";
-import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { AIChatPanel, useAIChat } from "@fumapress/ai/components/chat";
+```tsx title="src/components/docs-island.tsx"
+import { createIsland, useLayoutProps } from "@fumapress/astro/client";
 
-export function ChatLayout(props: DocsLayoutProps) {
-  const { open, setOpen } = useAIChat();
-
-  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel /> };
-
-  return <DocsLayout {...props} aiChat={aiChat} />;
-}
-```
-
-```tsx tab="src/components/docs-island.tsx"
 export const DocsIsland = createIsland(
-  ({ baseOptions, tree, pageData, actions, children }: IslandProps<typeof app, "docs">) => (
-    <ChatLayout {...baseOptions} tree={tree}>
+  ({ baseOptions, tree, pageData, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...baseOptions} tree={tree} {...useLayoutProps()}>
       <DocsPage toc={pageData.toc}>
-        <div className="flex justify-end">{actions.ai}</div>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{children}</DocsBody>
       </DocsPage>
-    </ChatLayout>
+    </DocsLayout>
   ),
 );
 ```
+
+The Docs and Notebook layouts open the chat with a floating "Ask AI" button. The Glass and Spacious layouts show their own button.
 
 <include cwd>content/shared/plugins/ai.mdx#chat-options</include>
 

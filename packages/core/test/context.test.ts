@@ -1,12 +1,12 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isValidElement, lazy, type ReactElement, type ReactNode } from "react";
+import { createElement, isValidElement, lazy, type ReactElement, type ReactNode } from "react";
 import { defineI18n } from "fumadocs-core/i18n";
 import type { _Internal, PageData, VirtualFile } from "fumadocs-core/source";
 import { createPressContext, type Context, type RuntimeContext } from "@/context";
 import type { HeadTag } from "@/head";
-import type { AppShape, Plugin, PresetEntry } from "@/plugin";
+import type { AppShape, Plugin, PluginTypes, PresetEntry } from "@/plugin";
 import {
   matchRoute,
   type ApiRoute,
@@ -14,8 +14,15 @@ import {
   type PageRouteInput,
   type ViewRoute,
 } from "@/routes";
-import type { DefaultPageProps, PressConfig, RenderTarget } from "@/press";
+import type {
+  ContentPageProps,
+  DefaultPageProps,
+  PressConfig,
+  RenderTarget,
+  ViewPageProps,
+} from "@/press";
 import { takumiPlugin } from "@/plugins/takumi";
+import { DefaultDocs } from "@/ui/docs";
 import { HomeShell } from "@/ui/home";
 import { i18n, pressContext, testPress, type TestRuntime, type TestSite } from "./harness";
 
@@ -1170,8 +1177,56 @@ describe("renderPage", () => {
     expect(
       props && "body" in props && isValidElement(props.body) && isValidElement(props.children),
     ).toBe(true);
-    expect(Object.keys((props && "actions" in props && props.actions) || {})).toEqual(["share"]);
+    // the built-in buttons come first, `markdown` only with a Markdown URL
+    expect(Object.keys((props && "actions" in props && props.actions) || {})).toEqual([
+      "view-options",
+      "share",
+    ]);
     expect(props?.tree.children.length).toBeGreaterThan(0);
+  });
+
+  it("passes the options of `renderDefault()` to the Docs Layout and page", async () => {
+    const options = {
+      layoutProps: { tabs: false as const },
+      pageProps: { breadcrumb: { enabled: false } },
+    };
+    const node = await render(
+      { ui: { renderPage: (input: DefaultPageProps) => input.renderDefault(options) } },
+      async (ctx) => ({ lang: undefined, page: await getPage(ctx, ["docs", "basics"]) }),
+    );
+
+    expect(isValidElement(node) && node.type).toBe(DefaultDocs);
+    expect(isValidElement(node) && node.props).toMatchObject(options);
+  });
+
+  it("renders the chosen layout with inputs replacing its own", async () => {
+    const body = createElement("p", null, "replaced");
+    const node = await render(
+      {
+        ui: {
+          renderPage: (input: DefaultPageProps) =>
+            input.renderDefault({ layout: "notebook", body, actions: {} }),
+        },
+      },
+      async (ctx) => ({ lang: undefined, page: await getPage(ctx, ["docs", "basics"]) }),
+    );
+
+    expect(node).toMatchObject({ props: { layout: "notebook", children: body } });
+    expect(isValidElement(node) && node.props).toMatchObject({ actions: { props: {} } });
+  });
+
+  it("types the options of `renderDefault()` by the layout and the page", () => {
+    type Content = ContentPageProps<"docs", AppShape, PluginTypes>;
+    const options: Parameters<Content["renderDefault"]>[0][] = [
+      { layoutProps: { tabMode: "auto" } },
+      { layout: "notebook", layoutProps: { tabMode: "navbar" } },
+      // @ts-expect-error Spacious has no `tabMode`
+      { layout: "spacious", layoutProps: { tabMode: "navbar" } },
+    ];
+    type View = ViewPageProps<never, AppShape, PluginTypes>;
+    // @ts-expect-error plugin views take no options
+    const view: Parameters<View["renderDefault"]>[0] = {};
+    expect(options.length + Object.keys(view ?? {}).length).toBe(3);
   });
 
   it("gives each page its own React identity, so client state doesn't reach the next page", async () => {

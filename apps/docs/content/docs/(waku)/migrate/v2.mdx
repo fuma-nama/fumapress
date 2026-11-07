@@ -100,7 +100,7 @@ export default defineConfig({
 </Accordion>
 <Accordion title="Layouts">
 
-The factories of `fumapress/layouts/*` are removed. If you call `createDocsLayoutPage()` without options, delete the call, since the Docs Layout is the default. Otherwise write the layout as JSX in `ui.renderPage`, and use `props.type` to choose it.
+The factories of `fumapress/layouts/*` are removed. Pass the layout and its props to `renderDefault()` in `ui.renderPage`. If you call `createDocsLayoutPage()` without options, delete it: the Docs Layout is the default.
 
 ```tsx tab="1.x" title="press.config.tsx"
 import { defineConfig } from "fumapress";
@@ -121,34 +121,38 @@ export default config;
 
 ```tsx tab="2.0" title="press.config.tsx"
 import { createPress, selectTreeRoot } from "fumapress";
-import { DocsLayout } from "fumadocs-ui/layouts/notebook";
-import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
 
 export const app = createPress({ docs: docs.toFumadocsSource() });
 
 export default app.config({
   ui: {
     renderPage(props) {
-      const { renderDefault } = props;
-      if (props.type !== "docs") return renderDefault();
-
-      return (
-        <DocsLayout {...props.baseOptions} tree={selectTreeRoot(props.tree, "docs")}>
-          <DocsPage toc={props.pageData.toc} full>
-            <DocsTitle>{props.pageData.title}</DocsTitle>
-            <DocsBody>{props.body}</DocsBody>
-            {Object.values(props.footer)}
-          </DocsPage>
-        </DocsLayout>
-      );
+      if (props.type !== "docs") return props.renderDefault();
+      return props.renderDefault({
+        layout: "notebook",
+        layoutProps: { tree: selectTreeRoot(props.tree, "docs") },
+        pageProps: { full: true },
+      });
     },
   },
 });
 ```
 
-Your JSX replaces options like `renderLayout`, `renderBody` and `pageProps`. Plugin buttons and forms are in `props.actions` and `props.footer`. See [Page Actions and Footers](/docs/layouts#page-actions-and-footers).
+The other options of the factories map to `renderDefault()` too:
 
-On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts).
+- `layoutProps` and `pageProps` of `render()` keep their names.
+- `body` and `lastModified` of `render()`, and `renderBody`, become the `body` and `pageData` options. See [Replacing Parts](/docs/layouts#replacing-parts).
+- `renderPageActions` becomes the `actions` option.
+
+For a different structure, write the layout yourself. See [Rendering Pages](/docs/layouts#rendering-pages).
+
+On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts). `HomeLayout` has no content container, so wrap your content to keep the width and padding of `createHomeLayout()`:
+
+```tsx
+<HomeLayout {...baseOptions}>
+  <div className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto">{children}</div>
+</HomeLayout>
+```
 
 </Accordion>
 <Accordion title="Navbar and links">
@@ -589,7 +593,7 @@ In a custom layout, place `props.footer.feedback`.
 </Accordion>
 <Accordion title="AI">
 
-The chat docks in the default Docs Layout. For a custom layout, see [Custom Layout](/docs/plugins/ai#custom-layout).
+The chat docks in the default Docs Layout, with a floating "Ask AI" button. For a custom layout, see [Custom Layout](/docs/plugins/ai#custom-layout).
 
 `AIChatLayout` is removed, and `AIChat` takes the endpoint as its `api` prop.
 

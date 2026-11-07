@@ -1,20 +1,18 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import { AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/ai-chat";
-import { useTranslations } from "@fuma-translate/react";
+import { AIChatPanel, AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/ai-chat";
+import { LayoutPropsProvider } from "@fumapress/core/ui/docs";
 import { DefaultChatTransport } from "ai";
-import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import { MessageCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ChatUIMessage } from "@/chat";
 
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
 
 /**
- * The chat of the `api` endpoint, `aiPlugin()` adds it around every page. The `ai` page action and `Ctrl + /` open it,
- * `Escape` closes it. The built-in UI docks it, a custom docs layout docks it with `useAIChat()` and `AIChatPanel`;
- * `AIChatTrigger` is a floating button for a custom `ui.renderPage`.
+ * The chat of the `api` endpoint, `aiPlugin()` adds it around every page. `Ctrl + /` opens it, `Escape` closes it.
+ * Layouts dock it from the `aiChat` of `useLayoutProps()`: Docs and Notebook add a floating Ask AI button, Glass and
+ * Spacious show their own.
  */
 export function AIChat({ api, children }: { api: string; children: ReactNode }) {
   const { locale } = useI18n();
@@ -39,33 +37,18 @@ export function AIChat({ api, children }: { api: string; children: ReactNode }) 
         ],
       })}
     >
-      {children}
+      <ChatLayoutProps>{children}</ChatLayoutProps>
     </AIChatProvider>
   );
 }
 
-function renderPart(part: ChatUIMessage["parts"][number], live: boolean) {
-  if (part.type === "tool-search") return <AIChatSearch part={part} live={live} />;
+function ChatLayoutProps({ children }: { children: ReactNode }) {
+  const { open, setOpen } = useAIChat();
+  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel />, trigger: true };
+
+  return <LayoutPropsProvider value={{ aiChat }}>{children}</LayoutPropsProvider>;
 }
 
-/** the `ai` page action: opens the chat of `AIChat` */
-export function AIChatAction() {
-  const { open, setOpen } = useAIChat();
-  const t = useTranslations({ note: "AI chat" });
-
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={() => setOpen(!open)}
-      className={buttonVariants({
-        variant: "secondary",
-        size: "sm",
-        className: "gap-2 [&_svg]:size-3.5 [&_svg]:text-fd-muted-foreground",
-      })}
-    >
-      <MessageCircleIcon aria-hidden />
-      {t("Ask AI")}
-    </button>
-  );
+function renderPart(part: ChatUIMessage["parts"][number], live: boolean) {
+  if (part.type === "tool-search") return <AIChatSearch part={part} live={live} />;
 }

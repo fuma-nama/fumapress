@@ -3,28 +3,32 @@ title: Layouts
 description: Choose a Fumadocs layout and change what each page renders.
 ---
 
-Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, return it from `ui.renderPage`.
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, pass it to `renderDefault()` in `ui.renderPage`.
 
 <include cwd>content/shared/layouts.mdx#gallery</include>
 
-### Switching the Layout
+<include cwd>content/shared/layouts.mdx#default-ui</include>
 
-This example renders the `docs` source with the Notebook Layout. All other pages use the default UI.
+## Rendering Pages
 
-```tsx tab="src/ui/layout.tsx"
+Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
+
+To change the structure of a page, write its layout yourself. `actions` has the built-in buttons too:
+
+```tsx title="src/ui/layout.tsx"
 import type { RenderPageProps } from "fumapress";
 import { DocsLayout } from "fumadocs-ui/layouts/notebook";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  PageLastUpdate,
+} from "fumadocs-ui/layouts/notebook/page";
 import type { app } from "../../press.config";
 
-function Docs({
-  tree,
-  baseOptions,
-  pageData,
-  body,
-  actions,
-  footer,
-}: RenderPageProps<typeof app, "docs">) {
+function Docs(props: RenderPageProps<typeof app, "docs">) {
+  const { tree, baseOptions, pageData, body, actions, footer } = props;
   return (
     <DocsLayout {...baseOptions} tree={tree}>
       <DocsPage toc={pageData.toc} full={pageData.full}>
@@ -32,44 +36,12 @@ function Docs({
         <DocsDescription>{pageData.description}</DocsDescription>
         <div className="flex gap-2">{Object.values(actions)}</div>
         <DocsBody>{body}</DocsBody>
+        {pageData.lastModified && <PageLastUpdate date={pageData.lastModified} />}
         {Object.values(footer)}
       </DocsPage>
     </DocsLayout>
   );
 }
-
-export function renderPage(props: RenderPageProps<typeof app>) {
-  const { renderDefault } = props;
-  if (props.type === "docs") return <Docs {...props} />;
-  return renderDefault();
-}
-```
-
-```tsx tab="press.config.tsx"
-import { createPress } from "fumapress";
-import { defineDocs } from "fumadocs-mdx/macro";
-import { renderPage } from "./src/ui/layout";
-
-const docs = defineDocs({ dir: "content" });
-
-export const app = createPress({ docs: docs.toFumadocsSource() });
-
-export default app.config({
-  ui: { renderPage },
-});
-```
-
-To keep the Markdown buttons of the default layout, also render `MarkdownCopyButton` and `ViewOptionsPopover` from `fumadocs-ui/layouts/notebook/page`.
-
-<include cwd>content/shared/layouts.mdx#swap</include>
-
-## Rendering Pages
-
-Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
-
-```tsx title="src/ui/layout.tsx"
-import type { RenderPageProps } from "fumapress";
-import type { app } from "../../press.config";
 
 export function renderPage(props: RenderPageProps<typeof app>) {
   // taken first: `props` is `never` in `default` once every type has a case
@@ -143,8 +115,8 @@ function Docs({
   return (
     <DocsLayout {...baseOptions} tree={tree}>
       <DocsPage toc={pageData.toc}>
-        <div className="flex justify-end">{actions.ai}</div> {/* [!code highlight] */}
         <DocsTitle>{pageData.title}</DocsTitle>
+        <div className="flex gap-2">{Object.values(actions)}</div> {/* [!code highlight] */}
         <DocsBody>{body}</DocsBody>
         {footer.feedback} {/* [!code highlight] */}
       </DocsPage>
