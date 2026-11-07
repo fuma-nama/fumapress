@@ -654,6 +654,8 @@ const reactProps = new Map([
   ["fetchpriority", "fetchPriority"],
   ["hreflang", "hrefLang"],
   ["http-equiv", "httpEquiv"],
+  ["imagesizes", "imageSizes"],
+  ["imagesrcset", "imageSrcSet"],
   ["itemprop", "itemProp"],
   ["nomodule", "noModule"],
   ["referrerpolicy", "referrerPolicy"],
@@ -686,12 +688,12 @@ function isPreload(attrs: Record<string, string>): boolean {
 function renderHeadTags(tags: HeadTag[]): ReactNode[] {
   const out: ReactNode[] = [];
   for (const [index, { tag, attrs, children }] of tags.entries()) {
-    if (tag === "link" && attrs && isPreload(attrs)) {
-      out.push(createElement(Preload, { key: index, attrs }));
-      continue;
-    }
     const props: Record<string, unknown> = { key: index };
     for (const name in attrs) props[reactProps.get(name) ?? name] = attrs[name];
+    if (tag === "link" && attrs && isPreload(attrs)) {
+      out.push(createElement(Preload, { ...props, rel: attrs.rel!, href: attrs.href! }));
+      continue;
+    }
     if (tag === "link" && attrs?.rel === "stylesheet") {
       // React hoists stylesheets into `<head>` only with a precedence, and can't update another `<link>` into one
       props.precedence ??= "default";
