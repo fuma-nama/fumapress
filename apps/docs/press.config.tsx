@@ -14,6 +14,9 @@ import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { baseOptions, renderPage } from "./src/ui/layout";
 import { frameworkOf } from "./src/ui/framework";
 import { DocsSearchDialog } from "./src/ui/search";
+import { playgroundPlugin } from "./src/landing/playground/plugin";
+import { paintingPlugin } from "./src/landing/painting";
+import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?url";
 
 const docsOptions = {
   async: true,
@@ -135,6 +138,8 @@ export const app = createPress(
     },
   }),
   changelogPlugin({ source: "changelog" }),
+  playgroundPlugin(),
+  paintingPlugin(),
 );
 
 export default app.config({
@@ -149,19 +154,20 @@ export default app.config({
     },
   },
   head: [
-    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
-    {
-      tag: "link",
-      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
-    },
+    // the Latin file of Newsreader, fetched with the page instead of after the stylesheet, so the headings render in it
+    // from the first paint and don't move when it arrives
     {
       tag: "link",
       attrs: {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+        rel: "preload",
+        href: newsreaderLatin,
+        as: "font",
+        type: "font/woff2",
+        crossorigin: "",
       },
     },
-    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", type: "image/x-icon" } },
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", sizes: "32x32" } },
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" } },
   ],
   ui: {
     baseOptions,

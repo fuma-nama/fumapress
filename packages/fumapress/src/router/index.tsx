@@ -51,6 +51,7 @@ import stylesInline from "virtual:fumapress/css?inline";
 import stylesHref from "virtual:fumapress/css?url";
 import { decodePathname, joinPaths } from "@/lib/pathname";
 import { PressProvider } from "@/components/provider";
+import { Preload } from "@/components/preload";
 import { getPageTreeFiles, pageTreePlugin } from "@/router/page-tree";
 import {
   recommendedPreset,
@@ -653,10 +654,37 @@ const reactProps = new Map([
   ["referrerpolicy", "referrerPolicy"],
 ]);
 
+/** the attributes of a `<link rel="preload">` that React's `preload()` takes */
+const preloadAttrs = new Set([
+  "rel",
+  "href",
+  "as",
+  "crossorigin",
+  "integrity",
+  "type",
+  "fetchpriority",
+  "referrerpolicy",
+  "imagesrcset",
+  "imagesizes",
+  "media",
+  "nonce",
+]);
+
+/** whether `Preload` can take the link */
+function isPreload(attrs: Record<string, string>): boolean {
+  const { rel, href, as } = attrs;
+  if (!href || (rel !== "modulepreload" && (rel !== "preload" || !as))) return false;
+  return Object.keys(attrs).every((name) => preloadAttrs.has(name));
+}
+
 /** head tags as React elements, React hoists them into `<head>` */
 function renderHeadTags(tags: HeadTag[]): ReactNode[] {
   const out: ReactNode[] = [];
   for (const [index, { tag, attrs, children }] of tags.entries()) {
+    if (tag === "link" && attrs && isPreload(attrs)) {
+      out.push(createElement(Preload, { key: index, attrs }));
+      continue;
+    }
     const props: Record<string, unknown> = { key: index };
     for (const name in attrs) props[reactProps.get(name) ?? name] = attrs[name];
     if (tag === "link" && attrs?.rel === "stylesheet") {
