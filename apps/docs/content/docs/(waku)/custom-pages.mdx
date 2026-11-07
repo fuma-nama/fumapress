@@ -155,7 +155,11 @@ export function Nav() {
 }
 ```
 
-Use `Link` rather than `<a>`, so that [link validation](/docs/plugins/link-validation) can check it. In a server component, redirect or show the not found page with `fumapress/router`:
+Use `Link` rather than `<a>`, so that [link validation](/docs/plugins/link-validation) can check it.
+
+The router also has `replace()`, `reload()`, `back()`, `forward()` and `prefetch()`, and the `query` and `hash` of the URL. Inside a `Link`, `useNavigationStatus()` returns `pending` while its navigation loads.
+
+In a server component, redirect or show the not found page with `fumapress/router`:
 
 ```tsx title="src/pages/secret.tsx"
 import { notFound, redirect } from "fumapress/router";
