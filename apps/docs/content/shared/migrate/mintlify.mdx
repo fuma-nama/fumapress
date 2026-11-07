@@ -122,13 +122,13 @@ Unsupported properties are accepted and ignored, so they never stop the migratio
 - `logo`: Single or light/dark image, optional `href`.
 - `favicon`: Single or light/dark icon.
 - `navigation`: `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions`, `languages` and `global`, in the sidebar. Also per-item `icon`, `tag`, `hidden`, `root`, `expanded` and external `href`s.
-- `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button.
+- `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button. They come after the links of `ui.baseOptions`.
 - `appearance`: `default` color scheme. `strict` hides the theme toggle, and forces the default scheme when it is explicit.
 - `background.color` / `background.image`: Applied with CSS, with light and dark variants.
 - `fonts`: Google Fonts, self-hosted `woff`/`woff2`, and separate `heading` and `body` fonts.
 - `banner`: Inline Markdown, `dismissible`, `type` and custom `color`.
 - `footer`: Social links and up to 4 link columns.
-- `redirects`: Exact paths plus `:param` and `:param*` patterns. `permanent` maps to 308 or 307.
+- `redirects`: Exact paths plus `:param` and `:param*` patterns. `permanent` maps to 308 or 307. Redirects run on a server, so a static site needs them in the config of its host.
 - `errors.404`: Redirects home by default, or a 404 page with custom `title` and `description` with `redirect: false`.
 - `seo.metatags`: Added to every page. `og:*` keys render as `property`.
 - `seo.indexing`: With `navigable` (default), pages not in the navigation get `noindex`.
