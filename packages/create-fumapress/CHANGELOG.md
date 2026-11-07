@@ -1,3 +1,10 @@
+## create-fumapress@0.1.23
+
+### Astro template
+
+- `create-fumapress` asks for a framework, and `--framework astro` scaffolds an Astro site. `--yes` picks Waku.
+- The Waku template uses `createPress()`.
+
 ## create-fumapress@0.1.14
 
 ### Smaller CLI

@@ -1,6 +1,6 @@
 {
   "name": "@fumapress/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The framework-agnostic core of Fumapress: the engine, site config and plugins",
   "keywords": [
     "Docs",
