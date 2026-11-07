@@ -15,7 +15,7 @@ description: Build your site and put it online.
 
 ## Platforms
 
-The adapter for Vercel, Netlify or Cloudflare is detected at build time. Other platforms get the Node.js adapter.
+The adapter for Vercel, Netlify or Cloudflare is detected at build time. Other platforms get the Node.js adapter. When nothing [needs a server](#what-needs-a-server), the build has no function, like a Vercel Function, and the platform serves static files.
 
 ### Node.js
 
@@ -53,7 +53,7 @@ npx wrangler deploy
 
 Workers Builds doesn't expose the site URL, so set [`site.baseUrl`](/docs/configuration#url).
 
-The build generates a `wrangler.jsonc`, unless your project has a Wrangler config. In your own config, keep `html_handling: "drop-trailing-slash"`.
+The build generates a `wrangler.jsonc`, unless your project has a Wrangler config. In your own config, keep `html_handling: "drop-trailing-slash"`, and set `assets.directory` to `./dist/public` when nothing needs a server.
 
 <Callout type="warn">
   Open Graph images rendered on demand can exceed the 10 ms of CPU time per request on the Workers
@@ -69,17 +69,6 @@ press({
   adapter: "waku/adapters/cloudflare",
 });
 ```
-
-### Deploying Without a Function
-
-A platform adapter packages a function, like a Vercel Function, even when no route needs it. To leave it out, add a [server entry](/docs/configuration#server-entry) and pass the `static` option of Waku:
-
-```tsx title="src/waku.server.tsx"
-// [!code word:static]
-export default adapter(pages, { static: true, middlewareFns });
-```
-
-With your own Wrangler config on Cloudflare, set `assets.directory` to `./dist/public`.
 
 ## Static Hosts
 

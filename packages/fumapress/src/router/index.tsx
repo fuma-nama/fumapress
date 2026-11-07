@@ -147,6 +147,8 @@ export interface WakuRouter<A extends Press<any, any> = Press> {
 export async function createRouter<A extends Press<any, any>>(press: A): Promise<WakuRouter<A>> {
   const { config } = press["~press"] as PressInput<WakuPressConfig<AppShape>>;
   const controller = new AbortController();
+  /** whether a route renders on demand, known once the pages are created */
+  let hasDynamicRoute = true;
   const ctx = await createPressContext<WakuAppShape>(press, {
     base: import.meta.env.BASE_URL,
     baseUrl: config.site?.baseUrl ?? defaultBaseUrl(),
@@ -357,6 +359,9 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
         if (plugins.some((plugin) => plugin.build)) global.LINK_SSG_CONTEXT = { links };
         await build(utils, ...args);
         global.LINK_SSG_CONTEXT = undefined;
+        // like `static: true` of a platform adapter, whose build enhancer reads it after the build: no function to deploy
+        const [buildOptions] = args;
+        if (!hasDynamicRoute && buildOptions) buildOptions.serverless = false;
 
         await ctx.build({
           links,
@@ -511,7 +516,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
           if (route.render === "dynamic") createApiRoute(waku.createApi, route);
 
         const contentRender = ctx.getContentRender();
-        const hasDynamicRoute =
+        hasDynamicRoute =
           contentRender === "dynamic" ||
           served.some((route) => route.render === "dynamic") ||
           apiRoutes.some((route) => route.render === "dynamic");
