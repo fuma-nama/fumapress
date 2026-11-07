@@ -72,15 +72,20 @@ function headKey({ tag, attrs = {} }: HeadTag): string | undefined {
     return `alternate ${attrs.hreflang}`;
 }
 
-/** the tags of `lists`, the first list wins a key; an unkeyed tag repeating another is dropped */
+/**
+ * The tags of `lists`: the first list with a key owns it, with all its tags of the key (like two site verifications);
+ * an unkeyed tag repeating another is dropped.
+ */
 export function mergeHead(lists: readonly (readonly HeadTag[] | undefined)[]): HeadTag[] {
   const out: HeadTag[] = [];
-  const seen = new Set<string>();
-  for (const tags of lists) {
+  const owners = new Map<string, number>();
+  for (const [i, tags] of lists.entries()) {
     for (const tag of tags ?? []) {
-      const key = headKey(tag) ?? JSON.stringify(tag);
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const key = headKey(tag);
+      const id = key ?? JSON.stringify(tag);
+      const owner = owners.get(id);
+      if (owner !== undefined && (key === undefined || owner !== i)) continue;
+      owners.set(id, i);
       out.push(tag);
     }
   }

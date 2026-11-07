@@ -1234,3 +1234,21 @@ it("leaves the root outside of the base path to the router", async () => {
 
   expect(response.status).toBe(404);
 });
+
+it("keeps the repeated tags of one list, like two site verifications", async () => {
+  const verification = (content: string): HeadTag => ({
+    tag: "meta",
+    attrs: { name: "google-site-verification", content },
+  });
+  const ctx = await pressContext({
+    content: { docs: { files: [] } },
+    head: [verification("a"), verification("b")],
+    plugins: [{ head: () => [verification("c")] }],
+  });
+  const head = await ctx.getHead({});
+
+  expect(head.filter((tag) => tag.attrs?.name === "google-site-verification")).toEqual([
+    verification("a"),
+    verification("b"),
+  ]);
+});
