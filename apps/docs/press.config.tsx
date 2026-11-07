@@ -14,6 +14,7 @@ import { llmsPlugin } from "fumapress/plugins/llms.txt";
 import { baseOptions, renderPage } from "./src/ui/layout";
 import { frameworkOf } from "./src/ui/framework";
 import { DocsSearchDialog } from "./src/ui/search";
+import { playgroundPlugin } from "./src/landing/playground/plugin";
 
 const docsOptions = {
   async: true,
@@ -135,6 +136,7 @@ export const app = createPress(
     },
   }),
   changelogPlugin({ source: "changelog" }),
+  playgroundPlugin(),
 );
 
 export default app.config({
@@ -158,10 +160,11 @@ export default app.config({
       tag: "link",
       attrs: {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&display=swap",
       },
     },
-    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", type: "image/x-icon" } },
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", sizes: "32x32" } },
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" } },
   ],
   ui: {
     baseOptions,

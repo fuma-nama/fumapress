@@ -5,6 +5,62 @@
 @import "@fumapress/blog/css/preset.css";
 @import "@fumapress/tegami/css/preset.css";
 @import "@fumari/sponsors/style.css";
+@import "./landing/washi.css";
+
+/* the mark in the navbar, see ui/logo.tsx: the landing's paints, with a lighter ink at night */
+.fp-logo {
+  --logo-ink: #2b4249;
+  --logo-paper: #f8faf7;
+  --logo-indigo: #3f7eab;
+  --logo-deep: #15302f;
+  --logo-green: #a8bd6b;
+  --logo-cream: #f0f2c8;
+  --logo-shadow: rgb(70 74 58 / 0.16);
+}
+.dark .fp-logo {
+  --logo-ink: #d5dde8;
+  --logo-paper: #1c2430;
+  --logo-indigo: #4f74c4;
+  --logo-deep: #070b10;
+  --logo-green: #a9c055;
+  --logo-cream: #cfc59a;
+  --logo-shadow: rgb(0 0 0 / 0.45);
+}
+.fp-logo-ink,
+.fp-logo-gloss-line {
+  stroke: var(--logo-ink);
+}
+.fp-logo-gloss-line {
+  stroke: #fff;
+  opacity: 0.7;
+}
+.fp-logo-paper {
+  fill: var(--logo-paper);
+}
+.fp-logo-cream {
+  fill: var(--logo-cream);
+}
+.fp-logo-indigo {
+  fill: var(--logo-indigo);
+}
+.fp-logo-deep {
+  fill: var(--logo-deep);
+}
+.fp-logo-gloss {
+  fill: #fff;
+}
+.fp-logo-green {
+  fill: var(--logo-green);
+}
+.fp-logo-shadow {
+  fill: var(--logo-shadow);
+}
+
+/* the name of the site, in the serif of the landing */
+.fp-title {
+  font-family: "Newsreader", Georgia, serif;
+  font-optical-sizing: auto;
+}
 
 @theme {
   --font-mono: "JetBrains Mono", monospace;

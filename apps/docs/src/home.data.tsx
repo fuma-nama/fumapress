@@ -54,7 +54,7 @@ export default createPress({
   {
     id: "blog",
     name: "Blog",
-    description: "Turn a content collection into blog routes, panels, and RSS.",
+    description: "Turn a content collection into blog posts, an index and tag pages.",
     keywords: ["blog", "rss", "posts"],
     docsHref: "/docs/plugins/blog",
     usage: `import { createPress } from "fumapress";

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { selectTreeRoot, type BaseOptions, type RenderPageProps } from "fumapress";
-import { Image } from "fumapress/image";
 import { DocsLayout } from "fumadocs-ui/layouts/notebook";
 import {
   DocsBody,
@@ -17,22 +16,14 @@ import { SponsorsMarquee } from "@fumari/sponsors";
 import { BookIcon, HistoryIcon, RssIcon } from "lucide-react";
 import type { app } from "../../press.config";
 import { frameworkOf } from "./framework";
+import { Logo } from "./logo";
 
 export const baseOptions: BaseOptions = {
   nav: {
     title: (
       <>
-        <Image
-          src="/logo.png"
-          width={64}
-          height={64}
-          className="size-8 rounded-full shadow-md shadow-black mb-1"
-        />
-        <span>
-          <span className="font-mono uppercase border-b-2 border-fd-primary">Fumapress</span>
-          <br />
-          <span className="font-normal text-fd-muted-foreground text-xs">The site generator</span>
-        </span>
+        <Logo className="fp-logo size-9 -my-1 shrink-0" />
+        <span className="fp-title text-[21px] font-normal tracking-[-0.01em]">Fumapress</span>
       </>
     ),
   },

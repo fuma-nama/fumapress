@@ -1,0 +1,749 @@
+/* The landing page: hand-inked machines on washi paper. Tokens apply while the page is open. */
+
+:root:has([data-washi]) {
+  --w-paper: #f1f4f0;
+  --w-sheet: #f8faf7;
+  --w-text: #36474a;
+  --w-muted: #6b7b7c;
+  --w-ink: #2b4249;
+  --w-ink-soft: #546b70;
+  --w-indigo: #3d6f98;
+  --w-indigo-wash: #3f7eab;
+  --w-blue-light: #a5c5d8;
+  --w-deep: #15302f;
+  --w-label: #2b4049;
+  --w-green: #a8bd6b;
+  --w-green-deep: #6c873c;
+  --w-cream: #f0f2c8;
+  --w-gloss: #ffffff;
+  --w-shadow: #cccbc0;
+  /* a shadow that darkens what it falls on: the flat shadow on paper, and darker on anything else */
+  --w-shadow-glaze: rgb(70 74 58 / 0.16);
+  --w-rule: #9aa7a6;
+  --w-seal: #a8634e;
+  --w-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .29 0 0 0 0 .29 0 0 0 0 .27 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --w-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='613' height='613' fill='none' stroke='%237c7b72' stroke-opacity='.13' stroke-width='.45' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M0 16L-4 23L-4 45L-8 63M503 580L514 585L526 588L541 601L558 619M335 245L328 251L319 257M575 325L589 339L601 351M487 247L482 232L489 211L494 196M167 23L156 12L133 0L111 -3L97 -12M495 370L508 362L514 353L532 339M316 512L308 533L302 543M316 438L342 440L357 452L366 473L362 490M223 28L238 38L251 46L271 50L296 50M371 62L347 58L329 60M597 129L595 113L597 86L598 56M57 193L70 202L85 214L99 217M246 611L218 606L202 603L184 600L156 592M485 250L458 237L449 228L443 219M551 364L525 378L511 391L486 404M585 414L582 400L584 383L576 368L557 354M389 247L386 229L375 216M371 263L399 265L423 275L438 290L449 314M236 387L246 360L254 352L278 336M355 401L345 418L342 429L346 454L339 470M255 153L265 156L282 163L295 167M219 421L210 405L204 394M219 463L242 449L249 441M462 339L442 340L430 341L423 346L400 353M209 372L208 359L205 350L188 329M351 294L379 292L403 302L410 312L412 332M532 18L529 4L521 -16L515 -42M85 96L83 75L89 47M229 207L242 203L252 191L263 174M183 465L197 484L203 492M454 321L431 315L406 318M432 495L442 490L454 474M561 558L571 547L598 538L621 528M309 515L284 513L261 509L240 503M243 362L259 338L272 326M253 556L242 567L228 589M344 68L353 82L352 101M486 311L481 304L472 293M494 0L484 -0L457 1L433 -6M5 106L33 111L52 116M591 591L596 577L600 560L611 542M478 82L469 107L471 121L471 144M396 510L411 535L424 548L432 556L433 571M409 378L405 386L391 404L381 413L364 438M383 205L387 190L385 180L395 154L412 130M128 169L104 175L82 175L63 172L51 161M39 188L33 168L27 161L16 135L18 109M387 143L407 124L421 106L435 86M167 423L144 424L118 429M186 60L200 47L207 32M12 500L24 503L45 520L59 523L75 518M399 370L382 392L366 403M113 291L110 281L111 253L114 231M117 530L95 524L83 512L67 502L55 486'/%3E%3C/svg%3E");
+  --w-fibers-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='421' height='421' fill='none' stroke='%237c7b72' stroke-opacity='.12' stroke-width='.45' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M173 112L183 112L200 122L207 136M172 196L162 218L145 232L125 254M188 55L175 64L164 88L148 101L139 112M127 31L133 44L141 50M128 320L155 307L179 303L190 308L206 321M189 223L210 230L238 236L247 236L256 239M39 105L25 124L14 135M13 336L13 311L2 290L-13 274M390 244L378 252L365 255L337 261M70 174L88 173L110 184L121 188L141 201M375 242L387 238L406 242L424 257L432 275M402 27L373 25L360 24L350 26M313 201L330 192L351 179L364 172M161 379L137 368L114 351M122 300L111 307L103 321M101 261L113 263L124 266L143 269M346 307L359 329L366 345M340 291L338 267L342 255M401 13L398 28L398 44M390 186L396 202L405 225M4 70L-8 61L-29 52L-50 31L-69 26M140 316L116 325L104 328L92 341L80 350M63 390L79 376L86 366L90 344M266 173L280 159L300 148M138 182L135 158L131 128L122 115L115 94M62 306L48 287L43 281L38 265L44 247M400 284L412 294L424 300L435 311M39 225L43 237L49 245L58 264L71 278M396 295L400 316L406 326L416 347L418 373M337 323L336 341L325 356L313 374L299 382'/%3E%3C/svg%3E");
+
+  --w-code-fg: #344749;
+  --w-code-keyword: #3b6d92;
+  --w-code-string: #5f7a3c;
+  --w-code-function: #233c40;
+  --w-code-comment: #8b9898;
+  --w-code-punctuation: #7e8b8b;
+  --w-code-constant: #a5492f;
+
+  --color-fd-background: var(--w-paper);
+}
+
+.dark:has([data-washi]) {
+  --w-paper: #14171b;
+  --w-sheet: #1b1f24;
+  --w-text: #dfe3e6;
+  --w-muted: #959ca3;
+  --w-ink: #c5d2df;
+  --w-ink-soft: #8ea0b1;
+  --w-indigo: #5c7fb3;
+  --w-indigo-wash: #4d6d9e;
+  --w-blue-light: #8fb2d6;
+  --w-deep: #0d131b;
+  --w-label: #22364d;
+  --w-green: #9fb56e;
+  --w-green-deep: #a9c27a;
+  --w-cream: #d9cf9c;
+  --w-gloss: #e9eef3;
+  --w-shadow: #0b0d10;
+  --w-shadow-glaze: rgb(0 0 0 / 0.42);
+  --w-rule: #59626b;
+  --w-seal: #d06248;
+  --w-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .8 0 0 0 0 .82 0 0 0 0 .85 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  --w-code-fg: #cdd6de;
+  --w-code-keyword: #8fb2d6;
+  --w-code-string: #b2c983;
+  --w-code-function: #e9eef3;
+  --w-code-comment: #6c757e;
+  --w-code-punctuation: #808a94;
+  --w-code-constant: #e0896f;
+}
+
+html:has([data-washi]) body {
+  background-color: var(--w-paper);
+  background-image:
+    var(--w-fibers), var(--w-fibers-2), var(--w-noise),
+    radial-gradient(60rem 40rem at 12% 8%, rgb(255 255 255 / 0.35), transparent 70%),
+    radial-gradient(50rem 50rem at 90% 60%, rgb(120 105 80 / 0.05), transparent 70%);
+}
+
+.dark:has([data-washi]) body {
+  background-image: var(--w-noise);
+}
+
+[data-washi] {
+  color: var(--w-text);
+}
+
+.w-serif {
+  font-family: "Newsreader", "Shippori Mincho", Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.w-mincho {
+  font-family: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+
+/* vertical type between thin rules, as on the spine of a book */
+.w-tate {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+.w-sideways {
+  writing-mode: vertical-rl;
+}
+
+/* SVG paint, so the drawings follow the theme */
+.w-s-ink {
+  stroke: var(--w-ink);
+}
+.w-s-soft {
+  stroke: var(--w-ink-soft);
+}
+.w-s-gloss {
+  stroke: var(--w-gloss);
+}
+.w-s-blue {
+  stroke: var(--w-blue-light);
+}
+.w-s-cream {
+  stroke: var(--w-cream);
+}
+.w-s-green {
+  stroke: var(--w-green-deep);
+}
+.w-s-seal {
+  stroke: var(--w-seal);
+}
+.w-s-rule {
+  stroke: var(--w-rule);
+}
+.w-f-indigo {
+  fill: var(--w-indigo-wash);
+}
+.w-f-deep {
+  fill: var(--w-deep);
+}
+.w-f-label {
+  fill: var(--w-label);
+}
+.w-f-sheet {
+  fill: var(--w-sheet);
+}
+.w-f-paper {
+  fill: var(--w-paper);
+}
+.w-f-green {
+  fill: var(--w-green);
+}
+.w-f-shadow {
+  fill: var(--w-shadow);
+}
+.w-f-shadow-glaze {
+  fill: var(--w-shadow-glaze);
+}
+.w-f-ink {
+  fill: var(--w-ink);
+}
+.w-f-soft {
+  fill: var(--w-ink-soft);
+}
+.w-f-gloss {
+  fill: var(--w-gloss);
+}
+.w-f-seal {
+  fill: var(--w-seal);
+}
+.w-f-text {
+  fill: var(--w-text);
+}
+.w-f-muted {
+  fill: var(--w-muted);
+}
+.w-f-blue {
+  fill: var(--w-blue-light);
+}
+.w-f-cream {
+  fill: var(--w-cream);
+}
+.w-f-green-deep {
+  fill: var(--w-green-deep);
+}
+
+/* a sheet of paper resting on the page, with the flat offset shadow of the illustration */
+.w-sheet {
+  position: relative;
+  z-index: 1;
+  background-color: var(--w-sheet);
+  background-image: var(--w-noise);
+  border: 1px solid color-mix(in oklab, var(--w-ink) 62%, transparent);
+  border-radius: 3px;
+}
+
+/* the second, lighter pass of the pen */
+.w-sheet::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 0.5px solid color-mix(in oklab, var(--w-ink) 40%, transparent);
+  border-radius: 4px;
+  transform: translate(1px, -1px) rotate(0.12deg);
+  pointer-events: none;
+}
+
+/*
+ * The shadow a sheet casts down and right, with the fibers of the paper showing through: everything the sheet sweeps
+ * through on its way to the offset (`--sx`, `--sy`), so it stays joined to the sheet with diagonal edges at the top
+ * right and bottom left corners, rather than a second rectangle behind it.
+ */
+.w-sheet-shadow {
+  --sx: 16px;
+  --sy: 11px;
+  position: absolute;
+  inset: 0 calc(var(--sx) * -1) calc(var(--sy) * -1) 0;
+  background-color: var(--w-shadow);
+  background-image: var(--w-fibers), var(--w-noise);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--sx)) 0,
+    100% var(--sy),
+    100% 100%,
+    var(--sx) 100%,
+    0 calc(100% - var(--sy))
+  );
+  pointer-events: none;
+}
+
+/* a shorter shadow in the single column, so it stays on the page */
+@media (width < 80rem) {
+  .w-sheet-shadow {
+    --sx: 10px;
+    --sy: 7px;
+  }
+}
+
+.dark .w-sheet {
+  border-color: color-mix(in oklab, var(--w-ink) 35%, transparent);
+}
+
+.w-code pre {
+  background: transparent !important;
+  color: var(--w-code-fg);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-x: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.w-code .line.w-dim {
+  opacity: 0.38;
+}
+
+.w-code code {
+  font-family: var(--font-mono);
+}
+
+/* the dotted leaders of a table of contents */
+.w-leader {
+  flex: 1;
+  min-width: 1.5rem;
+  margin: 0 0.5rem;
+  border-bottom: 1.5px dotted color-mix(in oklab, var(--w-ink) 45%, transparent);
+  transform: translateY(-0.3em);
+}
+
+.w-link {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--w-ink) 35%, transparent);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.2s;
+}
+
+.w-link:hover {
+  text-decoration-color: var(--w-ink);
+}
+
+.w-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 999px;
+  background: var(--w-label);
+  color: #f1eee7;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 6px 4px 0 0 var(--w-shadow);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.dark .w-button {
+  background: var(--w-ink);
+  color: var(--w-paper);
+}
+
+.w-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 3px 2px 0 0 var(--w-shadow);
+}
+
+/* figures play once when they enter the view */
+.w-thread {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+[data-inview] .w-thread {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: calc(var(--i) * 0.45s + 0.2s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-thread {
+    stroke-dashoffset: 0;
+  }
+  [data-inview] .w-thread {
+    transition: none;
+  }
+}
+
+/* the cord of the page: a pale cable with an inked outline, and its flat shadow */
+.w-cord,
+.w-cord-core,
+.w-cord-shadow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.w-cord {
+  stroke: color-mix(in oklab, var(--w-ink) 70%, var(--w-sheet));
+  stroke-width: 2.6;
+}
+
+.w-cord-core {
+  stroke: color-mix(in oklab, var(--w-sheet) 82%, var(--w-blue-light));
+  stroke-width: 1.2;
+  transform: translate(0.5px, 0);
+}
+
+/* translucent, so it darkens what it falls on: the flat shadow on paper, a shade on glass */
+/* the same offset as the plugs' shadows (`PlugSvg`) at every width, so the cord's shadow runs into theirs */
+.w-cord-shadow {
+  stroke: var(--w-shadow-glaze);
+  stroke-width: 3;
+  transform: translate(14px, 8px);
+}
+
+/* code fed out of the press when it changes: the new sheet from the top, the old one leaving below the same line */
+.w-feed {
+  transition: height 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.w-feed-in {
+  animation: w-feed-in 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.w-feed-out {
+  animation: w-feed-out 0.55s cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
+}
+/* `--feed-h` is the taller of the two sheets, so both clips share one line */
+@keyframes w-feed-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 calc(100% - var(--feed-h, 100%)) 0);
+  }
+}
+@keyframes w-feed-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(var(--feed-h, 100%) 0 0 0);
+  }
+}
+
+/*
+ * Intros, once per figure when it enters the view (`[data-inview]`, set by `InView`). Nothing fades in from nowhere:
+ * the machine starts up, threads draw out, lamps light, paper leaves a slot. Stagger with `--i`.
+ */
+
+/* lamps that light when something arrives */
+.w-light {
+  opacity: 0.2;
+}
+
+[data-inview] .w-light {
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+  transition-delay: calc(var(--i, 0) * 0.3s + 1.6s);
+}
+
+/* reels turning a little, once, as a cartridge mounts */
+.w-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: w-spin 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) 0.3s both;
+}
+
+@keyframes w-spin {
+  from {
+    transform: rotate(-140deg);
+  }
+}
+
+/* the page coming out of the press */
+.w-print {
+  animation: w-print 1.8s cubic-bezier(0.35, 0.6, 0.2, 1) 0.4s both;
+}
+
+@keyframes w-print {
+  from {
+    transform: translateY(96px);
+  }
+}
+
+/* the card the CLI prints: it waits in the terminal, leaves its slot, rides the chute and drops into the box */
+.w-slide-card {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: translate(-170px, -68px) rotate(4deg);
+}
+
+[data-inview] .w-slide-card {
+  animation: w-slide-card 1.6s 1s both;
+}
+
+@keyframes w-slide-card {
+  from {
+    transform: translate(-170px, -68px) rotate(4deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.6);
+  }
+  45% {
+    transform: translate(-96px, -61px) rotate(4deg);
+    animation-timing-function: linear;
+  }
+  70% {
+    transform: translate(-54px, -47px) rotate(1deg);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.3, 1);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* hovering a keyed part (`data-key`) brings out everything with the same key */
+[data-hovering] [data-key] {
+  transition: opacity 0.3s ease-out;
+}
+
+[data-hovering] [data-key]:not(.w-on) {
+  opacity: 0.3;
+}
+
+/*
+ * Ambient motion, so the machines feel like working devices: smooth at the display's rate, and only while the figure
+ * is on screen (`[data-visible]`, set by `InView` or `Alive`). `Layered` gives each moving part an element of its own,
+ * so the browser runs these on the compositor and the page does no work per frame.
+ */
+
+/* reels and gears turning */
+.w-turn,
+.w-turn-slow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: w-turn 9s linear infinite;
+}
+
+.w-turn-slow {
+  animation-duration: 22s;
+}
+
+@keyframes w-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* lamps breathing */
+.w-breathe {
+  animation: w-breathe 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.9s);
+}
+
+@keyframes w-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* a cursor or indicator blinking: on, then off, with keyframes rather than steps(), which WebKit can't accelerate */
+.w-blink {
+  animation: w-blink 1.2s linear infinite;
+}
+
+@keyframes w-blink {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* after the `animation` shorthands above, which reset the play state */
+:is(.w-turn, .w-turn-slow, .w-breathe, .w-blink) {
+  animation-play-state: paused;
+}
+
+[data-visible] :is(.w-turn, .w-turn-slow, .w-breathe, .w-blink) {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-light {
+    opacity: 1;
+  }
+  [data-inview] .w-light {
+    transition: none;
+  }
+  .w-spin,
+  .w-print,
+  .w-turn,
+  .w-turn-slow,
+  .w-breathe,
+  .w-blink {
+    animation: none;
+  }
+  .w-slide-card,
+  [data-inview] .w-slide-card {
+    transform: none;
+    animation: none;
+  }
+}
+
+/* the layers of a painted SVG, see `Layered`: each moving part over the filtered painting, on its own */
+.w-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* one moving part: a box of the page, which the browser turns or fades on the compositor, with its drawing inside */
+.w-part {
+  position: absolute;
+  inset: 0;
+}
+
+.w-part > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* a part that travels a path, see `Parts`: placed by its animation, hidden until it starts */
+.w-travel {
+  inset: auto;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
+/*
+ * Rain behind the window's glass (see rain.tsx): a pane clips three depths of streaks; each depth is a tile of vertical
+ * streaks on a slanted layer that falls by exactly one tile and loops, as a composited transform.
+ */
+.w-rain-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.w-rain-pane {
+  position: absolute;
+  overflow: hidden;
+}
+
+.w-rain-slant {
+  position: absolute;
+  inset: -40% -30%;
+}
+
+/* one transform tilts the streaks and moves them along their tilt, so rain always falls the way it leans */
+.w-rain-fall {
+  position: absolute;
+  inset: calc(var(--tile) * -1) 0 0;
+  background-repeat: repeat;
+  transform: rotate(var(--angle, 9deg));
+  animation: w-rain-fall 1s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+@keyframes w-rain-fall {
+  from {
+    transform: rotate(var(--angle, 9deg)) translateY(0);
+  }
+  to {
+    transform: rotate(var(--angle, 9deg)) translateY(var(--tile));
+  }
+}
+
+/* a drop that clings to the glass, hesitates, then runs down, leaving a faint trail */
+.w-drop-track {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 8px;
+  animation: w-drop-slide 12s cubic-bezier(0.5, 0, 0.9, 0.6) infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.w-drop {
+  position: absolute;
+  left: 0;
+  border-radius: 50% 50% 46% 46% / 40% 40% 60% 60%;
+  background: radial-gradient(
+    circle at 38% 34%,
+    rgb(255 255 255 / 0.95) 0 18%,
+    rgb(255 255 255 / 0.25) 30%,
+    rgb(40 60 90 / 0.35) 70%,
+    rgb(20 30 50 / 0.55) 100%
+  );
+  box-shadow: 0 1px 1px rgb(20 30 50 / 0.25);
+  /* it forms, and its trail grows, on the track's clock */
+  animation-name: w-drop-form;
+  animation-duration: inherit;
+  animation-delay: inherit;
+  animation-play-state: inherit;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-out;
+  transform-origin: 50% 60%;
+}
+
+.w-drop::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 70%;
+  width: 1.5px;
+  height: 70px;
+  translate: -50% 0;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  border-radius: 1px;
+  background: linear-gradient(to top, rgb(255 255 255 / 0.45), transparent);
+  animation-name: w-drop-trail;
+  animation-duration: inherit;
+  animation-delay: inherit;
+  animation-play-state: inherit;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+}
+
+@keyframes w-drop-slide {
+  0%,
+  54% {
+    transform: none;
+  }
+  /* it hesitates, then gives way */
+  60% {
+    transform: translate(0.5px, 3%);
+  }
+  66% {
+    transform: translate(0, 4%);
+  }
+  /* and runs off the bottom of the pane, under the rail */
+  92%,
+  100% {
+    transform: translate(-1.5px, 110%);
+  }
+}
+
+/* a tiny bead of condensation gathers into a drop, on the clock of its track */
+@keyframes w-drop-form {
+  from {
+    transform: scale(0.25);
+  }
+  42%,
+  to {
+    transform: none;
+  }
+}
+
+/* a transform, so the trail grows on the compositor without layout */
+@keyframes w-drop-trail {
+  0%,
+  60% {
+    transform: scaleY(0);
+  }
+  92%,
+  100% {
+    transform: none;
+  }
+}
+
+[data-visible] :is(.w-rain-fall, .w-drop-track) {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-rain-fall,
+  .w-drop-track,
+  .w-drop::before {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* still ends, so the old code is removed */
+  .w-feed-in,
+  .w-feed-out {
+    animation-duration: 1ms;
+  }
+  .w-feed {
+    transition: none;
+  }
+}
+
+/* a scrolling box on the page: a thin scrollbar in the ink of the drawings */
+.w-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--w-ink) 28%, transparent) transparent;
+}
+
+/* the ring of words around the colophon, turning slowly while in view, on the compositor */
+.w-ring {
+  animation: w-ring 120s linear infinite;
+  animation-play-state: paused;
+}
+[data-visible] .w-ring {
+  animation-play-state: running;
+}
+@keyframes w-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .w-ring {
+    animation: none;
+  }
+}

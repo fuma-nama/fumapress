@@ -146,6 +146,14 @@ declare module "@fumapress/core" {
   interface CapabilityAPI {
     sitemap: SitemapAPI;
   }
+
+  interface RouteOptions {
+    /**
+     * the sitemap entry of the route's pages: `false` leaves them out, an object sets their fields; for pages of the
+     * framework, content pages use `getEntry` of the plugin
+     */
+    sitemap?: false | Omit<SitemapUrl, "loc">;
+  }
 }
 
 /** the API of the `sitemap` capability, from `this.getCapability("sitemap")` */
@@ -325,6 +333,8 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
           for (const route of await this.getPageRoutes()) {
             // a not found page isn't a page of the site
             if (route.path === this.localizePath(route.lang, "/404")) continue;
+            const { sitemap } = route.options;
+            if (sitemap === false) continue;
             for (const page of route.pages) {
               const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;
@@ -335,7 +345,7 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
                 for (const { lang, path } of page.translations)
                   if (lang) alternates.push(pageAlternate(this, lang, path));
               }
-              entries.push({ loc, priority: 1, alternates });
+              entries.push({ loc, priority: 1, alternates, ...sitemap });
             }
           }
           entries.push(

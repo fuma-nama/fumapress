@@ -23,6 +23,20 @@ createPress(content).plugins(
 
 <include cwd>content/shared/plugins/seo.mdx#sitemap</include>
 
+### Custom Pages
+
+Custom pages and plugin pages are listed with priority `1`. To leave a page out or change its entry, set `sitemap` in `getConfig()`:
+
+```tsx title="src/pages/preview.tsx"
+export function getConfig() {
+  return { sitemap: false };
+}
+```
+
+A plugin passes the same option to `createPage()` in `waku.createPages`.
+
+<include cwd>content/shared/plugins/seo.mdx#sitemap-options</include>
+
 ## robots.txt
 
 <include cwd>content/shared/plugins/seo.mdx#robots</include>

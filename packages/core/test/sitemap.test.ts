@@ -143,6 +143,20 @@ describe("sitemapPlugin", () => {
     );
     expect(xml).not.toContain("/cn/docs/only-en");
   });
+
+  it("leaves out or customizes pages of the framework by their `sitemap` route option", async () => {
+    const xml = await generate({}, undefined, [
+      { ...route("/preview"), options: { sitemap: false } },
+      { ...route("/changelog"), options: { sitemap: { changefreq: "daily", priority: 0.6 } } },
+      route("/about"),
+    ]);
+
+    expect(xml).not.toContain("/preview");
+    expect(xml).toContain(
+      "<url><loc>https://example.com/repo/changelog</loc><changefreq>daily</changefreq><priority>0.6</priority></url>" +
+        "<url><loc>https://example.com/repo/about</loc><priority>1</priority></url>",
+    );
+  });
 });
 
 describe("buildSitemap", () => {
