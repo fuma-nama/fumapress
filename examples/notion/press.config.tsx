@@ -24,7 +24,7 @@ export default createPress(
       },
     },
   }),
-  { loaderOptions: { alwaysRevalidate: true } },
+  { alwaysRevalidate: true },
 )
   .plugins(notionPlugin({ notion }), llmsPlugin(), flexsearchPlugin())
   .config({

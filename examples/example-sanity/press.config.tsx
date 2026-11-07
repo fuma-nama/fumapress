@@ -23,7 +23,7 @@ const source = projectId
   : { files: [] };
 
 export default createPress(source, {
-  loaderOptions: { alwaysRevalidate: true },
+  alwaysRevalidate: true,
 })
   .plugins(
     sanityPlugin({

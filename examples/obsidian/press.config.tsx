@@ -13,9 +13,7 @@ const vault = obsidian({
 if (import.meta.env.DEV) watchWithVite(vault);
 
 export default createPress(vault.dynamicSource(), {
-  loaderOptions: {
-    plugins: [lucideIconsPlugin()],
-  },
+  loaderPlugins: [lucideIconsPlugin()],
 })
   .plugins(obsidianPlugin({ vault, components: defaultMdxComponents }))
   .config({

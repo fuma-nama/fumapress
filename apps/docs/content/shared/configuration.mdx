@@ -2,9 +2,15 @@
 
 ## Content and Plugins
 
-`createPress()` takes your [content sources](./content-sources/index.mdx) and two options: `i18n` for your [languages](./internationalization.mdx), and `loaderOptions` for the [Fumadocs loader](https://fumadocs.dev/docs/headless/source-api).
+`createPress()` takes your [content sources](./content-sources/index.mdx) and these options:
 
-`.plugins()` adds [plugins](./plugins/index.mdx), and you call it once. `preset` in `.config()` changes the [default plugins](./plugins/index.mdx#default-plugins).
+- `i18n`: your [languages](./internationalization.mdx).
+- `alwaysRevalidate`: read [dynamic content](./content-sources/custom.mdx#refreshing-content) again on every request.
+- `loaderPlugins`, `url`, `pageTree` and the other [Fumadocs loader options](https://fumadocs.dev/docs/headless/source-api).
+
+`.plugins()` adds [plugins](./plugins/index.mdx). Call it once.
+
+To change the [default plugins](./plugins/index.mdx#default-plugins), set `preset` in `.config()`.
 
 </section>
 

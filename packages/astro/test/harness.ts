@@ -19,13 +19,11 @@ export interface TestSite
 }
 
 /** the stages of a site, without a preset unless `preset` is given */
-export function testPress({ content, i18n, loaderOptions, plugins = [], ...config }: TestSite) {
-  return createPress<_Internal.AnyInput, string | undefined, AppShape, {}>(content, {
-    i18n,
-    loaderOptions,
-  })
+export function testPress(input: TestSite) {
+  const { content, plugins = [], preset, site, head, ui, siteUrl: _siteUrl, ...options } = input;
+  return createPress<_Internal.AnyInput, string | undefined, AppShape, {}>(content, options)
     .plugins(...plugins)
-    .config({ preset: [], ...config });
+    .config({ preset: "preset" in input ? preset : [], site, head, ui });
 }
 
 /** the context of a site on a runtime without own pages or defaults */

@@ -9,7 +9,8 @@ packages:
 
 ### Changed the site config to `createPress()`
 
-- `press.config` exports `createPress(content, { i18n, loaderOptions }).plugins(...).config({...})`, replacing `defineConfig()`, `.adapters()` and `.layouts()`.
+- `press.config` exports `createPress(content, options).plugins(...).config({...})`, replacing `defineConfig()`, `.adapters()` and `.layouts()`.
+- Removed `loaderOptions`: its fields are options of `createPress()`, and `loaderPlugins` replaces `loaderOptions.plugins`.
 - `.config()` is optional: `createPress(content).plugins(...)` is a complete site.
 - `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI.
 - Removed the layout factories of `fumapress/layouts/*`, use the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, "docs")` of `fumapress` replaces their `treeRoot` option.
@@ -38,6 +39,7 @@ packages:
 - A plugin `provides` a capability and others read its `api` with `this.getCapability()`. A listed plugin replaces the preset entry of its capability.
 - Slots reach `ui.renderPage` as `props.actions` and `props.footer`. The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
 - Removed `preinit`, `configureRoutes`, plugin `renderPage`, `this.data` and `Adapter`.
+- `fumapress` exports the types that plugins use, like `Context`, `HeadTag`, `SlotItem` and `DocsPageData`.
 
 ### Removed packages and entries
 

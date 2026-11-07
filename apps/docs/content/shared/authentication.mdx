@@ -71,19 +71,17 @@ Middleware blocks a page, but its link stays in the sidebar. Remove the folder f
 
 ```tsx title="press.config.tsx"
 createPress(content, {
-  loaderOptions: {
-    pageTree: {
-      transformers: [
-        {
-          root(node) {
-            return {
-              ...node,
-              children: node.children.filter((item) => item.name !== "Internal"), // [!code highlight]
-            };
-          },
+  pageTree: {
+    transformers: [
+      {
+        root(node) {
+          return {
+            ...node,
+            children: node.children.filter((item) => item.name !== "Internal"), // [!code highlight]
+          };
         },
-      ],
-    },
+      },
+    ],
   },
 });
 ```

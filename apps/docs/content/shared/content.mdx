@@ -33,10 +33,7 @@ To resolve icon names, add the Lucide plugin of Fumadocs:
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons"; // [!code ++]
 
 export default createPress(content, {
-  // [!code ++:3]
-  loaderOptions: {
-    plugins: [lucideIconsPlugin()],
-  },
+  loaderPlugins: [lucideIconsPlugin()], // [!code ++]
 });
 ```
 

@@ -2,9 +2,7 @@ The source is read once, so new content doesn't appear on its own. Choose when t
 
 ```tsx tab="On every request" title="press.config.tsx"
 createPress(source, {
-  loaderOptions: {
-    alwaysRevalidate: true, // [!code highlight]
-  },
+  alwaysRevalidate: true, // [!code highlight]
 });
 ```
 

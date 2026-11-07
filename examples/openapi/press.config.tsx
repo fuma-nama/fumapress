@@ -38,9 +38,7 @@ export default createPress(
   },
   {
     i18n,
-    loaderOptions: {
-      plugins: [lucideIconsPlugin()],
-    },
+    loaderPlugins: [lucideIconsPlugin()],
   },
 )
   .plugins(

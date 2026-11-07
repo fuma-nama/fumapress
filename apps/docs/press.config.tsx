@@ -82,7 +82,7 @@ export const app = createPress(
     blog: blog.toFumadocsSource({ baseDir: "blog" }),
     changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
   },
-  { loaderOptions: { plugins: [lucideIconsPlugin()] } },
+  { loaderPlugins: [lucideIconsPlugin()] },
 ).plugins(
   {
     name: "docs:moved-pages",

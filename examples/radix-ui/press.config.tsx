@@ -30,11 +30,7 @@ export default createPress(
     docs: docs.toFumadocsSource(),
     openapi: await openapi.staticSource(),
   },
-  {
-    loaderOptions: {
-      plugins: [lucideIconsPlugin()],
-    },
-  },
+  { loaderPlugins: [lucideIconsPlugin()] },
 )
   .plugins(openapiPlugin({ server: openapi, createProxy: true }))
   .config({

@@ -268,7 +268,7 @@ export async function createPressContext(
     name: site?.name ?? "Fumapress",
     git: site?.git && Object.freeze(resolveGit(site.git)),
   });
-  const { alwaysRevalidate, ...loaderOptions } = options.loaderOptions ?? {};
+  const { i18n: _i18n, alwaysRevalidate, loaderPlugins: sitePlugins, ...loaderOptions } = options;
   let loader: DynamicLoader<InferLoaderConfig<AppShape>>;
 
   /** the first answer of the first layer answering; in development, a second answer of that layer is an error */
@@ -540,6 +540,7 @@ export async function createPressContext(
     baseUrl: "/",
     i18n: i18nConfig,
     ...loaderOptions,
+    plugins: sitePlugins,
   });
   const results = await Promise.all(
     plugins.map((plugin) => plugin.configureLoader?.call(ctx, input)),
@@ -552,7 +553,7 @@ export async function createPressContext(
       input,
       results,
       (key, a, b) =>
-        `${nameOf(a)} and ${nameOf(b)} both set the loader option \`${key}\`: an option has one writer, set it in \`loaderOptions\` to choose.`,
+        `${nameOf(a)} and ${nameOf(b)} both set the loader option \`${key}\`: an option has one writer, set it in \`createPress()\` to choose.`,
       // the site's options win
       (key) => key === "plugins" || key === "baseUrl" || key === "i18n" || key in loaderOptions,
     ),

@@ -21,7 +21,9 @@ If you use the Radix UI build, replace the last line with `npm i fumadocs-ui@lat
 
 ### Rewrite the Config [step]
 
-`content`, `i18n` and `loaderOptions` go to `createPress()`. Plugins go to `.plugins()`, called once. Everything else goes to `.config()`.
+`content` and `i18n` go to `createPress()`. Plugins go to `.plugins()`, called once. Everything else goes to `.config()`.
+
+The fields of `loaderOptions` also go to `createPress()`, without the `loaderOptions` wrapper. Rename `plugins` to `loaderPlugins`.
 
 ```tsx title="press.config.tsx"
 // [!code --:2]
@@ -40,7 +42,7 @@ export default defineConfig({
   .plugins(llmsPlugin());
 // [!code ++:5]
 export const app = createPress(docs.toFumadocsSource(), {
-  loaderOptions: { plugins: [lucideIconsPlugin()] },
+  loaderPlugins: [lucideIconsPlugin()],
 }).plugins(llmsPlugin());
 
 export default app.config({ site: { name: "My Docs" } });

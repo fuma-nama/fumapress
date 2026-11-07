@@ -91,7 +91,7 @@ export function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
 
 ### Loader Options
 
-`configureLoader` adds to the [Fumadocs loader](https://fumadocs.dev/docs/headless/source-api) options. Loader plugins from all your plugins are combined. Any other option can be set by one plugin only, and the `loaderOptions` of the site take priority.
+`configureLoader` adds to the [Fumadocs loader](https://fumadocs.dev/docs/headless/source-api) options. Loader plugins from all your plugins are combined. Any other option can be set by one plugin only, and the options in `createPress()` take priority.
 
 ```tsx title="acme/index.tsx"
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";

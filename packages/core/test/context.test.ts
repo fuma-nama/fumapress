@@ -139,7 +139,7 @@ describe("createPressContext", () => {
     const ctx = await createSite({ content: { files: () => list } });
     const always = await createSite({
       content: { files: () => list },
-      loaderOptions: { alwaysRevalidate: true },
+      alwaysRevalidate: true,
     });
     expect((await ctx.getLoader()).getPages()).toHaveLength(1);
     expect((await always.getLoader()).getPages()).toHaveLength(1);
@@ -260,7 +260,7 @@ describe("configureLoader", () => {
     const own = plugin("own");
     const given: unknown[] = [];
     const ctx = await createSite({
-      loaderOptions: { plugins: [own] },
+      loaderPlugins: [own],
       plugins: [
         {
           configureLoader(options) {
@@ -280,7 +280,7 @@ describe("configureLoader", () => {
   it("lets the site's option win over writers", async () => {
     const write = (name: string) => ({ name, configureLoader: () => ({ url: () => "/x" }) });
     const ctx = await createSite({
-      loaderOptions: { url: () => "/site" },
+      url: () => "/site",
       plugins: [write("a"), write("b")],
     });
 
@@ -873,7 +873,7 @@ describe("alwaysRevalidate", () => {
     let collected = 0;
     const ctx = await createSite({
       content: { files: () => [page("index.mdx")] },
-      loaderOptions: { alwaysRevalidate: true },
+      alwaysRevalidate: true,
       plugins: [
         {
           async routes({ createApi }) {

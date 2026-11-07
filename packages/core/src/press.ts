@@ -74,19 +74,23 @@ export interface SiteConfig {
 /** the pages of the source key `K` */
 export type SourcePage<C extends AppShape, K extends C["source"]> = Extract<C["page"], { type: K }>;
 
-/** the options of the content stage: the site's languages and the Fumadocs loader */
-export interface ContentOptions<I extends _Internal.AnyInput, Lang extends string | undefined> {
+/**
+ * The options of the content stage: the site's languages, and the Fumadocs `loader()` options like `url` and `slugs`.
+ * `baseUrl` is the site's, and `loaderPlugins` is the `plugins` of `loader()`.
+ */
+export type ContentOptions<
+  I extends _Internal.AnyInput,
+  Lang extends string | undefined,
+> = Omit<
+  LoaderOptions<_Internal.GenerateStorage<I>, InferI18nConfig<Lang>>,
+  "baseUrl" | "i18n" | "plugins"
+> & {
   i18n?: InferI18nConfig<Lang>;
-  /** the Fumadocs `loader()` options; `baseUrl` is the site's, `i18n` the one above */
-  loaderOptions?: Omit<
-    LoaderOptions<_Internal.GenerateStorage<I>, InferI18nConfig<Lang>>,
-    "baseUrl" | "i18n" | "plugins"
-  > &
-    Pick<Framework.PluginLoaderOptions, "plugins"> & {
-      /** revalidate dynamic sources on each request, otherwise call `revalidateLoader()` @defaultValue false */
-      alwaysRevalidate?: boolean;
-    };
-}
+  /** revalidate dynamic sources on each request, otherwise call `revalidateLoader()` @defaultValue false */
+  alwaysRevalidate?: boolean;
+  /** the `plugins` of the Fumadocs loader, like `lucideIconsPlugin()` */
+  loaderPlugins?: Framework.PluginLoaderOptions["plugins"];
+};
 
 /** what press.config exports; helpers read the type-only `~types` of any stage: `RenderPageProps<typeof app>` */
 export interface Press<C extends AppShape = AppShape, T extends PluginTypes = PluginTypes> {
