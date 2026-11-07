@@ -1,3 +1,15 @@
+## @fumapress/feedback@2.0.0
+
+### Feedback on Waku and Astro
+
+- `feedbackPlugin()`, `githubFeedbackPlugin()` and `emailFeedbackPlugin()` work on Waku and Astro, and `fumapress` is no longer a peer dependency.
+- Page feedback is the `feedback` footer item, `props.footer.feedback` in `ui.renderPage`.
+- Changed: actions of `feedbackPlugin()` run on the server at `/api/feedback/page` and `/api/feedback/text` instead of as Server Functions. A `Response` an action throws is the answer.
+- Actions exported from `'use client'` modules run in the browser, also on a site without a server.
+- `feedbackPlugin()` accepts `beforeRequest`, like the integrations.
+- `githubFeedbackPlugin()` finds the existing discussion of a page instead of opening a new one for each feedback.
+- Feedback routes answer 400 to invalid JSON.
+
 ## @fumapress/feedback@1.1.5
 
 ### Keep the path of `site.baseUrl` in absolute URLs

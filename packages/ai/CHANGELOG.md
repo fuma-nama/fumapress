@@ -1,3 +1,14 @@
+## @fumapress/ai@2.0.0
+
+### AI chat on Waku and Astro
+
+- `aiPlugin()` and `mcpPlugin()` work on Waku and Astro, and `fumapress` is no longer a peer dependency.
+- The built-in UI docks the chat, with a floating "Ask AI" button.
+- The chat reaches layouts as their `aiChat` prop through `useLayoutProps()`, so a custom layout docks it by spreading `useLayoutProps()`. Docs and Notebook layouts show a floating "Ask AI" button, Glass and Spacious their own.
+- Removed `AIChatLayout`, and `AIChat` takes the endpoint as its `api` prop.
+- AI search indexes the pages of every plugin with page text, like OpenAPI pages.
+- `/api/ai` answers 400 to messages the UI never sends: system messages and parts like files, which the server would download.
+
 ## @fumapress/ai@1.2.1
 
 ### Keep the path of `site.baseUrl` in absolute URLs

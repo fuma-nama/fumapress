@@ -1,3 +1,14 @@
+## @fumapress/tegami@2.0.0
+
+### Changelog on Waku and Astro
+
+- `changelogPlugin()` works on Waku and Astro, and `fumapress` is no longer a peer dependency.
+- Changed `changelogPlugin()` to require the source keys of the changelog: `changelogPlugin({ source: "changelog" })`, replacing `isChangelog`.
+- Removed `layouts`, `createChangelogLayout()`, `createChangelogIndexPage()` and `getChangelogContext()`, customize the page in `ui.renderPage`.
+- The `changelog.index` page has typed `entries` in `ui.renderPage`, compose them with `ChangelogIndexView`.
+- Entry dates come from the creation date of pages, like the `date` frontmatter.
+- The index renders on demand when its content source is dynamic.
+
 ## @fumapress/tegami@1.1.4
 
 ### Changelog routes get canonical links
