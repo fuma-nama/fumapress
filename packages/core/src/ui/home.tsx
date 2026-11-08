@@ -35,12 +35,7 @@ export function HomeShell({
 }) {
   return (
     <HomeLayout {...useHomeLayoutProps(layoutProps)}>
-      <div
-        data-fd-home-layout-container=""
-        className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto"
-      >
-        {children}
-      </div>
+      <div className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto">{children}</div>
     </HomeLayout>
   );
 }
