@@ -98,12 +98,9 @@ describe("getHomeUrl and rootRedirect", () => {
     expect(await getHomeUrl(await create([]), "en")).toBe("/en");
   });
 
-  it("redirects to the home of the default language", async () => {
+  it("redirects to the home of the default language, or its first page", async () => {
     expect(await rootRedirect(await create([page("index.mdx"), ...docs]))).toBe("/en");
     expect(await rootRedirect(await create(docs, i18n, ["/en"]))).toBe("/en");
-  });
-
-  it("redirects to the first page of the default language without its home", async () => {
     expect(await rootRedirect(await create(docs))).toBe("/en/docs/b");
   });
 

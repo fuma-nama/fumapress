@@ -19,16 +19,8 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-test("accepts ESM packages", () => {
-  expect(() => assertEsmApp(app({ type: "module" }))).not.toThrow();
-});
-
-test("rejects packages without a module type", () => {
-  expect(() => assertEsmApp(app({}))).toThrow('add \'"type": "module"\'');
-  expect(() => assertEsmApp(app({ type: "commonjs" }))).toThrow();
-});
-
-test("checks the nearest package.json upwards", () => {
+test("checks the nearest package.json upwards for `type: module`", () => {
   expect(() => assertEsmApp(app({ type: "module" }, "nested/dir"))).not.toThrow();
-  expect(() => assertEsmApp(app({}, "nested/dir"))).toThrow();
+  expect(() => assertEsmApp(app({}, "nested/dir"))).toThrow('add \'"type": "module"\'');
+  expect(() => assertEsmApp(app({ type: "commonjs" }))).toThrow();
 });

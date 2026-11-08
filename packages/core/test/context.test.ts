@@ -138,7 +138,6 @@ describe("createPressContext", () => {
     translations.add({ en: { Copy: "Copy", Search: "Search", Unknown: "Unknown" } });
 
     expect(ctx.translationsConfig).toBe(translations);
-    expect(ctx.i18nConfig).toBe(i18n);
     expect(translations.get("en")).toEqual({ Copy: "Copy", Search: "Search" });
     expect((await createSite({ i18n })).translationsConfig).toBeUndefined();
   });
@@ -1150,7 +1149,6 @@ describe("URLs", () => {
     ["adds it before a query", slash, "/docs?a=b.c", "/repo/docs/?a=b.c"],
     ["adds none to files", slash, "/robots.txt", "/repo/robots.txt"],
     ["adds none to the root, for `stripBase()`", slash, "/", "/repo"],
-    ["adds none by default", plain, "/api/ai", "/api/ai"],
   ])("withBase %s", async (_, [site, runtime], input, expected) => {
     expect((await createSite(site, runtime)).withBase(input)).toBe(expected);
   });

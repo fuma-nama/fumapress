@@ -64,25 +64,7 @@ describe.each([
     });
   });
 
-  it("follows the content source, unless `render` says otherwise", async () => {
-    const files = [{ type: "page" as const, path: "a.mdx", data: { title: "A" } }];
-    const search = async (site: Parameters<typeof createSite>[0]) =>
-      (await (await createSite(site)).getProviderProps({ lang: undefined })).search;
-
-    expect(await search({ plugins: [searchPlugin()], content: { files } })).toMatchObject({
-      SearchDialog: StaticDialog,
-    });
-    expect(
-      await search({ plugins: [searchPlugin()], content: { files: () => files } }),
-    ).toMatchObject({
-      SearchDialog: FetchSearchDialog,
-    });
-    expect(
-      await search({ plugins: [searchPlugin({ render: "dynamic" })], content: { files } }),
-    ).toMatchObject({ SearchDialog: FetchSearchDialog });
-  });
-
-  it("keeps its options under the dialog of the site", async () => {
+  it("keeps its options under the dialog of the site, `render` over the content source", async () => {
     function MyDialog() {
       return null;
     }

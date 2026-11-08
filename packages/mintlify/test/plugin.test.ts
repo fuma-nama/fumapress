@@ -10,10 +10,10 @@ import { page } from "./fixtures/page-tree";
 
 const fixturesRoot = path.join(import.meta.dirname, "fixtures");
 
-/** the members of a context the plugin uses, the home page is `/` */
 /** views of this plugin are static, the request is unused */
 const env = { lang: undefined, request: new Request("https://example.com/404") };
 
+/** the members of a context the plugin uses, the home page is `/` */
 const ctx = {
   mode: "default",
   languages: [undefined],

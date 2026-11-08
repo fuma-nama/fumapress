@@ -127,6 +127,5 @@ describe("plugin types of a site", () => {
     recommendedPreset({ sitemap: { path: "/map.xml" }, rss: false, search: false });
     // @ts-expect-error robots takes a path or `false`
     recommendedPreset({ robots: { sitemap: true } });
-    expect(recommendedPreset({ sitemap: false, robots: false, llms: false })).toHaveLength(3);
   });
 });

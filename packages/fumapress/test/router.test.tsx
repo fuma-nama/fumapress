@@ -682,7 +682,7 @@ describe("middleware", () => {
     expect(seen).toEqual(["/guide", "/assets/app.js", "/private"]);
   });
 
-  it("runs after Cloudflare sets the env of Waku, never on the loopback of Waku's build", async () => {
+  it("runs on the `fetch` of `defaultExport` after Cloudflare sets the env of Waku, never on the loopback of Waku's build", async () => {
     const seen: unknown[] = [];
     const router = await routes([
       {
@@ -698,17 +698,19 @@ describe("middleware", () => {
         ({
           fetch: adapterFetch,
           build: async () => {},
-          defaultExport: { fetch: adapterFetch },
+          defaultExport: { fetch: adapterFetch, queue: 1 },
         }) as never,
     )({} as never, {} as never);
     const defaultExport = entry.defaultExport as {
       fetch: (request: Request, env: object) => Promise<Response>;
+      queue: number;
     };
 
     expect((await defaultExport.fetch(new Request("http://localhost/"), { KEY: "v" })).status).toBe(
       401,
     );
     expect(seen).toEqual([{ KEY: "v" }]);
+    expect(defaultExport.queue).toBe(1);
     const loopback = new Request("http://localhost/__waku_internal_build_static_files");
     expect(await (await entry.fetch(loopback)).text()).toBe("adapter");
     expect(await (await defaultExport.fetch(loopback, {})).text()).toBe("adapter");
@@ -730,25 +732,6 @@ describe("middleware", () => {
     await entry.build({ emitFile: async () => {} } as never, { serverless: true } as never);
 
     expect(built).toBe("page");
-  });
-
-  it("runs on the `fetch` of `defaultExport` too, which Cloudflare serves", async () => {
-    const router = await routes([{ middleware: async () => new Response("middleware") }]);
-    const adapterFetch = async () => new Response("adapter");
-    const entry = router.patchAdapter(
-      () =>
-        ({
-          fetch: adapterFetch,
-          build: async () => {},
-          defaultExport: { fetch: adapterFetch, queue: 1 },
-        }) as never,
-    )({} as never, {} as never);
-    const defaultExport = entry.defaultExport as { fetch: typeof entry.fetch; queue: number };
-
-    expect(await (await defaultExport.fetch(new Request("http://localhost/"))).text()).toBe(
-      "middleware",
-    );
-    expect(defaultExport.queue).toBe(1);
   });
 });
 

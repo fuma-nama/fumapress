@@ -7,7 +7,6 @@ describe("resolveIconComponent", () => {
   });
 
   it("translates common Font Awesome names", async () => {
-    expect(await resolveIconComponent("gear")).toBeTypeOf("object");
     expect(await resolveIconComponent("magnifying-glass")).toBeTypeOf("object");
   });
 

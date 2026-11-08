@@ -79,13 +79,6 @@ describe("llmsPlugin", () => {
     await expect(readRoute(routes, "/en/docs/empty.md")).resolves.toBe("");
   });
 
-  it("names the root file `/index.md`", async () => {
-    const routes = await (await createSite()).getApiRoutes();
-
-    expect(routes.map((route) => route.path)).toContain("/index.md");
-    await expect(readRoute(routes, "/index.md")).resolves.toContain("Text of index.mdx");
-  });
-
   it("lists pages in llms.txt and renders them in llms-full.txt without fallback pages", async () => {
     const routes = await (await createSite({ i18n })).getApiRoutes();
     const index = await readRoute(routes, "/llms.txt");

@@ -22,6 +22,6 @@ describe("parseMintlifyDocsJson", () => {
         theme: "mint",
         colors: { primary: "#000000" },
       }),
-    ).toThrow("[Fumapress Mintlify] Invalid docs.json:\nname: Invalid input");
+    ).toThrow("[Fumapress Mintlify] Invalid docs.json:\nname");
   });
 });

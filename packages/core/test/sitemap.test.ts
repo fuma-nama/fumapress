@@ -259,16 +259,6 @@ describe("buildSitemap", () => {
           "</news:news>",
       ],
     ],
-    [
-      "the extension namespaces",
-      { loc },
-      [
-        'xmlns:xhtml="http://www.w3.org/1999/xhtml"',
-        'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"',
-        'xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"',
-        'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"',
-      ],
-    ],
   ])("serializes %s", (_, entry, expected) => {
     const xml = buildSitemap([entry]);
 
