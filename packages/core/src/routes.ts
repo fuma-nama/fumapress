@@ -467,13 +467,15 @@ export function collectRoutes(
   function claim(keys: Set<string>, owner: PluginInfo, path: string, page: boolean): boolean {
     if (page) for (const key of keys) if (owners.get(key) === ownPage) return false;
     for (const key of keys)
-      takeKey(
-        owners,
-        key,
-        owner,
-        (other) =>
-          `${typeof other === "string" ? other : nameOf(other)} and ${nameOf(owner)} both take the path "${path}": a path has one route.`,
-      );
+      takeKey(owners, key, owner, (other) => {
+        const name = typeof other === "string" ? other : nameOf(other);
+        // like a default plugin listed in `.plugins()` too
+        const twice =
+          typeof other !== "string" && owner.name !== undefined && other.name === owner.name
+            ? ` ${name} is added twice: pass the options of a default plugin to \`recommendedPreset()\` instead of listing it.`
+            : "";
+        return `${name} and ${nameOf(owner)} both take the path "${path}": a path has one route.${twice}`;
+      });
     return true;
   }
 

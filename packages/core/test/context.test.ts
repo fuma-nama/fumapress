@@ -823,6 +823,14 @@ describe("a path has one route", () => {
     );
   });
 
+  it("says a plugin is added twice, like a default plugin listed too", async () => {
+    const ctx = await createSite({
+      plugins: [api("core:rss", "/rss.xml"), api("core:rss", "/rss.xml")],
+    });
+
+    await expect(ctx.getApiRoutes()).rejects.toThrow('"core:rss" is added twice');
+  });
+
   it("lets a route win over a page of a dynamic source, which can appear while the server runs", async () => {
     const ctx = await createSite({
       content: { files: () => files },
