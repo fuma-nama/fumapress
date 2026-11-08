@@ -2,8 +2,6 @@ import { createNotion } from "@fumadocs/notion";
 import notionPlugin from "@fumadocs/notion/press";
 import { Client } from "@notionhq/client";
 import { createPress } from "fumapress";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
 
 const notion = createNotion({
   client: new Client({ auth: getEnv("NOTION_TOKEN") }),
@@ -26,7 +24,7 @@ export default createPress(
   }),
   { alwaysRevalidate: true },
 )
-  .plugins(notionPlugin({ notion }), llmsPlugin(), flexsearchPlugin())
+  .plugins(notionPlugin({ notion }))
   .config({
     site: {
       name: "Notion Example",

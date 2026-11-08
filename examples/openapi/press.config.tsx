@@ -1,9 +1,6 @@
 import { createPress } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { takumiPlugin } from "fumapress/plugins/takumi";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
 import openapiPlugin from "fumadocs-openapi/press";
 import path from "node:path";
 import { defineI18n } from "fumadocs-core/i18n";
@@ -41,12 +38,7 @@ export default createPress(
     loaderPlugins: [lucideIconsPlugin()],
   },
 )
-  .plugins(
-    flexsearchPlugin(),
-    llmsPlugin(),
-    takumiPlugin(),
-    openapiPlugin({ server: openapi, createProxy: true }),
-  )
+  .plugins(openapiPlugin({ server: openapi, createProxy: true }))
   .config({
     ui: { translations: i18n.translations().preset("cn", zhTW()) },
     head: [
