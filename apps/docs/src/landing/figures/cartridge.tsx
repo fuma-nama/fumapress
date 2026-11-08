@@ -116,7 +116,7 @@ function Reel({ cx, pack }: { cx: number; pack: number }) {
   return (
     <>
       {/* the wound tape turns; its shading and glints stay with the light */}
-      <g className="w-spin">
+      <g>
         <g className={turn}>
           <Pivot cx={cx} cy={cy} />
           <g filter="url(#w-wash)">
@@ -132,7 +132,7 @@ function Reel({ cx, pack }: { cx: number; pack: number }) {
           o={0.5}
         />
       </g>
-      <g className="w-spin">
+      <g>
         <g className={turn}>
           <Pivot cx={cx} cy={cy} />
           <g filter="url(#w-wash)">
@@ -207,11 +207,13 @@ function Reel({ cx, pack }: { cx: number; pack: number }) {
   );
 }
 
-export function PluginCartridge({ name, index }: { name: string; index: number }) {
-  const no = `No. ${String(index).padStart(2, "0")}`;
-  const textW = 136;
-  const size = Math.min(16, Math.max(13, textW / em(name)));
-  const overflow = em(name) * size > textW + 4;
+const viewBox = "0 0 520 190";
+
+/**
+ * The cartridge without the name and number of its plugin, the same for every plugin, so the page draws it from cached
+ * files (see `Painting`); `CartridgeType` sets the plugin's own type over it.
+ */
+export function CartridgeBody() {
   const lx = label.x;
   const ly = label.y;
   const lr = label.x + label.w;
@@ -220,13 +222,8 @@ export function PluginCartridge({ name, index }: { name: string; index: number }
   const sr = shell.x + shell.w;
 
   return (
-    <svg
-      viewBox="0 0 520 190"
-      className="overflow-visible"
-      role="img"
-      aria-label={`${name} plugin`}
-    >
-      {/* the whole cartridge, its shadow included; on a change only its label changes and its reels spin */}
+    <svg viewBox={viewBox} className="overflow-visible" aria-hidden>
+      {/* the whole cartridge, its shadow included */}
       <g>
         {/* 1. flat shadow on the paper, light from the top-left */}
         <g filter="url(#w-flat)">
@@ -682,25 +679,6 @@ export function PluginCartridge({ name, index }: { name: string; index: number }
           PLUGIN
         </text>
         <text
-          x={lr - 10}
-          y={ly + 16}
-          fontSize={9}
-          textAnchor="end"
-          className="fill-w-text font-mono"
-        >
-          {no}
-        </text>
-        <text
-          x={lx + label.w / 2}
-          y={ly + 47}
-          fontSize={size}
-          textAnchor="middle"
-          className="fill-w-text font-serif"
-          {...(overflow ? { textLength: textW, lengthAdjust: "spacingAndGlyphs" } : {})}
-        >
-          {name}
-        </text>
-        <text
           x={172}
           y={22.5}
           fontSize={6.5}
@@ -721,6 +699,42 @@ export function PluginCartridge({ name, index }: { name: string; index: number }
           side A
         </text>
       </g>
+    </svg>
+  );
+}
+
+/** the name and number of a plugin on the label of `CartridgeBody`, in the same box */
+export function CartridgeType({
+  name,
+  index,
+  className,
+}: {
+  name: string;
+  index: number;
+  className?: string;
+}) {
+  const no = `No. ${String(index).padStart(2, "0")}`;
+  const textW = 136;
+  const size = Math.min(16, Math.max(13, textW / em(name)));
+  const overflow = em(name) * size > textW + 4;
+  const lx = label.x;
+  const ly = label.y;
+  const lr = label.x + label.w;
+  return (
+    <svg viewBox={viewBox} className={className} role="img" aria-label={`${name} plugin`}>
+      <text x={lr - 10} y={ly + 16} fontSize={9} textAnchor="end" className="fill-w-text font-mono">
+        {no}
+      </text>
+      <text
+        x={lx + label.w / 2}
+        y={ly + 47}
+        fontSize={size}
+        textAnchor="middle"
+        className="fill-w-text font-serif"
+        {...(overflow ? { textLength: textW, lengthAdjust: "spacingAndGlyphs" } : {})}
+      >
+        {name}
+      </text>
     </svg>
   );
 }

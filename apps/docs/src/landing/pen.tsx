@@ -692,7 +692,7 @@ export function cast(outline: string, dx: number, dy: number): string {
 /** classes of the parts that keep moving, see `.w-turn` and the others in washi.css */
 const MOVING = /\bw-(?:turn|turn-slow|breathe|blink)\b/;
 /** classes of the intros, which play once inside the painting, see `.w-light` and the others in washi.css */
-const INTRO = /\bw-(?:light|thread|print|slide-card|spin)\b/;
+const INTRO = /\bw-(?:light|thread|print|slide-card)\b/;
 
 export type Props = {
   children?: ReactNode;

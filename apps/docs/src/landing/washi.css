@@ -138,6 +138,29 @@ html:has([data-washi]) body {
 }
 
 /*
+ * The navbar on the same paper, opaque, instead of blurring the page under it: while a figure moves, the browser draws
+ * every frame, and a backdrop blur runs again on each one. The navbar is sticky, so its own paper is painted once.
+ */
+html:has([data-washi]) #nd-nav > nav {
+  backdrop-filter: none;
+  background-color: var(--w-paper);
+  background-image: var(--w-fibers), var(--w-noise);
+}
+
+.dark:has([data-washi]) #nd-nav > nav {
+  background-image: var(--w-noise);
+}
+
+/* the image of a figure file per theme (see `imageStyle`), as a background so only the theme's image loads */
+.w-image {
+  background: var(--image-light) 0 0 / 100% 100% no-repeat;
+}
+
+.dark .w-image {
+  background-image: var(--image-dark);
+}
+
+/*
  * The shadow a sheet casts down and right, with the fibers of the paper showing through: everything the sheet sweeps
  * through on its way to the offset (`--sx`, `--sy`), so it stays joined to the sheet with diagonal edges at the top
  * right and bottom left corners, rather than a second rectangle behind it.
@@ -304,19 +327,6 @@ html:has([data-washi]) body {
   opacity: 1;
   transition: opacity 0.5s ease-out;
   transition-delay: calc(var(--i, 0) * 0.3s + 1.6s);
-}
-
-/* reels turning a little, once, as a cartridge mounts */
-.w-spin {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: w-spin 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) 0.3s both;
-}
-
-@keyframes w-spin {
-  from {
-    transform: rotate(-140deg);
-  }
 }
 
 /* the page coming out of the press */
@@ -578,7 +588,6 @@ html:has([data-washi]) body {
   .w-feed {
     transition: none;
   }
-  .w-spin,
   .w-print,
   .w-turn,
   .w-turn-slow,
