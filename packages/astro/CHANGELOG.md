@@ -1,7 +1,4 @@
----
-packages:
-  "npm:@fumapress/astro": minor
----
+## @fumapress/astro@0.1.0
 
 ### Fumapress on Astro
 

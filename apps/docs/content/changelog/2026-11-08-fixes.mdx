@@ -1,0 +1,16 @@
+---
+title: Fixes
+date: 2026-11-08T05:53:39.086Z
+packages:
+  fumapress:
+    version: 2.0.0
+  "@fumapress/core":
+    version: 0.1.0
+---
+
+### Fixes
+
+- Content pages are served at the URLs of the `url` option of `createPress()`.
+- Boolean attributes of head tags, like `async: ""`, are kept.
+- Page actions and the feedback form reset on client navigation, and no empty row is left without actions.
+- A rest param in a custom page path, like `/[...lang]/about`, matches only its own paths.
