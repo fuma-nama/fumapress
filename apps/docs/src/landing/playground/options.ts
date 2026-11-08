@@ -20,7 +20,7 @@ export interface PlaygroundConfig {
   actions: boolean;
   /** the theme import of `src/app.css` */
   theme: ThemeId;
-  /** `aiPlugin` of `@fumapress/ai`: the "Ask AI" action and the docked chat */
+  /** `aiPlugin` of `@fumapress/ai`: the floating "Ask AI" button and the docked chat */
   ai: boolean;
   /** `feedbackPlugin` of `@fumapress/feedback`: the rating at the end of pages */
   feedback: boolean;

@@ -24,7 +24,7 @@ import {
   type PlaygroundConfig,
   type PlaygroundMessage,
 } from "./options";
-import { AIChatPanel, AskAIButton, Feedback } from "./features";
+import { AIChatPanel, Feedback } from "./features";
 import {
   GuideBody,
   OperationBody,
@@ -123,6 +123,7 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
         open: chatOpen,
         onOpenChange: setChatOpen,
         panel: <AIChatPanel onClose={() => setChatOpen(false)} />,
+        trigger: true,
       }
     : undefined;
   const tabs = config.tabs === "off" ? false : undefined;
@@ -139,21 +140,16 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
       tableOfContentPopover={{ style: config.toc }}
     >
       <DocsTitle>{operation?.title ?? guide.title}</DocsTitle>
-      <DocsDescription className="mb-0">
+      <DocsDescription className={config.actions ? "mb-0" : undefined}>
         {operation?.description ?? guide.description}
       </DocsDescription>
-      {(config.actions || config.ai) && (
+      {config.actions && (
         <div className="flex flex-row items-center gap-2 border-b pt-2 pb-6">
-          {config.actions && (
-            <>
-              <MarkdownCopyButton markdownUrl="/docs.md" />
-              <ViewOptionsPopover
-                markdownUrl="/docs.md"
-                githubUrl="https://github.com/fuma-nama/fumapress"
-              />
-            </>
-          )}
-          {config.ai && <AskAIButton open={chatOpen} onClick={() => setChatOpen(!chatOpen)} />}
+          <MarkdownCopyButton markdownUrl="/docs.md" />
+          <ViewOptionsPopover
+            markdownUrl="/docs.md"
+            githubUrl="https://github.com/fuma-nama/fumapress"
+          />
         </div>
       )}
       <DocsBody>{operation ? <OperationBody operation={operation} /> : <GuideBody />}</DocsBody>

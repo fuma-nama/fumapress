@@ -8,7 +8,6 @@ import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Collapsible, CollapsibleContent } from "fumadocs-ui/components/ui/collapsible";
 import {
   ArrowUpIcon,
-  MessageCircleIcon,
   SearchIcon,
   SquarePenIcon,
   ThumbsDown,
@@ -19,26 +18,7 @@ import { cn } from "../../cn";
 import { previewPath } from "./options";
 import { href } from "./sample";
 
-/* AI chat: `AIChatAction` of `@fumapress/ai`, and the panel of `@fumadocs/ai-chat` */
-
-/** the `ai` page action */
-export function AskAIButton({ open, onClick }: { open: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={onClick}
-      className={buttonVariants({
-        variant: "secondary",
-        size: "sm",
-        className: "gap-2 [&_svg]:size-3.5 [&_svg]:text-fd-muted-foreground",
-      })}
-    >
-      <MessageCircleIcon aria-hidden />
-      Ask AI
-    </button>
-  );
-}
+/* AI chat: the panel of `@fumadocs/ai-chat` */
 
 interface Message {
   role: "user" | "assistant";
