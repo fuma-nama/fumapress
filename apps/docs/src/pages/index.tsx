@@ -133,7 +133,7 @@ export default function Page() {
       <meta property="og:description" content={description} />
       <div
         data-washi=""
-        className="-mx-4 px-4 text-w-text xl:mx-auto xl:w-full xl:max-w-6xl xl:px-2"
+        className="-mx-4 px-4 max-xl:overflow-x-clip text-w-text xl:mx-auto xl:w-full xl:max-w-6xl xl:px-2"
       >
         <InkDefs />
         <CordLayer>
@@ -302,7 +302,7 @@ function Hero() {
         </div>
       </div>
       <InView className="relative mx-auto w-full max-w-lg xl:flex-6">
-        <Painting name="hero" />
+        <Painting name="hero" inline />
         <span
           data-cord="start"
           data-wander="0.6,0.56"
