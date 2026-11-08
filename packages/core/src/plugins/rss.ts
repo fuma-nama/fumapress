@@ -1,7 +1,6 @@
 import { js2xml, type ElementCompact } from "xml-js";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { fallbackOrigin } from "../routes";
 
 /**
  * An `<item>` entry of the RSS feed.
@@ -68,7 +67,7 @@ export interface RSSOptions<C extends AppShape = AppShape> extends Partial<
   alternateLink?: boolean;
 
   /**
-   * Customize or exclude feed items, return `undefined` to exclude a page.
+   * Customize or exclude feed items, return `undefined` to exclude a page. Pages with `noindex` in their page data are left out.
    *
    * By default, includes pages with a creation date (or modified date as fallback), resolved from content sources.
    */
@@ -136,7 +135,7 @@ export function buildRSS(channel: RSSChannel): string {
  */
 export function rssPlugin<C extends AppShape = AppShape>(
   options: RSSOptions<NoInfer<C>> = {},
-): Plugin<C, { provides: "rss" }> {
+): Plugin<C> {
   const {
     path = "/rss.xml",
     limit = 20,
@@ -146,19 +145,14 @@ export function rssPlugin<C extends AppShape = AppShape>(
       // only dated pages, so edits don't flood the feed with undated entries
       if (!date) return;
 
-      return {
-        title: page.data.title ?? page.path,
-        description: page.data.description,
-        link: this.absoluteUrl(page.url),
-        pubDate: date,
-      };
+      const { title, description } = await this.getPageData(page);
+      return { title, description, link: this.absoluteUrl(page.url), pubDate: date };
     },
     additionalItems = [],
   } = options;
 
   return {
     name: "core:rss",
-    provides: ["rss"],
     head({ page, route }) {
       // tags without `page` are on every page
       if (!alternateLink || page || route) return;
@@ -180,14 +174,15 @@ export function rssPlugin<C extends AppShape = AppShape>(
         path,
         render: this.getContentRender(),
         GET: async () => {
-          const source = await this.getLoader();
-          const pending: Awaitable<RSSItem | undefined>[] = [];
-          for (const page of source.getPages()) {
-            if (!fallbackOrigin(source, this.i18nConfig, page))
-              pending.push(getItem.call(this, page));
-          }
+          const results = await Promise.all(
+            (await this.getLoader())
+              .getPages()
+              .map(async (page) =>
+                (await this.getPageData(page)).noindex ? undefined : getItem.call(this, page),
+              ),
+          );
           const items: RSSItem[] = [];
-          for (const item of await Promise.all(pending)) if (item) items.push(item);
+          for (const item of results) if (item) items.push(item);
           items.push(
             ...(typeof additionalItems === "function"
               ? await additionalItems.call(this)

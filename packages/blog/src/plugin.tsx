@@ -11,12 +11,6 @@ import type { Page } from "fumadocs-core/source";
 import { blogTranslations } from "./i18n";
 import { BlogIndexView, BlogPostView, BlogTagsView, BlogTagView } from "./components/layouts";
 
-declare module "@fumapress/core" {
-  interface CapabilityAPI {
-    blog: BlogAPI;
-  }
-}
-
 export interface BlogAuthor {
   name: string;
   /** role or job title */
@@ -56,12 +50,6 @@ export interface BlogPluginOptions<C extends AppShape, S extends C["source"]> {
   getAuthors?: (this: Context<C>, page: SourcePage<C, S>) => Awaitable<string[] | undefined>;
   /** cover image URL of a post, the `image` frontmatter when it returns `undefined` */
   getImage?: (this: Context<C>, page: SourcePage<C, S>) => Awaitable<string | undefined>;
-}
-
-/** the `blog` capability: `this.getCapability("blog")` */
-export interface BlogAPI {
-  /** the posts of `lang` newest first; `ctx` is the site's context */
-  getPosts(ctx: Context, env: LangEnv<AppShape>): Promise<BlogPost[]>;
 }
 
 export interface TagInfo {
@@ -114,7 +102,6 @@ export interface BlogPostViewProps<P = Page> {
 }
 
 export type BlogTypes<P, S extends string> = {
-  provides: "blog";
   views: {
     "blog.index": BlogIndexViewProps<P>;
     "blog.tags": BlogTagsViewProps;
@@ -123,15 +110,21 @@ export type BlogTypes<P, S extends string> = {
   pages: { [K in S]: BlogPostViewProps<P> };
 };
 
+/** the posts of `lang` of the blog of each site, by its context */
+const sites = new WeakMap<object, (env: LangEnv<AppShape>) => Promise<BlogPost[]>>();
+
 /** The posts of `lang` newest first, for custom pages like a landing page; `env` is optional without i18n. Requires `blogPlugin()`. */
 export async function getBlogPosts<C extends AppShape>(
   ctx: Context<C>,
   ...[env]: [C["lang"]] extends [undefined] ? [env?: LangEnv<C>] : [env: LangEnv<C>]
 ): Promise<BlogPost<C["page"]>[]> {
-  const api = ctx.getCapability("blog");
-  if (!api) throw new Error("[@fumapress/blog] getBlogPosts() requires blogPlugin()");
-  // the posts are pages of the site of `ctx`, the capability API is typed for any site
-  return api.getPosts(ctx, { lang: env?.lang }) as Promise<BlogPost<C["page"]>[]>;
+  // hooks creating routes get a context inheriting from the site's
+  for (let site: object | null = ctx; site; site = Object.getPrototypeOf(site)) {
+    const getPosts = sites.get(site);
+    // the posts are pages of the site of `ctx`, the registry is typed for any site
+    if (getPosts) return getPosts({ lang: env?.lang }) as Promise<BlogPost<C["page"]>[]>;
+  }
+  throw new Error("[@fumapress/blog] getBlogPosts() requires blogPlugin()");
 }
 
 /** URL segment of a tag: lowercase, whitespace replaced by `-` */
@@ -236,12 +229,11 @@ export function blogPlugin<
 
   return {
     name: "blog:main",
-    provides: ["blog"],
-    api: {
-      async getPosts(ctx: Context<C>, { lang }: LangEnv<C>) {
-        const { entries, resolve } = await collect(ctx, lang);
+    configure() {
+      sites.set(this, async ({ lang }) => {
+        const { entries, resolve } = await collect(this, lang);
         return Promise.all(entries.map(resolve));
-      },
+      });
     },
     translations: blogTranslations(),
     async routes({ createView }) {

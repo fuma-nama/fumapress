@@ -29,7 +29,7 @@ export function flexsearchPlugin<C extends AppShape = AppShape>({
   buildIndex = buildIndexDefault<C>(),
   render,
   ...options
-}: FlexsearchOptions<NoInfer<C>> = {}): Plugin<C, { provides: "search" }> {
+}: FlexsearchOptions<NoInfer<C>> = {}): Plugin<C> {
   return searchPlugin<C>(
     "core:flexsearch",
     FlexsearchDialog,

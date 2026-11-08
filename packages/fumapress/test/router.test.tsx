@@ -44,6 +44,14 @@ const recorded = vi.hoisted(() => {
   });
 });
 
+/** the env Waku's adapters set, `unstable_setAllEnv` of their builder */
+const wakuEnv = vi.hoisted(() => ({ current: undefined as unknown }));
+vi.mock("waku/adapter-builders", () => ({
+  unstable_createServerEntryAdapter:
+    (fn: (input: object, options: unknown) => unknown) => (handlers: unknown, options: unknown) =>
+      fn({ handlers, unstable_setAllEnv: (env: unknown) => (wakuEnv.current = env) }, options),
+}));
+
 // React Flight needs the `react-server` condition
 vi.mock("waku/server", () => ({
   serializeRsc: async (value: unknown) => new TextEncoder().encode(JSON.stringify(value)),
@@ -175,12 +183,7 @@ async function contentPage(path: string, slugs: string[]) {
 
 type ViewPlugin = Plugin<AppShape, { views: { x: {} } }>;
 const views = (routes: ViewPlugin["routes"]): ViewPlugin => ({ name: "views", routes });
-const xView = (node: string, head?: { title: string; description: string }) => ({
-  type: "x" as const,
-  props: {},
-  node,
-  ...head,
-});
+const xView = (node: string) => ({ type: "x" as const, props: {}, node });
 
 const Page: FC = () => null;
 const Lang: FC<{ lang?: string }> = ({ lang }) => createElement("p", null, lang);
@@ -229,6 +232,24 @@ describe("createPages", () => {
     expect(page).toBe("undefined:live:status");
   });
 
+  it("serves content pages at the URLs of the loader's `url` option", async () => {
+    const press = createPress(
+      { files },
+      { url: (slugs) => `/docs/${slugs.join("/")}`.replace(/\/$/, "") },
+    ).config({
+      preset: [],
+      ui: { renderPage: (props) => `${props.lang}:${props.type}:${props.slugs?.join("/")}` },
+    });
+    (await createRouter(press)).createPages(() => {});
+    await recorded.pending;
+    expect(pagesAt("/[...slugs]")).toEqual([
+      { render: "static", staticPaths: [["docs"], ["docs", "index.cn"], ["docs", "guide"]] },
+    ]);
+
+    const [, page] = await contentPage("/[...slugs]", ["docs", "guide"]);
+    expect(page).toBe("undefined:undefined:guide");
+  });
+
   it("makes custom pages static by default, on any content", async () => {
     await routes(
       [],
@@ -244,6 +265,14 @@ describe("createPages", () => {
     expect(route("/").render).toBe("static");
 
     await routes([dynamicApi], undefined, prefixed);
+    expect(route("/").render).toBe("dynamic");
+
+    // routes reaching Waku without core count too
+    await routes(
+      [],
+      ({ createApi }) => createApi({ path: "/x", render: "dynamic", handlers: {} }),
+      prefixed,
+    );
     expect(route("/").render).toBe("dynamic");
 
     await routes([], undefined, prefixed, dynamic);
@@ -366,11 +395,12 @@ describe("createPages", () => {
     expect((layout({ children: "x" }) as { type: unknown }).type).toBe(Lang);
   });
 
-  it("renders the head of views from core, with their title and description", async () => {
+  it("renders the head of views from core, with the title and description of their data", async () => {
     const view = views(({ createView }) =>
       createView({
         path: "/blog",
-        view: () => xView("posts", { title: "Blog", description: "Posts" }),
+        data: { title: "Blog", description: "Posts" },
+        view: () => xView("posts"),
       }),
     );
     await routes([view]);
@@ -449,6 +479,22 @@ describe("Root", () => {
   );
 });
 
+describe("the root", () => {
+  it("renders the `banner` items above every page", async () => {
+    const Banner = () => createElement("p", { id: "banner" }, "banner");
+    await routes([
+      {
+        slots: ({ page }) =>
+          page ? undefined : [{ name: "test:banner", region: "banner", component: Banner }],
+      },
+    ]);
+    const root = recorded.routes.find((item) => item.kind === "root")!;
+    const out = await html(root, { children: createElement("main", null, "page") });
+
+    expect(out).toContain('<p id="banner">banner</p><main>page</main>');
+  });
+});
+
 describe("patchAdapter", () => {
   it("negotiates the static files adapters serve before middleware, with their type", async () => {
     const adapter = () =>
@@ -500,7 +546,7 @@ describe("patchAdapter", () => {
       fetch(new Request(`http://localhost${path}`, init));
   }
 
-  it("runs the middleware of plugins once on a request preferring Markdown", async () => {
+  it("runs the middleware of plugins on a request preferring Markdown, and again on its rewrite", async () => {
     const seen: string[] = [];
     const request = await server([
       {
@@ -514,7 +560,7 @@ describe("patchAdapter", () => {
 
     const headers = { Accept: "text/markdown" };
     expect(await (await request("/live", { headers })).text()).toBe("md");
-    expect(seen).toEqual(["/live.md"]);
+    expect(seen).toEqual(["/live", "/live.md"]);
 
     seen.length = 0;
     await request("/live.md");
@@ -551,10 +597,25 @@ describe("createMiddlewares", () => {
     expect(root.status).toBe(308);
     expect(root.headers.get("Location")).toBe("/repo/?a=1");
   });
+});
+
+describe("middleware", () => {
+  /** the `fetch` of an adapter answering with the URL it serves, after the middleware of `plugins` */
+  async function serve(
+    plugins: Plugin<AppShape, any>[],
+    fetch = async (req: Request) => new Response(req.url),
+  ) {
+    const router = await routes(plugins);
+    const entry = router.patchAdapter(() => ({ fetch, build: async () => {} }) as never)(
+      {} as never,
+      {} as never,
+    );
+    return (url: string, init?: RequestInit) => entry.fetch(new Request(url, init));
+  }
 
   it("runs the middleware of plugins on the page of client navigations, addressing redirects and rewrites like the request", async () => {
     const seen: string[] = [];
-    const router = await routes([
+    const request = await serve([
       {
         async middleware(request, next) {
           seen.push(request.url);
@@ -566,16 +627,6 @@ describe("createMiddlewares", () => {
         },
       },
     ]);
-    const handler = router.createMiddlewares().at(-1)!({
-      app: { fetch: async (req: Request) => new Response(req.url) },
-    } as never);
-    const request = async (url: string) => {
-      const c = { req: { raw: new Request(url), url }, res: undefined as Response | undefined };
-      await handler(c as never, async () => {
-        c.res = new Response("next");
-      });
-      return c.res!;
-    };
 
     const location = async (url: string) => (await request(url)).headers.get("Location");
 
@@ -586,11 +637,15 @@ describe("createMiddlewares", () => {
     expect(await (await request("http://localhost/RSC/R/alias.txt?query=x")).text()).toBe(
       "http://localhost/RSC/R/guide.txt?query=x",
     );
-    expect(await (await request("http://localhost/RSC/R/guide.txt?query=")).text()).toBe("next");
+    expect(await (await request("http://localhost/RSC/R/guide.txt?query=")).text()).toBe(
+      "http://localhost/RSC/R/guide.txt?query=",
+    );
     expect(seen).toEqual([
       "http://localhost/old",
       "http://localhost/away",
       "http://localhost/alias?x",
+      // a rewrite re-enters the chain
+      "http://localhost/guide?x",
       "http://localhost/guide",
     ]);
 
@@ -599,6 +654,143 @@ describe("createMiddlewares", () => {
     seen.length = 0;
     await request("http://localhost/guide?flag");
     expect(seen).toEqual(["http://localhost/guide?flag"]);
+  });
+
+  it("sees the prerendered pages and static files a server serves, before the adapter", async () => {
+    const seen: string[] = [];
+    // like Node's adapter: `serveStatic` first, then Waku
+    const request = await serve(
+      [
+        {
+          middleware(request, next) {
+            const { pathname } = new URL(request.url);
+            seen.push(pathname);
+            return pathname === "/private"
+              ? Promise.resolve(new Response(null, { status: 401 }))
+              : next();
+          },
+        },
+      ],
+      async (req) => new Response(`file ${new URL(req.url).pathname}`),
+    );
+
+    expect(await (await request("http://localhost/guide")).text()).toBe("file /guide");
+    expect(await (await request("http://localhost/assets/app.js")).text()).toBe(
+      "file /assets/app.js",
+    );
+    expect((await request("http://localhost/private")).status).toBe(401);
+    expect(seen).toEqual(["/guide", "/assets/app.js", "/private"]);
+  });
+
+  it("runs after Cloudflare sets the env of Waku, never on the loopback of Waku's build", async () => {
+    const seen: unknown[] = [];
+    const router = await routes([
+      {
+        middleware: async () => {
+          seen.push(wakuEnv.current);
+          return new Response(null, { status: 401 });
+        },
+      },
+    ]);
+    const adapterFetch = async () => new Response("adapter");
+    const entry = router.patchAdapter(
+      () =>
+        ({
+          fetch: adapterFetch,
+          build: async () => {},
+          defaultExport: { fetch: adapterFetch },
+        }) as never,
+    )({} as never, {} as never);
+    const defaultExport = entry.defaultExport as {
+      fetch: (request: Request, env: object) => Promise<Response>;
+    };
+
+    expect((await defaultExport.fetch(new Request("http://localhost/"), { KEY: "v" })).status).toBe(
+      401,
+    );
+    expect(seen).toEqual([{ KEY: "v" }]);
+    const loopback = new Request("http://localhost/__waku_internal_build_static_files");
+    expect(await (await entry.fetch(loopback)).text()).toBe("adapter");
+    expect(await (await defaultExport.fetch(loopback, {})).text()).toBe("adapter");
+  });
+
+  it("gives the build of plugins the pages as built, without the middleware", async () => {
+    let built: string | undefined;
+    const router = await routes([
+      {
+        middleware: async () => new Response(null, { status: 401 }),
+        async build({ fetch }) {
+          built = await (await fetch(new Request("http://localhost/"))).text();
+        },
+      },
+    ]);
+    const entry = router.patchAdapter(
+      () => ({ fetch: async () => new Response("page"), build: async () => {} }) as never,
+    )({} as never, {} as never);
+    await entry.build({ emitFile: async () => {} } as never, { serverless: true } as never);
+
+    expect(built).toBe("page");
+  });
+
+  it("runs on the `fetch` of `defaultExport` too, which Cloudflare serves", async () => {
+    const router = await routes([{ middleware: async () => new Response("middleware") }]);
+    const adapterFetch = async () => new Response("adapter");
+    const entry = router.patchAdapter(
+      () =>
+        ({
+          fetch: adapterFetch,
+          build: async () => {},
+          defaultExport: { fetch: adapterFetch, queue: 1 },
+        }) as never,
+    )({} as never, {} as never);
+    const defaultExport = entry.defaultExport as { fetch: typeof entry.fetch; queue: number };
+
+    expect(await (await defaultExport.fetch(new Request("http://localhost/"))).text()).toBe(
+      "middleware",
+    );
+    expect(defaultExport.queue).toBe(1);
+  });
+});
+
+describe("build", () => {
+  /** the `serverless` option of a platform adapter after the build, and the warnings */
+  async function build(plugins: Plugin<AppShape, any>[], serverless = true, config: object = {}) {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const router = await createRouter(site(plugins, undefined, undefined, config));
+    router.createPages(() => {});
+    await recorded.pending;
+    const entry = router.patchAdapter(
+      () => ({ fetch: async () => new Response(), build: async () => {} }) as never,
+    )({} as never, {} as never);
+    const options = { serverless };
+    await entry.build({ emitFile: async () => {} } as never, options);
+    const warnings = warn.mock.calls.map(([message]) => String(message));
+    warn.mockRestore();
+    return { serverless: options.serverless, warnings };
+  }
+
+  const guard: Plugin = { name: "guard", middleware: (_, next) => next() };
+
+  it("deploys a function for the middleware of plugins, not for a static site", async () => {
+    expect(await build([])).toEqual({ serverless: false, warnings: [] });
+    expect(await build([guard])).toEqual({ serverless: true, warnings: [] });
+    expect((await build([dynamicApi])).serverless).toBe(true);
+    // the preset's middleware, like Markdown negotiation, degrades on a static site
+    expect(await build([], true, { preset: [() => guard] })).toEqual({
+      serverless: false,
+      warnings: [],
+    });
+  });
+
+  it("warns when the middleware of plugins never runs, on a build without a server", async () => {
+    const { serverless, warnings } = await build(
+      [guard, { middleware: (_, next) => next() }],
+      false,
+    );
+    expect(serverless).toBe(false);
+    expect(warnings).toEqual([
+      expect.stringContaining('the `middleware` of "guard", an unnamed plugin never runs'),
+    ]);
   });
 });
 

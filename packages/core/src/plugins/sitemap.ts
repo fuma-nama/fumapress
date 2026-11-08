@@ -2,7 +2,6 @@ import { js2xml, type ElementCompact } from "xml-js";
 import type { Context } from "../context";
 import { pageAlternate, type PageAlternate } from "../head";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { fallbackOrigin } from "../routes";
 
 /**
  * How frequently a page is likely to change.
@@ -132,9 +131,9 @@ export interface SitemapOptions<C extends AppShape = AppShape> {
   path?: string;
 
   /**
-   * Customize or exclude the entries of pages, return `undefined` to exclude a page.
+   * Customize or exclude the entries of content pages, return `undefined` to exclude a page.
    *
-   * Pages shown in place of an untranslated page are left out.
+   * Pages with `noindex` or `sitemap: false` in their page data are left out, like pages shown in place of an untranslated page.
    */
   getEntry?: (this: Context<C>, page: C["page"]) => Awaitable<SitemapUrl | undefined>;
 
@@ -143,23 +142,10 @@ export interface SitemapOptions<C extends AppShape = AppShape> {
 }
 
 declare module "@fumapress/core" {
-  interface CapabilityAPI {
-    sitemap: SitemapAPI;
-  }
-
-  interface RouteOptions {
-    /**
-     * the sitemap entry of the route's pages: `false` leaves them out, an object sets their fields; for pages of the
-     * framework, content pages use `getEntry` of the plugin
-     */
+  interface PageData {
+    /** the sitemap entry of the page: `false` leaves it out, an object sets its fields over the plugin's */
     sitemap?: false | Omit<SitemapUrl, "loc">;
   }
-}
-
-/** the API of the `sitemap` capability, from `this.getCapability("sitemap")` */
-export interface SitemapAPI {
-  /** the path of the sitemap, without the base path */
-  path: string;
 }
 
 function formatDate(value: SitemapLastMod): string {
@@ -288,7 +274,7 @@ export function buildSitemap(entries: SitemapUrl[]): string {
 /** a sitemap of the content pages, with their translations and last modified dates, then of the pages of the framework */
 export function sitemapPlugin<C extends AppShape = AppShape>(
   options: SitemapOptions<NoInfer<C>> = {},
-): Plugin<C, { provides: "sitemap" }> {
+): Plugin<C> {
   const {
     path = "/sitemap.xml",
     getEntry = async function (page) {
@@ -303,8 +289,6 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
 
   return {
     name: "core:sitemap",
-    provides: ["sitemap"],
-    api: { path },
     routes({ createApi }) {
       createApi({
         path,
@@ -312,13 +296,14 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
         GET: async () => {
           const source = await this.getLoader();
           const pages = source.getPages();
-          const pending: Awaitable<SitemapUrl | undefined>[] = [];
-          for (const page of pages) {
-            pending.push(
-              fallbackOrigin(source, this.i18nConfig, page) ? undefined : getEntry.call(this, page),
-            );
-          }
-          const results = await Promise.all(pending);
+          const results = await Promise.all(
+            pages.map(async (page) => {
+              const { noindex, sitemap } = await this.getPageData(page);
+              if (noindex || sitemap === false) return;
+              const entry = await getEntry.call(this, page);
+              return entry && { ...entry, ...sitemap };
+            }),
+          );
           const entries: SitemapUrl[] = [];
           // content pages are listed by `getEntry` only, framework pages must not re-add excluded ones
           const pageLocs = new Set<string>();
@@ -330,24 +315,28 @@ export function sitemapPlugin<C extends AppShape = AppShape>(
             entries.push(entry);
           }
 
+          const routeEntries: Promise<SitemapUrl | undefined>[] = [];
           for (const route of await this.getPageRoutes()) {
             // a not found page isn't a page of the site
             if (route.path === this.localizePath(route.lang, "/404")) continue;
-            const { sitemap } = route.options;
-            if (sitemap === false) continue;
             for (const page of route.pages) {
               const loc = this.absoluteUrl(page.path);
               if (pageLocs.has(loc)) continue;
               pageLocs.add(loc);
-
-              const alternates: PageAlternate[] = [];
-              if (page.translations.length > 1) {
-                for (const { lang, path } of page.translations)
-                  if (lang) alternates.push(pageAlternate(this, lang, path));
-              }
-              entries.push({ loc, priority: 1, alternates, ...sitemap });
+              routeEntries.push(
+                this.getPageData(route, page.path).then(({ noindex, sitemap }) => {
+                  if (noindex || sitemap === false) return;
+                  const alternates: PageAlternate[] = [];
+                  if (page.translations.length > 1) {
+                    for (const { lang, path } of page.translations)
+                      if (lang) alternates.push(pageAlternate(this, lang, path));
+                  }
+                  return { loc, priority: 1, alternates, ...sitemap };
+                }),
+              );
             }
           }
+          for (const entry of await Promise.all(routeEntries)) if (entry) entries.push(entry);
           entries.push(
             ...(typeof additionalEntries === "function"
               ? await additionalEntries.call(this)

@@ -2,12 +2,12 @@ import { createElement, type ComponentProps, type ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { components } from "virtual:fumapress/island";
 import { NoProcessedMarkdownError, type AstroPageData } from "@fumadocs/astro/source";
-import type { Context, Plugin } from "@fumapress/core";
+import type { AppShape, Context, Plugin } from "@fumapress/core";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
 import type { Page, PageData } from "fumadocs-core/source";
 import type { TOCItemType } from "fumadocs-core/toc";
-import { AstroContent } from "./island/serialize";
-import { Link, linkHref } from "./ui/link";
+import { AstroContent } from "../island/serialize";
+import { Link, linkHref } from "../ui/link";
 
 /** the renderer from `load()`, like `MarkdownRenderer` of `@fumadocs/local-md` */
 interface Renderer {
@@ -56,28 +56,6 @@ async function relativeLink(
     });
 }
 
-/** by page, with a new page when content changes */
-const rendered = new WeakMap<Page, Promise<RenderedBody | undefined>>();
-
-/** the body of a page from a runtime content source, rendered once with the MDX components */
-function render(ctx: Context, page: Page) {
-  const { data } = page;
-  if (isCollectionPage(data) || !isPageDataOf<RuntimePageData>(data, "load")) return;
-
-  let result = rendered.get(page);
-  if (!result) {
-    result = Promise.all([data.load(), relativeLink(ctx, page, components.a ?? Link)]).then(
-      ([renderer, a]) =>
-        // other content sources have `load()` too
-        isRenderer(renderer) ? renderer.render({ ...components, a }) : undefined,
-    );
-    rendered.set(page, result);
-    // a later render tries again
-    result.catch(() => rendered.delete(page));
-  }
-  return result;
-}
-
 /** a valid date, devalue can't serialize an invalid one */
 function toDate(value: unknown): Date | undefined {
   if (!(value instanceof Date) && typeof value !== "string") return;
@@ -85,25 +63,64 @@ function toDate(value: unknown): Date | undefined {
   if (!Number.isNaN(date.getTime())) return date;
 }
 
+export interface ContentSourcePluginOptions<P extends Page = Page> {
+  /** over the MDX components of the site, or a function returning those of a page */
+  components?: MDXComponents | ((page: P) => MDXComponents);
+}
+
 /**
  * Pages of Astro content collections, and of runtime content sources whose `page.data.load()` returns a renderer: Local Markdown, Local HTML, Obsidian and Python.
  *
- * Collection pages render as their `<Content />`, runtime sources with the MDX components, both with relative links resolved. It is a default of the runtime, the last layer: the plugins of content sources like Obsidian and your plugins override it.
+ * Collection pages render as their `<Content />`, runtime sources with the MDX components, both with relative links resolved. It is a default of the runtime, the last layer: list it for `components` of your own, the plugins of content sources like Obsidian and your plugins override it.
  */
-export function contentSourcePlugin(): Plugin {
+export function contentSourcePlugin<C extends AppShape = AppShape>({
+  components: componentsOption,
+}: ContentSourcePluginOptions<C["page"]> = {}): Plugin<C> {
+  /** by page, with a new page when content changes */
+  const rendered = new WeakMap<Page, Promise<RenderedBody | undefined>>();
+
+  function own(page: C["page"]): MDXComponents | undefined {
+    return typeof componentsOption === "function" ? componentsOption(page) : componentsOption;
+  }
+
+  /** the body and table of contents of a page from a runtime content source, rendered once */
+  function render(ctx: Context<C>, page: C["page"]) {
+    const { data } = page;
+    if (isCollectionPage(data) || !isPageDataOf<RuntimePageData>(data, "load")) return;
+
+    let result = rendered.get(page);
+    if (!result) {
+      const merged = { ...components, ...own(page) };
+      result = Promise.all([data.load(), relativeLink(ctx, page, merged.a ?? Link)]).then(
+        ([renderer, a]) =>
+          // other content sources have `load()` too
+          isRenderer(renderer) ? renderer.render({ ...merged, a }) : undefined,
+      );
+      rendered.set(page, result);
+      // a later render tries again
+      result.catch(() => rendered.delete(page));
+    }
+    return result;
+  }
+
   return {
     name: "astro:content-source",
     async getPageBody(page) {
       if (isCollectionPage(page.data)) {
+        const overrides = own(page);
         // Astro renders it, outside of the provider of `Link`
         const [{ body }, a] = await Promise.all([
           page.data.load(),
-          relativeLink(this, page, components.a ?? "a", (url) => linkHref(url, page.url)),
+          relativeLink(this, page, overrides?.a ?? components.a ?? "a", (url) =>
+            linkHref(url, page.url),
+          ),
         ]);
-        return { node: createElement(AstroContent, { component: body, components: { a } }) };
+        return {
+          node: createElement(AstroContent, { component: body, components: { ...overrides, a } }),
+        };
       }
-      const rendered = await render(this, page);
-      if (rendered) return { node: rendered.body };
+      const result = await render(this, page);
+      if (result) return { node: result.body };
     },
     async getPageToc(page) {
       if (isCollectionPage(page.data)) return (await page.data.load()).toc;

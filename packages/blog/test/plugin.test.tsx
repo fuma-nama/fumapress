@@ -37,13 +37,12 @@ const pages = [
 ];
 
 /** the site of the hooks: pages with a `date` frontmatter */
-function context(blog: ReturnType<typeof blogPlugin>, dynamicSources: string[] = []) {
+function context(dynamicSources: string[] = []) {
   return {
     languages: ["en", "cn"],
     getContentRender: (source: readonly string[]) =>
       source.some((key) => dynamicSources.includes(key)) ? "dynamic" : "static",
     getLoader: () => ({ getPages: (lang: string) => pages.filter((p) => p.locale === lang) }),
-    getCapability: (capability: string) => (capability === "blog" ? blog.api : undefined),
     localizePath: (lang: string, path: string) => `/${lang}${path}`,
     getPageCreatedAt: async (page: Page) => new Date(Reflect.get(page.data, "date")),
     getPageToc: async () => [],
@@ -58,7 +57,8 @@ function setup(
   dynamicSources?: string[],
 ) {
   const plugin = blogPlugin({ source, ...options });
-  const ctx = context(plugin, dynamicSources);
+  const ctx = context(dynamicSources);
+  plugin.configure!.call(ctx);
   const views = async (lang: string) => {
     const out: ViewRoute[] = [];
     await plugin.routes!.call(ctx, {
@@ -216,11 +216,10 @@ describe("blogPlugin", () => {
     expect(await posts("en")).toHaveLength(2);
   });
 
-  it("lists the posts for own pages", async () => {
+  it("lists the posts for own pages, also from the context of hooks creating routes", async () => {
     const { ctx, posts } = setup();
     expect(await getBlogPosts(ctx, { lang: "en" })).toEqual(await posts("en"));
-    await expect(
-      getBlogPosts({ getCapability: () => undefined } as unknown as Context, { lang: "en" }),
-    ).rejects.toThrow("requires blogPlugin()");
+    expect(await getBlogPosts(Object.create(ctx), { lang: "en" })).toEqual(await posts("en"));
+    await expect(getBlogPosts(context(), { lang: "en" })).rejects.toThrow("requires blogPlugin()");
   });
 });

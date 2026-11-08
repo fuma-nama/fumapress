@@ -24,6 +24,7 @@
     ".": "./dist/index.js",
     "./client": "./dist/client.js",
     "./config": "./dist/config.js",
+    "./plugins/content-source": "./dist/plugins/content-source.js",
     "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
     "./plugins/link-validation": "./dist/plugins/link-validation.js",
     "./plugins/llms.txt": "./dist/plugins/llms.txt.js",

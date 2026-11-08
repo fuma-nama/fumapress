@@ -1,5 +1,5 @@
 import type { Context } from "./context";
-import type { BaseOptions, SiteConfig } from "./press";
+import type { SharedLayoutProps, SiteConfig } from "./press";
 
 export type GitProvider = "github" | "gitlab" | "bitbucket";
 
@@ -72,7 +72,7 @@ export function getFileUrl(git: GitInfo, absolutePath: string): string | undefin
 }
 
 /** link the repository in layout props, unless they have `githubUrl` */
-export function addRepoLink(props: BaseOptions, git: GitInfo): BaseOptions {
+export function addRepoLink(props: SharedLayoutProps, git: GitInfo): SharedLayoutProps {
   if (props.githubUrl) return props;
   const url = getRepoUrl(git);
   // Fumadocs UI renders `githubUrl` as a GitHub icon link, other providers need a link item

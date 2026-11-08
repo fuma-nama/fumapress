@@ -129,10 +129,12 @@ describe("rssPlugin", () => {
     };
     const index = (await ctx.getLoader()).getPage([]);
 
-    await expect(ctx.getHead({})).resolves.toEqual([link]);
+    await expect(ctx.getHead({ lang: undefined })).resolves.toEqual([link]);
     // a page's head includes the tags of every page, once
-    const tags = await ctx.getHead({ page: index });
+    const tags = await ctx.getHead({ lang: undefined, page: index });
     expect(tags.filter((tag) => tag.attrs?.type === "application/rss+xml")).toEqual([link]);
-    await expect((await createSite({ alternateLink: false })).getHead({})).resolves.toEqual([]);
+    await expect(
+      (await createSite({ alternateLink: false })).getHead({ lang: undefined }),
+    ).resolves.toEqual([]);
   });
 });

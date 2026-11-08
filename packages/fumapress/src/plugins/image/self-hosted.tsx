@@ -31,17 +31,17 @@ export interface SelfHostedImageOptions {
 /** an on-demand optimizer route with `sharp`, so the site needs a server and `site.baseUrl`, where its images are. Without them images are served as they are */
 export function selfHostedImage<C extends WakuAppShape = WakuAppShape>(
   options: SelfHostedImageOptions = {},
-): WakuPlugin<C, { provides: "image" }> {
+): WakuPlugin<C, { slots: "image:provider" }> {
   const config = resolveImageConfig(options);
 
   return {
     name: "self-hosted-image",
-    provides: ["image"],
     slots({ page }) {
       if (page || !this.siteConfig.baseUrl) return;
       return [
         {
-          slot: "layout.wrapper",
+          name: "image:provider",
+          region: "layout-wrapper",
           component: SelfHostedImageProvider,
           props: { config },
           order: -1,

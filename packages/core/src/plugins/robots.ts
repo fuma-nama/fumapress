@@ -32,15 +32,11 @@ export interface RobotsOptions {
   rules?: RobotsRule[];
 
   /**
-   * Reference the sitemap:
+   * URL (or path relative to `site.baseUrl`) of the sitemap, `false` to reference none
    *
-   * - `string`: URL (or path relative to `site.baseUrl`) of the sitemap.
-   * - `true`: the sitemap of the `sitemap` capability, `/sitemap.xml` without a provider.
-   * - `false`: don't reference a sitemap.
-   *
-   * By default, references the sitemap of the `sitemap` capability when a plugin provides it.
+   * @defaultValue "/sitemap.xml"
    */
-  sitemap?: string | boolean;
+  sitemap?: string | false;
 
   /** raw content appended to the output */
   additionalContent?: string;
@@ -65,29 +61,23 @@ function ruleToText(rule: RobotsRule): string {
 
 export function robotsPlugin<C extends AppShape = AppShape>(
   options: RobotsOptions = {},
-): Plugin<C, { provides: "robots" }> {
+): Plugin<C> {
   const {
     path = "/robots.txt",
     rules = [{ userAgent: "*", allow: "/" }],
-    sitemap,
+    sitemap = "/sitemap.xml",
     additionalContent,
   } = options;
 
   return {
     name: "core:robots",
-    provides: ["robots"],
     routes({ createApi }) {
       createApi({
         path,
         render: "static",
         GET: () => {
           const sections = rules.map(ruleToText);
-          const api = this.getCapability("sitemap");
-          const sitemapPath =
-            typeof sitemap === "string"
-              ? sitemap
-              : sitemap !== false && (api?.path ?? (sitemap ? "/sitemap.xml" : undefined));
-          if (sitemapPath) sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath)}`);
+          if (sitemap !== false) sections.push(`Sitemap: ${this.absoluteUrl(sitemap)}`);
           if (additionalContent) sections.push(additionalContent);
 
           return new Response(sections.join("\n\n"), {

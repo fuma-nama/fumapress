@@ -92,12 +92,22 @@ describe("static routes", () => {
 
   it("leave out the pages of dynamic sources, and the root redirect with them", async () => {
     expect(await pageStaticPaths(await site({}, { content: dynamicDocs, i18n }), true)).toEqual([]);
-    expect(await pageStaticPaths(await site({}, { i18n }, "/", { dynamic: true }), true)).toEqual(
+    expect(
+      await pageStaticPaths(await site({}, { i18n }, "/", { mode: "force-dynamic" }), true),
+    ).toEqual([]);
+    expect(await pageStaticPaths(await site({}, { i18n, mode: "force-dynamic" }), true)).toEqual(
       [],
     );
 
     const paths = await pageStaticPaths(await site({}, { content: mixed }), true);
     expect(paths).toMatchObject([{ params: {}, props: { page: { url: "/" } } }]);
+
+    // loaded at build without an adapter, none render on demand
+    const prerendered = await site({}, { content: dynamicDocs, mode: "force-static" });
+    expect(await pageStaticPaths(prerendered, false)).toMatchObject([
+      { params: {}, props: { page: { url: "/" } } },
+    ]);
+    expect(await serve(prerendered, new Request("http://localhost/"))).toBeUndefined();
   });
 });
 
@@ -146,7 +156,8 @@ describe("server routes", async () => {
 
   it.each<[string, Partial<TestSite>, Partial<PressRuntime>]>([
     ["a dynamic source", { content: dynamicDocs }, {}],
-    ["`output: 'server'`", {}, { dynamic: true }],
+    ["`output: 'server'`", {}, { mode: "force-dynamic" }],
+    ["`force-dynamic`", { mode: "force-dynamic" }, {}],
   ])("render pages with %s", async (_, config, runtime) => {
     const dynamic = await site({}, { ...config, i18n }, "/sub", runtime);
     const page = await serve(dynamic, new Request("http://localhost/sub/cn/"));
@@ -239,7 +250,8 @@ describe("views", () => {
 
   it.each<[string, Partial<TestSite>, Partial<PressRuntime>]>([
     ["a dynamic source", { content: dynamicDocs }, {}],
-    ["`output: 'server'`", {}, { dynamic: true }],
+    ["`output: 'server'`", {}, { mode: "force-dynamic" }],
+    ["`force-dynamic`", { mode: "force-dynamic" }, {}],
   ])("following the content render on demand with %s", async (_, config, runtime) => {
     const following: Plugin<AppShape, { views: { test: {} } }> = {
       routes({ createView }) {

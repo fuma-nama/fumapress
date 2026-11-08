@@ -1,7 +1,7 @@
 import { isValidElement, type ReactElement } from "react";
 import type { MDXComponents } from "mdx/types";
 import { expect, it, vi } from "vitest";
-import { contentSourcePlugin } from "@/content-source";
+import { contentSourcePlugin } from "@/plugins/content-source";
 import { pressContext, type TestSite } from "./harness";
 import { AstroContent } from "@/island/serialize";
 import { Link } from "@/ui/link";
@@ -53,6 +53,30 @@ it("renders pages of runtime sources once, with relative links, and again after 
   expect(link.props.href).toBe("/guide/other");
   // without an `a` in the MDX components, links still go through the base path
   expect(link.type).toBe(Link);
+});
+
+it("renders with the components of a page", async () => {
+  const render = vi.fn(async (components: MDXComponents) => ({
+    body: components.h1 === "h2" ? "custom" : "default",
+    toc: [],
+  }));
+  const data = {
+    title: "Home",
+    load: async () => ({ structuredData: { headings: [], contents: [] }, render }),
+  };
+  const ctx = await site(
+    { "index.md": data },
+    {
+      plugins: [
+        contentSourcePlugin({
+          components: (page): MDXComponents => (page.url === "/" ? { h1: "h2" } : {}),
+        }),
+      ],
+    },
+  );
+  const page = (await ctx.getLoader()).getPage([])!;
+
+  expect(await ctx.getPageBody(page)).toEqual({ node: "custom" });
 });
 
 it("renders collection pages as their `<Content />`, dated by the `date` frontmatter", async () => {

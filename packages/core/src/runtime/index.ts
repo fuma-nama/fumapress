@@ -1,4 +1,9 @@
-export { createPressContext, type PressRuntime, type RuntimeContext } from "../context";
+export {
+  createPressContext,
+  warnUnservedMiddleware,
+  type PressRuntime,
+  type RuntimeContext,
+} from "../context";
 export { mergeHead, pageAlternate, pageLinks } from "../head";
 export type { DefaultPageProps, PressInput, RenderTarget } from "../press";
 export {
@@ -14,4 +19,4 @@ export {
   type PageRouteInput,
   type ServedRoute,
 } from "../routes";
-export { siteI18n, wrapSlot } from "./render";
+export { siteI18n, wrapRoot } from "./render";

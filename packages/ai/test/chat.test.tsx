@@ -32,17 +32,22 @@ describe("aiPlugin", () => {
 
   it("wraps every page in the chat of its endpoint, with no page actions", async () => {
     const plugin = aiPlugin({ model });
-    expect(await plugin.slots!.call(ctx, {})).toEqual([
-      { slot: "layout.wrapper", component: AIChat, props: { api: "/docs/api/ai" }, order: -1 },
+    expect(await plugin.slots!.call(ctx, { lang: undefined })).toEqual([
+      {
+        name: "ai:chat",
+        region: "layout-wrapper",
+        component: AIChat,
+        props: { api: "/docs/api/ai" },
+        order: -1,
+      },
     ]);
-    expect(await plugin.slots!.call(ctx, { page: {} as never })).toBeUndefined();
+    expect(await plugin.slots!.call(ctx, { lang: undefined, page: {} as never })).toBeUndefined();
   });
 
   it("adds no UI without `configureUI`", async () => {
     const plugin = aiPlugin({ model, configureUI: false });
-    expect(plugin.provides).toEqual([]);
-    expect(await plugin.slots!.call(ctx, {})).toBeUndefined();
-    expect(await plugin.slots!.call(ctx, { page: {} as never })).toBeUndefined();
+    expect(await plugin.slots!.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.slots!.call(ctx, { lang: undefined, page: {} as never })).toBeUndefined();
   });
 });
 

@@ -10,6 +10,7 @@ import {
   type AppShape,
   type Awaitable,
   type InferLoaderConfig,
+  type PageData,
   type PluginInfo,
   type View,
 } from "./plugin";
@@ -71,6 +72,8 @@ export type ViewRouteInput<
   R extends "static" | "dynamic",
 > = Pick<ApiRoute, "path" | "staticPaths"> & {
   render?: R;
+  /** the data of its pages, like their title; `transformPage` sets it per page */
+  data?: Partial<PageData>;
   view(
     params: RouteParams,
     env: [R] extends ["dynamic"] ? { lang: Lang; request: Request } : { lang: Lang },
@@ -91,8 +94,8 @@ export interface PageRoute<C extends AppShape = AppShape> {
     /** the page in every language it exists in, itself included */
     readonly translations: { lang: C["lang"]; path: string }[];
   }[];
-  /** `getConfig()` of a Waku route file, `{}` on Astro */
-  readonly options: Readonly<RouteOptions>;
+  /** the data of its pages before `transformPage`: `data` of a view or of `getConfig()` of a Waku route file */
+  readonly data: Readonly<Partial<PageData>>;
   /** the Markdown of a page of the route, when the framework renders it (Waku: `asMarkdown()`) */
   markdown?(path: string, params: RouteParams): Promise<string | undefined>;
 }
@@ -107,14 +110,11 @@ export interface ServedRoute<C extends AppShape = AppShape> extends PageRoute<C>
   readonly input?: object;
 }
 
-/** options of a page route, the `getConfig()` of a Waku route file; plugin packages declare their keys by declaration merging */
-export interface RouteOptions {}
-
 /** a page route the runtime serves: a custom page, or a page a plugin's runtime hook (`waku.createPages`) created */
 export interface PageRouteInput<C extends AppShape = AppShape>
   extends
     Pick<ServedRoute<C>, "lang" | "render" | "markdown" | "plugin">,
-    Partial<Pick<PageRoute<C>, "options">>,
+    Partial<Pick<PageRoute<C>, "data">>,
     Pick<ApiRoute, "path" | "staticPaths"> {
   /** match `path` literally, for paths with brackets */
   exactPath?: boolean;
@@ -226,12 +226,17 @@ export function matchRoute(pattern: string, pathname: string): RouteParams | und
   }
 
   const params: RouteParams = {};
+  const parts: string[] = [];
+  for (const part of pattern.split("/")) if (part) parts.push(part);
   let i = 0;
-  for (const part of pattern.split("/")) {
-    if (!part) continue;
+  for (const [index, part] of parts.entries()) {
     if (part.startsWith("[...") && part.endsWith("]")) {
-      params[part.slice(4, -1)] = segments.slice(i);
-      return params;
+      // the parts after it match the last segments
+      const end = segments.length - (parts.length - index - 1);
+      if (end < i) return;
+      params[part.slice(4, -1)] = segments.slice(i, end);
+      i = end;
+      continue;
     }
 
     const value = segments[i++];
@@ -500,7 +505,7 @@ export function collectRoutes(
   }
 
   function addRuntimeRoute(input: PageRouteInput) {
-    const { lang, render, options = {}, markdown, plugin } = input;
+    const { lang, render, data = {}, markdown, plugin } = input;
     const { pattern, pages } = expandRoute(input.path, input.staticPaths, input.exactPath);
     const path = ctx.localizePath(lang, pattern);
     const keys = routeKeys(path, pages, lang);
@@ -511,7 +516,7 @@ export function collectRoutes(
       lang,
       render,
       pages: localizePages(pages, lang),
-      options,
+      data,
       markdown,
       plugin,
       input,
@@ -556,7 +561,7 @@ export function collectRoutes(
       lang,
       render,
       pages: localizePages(pages, lang),
-      options: {},
+      data: route.data ?? {},
       plugin,
       view: pages.length === expanded.pages.length ? route : { ...route, staticPaths },
     });

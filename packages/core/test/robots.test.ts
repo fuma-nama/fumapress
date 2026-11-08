@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { pressContext, type TestSite } from "./harness";
 import { robotsPlugin, type RobotsOptions } from "@/plugins/robots";
-import { sitemapPlugin } from "@/plugins/sitemap";
 
 const content: TestSite["content"] = { files: [] };
 
-async function generate(options?: RobotsOptions, sitemap?: string | false) {
+async function generate(options?: RobotsOptions) {
   const ctx = await pressContext(
     {
       content,
       site: { baseUrl: "https://example.com/repo" },
-      plugins: [robotsPlugin(options), sitemap !== false && sitemapPlugin({ path: sitemap })],
+      plugins: [robotsPlugin(options)],
     },
     { base: "/repo/" },
   );
@@ -24,11 +23,10 @@ async function generate(options?: RobotsOptions, sitemap?: string | false) {
 }
 
 describe("robotsPlugin", () => {
-  it("allows every crawler and references the sitemap of the sitemap plugin", async () => {
-    await expect(generate({}, "/sitemap-0.xml")).resolves.toBe(
-      "User-agent: *\nAllow: /\n\nSitemap: https://example.com/repo/sitemap-0.xml",
+  it("allows every crawler and references `/sitemap.xml`", async () => {
+    await expect(generate({})).resolves.toBe(
+      "User-agent: *\nAllow: /\n\nSitemap: https://example.com/repo/sitemap.xml",
     );
-    await expect(generate({}, false)).resolves.toBe("User-agent: *\nAllow: /");
   });
 
   it("renders rules and the sitemap option", async () => {
@@ -38,15 +36,17 @@ describe("robotsPlugin", () => {
     ];
 
     await expect(
-      generate(
-        { path: "/robots-file.txt", rules, sitemap: true, additionalContent: "# end" },
-        false,
-      ),
+      generate({
+        path: "/robots-file.txt",
+        rules,
+        sitemap: "/sitemap-0.xml",
+        additionalContent: "# end",
+      }),
     ).resolves.toBe(
       [
         "User-agent: GPTBot\nUser-agent: CCBot\nDisallow: /",
         "User-agent: *\nAllow: /docs\nAllow: /blog\nDisallow: /api\nCrawl-delay: 2",
-        "Sitemap: https://example.com/repo/sitemap.xml",
+        "Sitemap: https://example.com/repo/sitemap-0.xml",
         "# end",
       ].join("\n\n"),
     );

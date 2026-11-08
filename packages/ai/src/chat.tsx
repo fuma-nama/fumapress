@@ -46,19 +46,19 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
 /** AI chat: the `/api/ai` endpoint, and the chat that layouts dock through the `aiChat` of `useLayoutProps()` */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): Plugin<C, { provides: "ai-chat" }> {
+): Plugin<C, { slots: "ai:chat" }> {
   const { configureUI = true } = options;
 
   return {
     name: "ai:main",
-    provides: configureUI ? ["ai-chat"] : [],
     translations: aiTranslations(),
     async slots({ page }) {
       if (!configureUI || page) return;
       const { AIChat } = await import("./components/chat");
       return [
         {
-          slot: "layout.wrapper",
+          name: "ai:chat",
+          region: "layout-wrapper",
           component: AIChat,
           props: { api: this.withBase("/api/ai") },
           order: -1,

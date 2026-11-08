@@ -28,12 +28,11 @@ export function searchPlugin<C extends AppShape>(
   StaticDialog: ComponentType<SharedProps & { from?: string; locale?: string }>,
   createServer: (ctx: Context<C>) => SearchAPI,
   { render }: SearchRenderOptions = {},
-): Plugin<C, { provides: "search" }> {
+): Plugin<C> {
   const renderOf = (ctx: Context<C>) => render ?? ctx.getContentRender();
 
   return {
     name,
-    provides: ["search"],
     providerProps({ lang }) {
       const url = this.withBase(paths[renderOf(this)]);
       return {
@@ -60,13 +59,8 @@ export function buildIndexDefault<C extends AppShape>() {
       contents: [],
     };
 
-    return {
-      id: page.url,
-      title: page.data.title ?? page.path,
-      description: page.data.description,
-      url: page.url,
-      structuredData,
-    };
+    const { title, description } = await this.getPageData(page);
+    return { id: page.url, title, description, url: page.url, structuredData };
   };
 }
 

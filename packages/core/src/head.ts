@@ -1,4 +1,4 @@
-import type { AppShape, PageEnv, View } from "./plugin";
+import type { AppShape, PageData, PageEnv } from "./plugin";
 import type { Context, RuntimeContext } from "./context";
 import type { PressConfig } from "./press";
 import { fallbackOrigin, type PageRoute } from "./routes";
@@ -12,13 +12,11 @@ export interface HeadTag {
   children?: string;
 }
 
-/** `head` runs twice per page: site-wide (`{}`), then the page's own call (`{ page }`, or `{ route, path }` on page routes, with `view` on views) */
+/** `head` runs twice per page: site-wide (`{ lang }`), then the page's own call (`{ lang, page }`, or `{ lang, route, path }` on page routes) */
 export interface HeadEnv<C extends AppShape> extends PageEnv<C> {
   route?: PageRoute<C>;
   /** the rendered path of `route`, with the language prefix, without the base path */
   path?: string;
-  /** the content of a view at `path`, its `title` and `description` are the page's own */
-  view?: View<any>;
 }
 
 export interface PageAlternate<C extends AppShape = AppShape> {
@@ -111,40 +109,45 @@ async function headOf(
   return mergeHead(lists);
 }
 
-/** core's tags of a page: title, description and Open Graph of content pages, the title and description of views, canonical and `hreflang` of every page */
+/** core's tags of a page: its title, description and `noindex` from `getPageData()`, Open Graph of content pages, canonical and `hreflang` of every page */
 async function coreHead(
   ctx: RuntimeContext,
-  { page, route, path, view }: HeadEnv<AppShape>,
+  { page, route, path }: HeadEnv<AppShape>,
 ): Promise<HeadTag[] | undefined> {
   if (route && path !== undefined) {
-    const tags: HeadTag[] = [];
-    if (view?.title) tags.push({ tag: "title", children: view.title });
-    if (view?.description)
-      tags.push({ tag: "meta", attrs: { name: "description", content: view.description } });
     const alternates: PageAlternate[] = [];
     const current = route.pages.find((item) => item.path === path);
     if (current && current.translations.length > 1) {
       for (const item of current.translations)
         if (item.lang) alternates.push(pageAlternate(ctx, item.lang, item.path));
     }
-    tags.push(...pageLinks(ctx, path, alternates));
-    return tags;
+    return [...dataTags(await ctx.getPageData(route, path)), ...pageLinks(ctx, path, alternates)];
   }
   if (!page) return;
 
-  const { title, description } = page.data;
-  const [source, alternates] = await Promise.all([ctx.getLoader(), ctx.getPageAlternates(page)]);
+  const [data, source, alternates] = await Promise.all([
+    ctx.getPageData(page),
+    ctx.getLoader(),
+    ctx.getPageAlternates(page),
+  ]);
   const origin = fallbackOrigin(source, ctx.i18nConfig, page);
-  const tags: HeadTag[] = [{ tag: "title", children: title }];
-  if (description) tags.push({ tag: "meta", attrs: { name: "description", content: description } });
-  tags.push({ tag: "meta", attrs: { property: "og:title", content: title ?? "" } });
-  if (description)
-    tags.push({ tag: "meta", attrs: { property: "og:description", content: description } });
+  const tags = dataTags(data);
+  tags.push({ tag: "meta", attrs: { property: "og:title", content: data.title } });
+  if (data.description)
+    tags.push({ tag: "meta", attrs: { property: "og:description", content: data.description } });
   tags.push(
     { tag: "meta", attrs: { property: "og:site_name", content: ctx.siteConfig.name } },
     ...pageLinks(ctx, (origin ?? page).url, alternates),
   );
-  if (origin) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
+  return tags;
+}
+
+/** the title, description and `noindex` of a page */
+function dataTags({ title, description, noindex }: PageData): HeadTag[] {
+  const tags: HeadTag[] = [];
+  if (title) tags.push({ tag: "title", children: title });
+  if (description) tags.push({ tag: "meta", attrs: { name: "description", content: description } });
+  if (noindex) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
   return tags;
 }
 
@@ -154,8 +157,9 @@ export async function collectHead(
   head: SiteHead,
   env: HeadEnv<AppShape>,
 ): Promise<HeadTag[]> {
-  if (!env.page && !env.route) return headOf(ctx, head, {});
+  const site = { lang: env.lang };
+  if (!env.page && !env.route) return headOf(ctx, head, site);
   // a page's own value wins over the one of every page
-  const [own, every] = await Promise.all([headOf(ctx, head, env), headOf(ctx, head, {})]);
+  const [own, every] = await Promise.all([headOf(ctx, head, env), headOf(ctx, head, site)]);
   return mergeHead([own, every]);
 }

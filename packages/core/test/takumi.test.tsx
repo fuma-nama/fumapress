@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ApiRoute } from "@/routes";
+import type { ApiRoute, RouteParams } from "@/routes";
 import type { I18nConfig } from "fumadocs-core/i18n";
 import type { VirtualFile } from "fumadocs-core/source";
 import { pressContext, type TestSite } from "./harness";
@@ -61,7 +61,6 @@ describe("routes", () => {
     const ctx = await createSite({}, { i18n });
     const routes = await ctx.getApiRoutes();
 
-    expect(ctx.getCapability("og-image")).toBeDefined();
     // the most specific first
     expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
       { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
@@ -85,6 +84,15 @@ describe("routes", () => {
     const [route] = await routes({ path: "/images/" });
     expect(route).toMatchObject({ path: "/images/[...slugs]", render: "dynamic" });
     await readImage(route!, ["docs", "only-en.webp"]);
+    expect((await request(route!, ["index.webp"])).headers.get("Cache-Control")).toBeNull();
+  });
+
+  it("gives the images rendered on demand the `staleTime` of their source", async () => {
+    const [route] = await (
+      await createSite({}, { content: { files: () => files, staleTime: 5000 } })
+    ).getApiRoutes();
+    const res = await readImage(route!, ["docs", "only-en.webp"]);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=5");
   });
 
   it("prerenders the images of static sources next to the on-request route of dynamic ones", async () => {
@@ -112,7 +120,7 @@ describe("page image", () => {
   async function headOf(slugs: string[], options?: TakumiOptions, config?: Partial<TestSite>) {
     const ctx = await createSite(options, config);
     const page = (await ctx.getLoader()).getPage(slugs, config?.i18n ? "cn" : undefined);
-    return ctx.getHead({ page: page! });
+    return ctx.getHead({ lang: page!.locale, page: page! });
   }
 
   const imageOf = async (slugs: string[], options?: TakumiOptions, config?: Partial<TestSite>) =>
@@ -131,7 +139,7 @@ describe("page image", () => {
       { tag: "meta", attrs: { property: "og:image:height", content: "315" } },
       { tag: "meta", attrs: { property: "twitter:card", content: "summary_large_image" } },
     ]);
-    await expect((await createSite()).getHead({})).resolves.toEqual([]);
+    await expect((await createSite()).getHead({ lang: undefined })).resolves.toEqual([]);
   });
 
   const origin = "https://example.com/docs";
@@ -193,14 +201,14 @@ describe("route images", () => {
       },
       {
         base: "/docs/",
-        routes: [{ path: "/about", render: "static", options: { ogImage: { title: "About" } } }],
+        routes: [{ path: "/about", render: "static", data: { ogImage: { title: "About" } } }],
       },
     );
     const [route] = await ctx.getPageRoutes();
     const image = (await ctx.getApiRoutes()).find((item) => item.path === "/about.webp");
 
     expect(image?.render).toBe("static");
-    expect(await ctx.getHead({ route, path: "/about" })).toContainEqual({
+    expect(await ctx.getHead({ lang: undefined, route, path: "/about" })).toContainEqual({
       tag: "meta",
       attrs: { property: "og:image", content: "https://example.com/docs/about.webp" },
     });
@@ -214,18 +222,57 @@ describe("route images", () => {
         plugins: [takumiPlugin()],
       },
       {
-        routes: [
-          { path: "/live/[id]", render: "dynamic", options: { ogImage: { title: "Live" } } },
-        ],
+        routes: [{ path: "/live/[id]", render: "dynamic", data: { ogImage: { title: "Live" } } }],
       },
     );
     const [route] = await ctx.getPageRoutes();
     const image = (await ctx.getApiRoutes()).find((item) => item.path === "/_takumi/live/[id]");
 
     expect(image?.render).toBe("dynamic");
-    expect(await ctx.getHead({ route, path: "/live/42" })).toContainEqual({
+    expect(await ctx.getHead({ lang: undefined, route, path: "/live/42" })).toContainEqual({
       tag: "meta",
       attrs: { property: "og:image", content: "https://example.com/_takumi/live/42" },
     });
+  });
+
+  it("follows the page data: an `ogImage` of `transformPage`, a function called with the params", async () => {
+    const image = vi.fn((params: RouteParams) => ({ title: `Live ${String(params.id)}` }));
+    const ctx = await pressContext(
+      {
+        content: { files: [] },
+        site: { baseUrl: "https://example.com" },
+        plugins: [
+          takumiPlugin(),
+          { transformPage: (_, { path }) => (path === "/about" ? { ogImage: {} } : undefined) },
+        ],
+      },
+      {
+        routes: [
+          { path: "/about", render: "static" },
+          { path: "/plain", render: "static" },
+          { path: "/live/[id]", render: "dynamic", data: { ogImage: image } },
+        ],
+      },
+    );
+    const [about, plain, live] = await ctx.getPageRoutes();
+    const paths = (await ctx.getApiRoutes()).map((route) => route.path);
+
+    expect(paths).toContain("/about.webp");
+    expect(paths).not.toContain("/plain.webp");
+    expect(await ctx.getHead({ lang: undefined, route: about!, path: "/about" })).toContainEqual(
+      expect.objectContaining({
+        attrs: { property: "og:image", content: "https://example.com/about.webp" },
+      }),
+    );
+    expect(
+      (await ctx.getHead({ lang: undefined, route: plain!, path: "/plain" })).some(
+        (tag) => tag.attrs?.property === "og:image",
+      ),
+    ).toBe(false);
+    // `ui.renderPage` gets data, not functions: Astro serializes it into the island
+    await expect(ctx.getPageData(live!, "/live/42")).resolves.toMatchObject({
+      ogImage: { title: "Live 42" },
+    });
+    expect(image).toHaveBeenCalledWith({ id: "42" });
   });
 });

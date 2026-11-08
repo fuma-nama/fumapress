@@ -4,7 +4,7 @@ import { AIChatPanel, AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/
 import { LayoutPropsProvider } from "@fumapress/core/ui/docs";
 import { DefaultChatTransport } from "ai";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import type { ChatUIMessage } from "@/chat";
 
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
@@ -44,9 +44,13 @@ export function AIChat({ api, children }: { api: string; children: ReactNode }) 
 
 function ChatLayoutProps({ children }: { children: ReactNode }) {
   const { open, setOpen } = useAIChat();
-  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel />, trigger: true };
+  // a new value re-renders the layout: once per open state, not per streamed part of a reply
+  const value = useMemo(
+    () => ({ aiChat: { open, onOpenChange: setOpen, panel: <AIChatPanel />, trigger: true } }),
+    [open, setOpen],
+  );
 
-  return <LayoutPropsProvider value={{ aiChat }}>{children}</LayoutPropsProvider>;
+  return <LayoutPropsProvider value={value}>{children}</LayoutPropsProvider>;
 }
 
 function renderPart(part: ChatUIMessage["parts"][number], live: boolean) {

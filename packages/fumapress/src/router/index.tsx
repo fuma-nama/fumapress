@@ -8,24 +8,24 @@ import {
   type AppShape,
   type Awaitable,
   type HeadTag,
+  type PageData,
   type PluginInfo,
   type Press,
   type PressBuildOutput,
   type PressContext,
   type PressLang,
   type RouteHandler,
-  type RouteOptions,
   type RouteParams,
 } from "@fumapress/core";
 import {
-  canonicalPath,
   createPressContext,
   matchRoute,
   methods,
   notFoundView,
   pathLocale,
   rootRedirect,
-  wrapSlot,
+  warnUnservedMiddleware,
+  wrapRoot,
   type PageRouteInput,
   type ServedRoute,
   type PressInput,
@@ -44,6 +44,7 @@ import {
   type CreateRoot,
   type CreateSlice,
 } from "waku/router/server";
+import { unstable_createServerEntryAdapter as createServerEntryAdapter } from "waku/adapter-builders";
 import type { Hono } from "hono/tiny";
 import type { ApiContext } from "waku/router";
 import type { MiddlewareHandler } from "hono";
@@ -63,9 +64,11 @@ import {
   type WakuServerEntry,
 } from "@/press";
 
-/** `getConfig()` of route files; extends `RouteOptions`, where plugins declare their keys */
-export interface WakuRouteConfig extends RouteOptions {
+/** `getConfig()` of route files */
+export interface WakuRouteConfig {
   render?: "static" | "dynamic";
+  /** the data of the page, like its `title` and `description` in `<head>` */
+  data?: Partial<PageData>;
   /** static paths of a static page with slugs, shared by every language of `autoI18n` */
   staticPaths?: string[] | string[][];
   /**
@@ -170,16 +173,17 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
     return out === "/" && i18n ? DEFAULT_GROUP : out;
   }
 
-  async function render(target: RenderTarget) {
+  async function render(target: RenderTarget<WakuAppShape>) {
     await getPageTreeFiles(ctx);
     return ctx.renderPage(target);
   }
 
   async function Root({ lang, children }: { lang?: string; children: ReactNode }) {
-    const [slots, props] = await Promise.all([ctx.getSlots({}), ctx.getProviderProps({ lang })]);
-    const body = (
-      <PressProvider {...props}>{wrapSlot(slots["layout.wrapper"], children)}</PressProvider>
-    );
+    const [slots, props] = await Promise.all([
+      ctx.getSlots({ lang }),
+      ctx.getProviderProps({ lang }),
+    ]);
+    const body = <PressProvider {...props}>{wrapRoot(slots, children)}</PressProvider>;
     if (config.ui?.renderRoot)
       return config.ui.renderRoot.call(ctx, { lang, head: styleTag, children: body });
 
@@ -199,12 +203,13 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
   }
 
   async function ContentPage({ slugs, lang }: { slugs: string[]; lang?: string }) {
-    const page = (await ctx.getLoader()).getPage(slugs, lang);
+    const url = joinPaths(ctx.localizePath(lang, "/"), ...slugs);
+    const page = (await ctx.getLoader()).getPageByUrl(url, lang);
     if (!page) unstable_notFound();
 
     return (
       <>
-        <Head tags={ctx.getHead({ page })} />
+        <Head tags={ctx.getHead({ lang, page })} />
         {await render({ lang, page })}
       </>
     );
@@ -224,8 +229,8 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
 
     return (
       <>
-        <Head tags={ctx.getHead({ route, path: decodePathname(path), view: out })} />
-        {await render({ lang, view: out, path })}
+        <Head tags={ctx.getHead({ lang, route, path: decodePathname(path) })} />
+        {await render({ lang, view: out, route, path: decodePathname(path) })}
       </>
     );
   }
@@ -235,21 +240,15 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
     const { DefaultNotFound } = await import("fumadocs-ui/layouts/home/not-found");
     return (
       <>
-        <Head tags={ctx.getHead({})} />
-        <HomeShell baseOptions={await ctx.getBaseOptions({ lang })}>
+        <Head tags={ctx.getHead({ lang })} />
+        <HomeShell layoutProps={await ctx.getLayoutProps({ lang })}>
           <DefaultNotFound />
         </HomeShell>
       </>
     );
   }
 
-  /**
-   * Hono middlewares: the `waku.honoMiddleware` of plugins in layer order, around the `middleware` of plugins, where
-   * `next(path)` serves another path of the app.
-   *
-   * Client navigations request the RSC payload of a page: plugins see the request of the page, and its rewrites and redirects
-   * are addressed the way the request addressed its route.
-   */
+  /** Hono middlewares: the `waku.honoMiddleware` of plugins in layer order, then the paths Waku's router can't take */
   function createMiddlewares(): ((opts: { app: Hono }) => MiddlewareHandler)[] {
     const out: ((opts: { app: Hono }) => MiddlewareHandler)[] = [];
     for (const plugin of plugins) {
@@ -257,14 +256,27 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
       if (hook) out.push((opts) => hook.call(ctx, opts));
     }
 
-    out.push(({ app }) => async (c, next) => {
-      const { raw } = c.req;
-      const { pathname, search } = new URL(raw.url);
+    out.push(() => async (c, next) => {
+      const { pathname, search } = new URL(c.req.url);
       // Waku's router throws on paths outside of its base path, the base path without its trailing slash included
       const path = stripBase(pathname, ctx.withBase("/"));
       if (path === undefined) return c.notFound();
       if (path === "/" && !pathname.endsWith("/")) return c.redirect(`${pathname}/${search}`, 308);
+      await next();
+    });
+    return out;
+  }
 
+  /**
+   * `fetch` of the adapter behind the `middleware` of plugins, before its static files, where `next(path)` re-enters the
+   * chain at another path of the app.
+   *
+   * Client navigations request the RSC payload of a page: plugins see the request of the page, and its rewrites and redirects
+   * are addressed the way the request addressed its route.
+   */
+  function withMiddleware(fetch: AdapterServerEntry["fetch"]): AdapterServerEntry["fetch"] {
+    const handle = async (raw: Request, ...args: unknown[]): Promise<Response> => {
+      const { pathname } = new URL(raw.url);
       const route = unstable_parseRouterRequest(raw);
       let request = raw;
       // RSC requests of client navigations address the page in their own URL: middleware checks the page, Waku reads the body of `raw`
@@ -279,14 +291,15 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
         (request !== raw && unstable_formatRouterRequest(raw, path, query)) ||
         new URL(ctx.withBase(path), raw.url);
 
-      let passed: Response | undefined;
       let response = await ctx.handleRequest(request, async (rewrite) => {
-        if (rewrite !== undefined) return app.fetch(new Request(address(rewrite), raw));
-
-        await next();
-        return (passed = c.res);
+        if (rewrite !== undefined) return handle(new Request(address(rewrite), raw), ...args);
+        const response = await fetch(raw, ...args);
+        // static files of adapters with a server have no Markdown type
+        return response.headers.get("Content-Type") === "application/octet-stream" &&
+          pathname.endsWith(".md")
+          ? withHeader(response, "Content-Type", "text/markdown; charset=utf-8")
+          : response;
       });
-      if (response === passed) return;
 
       const location = response.headers.get("Location");
       if (request !== raw && location && response.status >= 300 && response.status < 400) {
@@ -295,25 +308,42 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
           target.origin === new URL(raw.url).origin
             ? stripBase(target.pathname, ctx.withBase("/"))
             : undefined;
-        if (path !== undefined) {
-          response = new Response(response.body, response);
-          response.headers.set("Location", address(path, target.search.slice(1)).href);
-        }
+        if (path !== undefined)
+          response = withHeader(response, "Location", address(path, target.search.slice(1)).href);
       }
-
-      // clear first, assigning over an existing response merges its headers in Hono
-      c.res = undefined;
-      c.res = response;
-    });
-    return out;
+      return response;
+    };
+    return handle;
   }
 
   /** the adapter with Fumapress' own entry innermost, then the `waku.unstable_serverEntry` of plugins, the first outermost */
   function patchAdapter<Options>(
     adapter: ServerEntryAdapter<Options>,
   ): ServerEntryAdapter<Options> {
-    return (handlers, options) => {
+    return createServerEntryAdapter<Options>(({ handlers, unstable_setAllEnv }, options) => {
       const entry: AdapterServerEntry = adapter(handlers, options);
+      const { fetch, defaultExport } = entry;
+      // Waku's build requests the files of the build from the server it starts: not a request of the site
+      const buildPath = internalBuildPath(options);
+      const serve = (fetch: AdapterServerEntry["fetch"]): AdapterServerEntry["fetch"] => {
+        const handle = withMiddleware(fetch);
+        return (request, ...args) =>
+          new URL(request.url).pathname === buildPath
+            ? fetch(request, ...args)
+            : handle(request, ...args);
+      };
+      entry.fetch = serve(fetch);
+      // Cloudflare serves its own `fetch` from `defaultExport`, which sets the env of Waku first: so does the middleware
+      if (isFetchHandler(defaultExport)) {
+        const handle = serve((request, ...args) => defaultExport.fetch(request, ...args));
+        entry.defaultExport = {
+          ...defaultExport,
+          fetch(request: Request, env?: Record<string, unknown>, ...args: unknown[]) {
+            if (env) unstable_setAllEnv(env);
+            return handle(request, env, ...args);
+          },
+        };
+      }
 
       const platform = import.meta.env.FUMAPRESS_PLATFORM;
       if (platform === "cloudflare" || platform === "netlify") {
@@ -328,31 +358,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
         ];
       }
 
-      const { build, fetch } = entry;
-      const llms = plugins.find((plugin) => plugin.provides?.some((name) => name === "llms"));
-      entry.fetch = (raw, ...args) => {
-        const { pathname } = new URL(raw.url);
-        const serve = async (rewrite?: string) => {
-          const request =
-            rewrite === undefined ? raw : new Request(new URL(ctx.withBase(rewrite), raw.url), raw);
-          const response = await fetch(request, ...args);
-          // static files of adapters with a server have no Markdown type
-          return response.headers.get("Content-Type") === "application/octet-stream" &&
-            (rewrite ?? pathname).endsWith(".md")
-            ? withHeader(response, "Content-Type", "text/markdown; charset=utf-8")
-            : response;
-        };
-        // adapters with a server serve static files before middleware, so the plugin negotiates here too. `.md` URLs stay
-        // with the whole chain: the plugin answers them on demand, before the plugins after it. So do other spellings of
-        // a path, which redirect
-        return llms?.middleware &&
-          raw.method === "GET" &&
-          !pathname.endsWith(".md") &&
-          canonicalPath(pathname) === pathname
-          ? llms.middleware.call(ctx, raw, serve)
-          : serve();
-      };
-
+      const { build } = entry;
       entry.build = async (utils, ...args) => {
         const links: PressBuildOutput["links"] = [];
         // only read by the `build` of plugins, like link validation
@@ -361,11 +367,18 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
         global.LINK_SSG_CONTEXT = undefined;
         // like `static: true` of a platform adapter, whose build enhancer reads it after the build: no function to deploy
         const [buildOptions] = args;
-        if (!hasDynamicRoute && buildOptions) buildOptions.serverless = false;
+        if (
+          buildOptions &&
+          !hasDynamicRoute &&
+          !ctx.listedPlugins.some((plugin) => plugin.middleware)
+        )
+          buildOptions.serverless = false;
+        if (buildOptions?.serverless === false) warnUnservedMiddleware(ctx);
 
         await ctx.build({
           links,
-          fetch: (request) => entry.fetch(request),
+          // the pages as built, the middleware of a request isn't the build's
+          fetch: (request) => fetch(request),
           emitFile: (path, content) =>
             // a copy of bytes, the body of responses can't be a view of shared memory
             utils.emitFile(
@@ -381,12 +394,28 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
         if (hook) out = hook.call(ctx, out);
       }
       return out as AdapterServerEntry;
-    };
+    });
   }
 
   const router: WakuRouter<any> = {
     createPages(fsRoutes) {
-      return createPages(async (waku) => {
+      return createPages(async (fns) => {
+        hasDynamicRoute = false;
+        function track<F extends (config: any) => unknown>(fn: F): F {
+          return ((config: { render?: string }) => {
+            if (config.render === "dynamic") hasDynamicRoute = true;
+            return fn(config);
+          }) as F;
+        }
+        // every route counts, those of `fsRoutes` and plugins reach Waku without core
+        const waku: typeof fns = {
+          ...fns,
+          createPage: track(fns.createPage),
+          createLayout: track(fns.createLayout),
+          createRoot: track(fns.createRoot),
+          createSlice: track(fns.createSlice),
+          createApi: track(fns.createApi),
+        };
         /** custom pages and the pages of plugins, core picks the ones served */
         const runtimeRoutes: PageRouteInput<WakuAppShape>[] = [];
         /** the Waku page of a route, once core picked it */
@@ -410,7 +439,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
             exactPath,
             slices,
             unstable_sourceFile,
-            ...options
+            data,
           } = page;
           const Page = component as FC<WakuRouteProps>;
           const input: PageRouteInput<WakuAppShape> = {
@@ -419,7 +448,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
             render,
             staticPaths,
             exactPath,
-            options,
+            data,
             plugin,
             markdown: (path, params) =>
               renderRoute(createElement(Page, { ...params, path, lang } as WakuRouteProps)),
@@ -434,7 +463,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
             unstable_sourceFile,
             component: (props: WakuRouteProps) => (
               <>
-                <Head tags={ctx.getHead({ route, path: decodePathname(props.path) })} />
+                <Head tags={ctx.getHead({ lang, route, path: decodePathname(props.path) })} />
                 <Page {...props} lang={lang} />
               </>
             ),
@@ -516,18 +545,18 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
           if (route.render === "dynamic") createApiRoute(waku.createApi, route);
 
         const contentRender = ctx.getContentRender();
-        hasDynamicRoute =
-          contentRender === "dynamic" ||
-          served.some((route) => route.render === "dynamic") ||
-          apiRoutes.some((route) => route.render === "dynamic");
 
         const slugsByLang = new Map<string | undefined, string[][]>();
         for (const page of (await ctx.getLoader()).getPages()) {
           // the catch-all route below renders the pages of dynamic sources
           if (ctx.getContentRender(page.type) === "dynamic") continue;
-          const slugs = slugsByLang.get(page.locale);
-          if (slugs) slugs.push(page.slugs);
-          else slugsByLang.set(page.locale, [page.slugs]);
+          // pages are served at their URL, which the `url` option of the loader can change
+          const path = stripBase(page.url, ctx.localizePath(page.locale, "/"));
+          if (path === undefined) continue;
+          const slugs = path.split("/").filter((segment) => segment.length > 0);
+          const list = slugsByLang.get(page.locale);
+          if (list) list.push(slugs);
+          else slugsByLang.set(page.locale, [slugs]);
         }
         const createLangRoot = (path: string, lang: string) =>
           waku.createLayout({
@@ -629,6 +658,25 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
   return router;
 }
 
+/** the path of Waku's build loopback, `internalPathToBuildStaticFiles` of the Cloudflare adapter */
+function internalBuildPath(options: unknown): string {
+  const path =
+    typeof options === "object" && options !== null
+      ? Reflect.get(options, "internalPathToBuildStaticFiles")
+      : undefined;
+  return `/${typeof path === "string" ? path : "__waku_internal_build_static_files"}`;
+}
+
+/** whether `value` is a module of a `fetch` handler, like the `defaultExport` of Cloudflare */
+function isFetchHandler(value: unknown): value is { fetch: AdapterServerEntry["fetch"] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "fetch" in value &&
+    typeof value.fetch === "function"
+  );
+}
+
 function withHeader(response: Response, name: string, value: string): Response {
   const out = new Response(response.body, response);
   out.headers.set(name, value);
@@ -661,6 +709,9 @@ const reactProps = new Map([
   ["referrerpolicy", "referrerPolicy"],
 ]);
 
+/** boolean attributes of head tags: React drops them for a falsy value, like `""` that HTML uses */
+const booleanAttrs = new Set(["async", "defer", "nomodule", "disabled"]);
+
 /** the attributes of a `<link rel="preload">` that React's `preload()` takes */
 const preloadAttrs = new Set([
   "rel",
@@ -689,7 +740,8 @@ function renderHeadTags(tags: HeadTag[]): ReactNode[] {
   const out: ReactNode[] = [];
   for (const [index, { tag, attrs, children }] of tags.entries()) {
     const props: Record<string, unknown> = { key: index };
-    for (const name in attrs) props[reactProps.get(name) ?? name] = attrs[name];
+    for (const name in attrs)
+      props[reactProps.get(name) ?? name] = booleanAttrs.has(name) || attrs[name];
     if (tag === "link" && attrs && isPreload(attrs)) {
       out.push(createElement(Preload, { ...props, rel: attrs.rel!, href: attrs.href! }));
       continue;

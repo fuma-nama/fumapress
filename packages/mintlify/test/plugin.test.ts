@@ -1,8 +1,9 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { Context, DocsPageData, ViewRoute } from "@fumapress/core";
+import type { Context, PageData, ViewRoute } from "@fumapress/core";
 import type { Root } from "fumadocs-core/page-tree";
 import type { LoaderPlugin } from "fumadocs-core/source";
+import { MintlifyBannerBar } from "@/features/banner";
 import { notFoundView } from "@/features/not-found";
 import { mintlifyPlugin, type MintlifyPluginOptions } from "@/index";
 import { page } from "./fixtures/page-tree";
@@ -44,7 +45,7 @@ describe("mintlifyPlugin", () => {
   it("adds head tags of every page and noindex to pages outside the navigation", async () => {
     const { ctx, plugin } = await setup();
 
-    const tags = (await plugin.head?.call(ctx, {})) ?? [];
+    const tags = (await plugin.head?.call(ctx, { lang: undefined })) ?? [];
     expect(tags[0]?.tag).toBe("style");
     expect(tags).toContainEqual({
       tag: "script",
@@ -57,8 +58,10 @@ describe("mintlifyPlugin", () => {
 
     const quickstart = { url: "/quickstart", path: "quickstart.mdx", slugs: ["quickstart"] };
     const hidden = { url: "/hidden", path: "hidden.mdx", slugs: ["hidden"] };
-    expect(await plugin.head?.call(ctx, { page: quickstart as never })).toBeUndefined();
-    expect(await plugin.head?.call(ctx, { page: hidden as never })).toEqual([
+    expect(
+      await plugin.head?.call(ctx, { lang: undefined, page: quickstart as never }),
+    ).toBeUndefined();
+    expect(await plugin.head?.call(ctx, { lang: undefined, page: hidden as never })).toEqual([
       { tag: "meta", attrs: { name: "robots", content: "noindex" } },
     ]);
   });
@@ -89,7 +92,7 @@ describe("mintlifyPlugin", () => {
   it("contributes navbar and provider props", async () => {
     const { ctx, plugin } = await setup();
 
-    const options = await plugin.baseOptions?.call(ctx, { lang: undefined });
+    const options = await plugin.layoutProps?.call(ctx, { lang: undefined });
     expect(options?.links?.length).toBeGreaterThanOrEqual(3);
     expect(options?.nav?.title).toBeDefined();
     expect(options?.themeSwitch).toEqual({ enabled: false });
@@ -97,6 +100,16 @@ describe("mintlifyPlugin", () => {
     const provider = await plugin.providerProps?.call(ctx, { lang: undefined });
     expect(provider?.theme).toEqual({ defaultTheme: "dark", forcedTheme: "dark" });
     expect(provider?.i18n?.translations?.["Search(search trigger)"]).toBe("Search the docs...");
+  });
+
+  it("adds the banner above the layout and the footer below it, site-wide", async () => {
+    const { ctx, plugin } = await setup();
+
+    expect(await plugin.slots?.call(ctx, { lang: undefined })).toMatchObject([
+      { name: "mintlify:banner", region: "banner", component: MintlifyBannerBar },
+      { name: "mintlify:footer", region: "layout-wrapper" },
+    ]);
+    expect(await plugin.slots?.call(ctx, { lang: undefined, page: {} as never })).toBeUndefined();
   });
 
   it("redirects requests", async () => {
@@ -137,20 +150,18 @@ describe("mintlifyPlugin", () => {
   it("respects feature toggles", async () => {
     const { ctx, plugin } = await setup({ features: off });
 
-    expect(await plugin.head?.call(ctx, {})).toBeUndefined();
-    expect(await plugin.slots?.call(ctx, {})).toBeUndefined();
+    expect(await plugin.head?.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.slots?.call(ctx, { lang: undefined })).toEqual([]);
     expect(await plugin.configureLoader?.call(ctx, { baseUrl: "/" })).toBeUndefined();
-    expect(await plugin.baseOptions?.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.layoutProps?.call(ctx, { lang: undefined })).toBeUndefined();
     expect(await plugin.providerProps?.call(ctx, { lang: undefined })).toEqual({});
     const createView = vi.fn();
     await plugin.routes?.call(ctx, { createApi: vi.fn(), createView });
     expect(createView).not.toHaveBeenCalled();
     expect(
-      await plugin.transformPage?.call(
-        ctx,
-        { lastModified: new Date() } as DocsPageData,
-        undefined as never,
-      ),
+      await plugin.transformPage?.call(ctx, { lastModified: new Date() } as PageData, {
+        lang: undefined,
+      }),
     ).toBeUndefined();
 
     const next = vi.fn(async () => new Response("page"));

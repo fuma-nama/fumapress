@@ -2,8 +2,8 @@ import { trailingSlash } from "astro:config/client";
 import config from "virtual:fumapress/config";
 import { adapter, routes, prerender, serverOutput, siteUrl } from "virtual:fumapress/astro";
 import { stripBase } from "@fumapress/core";
-import { createPressContext, pathLocale } from "@fumapress/core/runtime";
-import { contentSourcePlugin } from "../content-source";
+import { createPressContext, pathLocale, warnUnservedMiddleware } from "@fumapress/core/runtime";
+import { contentSourcePlugin } from "../plugins/content-source";
 import { pageTreePlugin } from "../island/page-tree";
 import { getReference } from "../island/references";
 
@@ -16,7 +16,8 @@ export const ctx = await createPressContext(config, {
   base: import.meta.env.BASE_URL,
   baseUrl: siteUrl,
   trailingSlash: trailingSlash === "always",
-  dynamic: serverOutput,
+  // like the routes of Astro: on demand by default with `output: "server"`, unless `mode` prerenders them
+  mode: serverOutput ? "force-dynamic" : undefined,
   defaults: [contentSourcePlugin(), pageTreePlugin(prerender)],
   signal: controller.signal,
   isClientReference: (value) => getReference(value) !== undefined,
@@ -24,7 +25,7 @@ export const ctx = await createPressContext(config, {
 
 if (!adapter && ctx.getContentRender() === "dynamic")
   throw new Error(
-    "[Fumapress] a dynamic content source renders its pages on demand, add an adapter to Astro.",
+    '[Fumapress] content renders on demand, add an adapter to Astro, or prerender it with `mode: "force-static"` of `createPress()`.',
   );
 
 ctx.setRuntimeRoutes(
@@ -47,6 +48,7 @@ if (import.meta.env.DEV) {
 }
 
 if (prerender) {
+  if (!adapter) warnUnservedMiddleware(ctx);
   if (!ctx.plugins.some((plugin) => plugin.build)) {
     globalThis.FUMAPRESS_BUILD = undefined;
   } else if (globalThis.FUMAPRESS_BUILD) {

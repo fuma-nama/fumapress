@@ -2,7 +2,7 @@ import { isMarkdownPreferred } from "fumadocs-core/negotiation";
 import { llms } from "fumadocs-core/source/llms";
 import type { Context } from "../context";
 import type { AppShape, Awaitable, Plugin } from "../plugin";
-import { fallbackOrigin, joinPaths, matchPageRoute, stripBase, type PageRoute } from "../routes";
+import { joinPaths, matchPageRoute, stripBase, type PageRoute } from "../routes";
 
 export interface LLMsOptions<C extends AppShape = AppShape> {
   /**
@@ -14,7 +14,7 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
   autoRedirect?: boolean;
 
   /**
-   * The Markdown of a page, pages without it are left out of `llms-full.txt`.
+   * The Markdown of a page, pages without it or with `noindex` in their page data are left out of `llms-full.txt`.
    *
    * By default, the text of content sources under a heading with the title and URL of the page.
    */
@@ -29,7 +29,7 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
    *
    * The Markdown renders the page without its layouts: access checks of a page belong in the page itself, or in
    * middleware that covers its `<page>.md` too. Static pages render while the routes are created, they can read
-   * `getPageRoutes()` and the base options.
+   * `getPageRoutes()` and the layout props.
    *
    * @defaultValue "content"
    */
@@ -49,8 +49,10 @@ function pageUrl(path: string): string {
   return path === "/index.md" ? "/" : path.slice(0, -3);
 }
 
-function markdownResponse(text: string): Response {
-  return new Response(text, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
+function markdownResponse(text: string, cacheControl?: string): Response {
+  const headers = new Headers({ "Content-Type": "text/markdown; charset=utf-8" });
+  if (cacheControl) headers.set("Cache-Control", cacheControl);
+  return new Response(text, { headers });
 }
 
 /** a copy of `response` that caches key on `Accept`, the headers of responses like `Response.redirect()` are immutable */
@@ -68,23 +70,24 @@ function varyAccept(response: Response): Response {
  */
 export function llmsPlugin<C extends AppShape = AppShape>(
   options: LLMsOptions<NoInfer<C>> = {},
-): Plugin<C, { provides: "llms" }> {
+): Plugin<C> {
   const {
     autoRedirect = true,
     routes = "content",
     getLLMText = async function (page) {
-      const text = await this.getPageText(page);
-      if (text !== undefined)
-        return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${text}`;
+      const [text, { title }] = await Promise.all([this.getPageText(page), this.getPageData(page)]);
+      if (text !== undefined) return `# ${title} (${this.absoluteUrl(page.url)})\n\n${text}`;
     },
   } = options;
 
   async function markdown(ctx: Context<C>, page: C["page"]): Promise<Response> {
-    return markdownResponse((await getLLMText.call(ctx, page)) ?? "");
+    return markdownResponse((await getLLMText.call(ctx, page)) ?? "", ctx.getCacheControl(page));
   }
 
   /** the mirror paths of the rewrites in flight, each with an unguessable segment: the mirrors serve the `<page>.md` URLs only, never a request of their own */
   const rewrites = new Set<string>();
+  /** the paths of the pages of static page routes with a Markdown file */
+  const staticMarkdown = new Set<string>();
 
   const mirrorBase = (lang: string | undefined) => joinPaths(mirrorPath, lang ?? "");
   const hasMirror = (route: PageRoute) =>
@@ -92,9 +95,13 @@ export function llmsPlugin<C extends AppShape = AppShape>(
 
   return {
     name: "core:llms.txt",
-    provides: ["llms"],
-    transformPage(data) {
-      return { markdownUrl: markdownPath(data.url) };
+    transformPage(data, { page, route, path }) {
+      const markdown =
+        page ||
+        (route?.render === "dynamic"
+          ? hasMirror(route) && routes === "all"
+          : path !== undefined && staticMarkdown.has(path));
+      if (markdown) return { markdownUrl: markdownPath(data.url) };
     },
     async routes({ createApi }) {
       createApi({
@@ -111,15 +118,15 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         path: "/llms-full.txt",
         render: this.getContentRender(),
         GET: async () => {
-          const source = await this.getLoader();
-          const pending: Awaitable<string | undefined>[] = [];
-          for (const page of source.getPages()) {
-            if (!fallbackOrigin(source, this.i18nConfig, page))
-              pending.push(getLLMText.call(this, page));
-          }
-
+          const results = await Promise.all(
+            (await this.getLoader())
+              .getPages()
+              .map(async (page) =>
+                (await this.getPageData(page)).noindex ? undefined : getLLMText.call(this, page),
+              ),
+          );
           const texts: string[] = [];
-          for (const text of await Promise.all(pending)) if (text !== undefined) texts.push(text);
+          for (const text of results) if (text !== undefined) texts.push(text);
           return new Response(texts.join("\n\n"));
         },
       });
@@ -156,6 +163,7 @@ export function llmsPlugin<C extends AppShape = AppShape>(
           const text = await render(page.path, page.params);
           if (text === undefined) continue;
           markdownPaths.add(path);
+          staticMarkdown.add(page.path);
           createApi({ path, render: "static", GET: () => markdownResponse(text) });
         }
       }

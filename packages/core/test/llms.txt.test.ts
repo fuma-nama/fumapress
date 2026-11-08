@@ -138,6 +138,16 @@ describe("llmsPlugin", () => {
     expect(html).toHaveBeenCalledTimes(2);
   });
 
+  it("gives the Markdown of a page rendered on demand the `staleTime` of its source", async () => {
+    const live = await createSite({ content: { files: () => files, staleTime: 120_000 } });
+    const response = await live.handleRequest(request("/docs/basics.md"), html);
+    expect(response.headers.get("Cache-Control")).toBe("public, s-maxage=120");
+
+    const fresh = await createSite(dynamic);
+    const uncached = await fresh.handleRequest(request("/docs/basics.md"), html);
+    expect(uncached.headers.get("Cache-Control")).toBeNull();
+  });
+
   it("serves the Markdown file to requests preferring it, caches key on `Accept`", async () => {
     const ctx = await createSite(dynamic, {}, "/repo/");
     const notFound = async () => new Response(null, { status: 404 });
@@ -211,6 +221,16 @@ describe("llmsPlugin", () => {
     await expect(data("/")).resolves.toMatchObject({ markdownUrl: "/index.md" });
   });
 
+  it("links the Markdown of content pages only, other pages have none", async () => {
+    const ctx = await pressContext(
+      { content, plugins: [llmsPlugin()] },
+      { routes: [{ path: "/about", render: "static", markdown: async () => "# About" }] },
+    );
+    const [route] = await ctx.getPageRoutes();
+
+    await expect(ctx.getPageData(route!, "/about")).resolves.not.toHaveProperty("markdownUrl");
+  });
+
   it("accepts custom Markdown", async () => {
     const ctx = await createSite(
       {},
@@ -243,6 +263,14 @@ describe('routes: "all"', () => {
 
     await expect(readRoute(routes, "/about.md")).resolves.toBe("# /about");
     expect(routes.some((route) => route.path === "/blank.md")).toBe(false);
+    // the page data links the Markdown of the pages that have one
+    const markdownUrl = async (path: string) => {
+      const route = (await ctx.getPageRoutes()).find((item) => item.path === path)!;
+      return (await ctx.getPageData(route, path)).markdownUrl;
+    };
+    await expect(markdownUrl("/about")).resolves.toBe("/about.md");
+    await expect(markdownUrl("/blank")).resolves.toBeUndefined();
+    await expect(markdownUrl("/status")).resolves.toBe("/status.md");
     const mirror = routes.find((route) => route.path === "/_llms.txt/[...path]");
     expect(mirror?.render).toBe("dynamic");
 

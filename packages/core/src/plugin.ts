@@ -1,11 +1,16 @@
 import type { ComponentType, ReactNode } from "react";
 import type * as Framework from "fumadocs-core/framework/plugin";
 import type { Meta, Page } from "fumadocs-core/source";
-import type { TOCItemType } from "fumadocs-core/toc";
 import type { Context } from "./context";
 import type { HeadEnv, HeadTag } from "./head";
-import type { BaseOptions, InferI18nConfig, ProviderProps } from "./press";
+import type { InferI18nConfig, ProviderProps, SharedLayoutProps } from "./press";
 import type { PageRoute, RouteFns } from "./routes";
+import type { SitemapOptions } from "./plugins/sitemap";
+import type { RobotsOptions } from "./plugins/robots";
+import type { LLMsOptions } from "./plugins/llms.txt";
+import type { RSSOptions } from "./plugins/rss";
+import type { FlexsearchOptions } from "./plugins/flexsearch";
+import type { TakumiOptions } from "./plugins/takumi";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -33,18 +38,13 @@ export interface LangEnv<C extends AppShape> {
   lang: C["lang"];
 }
 
-/** the env of per-page hooks; `layout.wrapper` and site-wide tags without `page` */
-export interface PageEnv<C extends AppShape> {
+/** the env of per-request hooks: `page` on a content page, none on the site-wide call */
+export interface PageEnv<C extends AppShape> extends LangEnv<C> {
   page?: C["page"];
 }
 
-/** the named slots: the slot id is the `renderPage` prop holding their items by name */
-export type NamedSlot = "actions" | "footer";
-
-/** what a plugin declares for types: its views, the props it adds to pages of a source, its capabilities and named slot items */
-export type PluginTypes = { views?: object; pages?: object; provides?: Capability } & {
-  [K in NamedSlot]?: string;
-};
+/** what a plugin declares for types: its views, the props it adds to pages of a source, and the names of its slot items */
+export type PluginTypes = { views?: object; pages?: object; slots?: string };
 
 /** the declarations `K` of plugin types: on a union, their union; on `any`, `any`; on the merged types of a site, its own */
 export type Declared<T, K extends keyof PluginTypes> = T extends unknown
@@ -61,11 +61,11 @@ type Intersect<U> = [U] extends [never]
 type TypesOf<P> = P extends { readonly "~types"?: infer X } ? (P extends object ? X : {}) : {};
 
 /** the plugin types of a site, `U` is the union of each plugin's; an interface, so it is cached and printed by name */
-export interface MergedTypes<U> extends NamedSlotNames<U> {
+export interface MergedTypes<U> {
   views: Intersect<Declared<U, "views">>;
   pages: Intersect<Declared<U, "pages">>;
+  slots: Declared<U, "slots">;
 }
-type NamedSlotNames<U> = { [K in NamedSlot]: Declared<U, K> };
 
 /** keys outside the plugin contract, like a removed or misspelled hook: `const P` skips the excess property check of literals */
 export type UnknownKeys<E, C extends AppShape> = E extends readonly unknown[]
@@ -98,7 +98,7 @@ export type CollectTypes<P extends readonly unknown[]> =
 export interface RuntimeHooks<in C extends AppShape> {}
 
 /**
- * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, capabilities, views, slots, head tags, middleware and the build.
+ * A plugin of Fumapress: a plugin of the framework API with the site's {@link Context} as `this`, views, slots, head tags, middleware and the build.
  *
  * Hooks are properties, so `this` and pages are checked contravariantly: a plugin for any site fits every site. A plugin is a
  * generic factory typed by the site (`myPlugin<C extends AppShape>(options: MyOptions<NoInfer<C>>): Plugin<C, MyTypes>`).
@@ -112,10 +112,6 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
   init?: (this: Context<C>) => Awaitable<void>;
   /** runs after the content loader is created */
   configure?: (this: Context<C>) => Awaitable<void>;
-  /** at most one plugin per capability; a listed plugin providing a preset entry's capability replaces that entry in place */
-  provides?: readonly Declared<T, "provides">[];
-  /** read by others with `this.getCapability(capability)`; complete at creation, a value of the site is a function of its context */
-  api?: ProviderAPI<Declared<T, "provides">>;
   /**
    * routes derived from the final page routes of `lang` (those rendered in `lang`, custom pages without a language in the
    * default one), called once per language: API routes like their Markdown or images, and views like a print page. A path
@@ -126,14 +122,15 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
     fns: RouteFns<C, Declared<T, "views">>,
     env: LangEnv<C> & { routes: readonly PageRoute<C>[] },
   ) => Awaitable<void>;
+  /** every page: a content page with `env.page`, a page route with `env.route` and `env.path` */
   transformPage?: (
     this: Context<C>,
-    data: Readonly<DocsPageData>,
-    page: C["page"],
-  ) => Awaitable<Partial<DocsPageData> | undefined>;
+    data: Readonly<PageData>,
+    env: HeadEnv<C>,
+  ) => Awaitable<Partial<PageData> | undefined>;
   /**
    * a content page of a source the plugin owns (its `source` option), with the props it adds; `body` is the page's
-   * content with `body.wrapper` applied, `props.body` of `ui.renderPage`
+   * content with `body-wrapper` applied, `props.body` of `ui.renderPage`
    */
   getPageView?: (
     this: Context<C>,
@@ -141,16 +138,22 @@ export interface Plugin<in C extends AppShape = AppShape, T extends PluginTypes 
     body: Framework.PageBody | undefined,
   ) => Awaitable<PageView<Declared<T, "pages">> | undefined>;
   head?: (this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>;
+  /** items of a content page with `env.page`, site-wide items without: see {@link SlotRegion} */
   slots?: (this: Context<C>, env: PageEnv<C>) => Awaitable<SlotItem<T>[] | undefined>;
-  /** merged under the site's `ui.baseOptions`, over the defaults */
-  baseOptions?: (this: Context<C>, env: LangEnv<C>) => Awaitable<Partial<BaseOptions> | undefined>;
+  /** merged under the site's `ui.layoutProps`, over the defaults */
+  layoutProps?: (
+    this: Context<C>,
+    env: PageEnv<C>,
+  ) => Awaitable<Partial<SharedLayoutProps> | undefined>;
   /** merged under the site's `ui.providerProps` */
   providerProps?: (
     this: Context<C>,
     env: LangEnv<C>,
   ) => Awaitable<Partial<ProviderProps> | undefined>;
   /**
-   * Runs for requests served on demand, prerendered routes skip it.
+   * Runs first on every request the server receives: on Waku its static files too, on Astro the routes rendered on demand.
+   * Requests a host or CDN serves from the files of the build never reach it, and a build without a server warns that it
+   * never runs.
    *
    * Call `next()` to continue, or `next(path)` to serve another path instead, without the base path like the paths of routes.
    */
@@ -173,15 +176,7 @@ export type PluginOption<P extends PluginInfo = Plugin> =
 
 /** content of a plugin page, with the props `ui.renderPage` receives for its `type` */
 export type View<V> = V extends unknown
-  ? {
-      [K in keyof V & string]: {
-        type: K;
-        props: V[K];
-        node: ReactNode;
-        title?: string;
-        description?: string;
-      };
-    }[keyof V & string]
+  ? { [K in keyof V & string]: { type: K; props: V[K]; node: ReactNode } }[keyof V & string]
   : never;
 
 /** a content page rendered by the plugin owning it: `node` is `props.children` of `ui.renderPage` */
@@ -189,90 +184,86 @@ export type PageView<Pg> = Pg extends unknown
   ? { [K in keyof Pg & string]: { props: Pg[K]; node: ReactNode } }[keyof Pg & string]
   : never;
 
-interface SlotBase {
+/**
+ * The places of the built-in UI, plugins pick one. Items of `actions`, `footer`, `toc-*` and `body-wrapper` come from the
+ * `slots` call of a content page (`env.page`), the others from the site-wide call; an item of the other call is an error.
+ *
+ * - `actions`: the page actions row of a content page, for buttons about the page like sharing it.
+ * - `footer`: after the content of a content page.
+ * - `toc-header`, `toc-footer`: above and below the table of contents of a content page.
+ * - `sidebar-banner`, `sidebar-footer`: above and below the sidebar of a docs layout.
+ * - `banner`: above every page, rendered by the root inside `layout-wrapper`.
+ * - `body-wrapper`: around the content of a content page, the component receives it as `children`.
+ * - `layout-wrapper`: around every page in the root provider, for providers; like `body-wrapper`.
+ *
+ * `ui.renderPage` receives the items of `actions`, `footer`, `toc-*` and `sidebar-*` as `props.slots`, the built-in UI places
+ * them; a region the chosen layout lacks, like the table of contents on the Home Layout, isn't rendered.
+ */
+export type SlotRegion =
+  | "actions"
+  | "footer"
+  | "toc-header"
+  | "toc-footer"
+  | "sidebar-banner"
+  | "sidebar-footer"
+  | "banner"
+  | "body-wrapper"
+  | "layout-wrapper";
+
+/** UI in a {@link SlotRegion}, named by its plugin types */
+export interface SlotItem<T extends PluginTypes = PluginTypes> {
+  /** `<plugin>:<item>`, like `feedback:page`; unique on the site, `core:` is Fumapress' own, the site's own names have no `:` */
+  name: Declared<T, "slots">;
+  region: SlotRegion;
   component: ComponentType<any>;
   /** serializable on Astro, where client components hydrate as islands */
   props?: Record<string, unknown>;
-  /** wrappers: lower is outer; context providers use a negative order */
+  /** lower first; in wrappers lower is outer, context providers use a negative order */
   order?: number;
 }
 
+/** the name of a plugin, in errors and on the routes it created */
+export type PluginInfo = Pick<Plugin, "name">;
+
+/** a plugin of the preset, loaded when the site starts */
+export type PresetEntry<P extends PluginInfo = Plugin<AppShape, any>> = () => Awaitable<P>;
+
+/** the options of each default plugin, `false` leaves it out */
+export interface RecommendedPresetOptions<C extends AppShape = AppShape> {
+  sitemap?: SitemapOptions<C> | false;
+  robots?: RobotsOptions | false;
+  llms?: LLMsOptions<C> | false;
+  rss?: RSSOptions<C> | false;
+  search?: FlexsearchOptions<C> | false;
+  ogImage?: TakumiOptions<C> | false;
+}
+
 /**
- * UI in places every layout renders:
- *
- * - `actions`: beside the page actions of a content page, `props.actions[name]` of `ui.renderPage`. Only for buttons
- *   about the page, like sharing it: UI of the whole site, like a floating button, goes in `layout.wrapper`.
- * - `footer`: after the content of a content page, `props.footer[name]`.
- *
- * The built-in UI places `actions` and `footer` on the Docs page, not on a page a plugin owns (`getPageView`): there,
- * `ui.renderPage` places them.
- * - `body.wrapper`: around the content of a content page, the component receives it as `children`.
- * - `layout.wrapper`: around the layout of every page, inside the root provider, like `body.wrapper`.
+ * Sitemap, robots.txt, llms.txt, RSS, search and Open Graph images. To replace one, set it to `false` and list your plugin.
  */
-export type SlotItem<T extends PluginTypes = PluginTypes> =
-  | { [K in NamedSlot]: SlotBase & { slot: K; name: Declared<T, K> } }[NamedSlot]
-  | (SlotBase & { slot: "body.wrapper" | "layout.wrapper" });
-
-/** the API of each capability, from `this.getCapability(capability)`; plugin modules add theirs by declaration merging */
-export interface CapabilityAPI {
-  search: unknown;
-  "ai-chat": unknown;
-  robots: unknown;
-  llms: unknown;
-  rss: unknown;
-}
-
-/** features only one plugin can provide, the preset fills the ones no plugin provides */
-export type Capability = keyof CapabilityAPI | (string & {});
-
-/** the API of a plugin providing the capabilities `K`: `CapabilityAPI[K]` for each, none without a capability */
-export type ProviderAPI<K> = [K] extends [never]
-  ? never
-  : Intersect<CapabilityAPI[K & keyof CapabilityAPI]>;
-
-/** what plugins read of each other */
-export type PluginInfo = Pick<Plugin<AppShape, { provides: Capability }>, "name" | "provides">;
-
-/** a preset entry, loaded unless a listed plugin provides its capability */
-export interface PresetEntry<
-  P extends PluginInfo = Plugin<AppShape, any>,
-  K extends Capability = Capability,
-> {
-  provides: K;
-  load: () => Awaitable<P>;
-}
-
-/** sitemap, robots.txt, llms.txt, RSS, search and Open Graph images; drop one with `.filter((entry) => entry.provides !== "rss")` */
-export function recommendedPreset<C extends AppShape = AppShape>(): PresetEntry<
-  Plugin<C, any>,
-  "sitemap" | "robots" | "llms" | "rss" | "search" | "og-image"
->[] {
-  return [
-    {
-      provides: "sitemap",
-      load: async () => (await import("./plugins/sitemap")).sitemapPlugin<C>(),
-    },
-    {
-      provides: "robots",
-      load: async () => (await import("./plugins/robots")).robotsPlugin<C>(),
-    },
-    {
-      provides: "llms",
-      load: async () => (await import("./plugins/llms.txt")).llmsPlugin<C>(),
-    },
-    {
-      provides: "rss",
-      load: async () => (await import("./plugins/rss")).rssPlugin<C>(),
-    },
-    {
-      provides: "search",
-      load: async () => (await import("./plugins/flexsearch")).flexsearchPlugin<C>(),
-    },
-    {
-      provides: "og-image",
-      load: async () => (await import("./plugins/takumi")).takumiPlugin<C>(),
-    },
-  ];
+export function recommendedPreset<C extends AppShape = AppShape>(
+  options: RecommendedPresetOptions<NoInfer<C>> = {},
+): PresetEntry<Plugin<C, any>>[] {
+  const { sitemap, robots, llms, rss, search, ogImage } = options;
+  const out: PresetEntry<Plugin<C, any>>[] = [];
+  if (sitemap !== false)
+    out.push(async () => (await import("./plugins/sitemap")).sitemapPlugin<C>(sitemap));
+  if (robots !== false)
+    out.push(async () =>
+      (await import("./plugins/robots")).robotsPlugin<C>({
+        // the sitemap of the preset, none without it
+        sitemap: sitemap === false ? false : (sitemap?.path ?? "/sitemap.xml"),
+        ...robots,
+      }),
+    );
+  if (llms !== false)
+    out.push(async () => (await import("./plugins/llms.txt")).llmsPlugin<C>(llms));
+  if (rss !== false) out.push(async () => (await import("./plugins/rss")).rssPlugin<C>(rss));
+  if (search !== false)
+    out.push(async () => (await import("./plugins/flexsearch")).flexsearchPlugin<C>(search));
+  if (ogImage !== false)
+    out.push(async () => (await import("./plugins/takumi")).takumiPlugin<C>(ogImage));
+  return out;
 }
 
 /** the build output of a site, with the links of its prerendered pages */
@@ -284,18 +275,23 @@ export interface PressBuildOutput {
   fetch: (request: Request) => Awaitable<Response>;
 }
 
-/** the data of a docs page, transformed by plugins */
-export interface DocsPageData extends Pick<Page, "url" | "path" | "locale"> {
+/**
+ * The data of a rendered page: a content page, a view or a custom page, transformed by plugins. Plugin modules add their
+ * keys by declaration merging.
+ */
+export interface PageData extends Pick<Page, "url" | "locale">, Partial<Pick<Page, "path">> {
   title: string;
   description?: string;
-  toc: TOCItemType[];
   /** use the full width of the page */
   full?: boolean;
+  /** loaded on the rendered content page, like its table of contents */
   lastModified?: Date;
   /** the URL of its Markdown, for LLMs */
   markdownUrl?: string;
   /** the URL to view its source file */
   githubUrl?: string;
+  /** keep search engines out, like pages shown in place of an untranslated page */
+  noindex?: boolean;
 }
 
 export type AnyPlugin = Plugin<AppShape, any>;
@@ -327,27 +323,11 @@ export function flatten(
   return out;
 }
 
-/** the layers in order: your plugins, the preset (where a listed plugin providing an entry's capability takes its place), the runtime's defaults */
+/** the layers in order: your plugins, the preset, the runtime's defaults */
 export async function resolveLayers(
   listed: AnyPlugin[],
   preset: readonly PresetEntry<AnyPlugin>[],
   defaults: AnyPlugin[],
 ): Promise<AnyPlugin[][]> {
-  const placed = new Set<AnyPlugin>();
-  const loading: Awaitable<AnyPlugin>[] = [];
-  for (const entry of preset) {
-    let replaced = false;
-    for (const plugin of listed) {
-      if (!plugin.provides?.includes(entry.provides)) continue;
-      replaced = true;
-      if (placed.has(plugin)) continue;
-      placed.add(plugin);
-      loading.push(plugin);
-    }
-    if (!replaced) loading.push(entry.load());
-  }
-
-  const own: AnyPlugin[] = [];
-  for (const plugin of listed) if (!placed.has(plugin)) own.push(plugin);
-  return [own, await Promise.all(loading), defaults];
+  return [listed, await Promise.all(preset.map((entry) => entry())), defaults];
 }

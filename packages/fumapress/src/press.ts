@@ -58,11 +58,6 @@ declare module "@fumapress/core" {
   interface RuntimeHooks<in C extends AppShape> {
     waku?: WakuHooks<C>;
   }
-
-  interface CapabilityAPI {
-    /** the optimizer behind `fumapress/image`; one per site, the preset picks the platform's */
-    image: undefined;
-  }
 }
 
 /** Waku's APIs for plugins, hooks that collect or chain in layer order */
@@ -80,8 +75,8 @@ export interface WakuHooks<C extends AppShape> {
   ) => Awaitable<void>;
   /**
    * chain: a Hono middleware of the server (Waku's `middlewareFns`), for the Hono context (`c.env`, `c.executionCtx`);
-   * anything else is core `middleware`, on both runtimes. They nest in layer order, around the site's `middleware` chain.
-   * Static files the adapter serves (Node's `serveStatic`, the platform's assets) never reach it.
+   * anything else is core `middleware`, on both runtimes. They nest in layer order, inside the site's `middleware` chain,
+   * which runs first. Static files the adapter serves (Node's `serveStatic`, the platform's assets) never reach it.
    */
   honoMiddleware?: (this: Context<C>, env: { app: Hono }) => MiddlewareHandler;
   /**
@@ -117,23 +112,28 @@ export function getPressContext<A extends Press<any, any> = Press>(): PressConte
   return current as PressContext<A>;
 }
 
+/** the options of the default plugins on Waku */
+export interface RecommendedPresetOptions<
+  C extends AppShape = WakuAppShape,
+> extends core.RecommendedPresetOptions<C> {
+  /** `false` leaves out the image optimizer behind `fumapress/image`, one per site */
+  image?: false;
+}
+
 /** the core preset, plus the image optimizer of the platform (Vercel, Cloudflare, else self-hosted with `sharp`) */
-export function recommendedPreset<C extends WakuAppShape = WakuAppShape>(): PresetEntry<
-  Plugin<C, any>,
-  ReturnType<typeof core.recommendedPreset>[number]["provides"] | "image"
->[] {
-  const out: ReturnType<typeof recommendedPreset<C>> = core.recommendedPreset<C>();
+export function recommendedPreset<C extends WakuAppShape = WakuAppShape>(
+  options: RecommendedPresetOptions<NoInfer<C>> = {},
+): PresetEntry<Plugin<C, any>>[] {
+  const out = core.recommendedPreset<C>(options);
+  if (options.image === false) return out;
   // the platform of the deployment adapter, baked in at build time
   const platform: string | undefined = import.meta.env.FUMAPRESS_PLATFORM;
-  let load: (() => Promise<Plugin<C, any>>) | undefined;
   if (platform === "vercel")
-    load = async () => (await import("./plugins/image/vercel")).vercelImage<C>();
+    out.push(async () => (await import("./plugins/image/vercel")).vercelImage<C>());
   else if (platform === "cloudflare")
-    load = async () => (await import("./plugins/image/cloudflare")).cloudflareImage<C>();
+    out.push(async () => (await import("./plugins/image/cloudflare")).cloudflareImage<C>());
   else if (platform === "node" && hasSharp())
-    load = async () => (await import("./plugins/image/self-hosted")).selfHostedImage<C>();
-
-  if (load) out.push({ provides: "image", load });
+    out.push(async () => (await import("./plugins/image/self-hosted")).selfHostedImage<C>());
   return out;
 }
 

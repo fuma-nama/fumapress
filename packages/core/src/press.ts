@@ -15,6 +15,7 @@ import type { DocsPageProps as SpaciousPageProps } from "fumadocs-ui/layouts/spa
 import type { DocsLayoutProps as FluxLayoutProps } from "fumadocs-ui/layouts/flux";
 import type { DocsPageProps as FluxPageProps } from "fumadocs-ui/layouts/flux/page";
 import type { RootProviderProps } from "fumadocs-ui/provider/base";
+import type { TOCItemType } from "fumadocs-core/toc";
 import type { Context } from "./context";
 import type { GitProvider } from "./git";
 import type { HeadEnv, HeadTag } from "./head";
@@ -23,16 +24,19 @@ import type {
   Awaitable,
   CollectTypes,
   Declared,
-  DocsPageData,
   LangEnv,
   MergedTypes,
+  PageData,
+  PageEnv,
   Plugin,
   PluginOption,
   PluginTypes,
   PresetEntry,
+  SlotRegion,
   UnknownKeys,
   View,
 } from "./plugin";
+import type { PageRoute } from "./routes";
 
 export type InferAppShape<
   I extends _Internal.AnyInput,
@@ -84,6 +88,15 @@ export interface SiteConfig {
 export type SourcePage<C extends AppShape, K extends C["source"]> = Extract<C["page"], { type: K }>;
 
 /**
+ * How the pages of a content source render, and the routes reading them (`this.getContentRender()`):
+ *
+ * - `auto`: static sources prerender, dynamic ones render on demand. On Astro with `output: "server"`, every source renders on demand.
+ * - `force-dynamic`: render on demand.
+ * - `force-static`: prerender, a dynamic source is loaded once at build.
+ */
+export type RenderMode = "auto" | "force-dynamic" | "force-static";
+
+/**
  * The options of the content stage: the site's languages, and the Fumadocs `loader()` options like `url` and `slugs`.
  * `baseUrl` is the site's, and `loaderPlugins` is the `plugins` of `loader()`.
  */
@@ -92,6 +105,12 @@ export type ContentOptions<I extends _Internal.AnyInput, Lang extends string | u
   "baseUrl" | "i18n" | "plugins"
 > & {
   i18n?: InferI18nConfig<Lang>;
+  /** how content renders, of every source or by source key @defaultValue "auto" */
+  mode?:
+    | RenderMode
+    | (I extends Record<infer K extends string, SourceUnion>
+        ? Partial<Record<K, RenderMode>>
+        : never);
   /** revalidate dynamic sources on each request, otherwise call `revalidateLoader()` @defaultValue false */
   alwaysRevalidate?: boolean;
   /** the `plugins` of the Fumadocs loader, like `lucideIconsPlugin()` */
@@ -133,21 +152,70 @@ export interface PressContent<C extends AppShape, R> extends PressApp<C, MergedT
 
 /** the options of `.config()` */
 export interface PressConfig<C extends AppShape, T extends PluginTypes> {
-  /** the default plugins: entries load after your plugins unless one provides their capability; `[]` for none @defaultValue recommendedPreset() */
+  /** the default plugins, loaded after your plugins; `[]` for none @defaultValue recommendedPreset() */
   preset?: readonly PresetEntry<Plugin<C, any>>[];
   site?: Omit<SiteConfig, "baseUrl">;
-  /** tags of every page, and of a page with `page` (or `route` and `path` on framework pages); yours win over the plugins' by key */
+  /** tags of every page, and of a page with `page` (or `route` and `path` on page routes); yours win over the plugins' by key */
   head?: HeadTag[] | ((this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>);
   ui?: UIOptionsOf<C, T>;
 }
 
 export type PageNode = Exclude<ReactNode, undefined | PromiseLike<unknown>>;
-export type BaseOptions = Omit<BaseLayoutProps, "children">;
 export type ProviderProps = Omit<RootProviderProps, "children">;
 
+/** the Fumadocs layouts of the built-in UI, with the props of their layout and page */
+interface DefaultLayouts {
+  docs: { layout: DocsLayoutProps; page: DocsPageProps };
+  notebook: { layout: NotebookLayoutProps; page: NotebookPageProps };
+  glass: { layout: GlassLayoutProps; page: GlassPageProps };
+  spacious: { layout: SpaciousLayoutProps; page: SpaciousPageProps };
+  flux: { layout: FluxLayoutProps; page: FluxPageProps };
+}
+
+/**
+ * The layout props every docs layout of the built-in UI takes: `ui.layoutProps`, plugins' `layoutProps` and
+ * `useLayoutProps()`. The Home Layout takes its base options. The `slots` of a layout are its own, they share the base ones;
+ * the AI chat is shared by every layout but Flux.
+ */
+export type SharedLayoutProps = Omit<
+  Pick<DocsLayoutProps, keyof DefaultLayouts[keyof DefaultLayouts]["layout"]>,
+  "tree" | "children" | "slots"
+> &
+  Pick<BaseLayoutProps, "slots"> &
+  Pick<DocsLayoutProps, "aiChat">;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  // elements, `lazy()` and `memo()` are React objects, not options
+  if (typeof value !== "object" || value === null || "$$typeof" in value) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/** objects merge deeply and lists concatenate, in order; otherwise the first defined value wins */
+export function mergeOptions<T extends object>(
+  sources: readonly (Partial<T> | undefined)[],
+): Partial<T>;
+export function mergeOptions(sources: readonly unknown[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const source of sources) {
+    if (!isPlainObject(source)) continue;
+    for (const [key, value] of Object.entries(source)) {
+      const current = out[key];
+      if (value === undefined) continue;
+      if (current === undefined) out[key] = isPlainObject(value) ? mergeOptions([value]) : value;
+      else if (Array.isArray(current) && Array.isArray(value)) out[key] = [...current, ...value];
+      else if (isPlainObject(current) && isPlainObject(value))
+        out[key] = mergeOptions([current, value]);
+    }
+  }
+  return out;
+}
+
 interface UIOptionsOf<C extends AppShape, T extends PluginTypes> {
-  /** Fumadocs `baseOptions(lang)`; links are written as served, `this.localizePath()` localizes them */
-  baseOptions?: BaseOptions | ((this: Context<C>, env: LangEnv<C>) => Awaitable<BaseOptions>);
+  /** the props of every layout; links are written as served, `this.localizePath()` localizes them */
+  layoutProps?:
+    | SharedLayoutProps
+    | ((this: Context<C>, env: PageEnv<C>) => Awaitable<SharedLayoutProps>);
   /** `<RootProvider>` props; `search.SearchDialog` replaces the dialog of the search plugin and receives its `search.options` */
   providerProps?: ProviderProps | ((this: Context<C>, env: LangEnv<C>) => Awaitable<ProviderProps>);
   translations?:
@@ -160,48 +228,38 @@ interface UIOptionsOf<C extends AppShape, T extends PluginTypes> {
   renderPage?: (this: Context<C>, props: RenderPagePropsOf<C, T>) => Awaitable<PageNode>;
 }
 
-/** the Fumadocs layouts of the built-in UI, with the props of their layout and page */
-interface DefaultLayouts {
-  docs: { layout: DocsLayoutProps; page: DocsPageProps };
-  notebook: { layout: NotebookLayoutProps; page: NotebookPageProps };
-  glass: { layout: GlassLayoutProps; page: GlassPageProps };
-  spacious: { layout: SpaciousLayoutProps; page: SpaciousPageProps };
-  flux: { layout: FluxLayoutProps; page: FluxPageProps };
-}
-
-/** the built-in buttons of a content page in `actions`: copy its Markdown, and open it in GitHub or AI apps */
-export type DefaultAction = "markdown" | "view-options";
-
 /**
- * `renderDefault()` options of a content page: the Fumadocs layout and the props of its layout and page, and the inputs
- * of the built-in UI to replace, like `body` or `actions`. The layout is a client component, so a function in its props,
- * like the `transform` of `tabs`, is an export of a `'use client'` module.
+ * `renderDefault()` options of a content page: the Fumadocs layout and the props of its layout and page. The layout is a
+ * client component, so a function in its props, like the `transform` of `tabs`, is an export of a `'use client'` module.
  */
-export type DefaultUIOptions<Inputs = {}> = {
+export type DefaultUIOptions = {
   [K in keyof DefaultLayouts]: (K extends "docs" ? { layout?: K } : { layout: K }) & {
-    /** over the layout props of `baseOptions`, `tree` and `useLayoutProps()` */
+    /** over `props.layoutProps`, `useLayoutProps()` and the slots placed in them */
     layoutProps?: Partial<DefaultLayouts[K]["layout"]>;
-    /** over the page props of `pageData` */
+    /** over the page props of `pageData` and the slots placed in them */
     pageProps?: Partial<DefaultLayouts[K]["page"]>;
   };
-}[keyof DefaultLayouts] &
-  Partial<Inputs>;
+}[keyof DefaultLayouts];
 
-type RenderPageBase<C extends AppShape> = LangEnv<C> & {
-  tree: PageTree.Root;
-  /** `ui.baseOptions` with the plugins' contributions */
-  baseOptions: BaseOptions;
-};
+/** the names of the slot items of a site: the built-in page actions, and the plugins' */
+export type SlotName<T extends PluginTypes> =
+  | "core:markdown"
+  | "core:view-options"
+  | Declared<T, "slots">;
 
-/** what the built-in UI renders of a content page, which its `renderDefault()` options can replace */
-export type ContentInputs<T extends PluginTypes> = {
-  /** `getPageData()`: title, description, toc, full, lastModified, markdownUrl, githubUrl after `transformPage` */
-  pageData: DocsPageData;
-  /** the rendered content, with `body.wrapper` applied */
-  body: ReactElement;
-  /** the buttons about the page: the built-in ones, then the plugins' */
-  actions: Partial<Record<DefaultAction | Declared<T, "actions">, ReactElement>>;
-  footer: Partial<Record<Declared<T, "footer">, ReactElement>>;
+/** a slot item as `ui.renderPage` receives it: an element, keyed by the page */
+export interface PlacedSlot {
+  region: SlotRegion;
+  element: ReactElement;
+}
+
+type RenderPageBase<C extends AppShape, T extends PluginTypes> = LangEnv<C> & {
+  /** `ui.layoutProps` over the plugins' contributions, with the page tree */
+  layoutProps: SharedLayoutProps & { tree: PageTree.Root };
+  /** `getPageData()` of the page */
+  pageData: PageData;
+  /** the items of every region but the wrappers, by name */
+  slots: Partial<Record<SlotName<T>, PlacedSlot>>;
 };
 
 /** a content page of the source key `K` */
@@ -209,20 +267,23 @@ export type ContentPageProps<
   K extends C["source"],
   C extends AppShape,
   T extends PluginTypes,
-> = RenderPageBase<C> &
-  ContentInputs<T> & {
-    type: K;
-    page: SourcePage<C, K>;
-    slugs: string[];
-  } & (K extends keyof Declared<T, "pages">
+> = RenderPageBase<C, T> & {
+  type: K;
+  page: SourcePage<C, K>;
+  slugs: string[];
+  /** the rendered content, with `body-wrapper` applied */
+  body: ReactElement;
+  /** loaded for this page only, not in `pageData` */
+  toc: TOCItemType[];
+} & (K extends keyof Declared<T, "pages">
     ? Declared<T, "pages">[K] & {
         children: ReactElement;
-        /** the plugin's content in the Home Layout: `actions` and `footer` are yours to place */
+        /** the plugin's content in the Home Layout: the slots of the page are yours to place */
         renderDefault(): PageNode;
       }
     : {
         /** the built-in UI: a Fumadocs docs layout and page, the Docs Layout by default */
-        renderDefault(options?: DefaultUIOptions<ContentInputs<T>>): PageNode;
+        renderDefault(options?: DefaultUIOptions): PageNode;
       });
 
 /** a plugin view of type `K`; `children` is its content without a layout */
@@ -230,7 +291,7 @@ export type ViewPageProps<
   K extends keyof Declared<T, "views">,
   C extends AppShape,
   T extends PluginTypes,
-> = RenderPageBase<C> & {
+> = RenderPageBase<C, T> & {
   type: K;
   children: ReactElement;
   /** the built-in UI: `children` in the Home Layout */
@@ -271,7 +332,7 @@ export type PressLang<A extends Press<any, any>> = TypesOfPress<A>["content"]["l
 /** `this` of callbacks in their own files: `PressContext<typeof app>` */
 export type PressContext<A extends Press<any, any>> = Context<TypesOfPress<A>["content"]>;
 
-/** `ui` callbacks in their own files: `UIOptions<typeof app>["baseOptions"]` */
+/** `ui` callbacks in their own files: `UIOptions<typeof app>["layoutProps"]` */
 export type UIOptions<A extends Press<any, any>> = UIOptionsOf<
   TypesOfPress<A>["content"],
   TypesOfPress<A>["plugins"]
@@ -309,19 +370,24 @@ export function createPress(
 }
 
 /** `renderPage` props of any site, as the runtime's `renderDefault` reads them */
-export type DefaultPageProps = RenderPageBase<AppShape> & {
+export type DefaultPageProps = RenderPageBase<AppShape, PluginTypes> & {
   type: string | undefined;
-  renderDefault(options?: DefaultUIOptions<ContentInputs<PluginTypes>>): PageNode;
+  renderDefault(options?: DefaultUIOptions): PageNode;
 } & (
-    | (ContentInputs<PluginTypes> & {
+    | {
         page: AppShape["page"];
         slugs: string[];
+        body: ReactElement;
+        toc: TOCItemType[];
         /** the content of the plugin owning the page */
         children?: ReactElement;
-      })
+      }
     | { children: ReactElement; page?: undefined }
   );
 
-/** what the runtime renders: a content page, or the view a plugin returned */
+/** what the runtime renders: a content page, or the view a plugin returned for `path` of `route` */
 export type RenderTarget<C extends AppShape = AppShape> = LangEnv<C> &
-  ({ page: C["page"]; view?: undefined } | { view: View<any>; path: string; page?: undefined });
+  (
+    | { page: C["page"]; view?: undefined }
+    | { view: View<any>; route: PageRoute<C>; path: string; page?: undefined }
+  );

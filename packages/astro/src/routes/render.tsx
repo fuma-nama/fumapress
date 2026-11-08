@@ -7,7 +7,7 @@ import {
   mergeHead,
   pageLinks,
   pathLocale,
-  wrapSlot,
+  wrapRoot,
   type RenderTarget,
 } from "@fumapress/core/runtime";
 import type { HeadTag } from "@fumapress/core";
@@ -71,7 +71,7 @@ async function renderLayout(
   };
 }
 
-/** the island of a page, in the root provider with `layout.wrapper` around it */
+/** the island of a page, in the root provider with the `banner` items above it and `layout-wrapper` around both */
 async function getIsland(
   provider: ProviderData,
   lang: string | undefined,
@@ -79,7 +79,7 @@ async function getIsland(
   inline?: boolean,
 ): Promise<PageIsland> {
   const [slots, { i18n, ...props }] = await Promise.all([
-    ctx.getSlots({}),
+    ctx.getSlots({ lang }),
     ctx.getProviderProps({ lang }),
   ]);
   provider = { ...provider, i18n };
@@ -87,7 +87,7 @@ async function getIsland(
     createElement(Provider, {
       provider,
       props,
-      children: wrapSlot(slots["layout.wrapper"], node),
+      children: wrapRoot(slots, node),
     }),
     inline,
   );
@@ -122,7 +122,10 @@ export async function getPage(
 ): Promise<RenderedPage | Response> {
   if (redirect !== undefined)
     return new Response(null, { status: 302, headers: { Location: redirect } });
-  if (page) return renderTarget(astro, { lang: page.locale, page }, ctx.getHead({ page }));
+  if (page) {
+    const lang = page.locale;
+    return renderTarget(astro, { lang, page }, ctx.getHead({ lang, page }));
+  }
 
   if (view) {
     const { params, path } = view.page;
@@ -134,8 +137,8 @@ export async function getPage(
     if (content)
       return renderTarget(
         astro,
-        { lang, view: content, path },
-        ctx.getHead({ route: view.route, path, view: content }),
+        { lang, view: content, route: view.route, path },
+        ctx.getHead({ lang, route: view.route, path }),
       );
   }
   return new Response(null, { status: 404 });
@@ -161,27 +164,29 @@ export async function getHomeLayout(
   const path = provider.pathname;
   const locale = lang ?? pathLocale(ctx, path);
   const matched = matchPageRoute(await ctx.getPageRoutes(), path)?.route;
-  // `hreflang` links only come from `alternates`
+  // `hreflang` links only come from `alternates`; the page's own data is its `title` and `description`
   const route: PageRoute = {
     path,
     lang: locale,
     render: "static",
-    options: {},
     ...matched,
+    data: { ...matched?.data, title, description },
     pages: [],
   };
-  const [baseOptions, head] = await Promise.all([
-    ctx.getBaseOptions({ lang: locale }),
-    ctx.getHead(notFound ? {} : { route, path }),
+  const [layoutProps, head] = await Promise.all([
+    ctx.getLayoutProps({ lang: locale }),
+    ctx.getHead(notFound ? { lang: locale } : { lang: locale, route, path }),
   ]);
   const island = await getIsland(
     provider,
     locale,
-    createElement(Home, { baseOptions, notFound, children: createElement(AstroContent) }),
+    createElement(Home, { layoutProps, notFound, children: createElement(AstroContent) }),
   );
+  // the not found page isn't the page at `path`: no canonical, its own title and description
   const own: HeadTag[] = [];
-  if (title) own.push({ tag: "title", children: title });
-  if (description) own.push({ tag: "meta", attrs: { name: "description", content: description } });
+  if (notFound && title) own.push({ tag: "title", children: title });
+  if (notFound && description)
+    own.push({ tag: "meta", attrs: { name: "description", content: description } });
   const links = alternates && !notFound ? pageLinks(ctx, path, alternates) : undefined;
   return { lang: locale, head: mergeHead([own, head, links]), island };
 }

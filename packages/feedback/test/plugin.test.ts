@@ -65,28 +65,29 @@ describe("feedbackPlugin", () => {
   it("runs client actions in the browser", async () => {
     const plugin = feedbackPlugin({ onPageFeedbackAction: clientAction });
     expect(await staticRoutes(plugin)).toEqual([]);
-    expect(await plugin.slots!.call(ctx, { page: {} as never })).toEqual([
+    expect(await plugin.slots!.call(ctx, { lang: undefined, page: {} as never })).toEqual([
       {
-        slot: "footer",
-        name: "feedback",
+        name: "feedback:page",
+        region: "footer",
         component: Feedback,
         props: { action: clientAction },
       },
     ]);
   });
 
-  it("adds the `feedback` footer and the text feedback of pages", async () => {
+  it("adds the page feedback after the content and the text feedback around it", async () => {
     const plugin = feedbackPlugin({ onPageFeedbackAction: action, onTextFeedbackAction: action });
-    expect(await plugin.slots!.call(ctx, {})).toBeUndefined();
-    expect(await plugin.slots!.call(ctx, { page: {} as never })).toEqual([
+    expect(await plugin.slots!.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.slots!.call(ctx, { lang: undefined, page: {} as never })).toEqual([
       {
-        slot: "body.wrapper",
+        name: "feedback:text",
+        region: "body-wrapper",
         component: FeedbackText,
         props: { action: "/docs/api/feedback/text" },
       },
       {
-        slot: "footer",
-        name: "feedback",
+        name: "feedback:page",
+        region: "footer",
         component: Feedback,
         props: { action: "/docs/api/feedback/page" },
       },

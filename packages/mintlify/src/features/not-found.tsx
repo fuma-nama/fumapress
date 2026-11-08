@@ -30,6 +30,7 @@ export function notFoundView(
   const props = { title: config?.title ?? "Page not found", description: config?.description };
   return {
     path: "/404",
+    data: { title: props.title },
     async view(
       _: RouteParams,
       { lang }: { lang: string | undefined },
@@ -38,7 +39,6 @@ export function notFoundView(
       return {
         type: "mintlify.404",
         props,
-        title: props.title,
         node: redirect ? (
           <>
             {/* React 19 hoists meta tags into <head> */}

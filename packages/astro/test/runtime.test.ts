@@ -20,7 +20,9 @@ async function load(config: Partial<TestSite>, astro: Partial<AstroValues> = {})
     ...astro,
   }));
   vi.doMock("astro:config/client", () => ({ trailingSlash: "ignore" }));
-  vi.doMock("@/content-source", () => ({ contentSourcePlugin: () => ({ name: "fumapress" }) }));
+  vi.doMock("@/plugins/content-source", () => ({
+    contentSourcePlugin: () => ({ name: "fumapress" }),
+  }));
   return import("@/runtime");
 }
 
@@ -45,6 +47,31 @@ it("renders content on demand with `output: 'server'`", async () => {
       .getPressContext()
       .getContentRender("docs"),
   ).toBe("dynamic");
+});
+
+it("lets `mode` decide over `output: 'server'`, and prerender a dynamic source without an adapter", async () => {
+  const content = { docs: { files: [home] }, live: { files: () => [home] } };
+  const server = await load(
+    { content, mode: { docs: "force-static" } },
+    { adapter: true, serverOutput: true },
+  );
+  expect(server.getPressContext().getContentRender("docs")).toBe("static");
+  expect(server.getPressContext().getContentRender("live")).toBe("dynamic");
+
+  const built = await load({ content, mode: "force-static" });
+  expect(built.getPressContext().getContentRender()).toBe("static");
+});
+
+it("warns that the middleware of plugins never runs on a build without an adapter", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const guard: Plugin = { name: "guard", middleware: (_, next) => next() };
+  await load({ plugins: [guard] }, { prerender: true });
+  await load({ plugins: [guard] }, { prerender: true, adapter: true });
+  await load({ plugins: [guard] });
+  expect(warn.mock.calls).toEqual([
+    [expect.stringContaining('the `middleware` of "guard" never runs')],
+  ]);
+  warn.mockRestore();
 });
 
 it("has the URL of the Astro config", async () => {
@@ -91,7 +118,7 @@ describe("build hooks", () => {
 
 it("needs an adapter for a dynamic source", async () => {
   await expect(load({ content: { docs: { files: () => [home] } } })).rejects.toThrow(
-    "a dynamic content source renders its pages on demand, add an adapter to Astro.",
+    "content renders on demand, add an adapter to Astro",
   );
 });
 

@@ -12,36 +12,44 @@ packages:
 - `press.config` exports `createPress(content, options).plugins(...).config({...})`, replacing `defineConfig()`, `.adapters()` and `.layouts()`.
 - Removed `loaderOptions`: its fields are options of `createPress()`, and `loaderPlugins` replaces `loaderOptions.plugins`.
 - `.config()` is optional: `createPress(content).plugins(...)` is a complete site.
-- `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI: `layout` picks a Fumadocs layout, `layoutProps` and `pageProps` are typed by it, and `body`, `pageData`, `actions` and `footer` replace what it renders.
+- `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI: `layout` picks a Fumadocs layout, and `layoutProps` and `pageProps` are typed by it.
+- A custom layout reads `props.layoutProps`, `props.pageData`, `props.toc`, `props.body` and `props.slots`.
 - Removed the layout factories of `fumapress/layouts/*`, use `renderDefault({ layout })` or the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, "docs")` of `fumapress` replaces their `treeRoot` option.
-- `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.baseOptions` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the keyed `head` tags replace `meta`.
+- `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.layoutProps` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the keyed `head` tags replace `meta`.
 - `ui.providerProps` sets the root provider of every page, like `theme` or a custom `search.SearchDialog`.
 - Removed `renderNotFound`. The 404 page is a custom `src/pages/404.tsx`, else a plugin view at `/404`, else the built-in page in the Home Layout.
-- `preset` takes a list: `preset: []` replaces `preset: false`, and `recommendedPreset().filter((entry) => entry.provides !== "rss")` drops one entry.
+- `preset` takes a list: `preset: []` replaces `preset: false`. `recommendedPreset({ rss: false })` drops one default plugin, `recommendedPreset({ sitemap: { path: "/map.xml" } })` passes it options.
 - The MDX renderer is built in: `press({ components: "./src/components/mdx.tsx" })` of `fumapress/vite` replaces `fumadocsMdx()` of `fumapress/adapters/mdx`.
 - `RenderPageProps<typeof app>`, `UIOptions<typeof app>`, `WakuRouteProps<typeof app, "/showcase/[slug]">` and `getPressContext<typeof app>()` type custom files, replacing `$context` and `.utils()`. `WakuRouteConfig` replaces `RouteConfig`.
 - Update `fumadocs-core` and `fumadocs-ui` to 16.18.1 or later, and `fumadocs-mdx` to 15.5.0 or later.
 
 ### Changed rendering to be per route
 
-- Removed the `mode` option, `this.mode` and `BuildMode`. Plugins read `this.getContentRender(source?)` instead.
-- Pages of dynamic content sources render on demand, pages of static sources are prerendered, and one site can mix both.
+- `mode` of `createPress()` replaces the `mode` option, for one source or per source key. `auto` prerenders static sources and renders dynamic ones on demand, `force-dynamic` renders content on demand, and `force-static` prerenders a dynamic source loaded at build.
+- Removed `this.mode` and `BuildMode`. Plugins read `this.getContentRender(source?)` instead.
+- By default, pages of dynamic content sources render on demand, pages of static sources are prerendered, and one site can mix both.
+- Pages rendered on demand from a dynamic source with `staleTime`, and their `.md` file and OG image, get `Cache-Control: public, s-maxage=<staleTime in seconds>`.
 - The `.md` file and OG image of a page follow its route. The sitemap, RSS, `llms.txt` and `llms-full.txt` are prerendered unless a content source is dynamic.
 - Custom pages default to `render: "static"` and custom API routes to `render: "dynamic"`. A static API route sets `render: "static"` in `getConfig()`, and can set `staticPaths`.
 - `flexsearchPlugin()` and `oramaSearchPlugin()` follow the content source: static sources export an index at `/api/search.json`, dynamic sources search on the server. `render` overrides it.
-- A site with no route rendered on demand deploys as static files. On a platform, the `static` option of Waku in a server entry leaves out the function of the adapter.
+- A site deploys as static files when no route renders on demand and no plugin has `middleware`. On a platform, the `static` option of Waku in a server entry leaves out the function of the adapter.
+- A build without a server warns that the `middleware` of plugins never runs, naming the plugins.
 
 ### Changed the plugin API
 
 - Plugins are `Plugin` of `fumapress`, replacing `PressPlugin`, and extend the framework plugins of `fumadocs-core/framework/plugin`. `PressContext<typeof app>` replaces `AppContext`.
-- Hooks: `routes({ createApi, createView })`, `deriveRoutes()`, `middleware()`, `head()`, `slots()`, `baseOptions()`, `providerProps()`, `configureLoader()`, `transformPage()`, `getPageView()` and `build()`.
+- Hooks: `routes({ createApi, createView })`, `deriveRoutes()`, `middleware()`, `head()`, `slots()`, `layoutProps()`, `providerProps()`, `configureLoader()`, `transformPage()`, `getPageView()` and `build()`.
+- `middleware()` runs first on every request of the server, the prerendered pages and static files of a Node.js server included. Files a platform serves never reach it.
 - The `waku` hooks `createPages`, `honoMiddleware` and `unstable_serverEntry` replace `createPages`, `createMiddlewares` and `unstable_onServerEntry`. Plugin layouts live in route groups only.
-- A plugin `provides` a capability and others read its `api` with `this.getCapability()`. A listed plugin replaces the preset entry of its capability.
+- To replace a default plugin, set it to `false` in `recommendedPreset()` and list your plugin.
+- `layoutProps()` of plugins sets the props of every layout, like `sidebar`, `tabs` and `aiChat`.
 - `useLayoutProps()` of `fumapress/client` and `@fumapress/astro/client` returns the layout props that plugins give from client state, like the AI chat: spread it into a custom layout. The built-in UI applies them.
-- `props.actions` starts with the built-in buttons, `markdown` and `view-options`.
-- Slots reach `ui.renderPage` as `props.actions` and `props.footer`, which the built-in UI places on the Docs page. The `layout.wrapper` slot wraps the layout of every page, `body.wrapper` the content of pages.
+- Slot items have a unique name and a region: `actions`, `footer`, `toc-header`, `toc-footer`, `sidebar-banner`, `sidebar-footer`, `banner`, `body-wrapper` or `layout-wrapper`. The built-in UI places them, and `ui.renderPage` receives them by name in `props.slots`.
+- The built-in page buttons are the slot items `core:markdown` and `core:view-options`.
+- `PageData` is the data of every page. `getConfig()` of custom pages and `createView()` take `data`, like the `title` and `description` of the page in `<head>`. Plugins read it with `this.getPageData()`.
+- For components per page, list the renderer, like `mdxPlugin()` of `fumadocs-mdx/press`, with `components` as a function of the page.
 - Removed `preinit`, `configureRoutes`, plugin `renderPage`, `this.data` and `Adapter`.
-- `fumapress` exports the types that plugins use, like `Context`, `HeadTag`, `SlotItem` and `DocsPageData`.
+- `fumapress` exports the types that plugins use, like `Context`, `HeadTag`, `SlotItem` and `PageData`.
 
 ### Removed packages and entries
 
@@ -54,7 +62,7 @@ packages:
 
 - `vercelImage()`, `cloudflareImage()` and `selfHostedImage()` replace `imagePlugin()` of `fumapress/plugins/image/*`. The preset picks the platform's.
 - `selfHostedImage()` needs a server and `site.baseUrl`, without them images stay as they are. `vercelImage()` and `cloudflareImage()` work with static output.
-- `ogImage` of route configs replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.
+- `data.ogImage` in `getConfig()` replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.
 - On Cloudflare Workers, Open Graph images use the WebAssembly build of Takumi without passing it yourself.
 
 ### Fixes
@@ -64,7 +72,7 @@ packages:
 - The browser fetches the page tree once, instead of receiving it with every page. Change its lists in `pageTree.transformers` of the loader, not in `ui.renderPage`.
 - On a Node.js server, `.md` files are served as `text/markdown` and `Accept: text/markdown` also serves the Markdown of prerendered pages.
 - Markdown negotiation works on URLs with a trailing slash.
-- The robots.txt sitemap link follows a custom sitemap `path`, and sitemaps escape `&` in alternate links.
+- The robots.txt sitemap link follows the sitemap `path` of `recommendedPreset()`, and sitemaps escape `&` in alternate links.
 - Without a home page, the navbar title goes to the first page of the language, and so does `/` with i18n.
 - When pages render on demand, a language root like `/cn` renders its page instead of a 404.
 

@@ -1,7 +1,7 @@
 import type { PageBody, PluginContext, PluginLoaderOptions } from "fumadocs-core/framework/plugin";
 import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import type { StructuredData } from "fumadocs-core/mdx-plugins/remark-structure";
-import type { _Internal } from "fumadocs-core/source";
+import type { _Internal, SourceUnion } from "fumadocs-core/source";
 import { dynamicLoader, type DynamicLoader } from "fumadocs-core/source/dynamic";
 import type { TOCItemType } from "fumadocs-core/toc";
 import {
@@ -13,26 +13,27 @@ import {
   type AnyPlugin,
   type AppShape,
   type Awaitable,
-  type Capability,
-  type CapabilityAPI,
-  type DocsPageData,
   type InferLoaderConfig,
   type LangEnv,
+  type PageData,
   type PageEnv,
   type PageView,
   type Plugin,
   type PresetEntry,
   type PressBuildOutput,
   type SlotItem,
+  type SlotRegion,
 } from "./plugin";
-import type {
-  BaseOptions,
-  InferI18nConfig,
-  PageNode,
-  Press,
-  ProviderProps,
-  RenderTarget,
-  SiteConfig,
+import {
+  mergeOptions,
+  type InferI18nConfig,
+  type PageNode,
+  type Press,
+  type ProviderProps,
+  type RenderMode,
+  type RenderTarget,
+  type SharedLayoutProps,
+  type SiteConfig,
 } from "./press";
 import { addRepoLink, getFileUrl, resolveGit } from "./git";
 import { collectHead, pageAlternate, type HeadEnv, type HeadTag, type PageAlternate } from "./head";
@@ -47,6 +48,7 @@ import {
   type PageRouteInput,
   type ServedRoute,
   canonicalPath,
+  matchPageRoute,
   stripBase,
 } from "./routes";
 import { providerI18n, renderPage } from "./runtime/render";
@@ -56,18 +58,19 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   InferLoaderConfig<C>
 > {
   /**
-   * How a route reading this content renders: `dynamic` when one of the content sources is dynamic, of every source without
-   * `source`. Your routes follow it with `render: this.getContentRender(page.type)`.
+   * How a route reading this content renders, by the `mode` of `createPress()`: `dynamic` when one of the content sources
+   * renders on demand, of every source without `source`. Your routes follow it with `render: this.getContentRender(page.type)`.
    */
   getContentRender(source?: C["source"] | readonly C["source"][]): "static" | "dynamic";
+  /**
+   * The `Cache-Control` of a response rendered on demand from `page`, like the page or its Markdown: shared caches keep it
+   * for the `staleTime` of its dynamic source. `undefined` for other pages.
+   */
+  getCacheControl(page: C["page"]): string | undefined;
   /** the languages of the site, `[undefined]` without i18n */
   readonly languages: readonly C["lang"][];
   /** aborted when the runtime drops this context (a reloaded press.config): `fs.watch(dir, { signal: this.signal })` */
   readonly signal: AbortSignal;
-  /** the API of the plugin providing `capability` */
-  getCapability<K extends Capability>(
-    capability: K,
-  ): (K extends keyof CapabilityAPI ? CapabilityAPI[K] : unknown) | undefined;
   readonly siteConfig: Readonly<
     Pick<SiteConfig, "baseUrl" | "hreflang"> & Required<Pick<SiteConfig, "name">>
   > & {
@@ -105,8 +108,15 @@ export interface Context<out C extends AppShape = AppShape> extends PluginContex
   getPageStructuredData(page: C["page"]): Promise<StructuredData | undefined>;
   getPageCreatedAt(page: C["page"]): Promise<Date | undefined>;
   getPageLastModified(page: C["page"]): Promise<Date | undefined>;
-  /** `ui.baseOptions` over the plugins' contributions, over the defaults (nav title and home, the repository link) */
-  getBaseOptions(env: LangEnv<C>): Promise<BaseOptions>;
+  /**
+   * The data of a content page (`page.data`, core's defaults, `transformPage` of plugins), or of the page at `path` of a page
+   * route (its `data`, `transformPage`). It loads nothing of the content: `lastModified` of a content page comes from
+   * `transformPage` here, `pageData` of `ui.renderPage` has it loaded.
+   */
+  getPageData(page: C["page"]): Promise<PageData>;
+  getPageData(route: PageRoute<C>, path: string): Promise<PageData>;
+  /** `ui.layoutProps` over the plugins' contributions, over the defaults (nav title and home, the repository link) */
+  getLayoutProps(env: PageEnv<C>): Promise<SharedLayoutProps>;
 }
 
 /** what a runtime gives the engine; only runtimes call {@link createPressContext} */
@@ -120,8 +130,8 @@ export interface PressRuntime<C extends AppShape = AppShape> {
    * and so do those of `withBase()`, where adapters redirect other forms and a `POST` would become a `GET`.
    */
   trailingSlash?: boolean;
-  /** like `output: "server"` of the framework: routes reading content render on demand, whatever the source is */
-  dynamic?: boolean;
+  /** what `auto` of the content `mode` is on the runtime, like `force-dynamic` for `output: "server"` of Astro */
+  mode?: RenderMode;
   /** the preset without `preset` in `.config()` @defaultValue recommendedPreset() */
   preset?: () => readonly PresetEntry<Plugin<C, any>>[];
   /** the last layer, after the preset: the content renderers (MDX with the `components` module, Astro content collections) */
@@ -136,6 +146,8 @@ export interface PressRuntime<C extends AppShape = AppShape> {
 export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C> {
   /** in layer order: your plugins, the preset, the runtime's defaults */
   readonly plugins: readonly Plugin<C>[];
+  /** the first layer, the plugins of `.plugins()`: their middleware needs a server, the preset's degrades without one */
+  readonly listedPlugins: readonly Plugin<C>[];
   /**
    * The page routes the runtime serves, a page without `lang` belongs to the default language. Set them once the runtime
    * created its pages and before the routes are read, reads throw until then; a new list replaces them.
@@ -144,23 +156,27 @@ export interface RuntimeContext<C extends AppShape = AppShape> extends Context<C
   getPageRoutes(): Promise<ServedRoute<C>[]>;
   /** the API routes of `routes` and `deriveRoutes` most specific path first; waits for `deriveRoutes`, unlike `getPageRoutes()` */
   getApiRoutes(): Promise<ApiRoute[]>;
-  /** the page of the plugin owning `page`, `body` is its content with `body.wrapper` applied */
+  /** the page of the plugin owning `page`, `body` is its content with `body-wrapper` applied */
   getPageView(page: C["page"], body: PageBody | undefined): Promise<PageView<any> | undefined>;
-  /** the data of a docs page, from the page and `transformPage` of plugins */
-  getPageData(page: C["page"]): Promise<DocsPageData>;
   /**
    * Without `page` and `route`: the tags of every page. With them: the page's whole head, its own tags (core's title, Open
    * Graph, canonical and `hreflang` on content pages) over the tags of every page. Keyed by `title`, `meta`
    * `name`/`property`/`http-equiv`, canonical and `hreflang`: yours win over plugins', theirs over core's.
    */
   getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
-  /** of a content page with `page`, `layout.wrapper` without it; sorted by `order` */
-  getSlots(env: PageEnv<C>): Promise<Partial<Record<SlotItem["slot"], SlotItem[]>>>;
+  /**
+   * The items by region, sorted by `order`: site-wide without `page`, with the page's own with it; see `SlotRegion`. An item
+   * in a region of the other call, a name taken twice and a `core:` name are errors.
+   */
+  getSlots(env: PageEnv<C>): Promise<Partial<Record<SlotRegion, SlotItem[]>>>;
   /** `ui.providerProps` over the plugins' contributions, with the final `i18n` */
   getProviderProps(env: LangEnv<C>): Promise<ProviderProps>;
   /** the page of `ui.renderPage`, or of the built-in UI without it */
   renderPage(target: RenderTarget<C>): Promise<PageNode>;
-  /** runs the `middleware` of plugins; `next(path)` of a plugin is `next(path)` here, which re-enters the chain */
+  /**
+   * Runs the `middleware` of plugins, first on every request of the server; `next(path)` of a plugin is `next(path)` here,
+   * which re-enters the chain. The response of a content page rendered on demand gets its `getCacheControl()`.
+   */
   handleRequest(request: Request, next: (rewrite?: string) => Promise<Response>): Promise<Response>;
   /** runs the `build` of plugins, frameworks call it once after building the site */
   build(output: PressBuildOutput): Promise<void>;
@@ -178,31 +194,6 @@ type PageHook =
 
 const dev = globalThis.process?.env.NODE_ENV !== "production";
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  // elements, `lazy()` and `memo()` are React objects, not options
-  if (typeof value !== "object" || value === null || "$$typeof" in value) return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
-
-/** objects merge deeply and lists concatenate, in order; otherwise the first defined value wins */
-function mergeOptions<T extends object>(sources: readonly (Partial<T> | undefined)[]): Partial<T>;
-function mergeOptions(sources: readonly unknown[]): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const source of sources) {
-    if (!isPlainObject(source)) continue;
-    for (const [key, value] of Object.entries(source)) {
-      const current = out[key];
-      if (value === undefined) continue;
-      if (current === undefined) out[key] = isPlainObject(value) ? mergeOptions([value]) : value;
-      else if (Array.isArray(current) && Array.isArray(value)) out[key] = [...current, ...value];
-      else if (isPlainObject(current) && isPlainObject(value))
-        out[key] = mergeOptions([current, value]);
-    }
-  }
-  return out;
-}
-
 /** the routes of one content and one list of the runtime */
 interface Collection extends CollectedRoutes {
   source: object;
@@ -211,6 +202,30 @@ interface Collection extends CollectedRoutes {
 
 /** paths that keep their form with `trailingSlash`: ending with `/`, or files with their extension, like the URLs of Astro with `trailingSlash: "always"` */
 const plainPath = /(\/|\.[^/]+)$/;
+
+/** the warning of a build without a server, which never runs the `middleware` of your plugins */
+export function warnUnservedMiddleware<C extends AppShape>(ctx: RuntimeContext<C>): void {
+  const names: string[] = [];
+  for (const plugin of ctx.listedPlugins) if (plugin.middleware) names.push(nameOf(plugin));
+  if (names.length > 0)
+    console.warn(
+      `[Fumapress] the build has no server, the \`middleware\` of ${names.join(", ")} never runs: deploy the site with a server to run it.`,
+    );
+}
+
+/** the regions of the `slots` call of a content page, the others are of the site-wide call */
+const pageRegions = new Set<SlotRegion>([
+  "actions",
+  "footer",
+  "toc-header",
+  "toc-footer",
+  "body-wrapper",
+]);
+
+/** whether `content` is one source, not sources by key */
+function isSource(content: _Internal.AnyInput): content is SourceUnion {
+  return Array.isArray(content.files) || typeof content.files === "function";
+}
 
 /** the context of `getPressContext()`; not `createContext`, which is React's */
 export function createPressContext<C extends AppShape>(
@@ -223,12 +238,24 @@ export async function createPressContext(
   runtime: PressRuntime,
 ): Promise<RuntimeContext> {
   const { content, options, plugins: listed, config } = press["~press"];
-  /** the keys of the dynamic sources of `content`, `undefined` when it is one source */
-  const dynamicSources = new Set<string | undefined>();
-  if (typeof content.files === "function") dynamicSources.add(undefined);
-  else if (!Array.isArray(content.files))
-    for (const [key, source] of Object.entries(content))
-      if (typeof source.files === "function") dynamicSources.add(key);
+  /** how the pages of a source render, by its `mode`; the key is `undefined` when `content` is one source */
+  const renders = new Map<string | undefined, "static" | "dynamic">();
+  /** the `Cache-Control` of the pages of the sources rendered on demand with a `staleTime` */
+  const cacheControls = new Map<string | undefined, string>();
+  const { mode: modes = "auto" } = options;
+  for (const [key, source] of isSource(content)
+    ? [[undefined, content] as const]
+    : Object.entries(content)) {
+    let mode = typeof modes === "string" ? modes : (key && modes[key]) || "auto";
+    if (mode === "auto") mode = runtime.mode ?? "auto";
+    const render =
+      mode === "force-dynamic" || (mode === "auto" && typeof source.files === "function")
+        ? "dynamic"
+        : "static";
+    renders.set(key, render);
+    if (render === "dynamic" && "staleTime" in source && source.staleTime !== undefined)
+      cacheControls.set(key, `public, s-maxage=${Math.floor(source.staleTime / 1000)}`);
+  }
   const ui = config.ui ?? {};
   const translations = ui.translations;
   const i18nConfig = options.i18n;
@@ -246,19 +273,6 @@ export async function createPressContext(
   const layerOf = new Map<AnyPlugin, number>();
   for (const [i, layer] of layers.entries()) for (const plugin of layer) layerOf.set(plugin, i);
 
-  const providers = new Map<Capability, AnyPlugin>();
-  for (const plugin of plugins) {
-    for (const capability of plugin.provides ?? []) {
-      takeKey(
-        providers,
-        capability,
-        plugin,
-        (other) =>
-          `${nameOf(other)} and ${nameOf(plugin)} both provide "${capability}": a capability has one provider.`,
-      );
-    }
-  }
-
   for (const plugin of plugins) if (plugin.translations) translations?.extend(plugin.translations);
 
   const { site } = config;
@@ -268,7 +282,13 @@ export async function createPressContext(
     name: site?.name ?? "Fumapress",
     git: site?.git && Object.freeze(resolveGit(site.git)),
   });
-  const { i18n: _i18n, alwaysRevalidate, loaderPlugins: sitePlugins, ...loaderOptions } = options;
+  const {
+    i18n: _i18n,
+    mode: _mode,
+    alwaysRevalidate,
+    loaderPlugins: sitePlugins,
+    ...loaderOptions
+  } = options;
   let loader: DynamicLoader<InferLoaderConfig<AppShape>>;
 
   /** the first answer of the first layer answering; in development, a second answer of that layer is an error */
@@ -298,6 +318,47 @@ export async function createPressContext(
         const fn = plugin[hook] as ((...args: unknown[]) => any) | undefined;
         return fn?.call(ctx, page, ...args);
       }) as ReturnType<RuntimeContext[K]>;
+  }
+
+  /** `data` after `transformPage` of every plugin for `env` */
+  async function transformPage(data: PageData, env: HeadEnv<AppShape>): Promise<PageData> {
+    const base = Object.freeze(data);
+    const results = await Promise.all(
+      plugins.map((plugin) => plugin.transformPage?.call(ctx, base, env)),
+    );
+    return {
+      ...base,
+      ...changes(
+        base,
+        results,
+        (key, a, b) =>
+          `${nameOf(a)} and ${nameOf(b)} both set \`${key}\` of the page "${data.url}": a field of the page data has one \`transformPage\`.`,
+      ),
+    };
+  }
+
+  /** the data of a content page, with the fields its renderer loaded */
+  async function contentPageData(
+    page: AppShape["page"],
+    loaded?: Pick<PageData, "lastModified">,
+  ): Promise<PageData> {
+    const { data } = page;
+    const source = await ctx.getLoader();
+    return transformPage(
+      {
+        title: data.title ?? page.slugs.at(-1) ?? "",
+        description: data.description,
+        url: page.url,
+        path: page.path,
+        locale: page.locale,
+        // from the frontmatter or content sources
+        full: "full" in data && typeof data.full === "boolean" ? data.full : undefined,
+        githubUrl: page.absolutePath ? ctx.getFileUrl(page.absolutePath) : undefined,
+        noindex: fallbackOrigin(source, ctx.i18nConfig, page) ? true : undefined,
+        ...loaded,
+      },
+      { lang: page.locale, page },
+    );
   }
 
   /**
@@ -352,15 +413,16 @@ export async function createPressContext(
     languages: Object.freeze(i18nConfig?.languages ?? [undefined]),
     signal: runtime.signal,
     plugins: Object.freeze(plugins),
+    listedPlugins: Object.freeze(layers[0]!),
     setRuntimeRoutes(routes: readonly PageRouteInput[]) {
       runtimeRoutes = routes;
     },
     getContentRender(source?: string | readonly (string | undefined)[]) {
-      if (runtime.dynamic) return "dynamic";
-      const keys = source === undefined ? [...dynamicSources] : [source].flat();
-      return keys.some((key) => dynamicSources.has(key)) ? "dynamic" : "static";
+      const keys = source === undefined ? renders.keys() : [source].flat();
+      for (const key of keys) if (renders.get(key) === "dynamic") return "dynamic";
+      return "static";
     },
-    getCapability: (capability: Capability) => providers.get(capability)?.api,
+    getCacheControl: (page: AppShape["page"]) => cacheControls.get(page.type),
     siteConfig,
     i18nConfig,
     translationsConfig: translations,
@@ -419,60 +481,51 @@ export async function createPressContext(
     getPageStructuredData: pageHook("getPageStructuredData"),
     getPageCreatedAt: pageHook("getPageCreatedAt"),
     getPageLastModified: pageHook("getPageLastModified"),
-    async getPageData(page: AppShape["page"]) {
-      const { data } = page;
-      const [toc = [], lastModified] = await Promise.all([
-        ctx.getPageToc(page),
-        ctx.getPageLastModified(page),
-      ]);
-      const base: DocsPageData = Object.freeze({
-        title: data.title ?? page.slugs.at(-1) ?? "",
-        description: data.description,
-        url: page.url,
-        path: page.path,
-        locale: page.locale,
-        toc,
-        // from the frontmatter or content sources
-        full: "full" in data && typeof data.full === "boolean" ? data.full : undefined,
-        lastModified,
-        githubUrl: page.absolutePath ? ctx.getFileUrl(page.absolutePath) : undefined,
-      });
-      const results = await Promise.all(
-        plugins.map((plugin) => plugin.transformPage?.call(ctx, base, page)),
+    getPageData(target: AppShape["page"] | PageRoute, path?: string) {
+      if (!("pages" in target)) return contentPageData(target);
+      const lang = target.lang ?? ctx.i18nConfig?.defaultLanguage;
+      return transformPage(
+        { title: "", url: path!, locale: lang, ...target.data },
+        { lang, route: target, path },
       );
-      return {
-        ...base,
-        ...changes(
-          base,
-          results,
-          (key, a, b) =>
-            `${nameOf(a)} and ${nameOf(b)} both set \`${key}\` of the page "${page.url}": a field of the page data has one \`transformPage\`.`,
-        ),
-      };
     },
     getHead: (env: HeadEnv<AppShape>) => collectHead(ctx, config.head, env),
     async getSlots(env: PageEnv<AppShape>) {
-      const results = await Promise.all(plugins.map((plugin) => plugin.slots?.call(ctx, env)));
+      // a content page has the site-wide items too: one name has one item across both calls
+      const calls = env.page ? [{ lang: env.lang }, env] : [env];
+      const results = await Promise.all(
+        calls.map((call) => Promise.all(plugins.map((plugin) => plugin.slots?.call(ctx, call)))),
+      );
       const items: SlotItem[] = [];
       const names = new Map<string, AnyPlugin>();
-      for (const [i, result] of results.entries()) {
-        for (const item of result ?? []) {
-          if ("name" in item) {
+      for (const [call, result] of results.entries()) {
+        const page = calls[call]!.page !== undefined;
+        for (const [i, list] of result.entries()) {
+          const plugin = plugins[i]!;
+          for (const item of list ?? []) {
+            if (item.name.startsWith("core:"))
+              throw new Error(
+                `[Fumapress] ${nameOf(plugin)} adds the slot item "${item.name}": the \`core:\` prefix is Fumapress' own.`,
+              );
+            if (pageRegions.has(item.region) !== page)
+              throw new Error(
+                `[Fumapress] ${nameOf(plugin)} adds the slot item "${item.name}" to "${item.region}" in the ${page ? "`slots` call of a content page" : "site-wide `slots` call"}: its items come from the ${page ? "site-wide call, without `env.page`" : "call of a content page, with `env.page`"}.`,
+              );
             takeKey(
               names,
-              `${item.slot} ${item.name}`,
-              plugins[i]!,
+              item.name,
+              plugin,
               (other) =>
-                `${nameOf(other)} and ${nameOf(plugins[i]!)} both add the "${item.slot}" item "${item.name}": a name has one item.`,
+                `${nameOf(other)} and ${nameOf(plugin)} both add the slot item "${item.name}": a name has one item.`,
             );
+            items.push(item);
           }
-          items.push(item);
         }
       }
       // stable: equal orders keep the layer and list order
       items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      const out: Partial<Record<SlotItem["slot"], SlotItem[]>> = {};
-      for (const item of items) (out[item.slot] ??= []).push(item);
+      const out: Partial<Record<SlotRegion, SlotItem[]>> = {};
+      for (const item of items) (out[item.region] ??= []).push(item);
       return out;
     },
     getApiRoutes: async () => (await getCollection()).api,
@@ -488,9 +541,31 @@ export async function createPressContext(
           new Response(null, { status: 308, headers: { Location: canonical + search } }),
         );
 
+      /** the response of the runtime, with the `Cache-Control` of a content page rendered on demand at `path` */
+      async function serve(): Promise<Response> {
+        const response = await next();
+        // the content is read only when a page can have a `Cache-Control`
+        if (
+          cacheControls.size === 0 ||
+          path === undefined ||
+          !response.ok ||
+          (request.method !== "GET" && request.method !== "HEAD")
+        )
+          return response;
+        const url = path.replace(/(.)\/$/, "$1");
+        // not `getLoader()`, which revalidates with `alwaysRevalidate`
+        const page = (await loader.get()).getPageByUrl(url);
+        const value = page && ctx.getCacheControl(page);
+        // a route wins over a page of a dynamic source
+        if (!value || matchPageRoute(await ctx.getPageRoutes(), url)) return response;
+        const out = new Response(response.body, response);
+        out.headers.set("Cache-Control", value);
+        return out;
+      }
+
       function dispatch(i: number): Promise<Response> {
         const plugin = middleware[i];
-        if (!plugin) return next();
+        if (!plugin) return serve();
         return plugin.middleware!.call(ctx, request, (rewrite) =>
           rewrite === undefined ? dispatch(i + 1) : next(rewrite),
         );
@@ -501,15 +576,15 @@ export async function createPressContext(
       for (const plugin of plugins) await plugin.build?.call(ctx, output);
     },
     // `this`: the context of the caller, which hooks creating routes guard
-    async getBaseOptions(this: Context, env: LangEnv<AppShape>) {
+    async getLayoutProps(this: Context, env: PageEnv<AppShape>) {
       const [own, ...contributions] = await Promise.all([
-        typeof ui.baseOptions === "function" ? ui.baseOptions.call(this, env) : ui.baseOptions,
-        ...plugins.map((plugin) => plugin.baseOptions?.call(this, env)),
+        typeof ui.layoutProps === "function" ? ui.layoutProps.call(this, env) : ui.layoutProps,
+        ...plugins.map((plugin) => plugin.layoutProps?.call(this, env)),
       ]);
-      const props = mergeOptions<BaseOptions>([own, ...contributions]);
+      const props = mergeOptions<SharedLayoutProps>([own, ...contributions]);
       const { name, git } = ctx.siteConfig;
       // the defaults, the last layer
-      const out: BaseOptions = {
+      const out: SharedLayoutProps = {
         ...props,
         nav: {
           ...props.nav,
@@ -530,7 +605,7 @@ export async function createPressContext(
       props.i18n = providerI18n(ctx, env, props.i18n);
       return props;
     },
-    renderPage: (target: RenderTarget) => renderPage(ctx, ui, target),
+    renderPage: (target: RenderTarget) => renderPage(ctx, ui, target, contentPageData),
   });
 
   for (const plugin of plugins) await plugin.init?.call(ctx);

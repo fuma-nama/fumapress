@@ -28,7 +28,7 @@ export function oramaSearchPlugin<C extends AppShape = AppShape>({
   buildIndex = buildIndexDefault<C>(),
   render,
   ...options
-}: OramaSearchOptions<NoInfer<C>> = {}): Plugin<C, { provides: "search" }> {
+}: OramaSearchOptions<NoInfer<C>> = {}): Plugin<C> {
   return searchPlugin<C>(
     "core:orama-search",
     OramaSearchDialog,

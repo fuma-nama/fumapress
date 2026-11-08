@@ -4,12 +4,6 @@ import type { ReactNode } from "react";
 import { getPackages } from "./lib/packages.ts";
 import { ChangelogIndexView } from "./components/layouts.tsx";
 
-declare module "@fumapress/core" {
-  interface CapabilityAPI {
-    changelog: undefined;
-  }
-}
-
 export interface ChangelogPluginOptions<S> {
   /** the source keys of the changelog pages */
   source: S | readonly S[];
@@ -39,7 +33,6 @@ export interface ChangelogIndexViewProps<P = Page> {
 }
 
 export type ChangelogTypes<P> = {
-  provides: "changelog";
   views: { "changelog.index": ChangelogIndexViewProps<P> };
 };
 
@@ -57,7 +50,6 @@ export function changelogPlugin<
 
   return {
     name: "tegami:changelog",
-    provides: ["changelog"],
     routes({ createView }) {
       if (indexPath === false) return;
       createView({

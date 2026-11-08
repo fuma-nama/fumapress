@@ -1,7 +1,6 @@
 export {
   blogPlugin,
   getBlogPosts,
-  type BlogAPI,
   type BlogAuthor,
   type BlogIndexViewProps,
   type BlogPluginOptions,

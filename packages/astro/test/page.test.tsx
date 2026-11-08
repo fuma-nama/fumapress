@@ -8,7 +8,7 @@ import { registerReference } from "@/island/references";
 import { AstroContent } from "@/island/serialize";
 import * as client from "./fixtures/client";
 import { pressContext, type TestSite } from "./harness";
-import { contentSourcePlugin } from "@/content-source";
+import { contentSourcePlugin } from "@/plugins/content-source";
 import { pageTreePlugin } from "@/island/page-tree";
 
 const runtime = vi.hoisted(() => ({ ctx: undefined as RuntimeContext | undefined }));
@@ -81,15 +81,30 @@ beforeAll(async () => {
 });
 
 describe("layouts", () => {
-  it("wrap the layout in `layout.wrapper`, inside the root provider", async () => {
+  it("wrap the layout in `layout-wrapper` items, inside the root provider", async () => {
     await site({
-      slots: ({ page }) => (page ? [] : [{ slot: "layout.wrapper", component: client.Frame }]),
+      slots: ({ page }) =>
+        page ? [] : [{ name: "test:frame", region: "layout-wrapper", component: client.Frame }],
     });
     const { tree } = (await getHomeLayout(astro, {})).island;
 
     expect(tree.indexOf('"Provider"')).toBeGreaterThan(-1);
     expect(tree.indexOf('"Frame"')).toBeGreaterThan(tree.indexOf('"Provider"'));
     expect(tree.indexOf('"Home"')).toBeGreaterThan(tree.indexOf('"Frame"'));
+  });
+
+  it("render the `banner` items above every page, own pages and the not found page too", async () => {
+    const Banner = () => createElement("p", { id: "site-banner" }, "banner");
+    await site({
+      slots: ({ page }) =>
+        page ? [] : [{ name: "test:banner", region: "banner", component: Banner }],
+    });
+
+    for (const options of [{}, { notFound: true }]) {
+      const { tree } = (await getHomeLayout(astro, options)).island;
+      expect(tree.indexOf("site-banner")).toBeGreaterThan(tree.indexOf('"Provider"'));
+      expect(tree.indexOf('"Home"')).toBeGreaterThan(tree.indexOf("site-banner"));
+    }
   });
 
   it("keep `hideLocale` of the site with an `i18n` of `ui.providerProps`", async () => {
@@ -111,8 +126,7 @@ describe("layouts", () => {
   });
 
   it("pass `ui.providerProps` with the dialog of the search plugin to the root provider", async () => {
-    const search: Plugin<AppShape, { provides: "search" }> = {
-      provides: ["search"],
+    const search: Plugin = {
       providerProps: ({ lang }) => ({
         search: { SearchDialog: client.TestDialog, options: { api: "/api/search", locale: lang } },
       }),
@@ -162,10 +176,11 @@ describe("pages", () => {
     expect(pageTrees).toHaveLength(1);
   });
 
-  it("render views in the home layout, with their title", async () => {
-    const view = { type: "test" as const, props: {}, node: "content", title: "Test" };
+  it("render views in the home layout, with the title of their data", async () => {
+    const view = { type: "test" as const, props: {}, node: "content" };
     const views: Plugin<AppShape, { views: { test: {} } }> = {
-      routes: ({ createView }) => createView({ path: "/test", view: () => view }),
+      routes: ({ createView }) =>
+        createView({ path: "/test", data: { title: "Test" }, view: () => view }),
     };
     const ctx = await site(views);
     const [route] = await ctx.getPageRoutes();
@@ -190,7 +205,10 @@ describe("`.astro` layouts", () => {
 
   it("take the props of the page and the island of their React root", async () => {
     const ctx = await site(
-      { slots: ({ page }) => (page ? [] : [{ slot: "layout.wrapper", component: client.Frame }]) },
+      {
+        slots: ({ page }) =>
+          page ? [] : [{ name: "test:frame", region: "layout-wrapper", component: client.Frame }],
+      },
       { ui: { renderPage: (props) => createElement(AstroLayout, props) } },
     );
     const [page] = (await ctx.getLoader()).getPages();
@@ -253,7 +271,12 @@ describe("`.astro` layouts", () => {
           renderPage: (props) =>
             createElement(AstroLayout, {
               ...props,
-              footer: { own: createElement(AstroContent, { component: AstroLayout as never }) },
+              slots: {
+                own: {
+                  region: "footer",
+                  element: createElement(AstroContent, { component: AstroLayout as never }),
+                },
+              },
             } as object),
         },
       },

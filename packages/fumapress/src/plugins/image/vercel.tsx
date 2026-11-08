@@ -40,18 +40,18 @@ export interface VercelImageOptions {
 /** Vercel's image optimization: `<Image>`'s provider, and the `images` config of the build output */
 export function vercelImage<C extends WakuAppShape = WakuAppShape>(
   options: VercelImageOptions = {},
-): WakuPlugin<C, { provides: "image" }> {
+): WakuPlugin<C, { slots: "image:provider" }> {
   const config = resolveVercelImageConfig(options);
 
   return {
     name: "vercel-image",
-    provides: ["image"],
     slots: ({ page }) =>
       page
         ? undefined
         : [
             {
-              slot: "layout.wrapper",
+              name: "image:provider",
+              region: "layout-wrapper",
               component: VercelImageProvider,
               props: { config },
               order: -1,

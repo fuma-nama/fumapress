@@ -26,10 +26,10 @@ export interface FeedbackPluginOptions {
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** the `feedback` item of `props.footer` in `ui.renderPage` */
-export type FeedbackTypes = { footer: "feedback" };
+/** `feedback:page` in `footer`, `props.slots["feedback:page"]` in `ui.renderPage`, and `feedback:text` around the content */
+export type FeedbackTypes = { slots: "feedback:page" | "feedback:text" };
 
-/** feedback on pages (the `feedback` footer) and on text selections (around the content) */
+/** feedback on pages (`feedback:page` after the content) and on text selections (`feedback:text` around the content) */
 export function feedbackPlugin<C extends AppShape = AppShape>(
   options: FeedbackPluginOptions,
 ): Plugin<C, FeedbackTypes> {
@@ -82,14 +82,15 @@ export function feedbackPlugin<C extends AppShape = AppShape>(
       const items: SlotItem<FeedbackTypes>[] = [];
       if (onTextFeedbackAction)
         items.push({
-          slot: "body.wrapper",
+          name: "feedback:text",
+          region: "body-wrapper",
           component: FeedbackText,
           props: { action: uiAction(this, textApi, onTextFeedbackAction) },
         });
       if (onPageFeedbackAction)
         items.push({
-          slot: "footer",
-          name: "feedback",
+          name: "feedback:page",
+          region: "footer",
           component: Feedback,
           props: { action: uiAction(this, pageApi, onPageFeedbackAction) },
         });

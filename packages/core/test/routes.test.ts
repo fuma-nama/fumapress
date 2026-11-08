@@ -13,7 +13,7 @@ import {
 } from "@/routes";
 
 describe("matchPageRoute", () => {
-  const route = (path: string): PageRoute => ({ path, render: "dynamic", pages: [], options: {} });
+  const route = (path: string): PageRoute => ({ path, render: "dynamic", pages: [], data: {} });
   const routes = [route("/a/[...rest]"), route("/a/[id]"), route("/a/b"), route("/other")];
 
   it("takes the most specific match, with its params", () => {
@@ -54,6 +54,7 @@ describe("matchRoute", () => {
     expect(matchRoute("/api/[id]", "/api/a%20b")).toEqual({ id: "a b" });
     expect(matchRoute("/api/[...slugs]", "/api/a/b/")).toEqual({ slugs: ["a", "b"] });
     expect(matchRoute("/api/[...slugs]", "/api")).toEqual({ slugs: [] });
+    expect(matchRoute("/[...lang]/about", "/zh/about")).toEqual({ lang: ["zh"] });
     expect(matchRoute("/llms.txt", "/llms.txt")).toEqual({});
     expect(matchRoute("/", "/")).toEqual({});
   });
@@ -61,6 +62,7 @@ describe("matchRoute", () => {
   it("rejects other paths", () => {
     expect(matchRoute("/api/[id]", "/api")).toBeUndefined();
     expect(matchRoute("/api/[id]", "/api/a/b")).toBeUndefined();
+    expect(matchRoute("/[...lang]/about", "/zh/pricing")).toBeUndefined();
     expect(matchRoute("/llms.txt", "/llms-full.txt")).toBeUndefined();
     expect(matchRoute("/api/[id]", "/api/%E0")).toBeUndefined();
   });

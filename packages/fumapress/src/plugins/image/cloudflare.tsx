@@ -21,18 +21,18 @@ export interface CloudflareImageOptions {
 /** Cloudflare's image transformations: `<Image>`'s provider */
 export function cloudflareImage<C extends WakuAppShape = WakuAppShape>(
   options: CloudflareImageOptions = {},
-): WakuPlugin<C, { provides: "image" }> {
+): WakuPlugin<C, { slots: "image:provider" }> {
   const config = resolveCloudflareImageConfig(options);
 
   return {
     name: "cloudflare-image",
-    provides: ["image"],
     slots: ({ page }) =>
       page
         ? undefined
         : [
             {
-              slot: "layout.wrapper",
+              name: "image:provider",
+              region: "layout-wrapper",
               component: CloudflareImageProvider,
               props: { config },
               order: -1,

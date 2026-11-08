@@ -12,7 +12,7 @@ declare module "virtual:fumapress/astro" {
   export const adapter: boolean;
   /** a server with `trailingSlash: "always"` and a custom prerendered 404 page */
   export const staticNotFound: boolean;
-  /** `output: "server"` of the Astro config, routes reading content render on demand */
+  /** `output: "server"` of the Astro config, the `auto` mode of content renders on demand */
   export const serverOutput: boolean;
   /** your page routes from `astro:routes:resolved` */
   export const routes: Pick<import("@fumapress/core").PageRoute, "path" | "render">[];

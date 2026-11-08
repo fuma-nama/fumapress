@@ -1,4 +1,4 @@
-import { stripBase, type AppShape, type Plugin } from "@fumapress/core";
+import { stripBase, type AppShape, type Plugin, type SlotItem } from "@fumapress/core";
 import type { LoaderPlugin } from "fumadocs-core/source";
 import type { ReactNode } from "react";
 import { MintlifyBannerBar } from "./features/banner";
@@ -7,7 +7,7 @@ import { buildRootHead } from "./features/head";
 import { buildNavbarLinks, buildNavTitle } from "./features/navbar";
 import { notFoundView, type MintlifyViews } from "./features/not-found";
 import { createRedirectMatcher } from "./features/redirects";
-import { getMintlifyLanguages, type I18nConfigExtended, type MintlifyI18nOptions } from "./i18n";
+import { getMintlifyLanguages, mintlifyLanguageOf, type MintlifyI18nOptions } from "./i18n";
 import { loadMintlifyIcons } from "./icons";
 import {
   buildPageTreeFromNavigation,
@@ -16,7 +16,7 @@ import {
   normalizeMintPath,
 } from "./navigation";
 import { readMintlifyDocs, type ReadMintlifyDocsOptions } from "./read-config";
-import type { MintlifyBanner, MintlifyDocsJson, MintlifyFooter } from "./schema";
+import type { MintlifyDocsJson, MintlifyFooter } from "./schema";
 
 /**
  * Feature toggles, everything is enabled by default. Disable a feature to
@@ -56,9 +56,15 @@ export interface MintlifyPluginOptions extends ReadMintlifyDocsOptions, Mintlify
   features?: MintlifyFeatures;
 }
 
+/** the views and slot items of `mintlifyPlugin()` */
+export type MintlifyTypes = {
+  views: MintlifyViews;
+  slots: "mintlify:banner" | "mintlify:footer";
+};
+
 export function mintlifyPlugin<C extends AppShape = AppShape>(
   options: MintlifyPluginOptions = {},
-): Plugin<C, { views: MintlifyViews }> {
+): Plugin<C, MintlifyTypes> {
   const { docsDir = "docs", features = {}, ...readOptions } = options;
   const enabled = (feature: keyof MintlifyFeatures) => features[feature] !== false;
 
@@ -97,7 +103,7 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
       if (enabled("redirects") && docs.redirects?.length)
         redirect = createRedirectMatcher(docs.redirects);
     },
-    async baseOptions() {
+    async layoutProps() {
       if (!enabled("navbar")) return;
       const { title, url } = buildNavTitle(docs);
       const links = await buildNavbarLinks(docs);
@@ -133,13 +139,13 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
       if (!enabled("navigation")) return;
 
       await loadMintlifyIcons(docs.navigation);
-      const { _getMintlifyLanguage } = (this.i18nConfig ?? {}) as I18nConfigExtended;
+      const i18n = this.i18nConfig;
       const navigation: LoaderPlugin = {
         name: "fumapress:mintlify",
         transformPageTree: {
           root(root) {
             const children = buildPageTreeFromNavigation(docs.navigation, createPageIndex(root), {
-              language: this.locale && _getMintlifyLanguage?.(this.locale),
+              language: mintlifyLanguageOf(i18n, this.locale),
               docsDir,
             });
 
@@ -166,12 +172,30 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
       if (!isNavigable(page))
         return [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }];
     },
-    slots({ page }) {
-      const banner = enabled("banner") ? docs.banner : undefined;
+    slots({ lang, page }) {
+      if (page) return;
+      const language = mintlifyLanguageOf(this.i18nConfig, lang);
+      const banner = enabled("banner")
+        ? (getMintlifyLanguages(docs).find((entry) => entry.language === language)?.banner ??
+          docs.banner)
+        : undefined;
       const footer = enabled("footer") ? docs.footer : undefined;
-      if (page || (!banner && !footer)) return;
-
-      return [{ slot: "layout.wrapper", component: MintlifyFrame, props: { banner, footer } }];
+      const items: SlotItem<MintlifyTypes>[] = [];
+      if (banner)
+        items.push({
+          name: "mintlify:banner",
+          region: "banner",
+          component: MintlifyBannerBar,
+          props: { banner },
+        });
+      if (footer)
+        items.push({
+          name: "mintlify:footer",
+          region: "layout-wrapper",
+          component: MintlifyFooterFrame,
+          props: { footer },
+        });
+      return items;
     },
     async middleware(request, next) {
       const pathname = stripBase(new URL(request.url).pathname, this.withBase("/"));
@@ -189,21 +213,18 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
   };
 }
 
-/** the banner above the layout of every page, the footer below it */
-function MintlifyFrame({
-  banner,
+/** the footer below the layout of every page */
+function MintlifyFooterFrame({
   footer,
   children,
 }: {
-  banner?: MintlifyBanner;
-  footer?: MintlifyFooter;
+  footer: MintlifyFooter;
   children: ReactNode;
 }) {
   return (
     <>
-      {banner && <MintlifyBannerBar banner={banner} />}
       {children}
-      {footer && <MintlifyFooterBar footer={footer} />}
+      <MintlifyFooterBar footer={footer} />
     </>
   );
 }
