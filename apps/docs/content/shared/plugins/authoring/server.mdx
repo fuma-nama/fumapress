@@ -1,0 +1,133 @@
+<section id="middleware">
+
+## Middleware
+
+`middleware` runs first on every request your server receives. Call `next()` to continue, or return a `Response` to stop. This plugin protects a prefix with a token:
+
+```tsx title="acme/index.tsx"
+async middleware(request, next) {
+  const { pathname } = new URL(request.url);
+
+  if (
+    pathname.startsWith(this.withBase(options.prefix)) &&
+    request.headers.get("authorization") !== `Bearer ${options.token}`
+  )
+    return new Response("Unauthorized", { status: 401 }); // [!code highlight]
+
+  return next(); // [!code highlight]
+},
+```
+
+### Changing the Response
+
+Wait for `next()`, then return a copy with your changes:
+
+```tsx title="acme/index.tsx"
+async middleware(_request, next) {
+  const response = await next();
+  const out = new Response(response.body, response);
+  out.headers.set("x-powered-by", "acme");
+  return out;
+},
+```
+
+### Rewrites
+
+`next(path)` renders another path instead, with the URL unchanged. The path doesn't include the base path.
+
+```tsx title="acme/index.tsx"
+middleware(request, next) {
+  const { pathname } = new URL(request.url);
+
+  return pathname === this.withBase("/latest") ? next("/v2") : next();
+},
+```
+
+</section>
+
+<section id="lifecycle">
+
+## Lifecycle Hooks
+
+These hooks run in this order, once per site:
+
+<Flow>
+  <FlowStep title="init()">
+    Before the content loader exists. Read files your other hooks need.
+  </FlowStep>
+  <FlowStep title="configureLoader()">
+    Adds options to the content loader, like its plugins.
+  </FlowStep>
+  <FlowStep title="configure()">
+    After the loader is created. Start watchers and other long-running work.
+  </FlowStep>
+  <FlowStep title="build(output)">Runs after a build, not on dev or production servers.</FlowStep>
+</Flow>
+
+### Reading Files at Startup
+
+The Mintlify plugin reads its `docs.json` like this, so that other hooks have it:
+
+```ts title="acme/index.ts"
+import { readFile } from "node:fs/promises";
+
+export function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  let config: { title: string };
+
+  return {
+    name: "acme",
+    async init() {
+      config = JSON.parse(await readFile("acme.json", "utf8"));
+    },
+    layoutProps: () => ({ nav: { title: config.title } }),
+  };
+}
+```
+
+### Loader Options
+
+`configureLoader` adds to the [Fumadocs loader](https://fumadocs.dev/docs/headless/source-api) options. Loader plugins from all your plugins are combined. Any other option can be set by one plugin only, and the options in `createPress()` take priority.
+
+```tsx title="acme/index.tsx"
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
+
+configureLoader() {
+  return { plugins: [lucideIconsPlugin()] };
+},
+```
+
+### Watching Files
+
+`this.signal` aborts when `press.config.tsx` reloads, and `this.invalidateLoader(source)` reloads a dynamic source. This plugin uses them to watch a folder:
+
+```ts title="acme/notes-plugin.ts"
+import { watch } from "node:fs";
+
+export function notesPlugin<C extends AppShape = AppShape>(options: {
+  dir: string;
+  source: C["source"];
+}): Plugin<C> {
+  return {
+    name: "acme:notes",
+    configure() {
+      if (!import.meta.env.DEV) return;
+
+      watch(options.dir, { recursive: true, signal: this.signal }, () =>
+        this.invalidateLoader(options.source),
+      );
+    },
+  };
+}
+```
+
+### Post-Build Hook
+
+`build` receives the links of prerendered pages, `fetch` to request a built page, and `emitFile` to write to the output. Throw to fail the build.
+
+```tsx title="acme/index.tsx"
+async build({ links, emitFile }) {
+  await emitFile("links.json", JSON.stringify(links));
+},
+```
+
+</section>

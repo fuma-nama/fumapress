@@ -2,16 +2,92 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "fumapress/css/preset.css";
+@import "@fumapress/blog/css/preset.css";
 @import "@fumapress/tegami/css/preset.css";
 @import "@fumari/sponsors/style.css";
+@import "./landing/washi.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist/wght-italic.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+/* with the optical sizes, so headings and small text each get their own cut */
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+
+/* the mark in the navbar, see ui/logo.tsx: the landing's paints, with a lighter ink at night */
+.fp-logo {
+  --logo-ink: #2b4249;
+  --logo-paper: #f8faf7;
+  --logo-indigo: #3f7eab;
+  --logo-deep: #15302f;
+  --logo-green: #a8bd6b;
+  --logo-cream: #f0f2c8;
+  --logo-shadow: rgb(70 74 58 / 0.16);
+}
+.dark .fp-logo {
+  --logo-ink: #d5dde8;
+  --logo-paper: #1c2430;
+  --logo-indigo: #4f74c4;
+  --logo-deep: #070b10;
+  --logo-green: #a9c055;
+  --logo-cream: #cfc59a;
+  --logo-shadow: rgb(0 0 0 / 0.45);
+}
+
+@theme inline {
+  --color-logo-ink: var(--logo-ink);
+  --color-logo-paper: var(--logo-paper);
+  --color-logo-indigo: var(--logo-indigo);
+  --color-logo-deep: var(--logo-deep);
+  --color-logo-green: var(--logo-green);
+  --color-logo-cream: var(--logo-cream);
+  --color-logo-shadow: var(--logo-shadow);
+}
 
 @theme {
-  --font-mono: "JetBrains Mono", monospace;
-  --default-font-family: "Geist", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+  --default-font-family: "Geist Variable", sans-serif;
 
   --color-fd-primary: oklch(55.639% 0.16448 43.087);
 }
 
 .dark {
   --color-fd-primary: oklch(76.972% 0.15134 51.001);
+}
+
+:root {
+  /* the cyan-leaning blue of the landing's drawings */
+  --waku-color: #3d6f98;
+  --astro-color: hsl(266, 78%, 54%);
+}
+
+.dark {
+  --waku-color: #8fbbd9;
+  --astro-color: hsl(266, 100%, 80%);
+}
+
+.waku {
+  --color-fd-primary: var(--waku-color);
+}
+
+.astro {
+  --color-fd-primary: var(--astro-color);
+}
+
+.waku-tab {
+  --tab-color: var(--waku-color);
+}
+
+.astro-tab {
+  --tab-color: var(--astro-color);
+}
+
+.tab-icon {
+  @apply block size-full rounded-lg text-(--tab-color) max-md:border max-md:bg-(--tab-color)/10 max-md:p-1.5 [&_svg]:size-full;
+}
+
+/* inline code keeps its box on both lines when it wraps */
+.prose :not(pre) > code {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }

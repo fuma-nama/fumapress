@@ -166,7 +166,8 @@ const ICON_ALIASES: Record<string, string> = {
 
 type LucideModule = { default: ComponentType<IconProps> };
 
-const iconCache = new Map<string, Promise<ComponentType<IconProps> | undefined>>();
+/** by Lucide name, filled by {@link loadMintlifyIcons} */
+const loaded = new Map<string, ComponentType<IconProps>>();
 const warned = new Set<string>();
 
 function normalizeIconName(name: string): string {
@@ -182,42 +183,58 @@ export function iconNameOf(icon: MintlifyIcon | undefined): string | undefined {
   if (icon && typeof icon === "object" && "name" in icon) return icon.name;
 }
 
+function lucideNameOf(name: string): keyof typeof dynamicIconImports | undefined {
+  const normalized = normalizeIconName(name);
+  const lucideName = normalized in dynamicIconImports ? normalized : ICON_ALIASES[normalized];
+  if (lucideName && lucideName in dynamicIconImports)
+    return lucideName as keyof typeof dynamicIconImports;
+
+  if (!warned.has(normalized)) {
+    warned.add(normalized);
+    console.warn(
+      `[Fumapress Mintlify] No Lucide equivalent found for icon "${name}", it will be skipped.`,
+    );
+  }
+}
+
 export async function resolveIconComponent(
   name: string,
 ): Promise<ComponentType<IconProps> | undefined> {
-  const normalized = normalizeIconName(name);
-  const lucideName = normalized in dynamicIconImports ? normalized : ICON_ALIASES[normalized];
+  const lucideName = lucideNameOf(name);
+  if (!lucideName) return;
 
-  if (!lucideName || !(lucideName in dynamicIconImports)) {
-    if (!warned.has(normalized)) {
-      warned.add(normalized);
-      console.warn(
-        `[Fumapress Mintlify] No Lucide equivalent found for icon "${name}", it will be skipped.`,
-      );
-    }
-    return;
+  let icon = loaded.get(lucideName);
+  if (!icon) {
+    icon = ((await dynamicIconImports[lucideName]()) as LucideModule).default;
+    loaded.set(lucideName, icon);
   }
-
-  let cached = iconCache.get(lucideName);
-  if (!cached) {
-    cached = (
-      dynamicIconImports[lucideName as keyof typeof dynamicIconImports]() as Promise<LucideModule>
-    ).then((mod) => mod.default);
-    iconCache.set(lucideName, cached);
-  }
-
-  return cached;
+  return icon;
 }
 
-export async function renderMintlifyIcon(
-  icon: MintlifyIcon | undefined,
-  props?: IconProps,
-): Promise<ReactNode> {
+/** load the icon of every `icon` property in a part of docs.json, page trees are built synchronously */
+export async function loadMintlifyIcons(value: unknown): Promise<void> {
+  const names = new Set<string>();
+  function walk(value: unknown) {
+    if (typeof value !== "object" || value === null) return;
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    for (const [key, item] of Object.entries(value)) {
+      const name = key === "icon" ? iconNameOf(item as MintlifyIcon) : undefined;
+      if (name) names.add(name);
+      else walk(item);
+    }
+  }
+
+  walk(value);
+  await Promise.all(Array.from(names, resolveIconComponent));
+}
+
+/** an icon loaded by {@link loadMintlifyIcons} */
+export function renderMintlifyIcon(icon: MintlifyIcon | undefined, props?: IconProps): ReactNode {
   const name = iconNameOf(icon);
-  if (!name) return;
-
-  const Icon = await resolveIconComponent(name);
-  if (!Icon) return;
-
-  return <Icon {...props} />;
+  const lucideName = name && lucideNameOf(name);
+  const Icon = lucideName && loaded.get(lucideName);
+  if (Icon) return <Icon {...props} />;
 }

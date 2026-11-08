@@ -1,0 +1,22 @@
+---
+title: UI
+description: Add UI and head tags to pages from a plugin.
+---
+
+<include cwd>content/shared/plugins/authoring/ui.mdx#slots</include>
+
+<include cwd>content/shared/plugins/authoring/ui.mdx#navbar</include>
+
+<include cwd>content/shared/plugins/authoring/ui.mdx#head</include>
+
+<include cwd>content/shared/plugins/authoring/ui.mdx#render</include>
+
+## React Content
+
+The React content of a plugin renders on the server, in an island. Only client components (`"use client"`) and components of the [MDX components](/docs/astro/content#components) module hydrate. Other components can't use state or effects.
+
+<Callout type="warn">
+  Props of hydrating components must be serializable: strings, numbers, dates, maps, JSX elements
+  and client components work. A client component with a function prop throws an error that names the
+  prop.
+</Callout>

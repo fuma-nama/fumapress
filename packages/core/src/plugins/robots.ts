@@ -1,5 +1,4 @@
-import type { PressPlugin } from "@/app/plugin";
-import type { AppShape } from "@/app/context";
+import type { AppShape, Plugin } from "../plugin";
 
 /**
  * A group of rules in `robots.txt`.
@@ -10,7 +9,7 @@ export interface RobotsRule {
   /**
    * crawler(s) the rule applies to
    *
-   * @default "*"
+   * @defaultValue "*"
    */
   userAgent?: string | string[];
 
@@ -23,81 +22,66 @@ export interface RobotsOptions {
   /**
    * path of the robots.txt route
    *
-   * @default "/robots.txt"
+   * @defaultValue "/robots.txt"
    */
   path?: string;
 
   /**
-   * @default [{ userAgent: "*", allow: "/" }]
+   * @defaultValue [{ userAgent: "*", allow: "/" }]
    */
   rules?: RobotsRule[];
 
   /**
-   * Reference the sitemap:
+   * URL (or path relative to `site.baseUrl`) of the sitemap, `false` to reference none
    *
-   * - `string`: URL (or path relative to `site.baseUrl`) of the sitemap.
-   * - `true`: reference `/sitemap.xml`.
-   * - `false`: don't reference a sitemap.
-   *
-   * By default, references `/sitemap.xml` only when the sitemap plugin is added.
+   * @defaultValue "/sitemap.xml"
    */
-  sitemap?: string | boolean;
+  sitemap?: string | false;
 
   /** raw content appended to the output */
   additionalContent?: string;
 }
 
+function lines(name: string, values: string | string[] | undefined): string[] {
+  if (values === undefined) return [];
+  const out: string[] = [];
+  for (const value of typeof values === "string" ? [values] : values) out.push(`${name}: ${value}`);
+  return out;
+}
+
 function ruleToText(rule: RobotsRule): string {
-  const lines: string[] = [];
-  const userAgents = Array.isArray(rule.userAgent) ? rule.userAgent : [rule.userAgent ?? "*"];
-  const allow = Array.isArray(rule.allow) ? rule.allow : rule.allow ? [rule.allow] : [];
-  const disallow = Array.isArray(rule.disallow)
-    ? rule.disallow
-    : rule.disallow
-      ? [rule.disallow]
-      : [];
-
-  for (const userAgent of userAgents) lines.push(`User-agent: ${userAgent}`);
-  for (const path of allow) lines.push(`Allow: ${path}`);
-  for (const path of disallow) lines.push(`Disallow: ${path}`);
-  if (rule.crawlDelay !== undefined) lines.push(`Crawl-delay: ${rule.crawlDelay}`);
-
-  return lines.join("\n");
+  const out = [
+    ...lines("User-agent", rule.userAgent ?? "*"),
+    ...lines("Allow", rule.allow || undefined),
+    ...lines("Disallow", rule.disallow || undefined),
+  ];
+  if (rule.crawlDelay !== undefined) out.push(`Crawl-delay: ${rule.crawlDelay}`);
+  return out.join("\n");
 }
 
 export function robotsPlugin<C extends AppShape = AppShape>(
   options: RobotsOptions = {},
-): PressPlugin<C> {
+): Plugin<C> {
   const {
     path = "/robots.txt",
     rules = [{ userAgent: "*", allow: "/" }],
+    sitemap = "/sitemap.xml",
     additionalContent,
   } = options;
-  let sitemap = options.sitemap ?? false;
 
   return {
     name: "core:robots",
-    init() {
-      if (options.sitemap === undefined) {
-        sitemap = this.plugins.some((item) => item.name === "core:sitemap");
-      }
-    },
-    createPages({ createApiIsomorphic }) {
-      createApiIsomorphic({
+    routes({ createApi }) {
+      createApi({
         path,
-        handler: async () => {
+        render: "static",
+        GET: () => {
           const sections = rules.map(ruleToText);
-
-          if (sitemap) {
-            const sitemapPath = typeof sitemap === "string" ? sitemap : "/sitemap.xml";
-            sections.push(`Sitemap: ${this.absoluteUrl(sitemapPath)}`);
-          }
+          if (sitemap !== false) sections.push(`Sitemap: ${this.absoluteUrl(sitemap)}`);
           if (additionalContent) sections.push(additionalContent);
 
           return new Response(sections.join("\n\n"), {
-            headers: {
-              "Content-Type": "text/plain",
-            },
+            headers: { "Content-Type": "text/plain" },
           });
         },
       });

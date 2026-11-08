@@ -1,0 +1,207 @@
+Each integration generates pages from your spec, and adds them to your site as a [content source](../content-sources/index.mdx). Follow the one you need.
+
+## OpenAPI
+
+Generates pages from your spec, with a playground to send requests.
+
+### Install [step]
+
+```npm
+npm i fumadocs-openapi shiki
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "fumadocs-openapi/css/preset.css";
+```
+
+### Create the Source [step]
+
+Call `createOpenAPI()` with your spec, then add its pages as a content source. `baseDir` sets the URL prefix of the pages.
+
+```tsx title="press.config.tsx"
+import { createOpenAPI } from "fumadocs-openapi/server";
+import openapiPlugin from "fumadocs-openapi/press";
+
+const openapi = createOpenAPI({
+  // a path or URL to your spec
+  input: ["./openapi.yaml"],
+});
+
+export default createPress({
+  docs: docsSource,
+  openapi: await openapi.staticSource({ baseDir: "docs/api" }),
+}).plugins(openapiPlugin({ server: openapi }));
+```
+
+`staticSource()` also takes options of [`generateFiles()`](https://fumadocs.dev/docs/integrations/openapi/generate-files). See [Fumadocs OpenAPI](https://fumadocs.dev/docs/integrations/openapi) for all options.
+
+### Page Customization
+
+To set the options of the page, like `shiki`, create the renderer yourself and pass it to the plugin:
+
+```tsx tab="src/components/openapi.tsx"
+"use client";
+import { createOpenAPIPage } from "fumadocs-openapi/ui";
+
+export const OpenAPIPage = createOpenAPIPage();
+```
+
+```tsx tab="press.config.tsx"
+import { OpenAPIPage } from "./src/components/openapi";
+
+openapiPlugin({
+  server: openapi,
+  ClientAPIPage: OpenAPIPage, // [!code ++]
+});
+```
+
+### Proxy
+
+A browser can't call an API that blocks cross-origin requests. A [proxy](https://fumadocs.dev/docs/integrations/openapi/server#creating-proxy) sends playground requests through your site, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+```tsx title="press.config.tsx"
+const openapi = createOpenAPI({
+  input: ["./openapi.yaml"],
+  proxyUrl: "/_proxy", // [!code ++]
+});
+
+openapiPlugin({
+  server: openapi,
+  // [!code ++:3]
+  createProxy: {
+    allowedOrigins: ["https://example.com"],
+  },
+});
+```
+
+<Callout type="warn" title="Set allowedOrigins">
+  The proxy forwards headers and bodies from the playground, including cookies and `Authorization`.
+  `createProxy: true` leaves origins open, and an open proxy can be abused to call any origin.
+</Callout>
+
+## AsyncAPI
+
+Generates pages from your spec.
+
+### Install [step]
+
+```npm
+npm i @fumadocs/asyncapi shiki
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumadocs/asyncapi/css/preset.css";
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { createAsyncAPI } from "@fumadocs/asyncapi/server";
+import asyncapiPlugin from "@fumadocs/asyncapi/press";
+
+const asyncapi = createAsyncAPI({
+  // a path or URL to your spec
+  input: ["./asyncapi.yaml"],
+});
+
+export default createPress({
+  docs: docsSource,
+  asyncapi: await asyncapi.staticSource({ baseDir: "docs/events" }),
+}).plugins(asyncapiPlugin({ server: asyncapi }));
+```
+
+`staticSource()` also takes options of [`generateFiles()`](https://fumadocs.dev/docs/integrations/asyncapi/generate-files). See [Fumadocs AsyncAPI](https://fumadocs.dev/docs/integrations/asyncapi) for all options.
+
+### Page Customization
+
+To set the options of the page, create the renderer yourself and pass it to the plugin:
+
+```tsx tab="src/components/asyncapi.tsx"
+"use client";
+import { createAsyncAPIPage } from "@fumadocs/asyncapi/ui";
+
+export const AsyncAPIPage = createAsyncAPIPage();
+```
+
+```tsx tab="press.config.tsx"
+import { AsyncAPIPage } from "./src/components/asyncapi";
+
+asyncapiPlugin({
+  server: asyncapi,
+  ClientAPIPage: AsyncAPIPage, // [!code ++]
+});
+```
+
+## GraphQL
+
+Generates pages from your schema, grouped in folders by kind, like `queries/` and `objects/`.
+
+### Install [step]
+
+```npm
+npm i @fumadocs/graphql
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumadocs/graphql/css/preset.css";
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { createGraphQL } from "@fumadocs/graphql/server";
+import graphqlPlugin from "@fumadocs/graphql/press";
+
+const graphql = createGraphQL({
+  // SDL files or URLs, SDL text, introspection results or a `GraphQLSchema`
+  input: ["./schema.graphql"],
+});
+
+export default createPress({
+  docs: docsSource,
+  graphql: await graphql.staticSource({ baseDir: "docs/graphql" }),
+}).plugins(graphqlPlugin({ server: graphql }));
+```
+
+See [Fumadocs GraphQL](https://fumadocs.dev/docs/integrations/graphql) for all options.
+
+### Playground
+
+Create the renderer yourself and pass it to the plugin. `url` is your GraphQL endpoint.
+
+```tsx tab="src/components/graphql.tsx"
+"use client";
+import { createGraphQLPage } from "@fumadocs/graphql/ui";
+
+export const GraphQLPage = createGraphQLPage({
+  playground: {
+    url: "https://api.example.com/graphql",
+  },
+});
+```
+
+```tsx tab="press.config.tsx"
+import { GraphQLPage } from "./src/components/graphql";
+
+graphqlPlugin({
+  server: graphql,
+  ClientAPIPage: GraphQLPage, // [!code ++]
+});
+```
+
+<Callout type="warn" title="Links aren't localized">
+  With [internationalization](../internationalization.mdx), resolve links generated from the schema
+  with the `typeLinks` and `operationLinks` options of `createGraphQLPage()`.
+</Callout>

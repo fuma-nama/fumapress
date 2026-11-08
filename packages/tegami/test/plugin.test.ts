@@ -1,33 +1,97 @@
 import { describe, expect, it } from "vitest";
-import type { AppContext, RouteFns } from "fumapress";
-import { changelogPlugin, type ChangelogPluginOptions } from "../src/plugin.tsx";
+import type { Context, View, ViewRoute } from "@fumapress/core";
+import { isValidElement } from "react";
+import {
+  changelogPlugin,
+  type ChangelogIndexViewProps,
+  type ChangelogPluginOptions,
+} from "../src/plugin.tsx";
 
-async function routes(options: ChangelogPluginOptions = {}) {
-  const pages: string[] = [];
-  const layouts: string[] = [];
+const pages = [
+  {
+    type: "changelog",
+    path: "a.mdx",
+    url: "/changelog/a",
+    data: { title: "A", packages: { b: { version: "1.0.0" }, a: { version: "2.0.0" } } },
+  },
+  { type: "docs", path: "docs.mdx", url: "/docs", data: { title: "Docs" } },
+  { type: "changelog", path: "b.mdx", url: "/changelog/b", data: { title: "B" } },
+  { type: "releases", path: "c.mdx", url: "/releases/c", data: { title: "C" } },
+];
+const dates: Record<string, Date> = {
+  "/changelog/a": new Date("2026-01-01"),
+  "/changelog/b": new Date("2026-02-01"),
+};
 
-  await changelogPlugin(options).createPages!.call(
-    {} as AppContext,
-    {
-      createPage: (page: { path: string }) => pages.push(page.path),
-      createLayout: (layout: { path: string }) => layouts.push(layout.path),
-      createInterceptor: () => {},
-    } as unknown as RouteFns,
-  );
+function context(body = true, dynamicSources: string[] = []) {
+  return {
+    languages: ["en"],
+    getContentRender: (source: readonly string[]) =>
+      source.some((key) => dynamicSources.includes(key)) ? "dynamic" : "static",
+    getLoader: async () => ({ getPages: () => pages }),
+    getPageCreatedAt: async (page: { url: string }) => dates[page.url],
+    getPageBody: async (page: { url: string }) => (body ? { node: page.url } : undefined),
+  } as unknown as Context;
+}
 
-  return { layouts, pages };
+async function views(
+  options: ChangelogPluginOptions<string> = { source: "changelog" },
+  ctx = context(),
+) {
+  const out: ViewRoute[] = [];
+  await changelogPlugin(options).routes!.call(ctx, {
+    createApi() {},
+    createView: (route) => out.push(route as ViewRoute),
+  });
+  return out;
+}
+
+function render(route: ViewRoute | undefined) {
+  return route!.view({}, { lang: "en", request: new Request("http://localhost") });
 }
 
 describe("changelogPlugin", () => {
-  it("registers the layout and index page", async () => {
-    expect(await routes()).toEqual({
-      layouts: ["/(changelog)"],
-      pages: ["/(changelog)/changelog"],
-    });
+  it("adds the index view", async () => {
+    expect((await views())?.map(({ path }) => path)).toEqual(["/changelog"]);
+    expect(
+      (await views({ source: "changelog", paths: { index: "/" } }))?.map(({ path }) => path),
+    ).toEqual(["/"]);
+    expect(await views({ source: "changelog", paths: { index: false } })).toEqual([]);
   });
 
-  it("follows the configured index path", async () => {
-    expect((await routes({ paths: { index: "/" } })).pages).toEqual(["/(changelog)"]);
-    expect((await routes({ paths: { index: false } })).pages).toEqual([]);
+  it("renders the index like its sources", async () => {
+    const options = { source: ["changelog", "releases"] };
+    const render = async (dynamicSources: string[]) =>
+      (await views(options, context(true, dynamicSources)))[0]?.render;
+
+    expect(await render([])).toBe("static");
+    expect(await render(["docs"])).toBe("static");
+    expect(await render(["releases"])).toBe("dynamic");
+  });
+
+  it("renders the pages of its sources, newest first", async () => {
+    const [route] = (await views({ source: ["changelog", "releases"] }))!;
+    const view = (await render(route)) as View<{ "changelog.index": ChangelogIndexViewProps }>;
+    expect(view.type).toBe("changelog.index");
+    expect(isValidElement(view.node)).toBe(true);
+    expect(
+      view.props.entries.map(({ page, body, packages }) => ({ url: page.url, body, packages })),
+    ).toEqual([
+      { url: "/releases/c", body: "/releases/c", packages: [] },
+      { url: "/changelog/b", body: "/changelog/b", packages: [] },
+      {
+        url: "/changelog/a",
+        body: "/changelog/a",
+        packages: [
+          { name: "a", version: "2.0.0" },
+          { name: "b", version: "1.0.0" },
+        ],
+      },
+    ]);
+  });
+
+  it("requires page bodies", async () => {
+    const [route] = (await views(undefined, context(false)))!;
+    await expect(render(route)).rejects.toThrow('the changelog page "a.mdx" has no body');
   });
 });

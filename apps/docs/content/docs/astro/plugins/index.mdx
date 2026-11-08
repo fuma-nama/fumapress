@@ -1,0 +1,78 @@
+---
+title: Plugins
+description: Add, replace and remove the features of your site.
+---
+
+<include cwd>content/shared/plugins/index.mdx#intro</include>
+
+<Cards>
+  <Card href="/docs/astro/plugins/seo" title="SEO">
+    Sitemap, robots.txt, RSS and Open Graph images.
+  </Card>
+  <Card href="/docs/astro/plugins/ai" title="AI">
+    llms.txt, AI chat and MCP.
+  </Card>
+  <Card href="/docs/astro/plugins/api-docs" title="API Docs">
+    OpenAPI, AsyncAPI and GraphQL.
+  </Card>
+  <Card href="/docs/astro/plugins/blog" title="Blog">
+    Posts, an index and tag pages.
+  </Card>
+  <Card href="/docs/astro/plugins/changelog" title="Changelog">
+    Your Tegami release notes.
+  </Card>
+  <Card href="/docs/astro/plugins/feedback" title="Feedback">
+    A form on pages and selected text.
+  </Card>
+  <Card href="/docs/astro/plugins/link-validation" title="Link Validation">
+    Find broken links at build time.
+  </Card>
+  <Card href="/docs/astro/plugins/authoring" title="Writing Plugins">
+    Add anything else.
+  </Card>
+</Cards>
+
+## Default Plugins
+
+<include cwd>content/shared/plugins/index.mdx#table</include>
+
+There is no image plugin, since [Astro Images](https://docs.astro.build/en/guides/images/) handles images.
+
+<include cwd>content/shared/plugins/index.mdx#options</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+
+createPress(content).config({
+  preset: recommendedPreset({ rss: { limit: 50 } }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#replace</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
+
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#remove</include>
+
+```tsx tab="One plugin" title="press.config.tsx"
+createPress(content).config({
+  preset: recommendedPreset({ rss: false }),
+});
+```
+
+```tsx tab="All plugins" title="press.config.tsx"
+createPress(content).config({
+  preset: [],
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#rest</include>

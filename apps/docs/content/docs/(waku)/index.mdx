@@ -1,0 +1,70 @@
+---
+title: Quick Start
+description: Create a docs site with Fumapress on Waku.
+---
+
+Fumapress turns your Markdown files into a complete docs site on [Waku](https://waku.gg). It is built on [Fumadocs](https://fumadocs.dev) and comes with layouts, search, SEO files and plugins. Custom pages and layouts are React Server Components.
+
+## Creating a Site
+
+### Create the Project [step]
+
+```npm
+npm create fumapress -- --framework waku
+```
+
+### Start the Dev Server [step]
+
+From the new folder:
+
+```npm
+npm run dev
+```
+
+The project looks like this:
+
+```files
+├── content
+│   └── index.mdx
+├── src
+│   └── app.css
+├── press.config.tsx
+└── vite.config.ts
+```
+
+### Write a Page [step]
+
+<include cwd>content/shared/getting-started.mdx#write-a-page</include>
+
+### Name the Site [step]
+
+Set the name in `press.config.tsx`. It shows in the navbar and page metadata.
+
+```tsx title="press.config.tsx"
+export default createPress(docs.toFumadocsSource()).config({
+  site: {
+    name: "My Docs", // [!code highlight]
+  },
+});
+```
+
+## Next Steps
+
+<Cards>
+  <Card href="/docs/content" title="Write Content">
+    Pages, sidebar, components and images.
+  </Card>
+  <Card href="/docs/layouts" title="Customize">
+    Choose a layout and add custom pages.
+  </Card>
+  <Card href="/docs/plugins" title="Add Features">
+    Blog, AI chat, API docs, feedback and more.
+  </Card>
+  <Card href="/docs/deployment" title="Deploy">
+    Build the site and put it online.
+  </Card>
+</Cards>
+
+Moving an existing site? See [Upgrade to Fumapress 2](/docs/migrate/v2) or [Migrate from Mintlify](/docs/migrate/mintlify).
+
+<include cwd>content/shared/getting-started.mdx#samples</include>

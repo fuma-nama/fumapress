@@ -1,0 +1,12 @@
+---
+title: Preload links in `head`
+date: 2026-11-08T05:53:39.086Z
+packages:
+  fumapress:
+    version: 2.0.0
+---
+
+### Preload links in `head`
+
+- A `<link rel="preload">` or `<link rel="modulepreload">` in `head` is emitted once, near the top of `<head>`, instead of twice.
+- The preload of the site's stylesheet uses `as="style"`, so browsers no longer ignore it with a console warning.

@@ -1,4 +1,7 @@
-![banner](.github/banner.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/banner-dark.png" />
+  <img alt="Fumapress: turn your Markdown into a documentation site" src=".github/banner.png" />
+</picture>
 
 ## Fumapress
 

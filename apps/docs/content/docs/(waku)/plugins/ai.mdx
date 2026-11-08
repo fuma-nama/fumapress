@@ -1,0 +1,111 @@
+---
+title: AI
+description: Give AI tools your docs as Markdown, add a chat, or connect clients over MCP.
+---
+
+<include cwd>content/shared/plugins/ai.mdx#intro</include>
+
+## llms.txt
+
+<include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
+
+Pass its options to `recommendedPreset()`:
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+createPress(content).config({
+  preset: recommendedPreset({ llms: { autoRedirect: false } }),
+});
+```
+
+<Callout type="warn">
+  Keep [`includeProcessedMarkdown`](/docs/content-sources/fumadocs-mdx#setup) on your Fumadocs MDX
+  collection. This plugin reads the text of pages from the processed Markdown.
+</Callout>
+
+<include cwd>content/shared/plugins/ai.mdx#llms</include>
+
+### Custom Pages
+
+Set `routes: "all"`, then return Markdown from a page with `asMarkdown()` and `md`. This page gets a `/index.md`, and an entry in `/llms.txt`.
+
+```tsx tab="src/pages/index.tsx"
+import { asMarkdown, md } from "fumapress/markdown";
+
+export default function Page() {
+  if (asMarkdown()) {
+    return md`
+# My Site
+
+Welcome! Read the [docs](/docs).
+    `;
+  }
+
+  return <main>...</main>;
+}
+```
+
+```tsx tab="press.config.tsx"
+recommendedPreset({ llms: { routes: "all" } });
+```
+
+<Callout type="warn">
+  The Markdown renders without your layouts, so an access check in a layout doesn't cover it. Put the check in the page, or in middleware that also covers `<page>.md`.
+</Callout>
+
+Only server components that call `asMarkdown()` are converted to Markdown. Other components stay as JSX in the output, like `<Card title="...">...</Card>`. To give a client component a Markdown version, wrap it in a server component:
+
+```tsx
+import { asMarkdown, md } from "fumapress/markdown";
+
+function Callout({ title, children }) {
+  if (asMarkdown()) return md.linePrefix("> ")`**${title}**\n${children}`;
+
+  return <div className="callout">...</div>;
+}
+```
+
+`md` also has `md.indent(size)`. To render a React tree to Markdown yourself, use `renderToMarkdown(<Page />)`.
+
+### llms.txt Options
+
+<auto-type-table cwd path="../../packages/core/src/plugins/llms.txt.ts" name="LLMsOptions" />
+
+<include cwd>content/shared/plugins/ai.mdx#chat</include>
+
+### Custom Layout
+
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a [custom layout](/docs/layouts#custom-layouts), read it in a client component around the layout:
+
+```tsx tab="src/components/layout.tsx"
+"use client";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
+import { useLayoutProps } from "fumapress/client";
+
+export function Layout(props: DocsLayoutProps) {
+  return <DocsLayout {...props} {...useLayoutProps()} />;
+}
+```
+
+```tsx tab="src/ui/layout.tsx"
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import { Layout } from "../components/layout";
+
+function Docs({ layoutProps, pageData, toc, body }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <Layout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </Layout>
+  );
+}
+```
+
+The Docs and Notebook layouts open the chat with a floating "Ask AI" button. The Glass and Spacious layouts show their own button.
+
+<include cwd>content/shared/plugins/ai.mdx#chat-options</include>
+
+<include cwd>content/shared/plugins/ai.mdx#mcp</include>

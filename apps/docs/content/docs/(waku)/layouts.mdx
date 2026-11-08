@@ -1,0 +1,136 @@
+---
+title: Layouts
+description: Choose a Fumadocs layout and change what each page renders.
+---
+
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, pass it to `renderDefault()` in `ui.renderPage`.
+
+<include cwd>content/shared/layouts.mdx#gallery</include>
+
+<include cwd>content/shared/layouts.mdx#default-ui</include>
+
+## Rendering Pages
+
+Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
+
+### Custom Layouts
+
+To change the structure of a page, write its layout yourself with the components of Fumadocs UI:
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        {slots["core:markdown"]?.element}
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // taken first: `props` is `never` in `default` once every type has a case
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+The second type argument of `RenderPageProps` narrows the props to one page type. The layout reads these props:
+
+- `layoutProps`: [`ui.layoutProps`](/docs/configuration#navbar-and-links) with the props from plugins, and the page tree as `tree`.
+- `pageData`: the title, description and other fields a layout shows. Your frontmatter is on `page.data`.
+- `toc`: the table of contents.
+- `body`: the content.
+- `slots`: the UI of plugins and the page buttons, see [Slots](#slots).
+
+The [AI chat](/docs/plugins/ai#custom-layout) reaches a custom layout through `useLayoutProps()` in a client component.
+
+### Layout per Source
+
+Add a case for each source. The fields of its schema are typed on `page.data`.
+
+```tsx title="src/ui/layout.tsx"
+// [!code ++:8]
+function Guide({ page, body }: RenderPageProps<typeof app, "guides">) {
+  return (
+    <article>
+      <span>{page.data.level}</span>
+      {body}
+    </article>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides": // [!code ++:2]
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+You can also check `props.page.path`, for example to use another layout for pages under `reference/`.
+
+### Sidebar
+
+`layoutProps.tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot } from "fumapress";
+
+<DocsLayout {...layoutProps} tree={selectTreeRoot(layoutProps.tree, "docs")} />;
+```
+
+<include cwd>content/shared/layouts.mdx#nested</include>
+
+### Slots
+
+<include cwd>content/shared/layouts.mdx#slots</include>
+
+```tsx title="src/ui/layout.tsx"
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
+  const footer: ReactNode[] = [];
+  for (const slot of Object.values(slots)) if (slot?.region === "footer") footer.push(slot.element);
+
+  return (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <div className="flex gap-2">
+          {slots["core:markdown"]?.element} {/* [!code highlight] */}
+          {slots["core:view-options"]?.element} {/* [!code highlight] */}
+        </div>
+        <DocsBody>{body}</DocsBody>
+        {footer} {/* [!code highlight] */}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+```
+
+<include cwd>content/shared/layouts.mdx#plugin-pages</include>
+
+## Customizing Fumadocs UI
+
+<include cwd>content/shared/layouts.mdx#cli-intro</include>
+
+Register a copied component in your [MDX components](/docs/content#components) module, and use a copied layout from `ui.renderPage`.
+
+<include cwd>content/shared/layouts.mdx#cli-trap</include>

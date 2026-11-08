@@ -1,0 +1,61 @@
+---
+title: Internationalization
+description: Publish your site in multiple languages.
+---
+
+<include cwd>content/shared/internationalization.mdx#intro</include>
+
+## Setup
+
+### List the Languages [step]
+
+Define them and pass them to `createPress()`:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+import { defineI18n } from "fumadocs-core/i18n";
+
+const docs = defineDocs({ dir: "content" });
+
+// [!code highlight:4]
+const i18n = defineI18n({
+  languages: ["en", "zh"],
+  defaultLanguage: "en",
+});
+
+export const app = createPress({ docs: docs.toFumadocsSource() }, { i18n });
+
+export default app.config({
+  ui: {
+    translations: i18n.translations(),
+  },
+});
+```
+
+### Translate the Pages [step]
+
+<include cwd>content/shared/internationalization.mdx#pages</include>
+
+### Translate the UI [step]
+
+<include cwd>content/shared/internationalization.mdx#ui</include>
+
+## Language Prefixes
+
+<include cwd>content/shared/internationalization.mdx#urls</include>
+
+## Custom Pages
+
+Each page in `src/pages` is created once per language, under its prefix, with a `lang` prop:
+
+```tsx title="src/pages/about.tsx"
+import type { WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export default function Page({ lang }: WakuRouteProps<typeof app>) {
+  return <h1>{lang === "zh" ? "关于" : "About"}</h1>;
+}
+```
+
+To keep a single copy of a page, in the default language, set `autoI18n: false` in `getConfig()`.

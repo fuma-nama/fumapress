@@ -1,0 +1,76 @@
+---
+title: Internationalization
+description: Publish your site in multiple languages.
+---
+
+<include cwd>content/shared/internationalization.mdx#intro</include>
+
+## Setup
+
+### List the Languages [step]
+
+Define them in a separate file, since custom pages read them too, and pass them to `createPress()`:
+
+```ts tab="src/lib/i18n.ts"
+import { defineI18n } from "fumadocs-core/i18n";
+
+export const i18n = defineI18n({
+  languages: ["en", "zh"],
+  defaultLanguage: "en",
+});
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import { i18n } from "./src/lib/i18n";
+
+export const app = createPress(
+  { docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta")) },
+  { i18n }, // [!code highlight]
+);
+
+export default app.config({
+  ui: {
+    translations: i18n.translations(),
+  },
+});
+```
+
+### Translate the Pages [step]
+
+<include cwd>content/shared/internationalization.mdx#pages</include>
+
+### Translate the UI [step]
+
+<include cwd>content/shared/internationalization.mdx#ui</include>
+
+## Language Prefixes
+
+<include cwd>content/shared/internationalization.mdx#urls</include>
+
+## Custom Pages
+
+Your pages aren't copied per language. Add a `lang` param and share the `i18n` config:
+
+```astro title="src/pages/[...lang]/about.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { i18n } from "../../lib/i18n";
+
+export function getStaticPaths() {
+  return i18n.languages.map((lang) => ({
+    params: { lang: lang === i18n.defaultLanguage ? undefined : lang },
+  }));
+}
+---
+
+<HomeLayout title="About">
+  <main>About</main>
+</HomeLayout>
+```
+
+This example has no prefix on the default language, for `hideLocale: "default-locale"`. `HomeLayout.astro` reads the language from the URL unless you pass `lang`.
+
+With `hideLocale: "never"`, `/` redirects to the default language unless you have a `src/pages/index.astro`.

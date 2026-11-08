@@ -1,0 +1,11 @@
+---
+title: Leaving pages out of the sitemap
+date: 2026-11-08T05:53:39.086Z
+packages:
+  fumapress:
+    version: 2.0.0
+---
+
+### Leaving pages out of the sitemap
+
+- `data.sitemap` in `getConfig()` leaves a custom page out of the sitemap with `false`, or sets its entry. Plugins pass it in `data` of `createPage()` in `waku.createPages`.

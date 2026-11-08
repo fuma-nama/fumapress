@@ -48,6 +48,14 @@ export function getMintlifyLanguages(docs: MintlifyDocsJson): MintlifyLanguageNa
   return docs.navigation.languages ?? docs.navigation.global?.languages ?? [];
 }
 
+/** the Mintlify language of a locale of the site, from the i18n config of `defineMintlifyI18n()` */
+export function mintlifyLanguageOf(
+  i18n: object | undefined,
+  locale: string | undefined,
+): string | undefined {
+  if (locale) return (i18n as I18nConfigExtended | undefined)?._getMintlifyLanguage?.(locale);
+}
+
 export function defineMintlifyI18n(docs: MintlifyDocsJson, options: MintlifyI18nOptions = {}) {
   const { localeMap } = options;
   const languageEntries = getMintlifyLanguages(docs);

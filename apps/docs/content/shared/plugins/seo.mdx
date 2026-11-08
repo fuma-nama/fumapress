@@ -1,0 +1,247 @@
+<section id="intro">
+
+A new site has these without any setup:
+
+- `/sitemap.xml`, the list of pages for search engines.
+- `/robots.txt`, the rules for crawlers.
+- `/rss.xml`, a feed of your newest pages.
+- `<page>.webp`, the image shown when a page is shared.
+
+<Callout type="warn">
+  They need full URLs, so set your [site URL](../configuration.mdx#url). Without it, links in these
+  files are relative.
+</Callout>
+
+To change one, pass its options to `recommendedPreset()`:
+
+</section>
+
+<section id="sitemap">
+
+The sitemap lists your content pages, then your prerendered custom pages and plugin pages. Return `undefined` from `getEntry` to leave a page out:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  sitemap: {
+    async getEntry(page) {
+      if (page.path.startsWith("drafts/")) return;
+
+      return {
+        loc: this.absoluteUrl(page.url),
+        lastmod: await this.getPageLastModified(page),
+        changefreq: "weekly",
+        priority: page.path === "index.mdx" ? 1 : 0.8,
+        alternates: await this.getPageAlternates(page),
+      };
+    },
+  },
+});
+```
+
+Entries also accept Google's extensions: `images`, `videos` and `news`.
+
+### Leaving Pages Out
+
+A page with `noindex` in its page data gets a `noindex` meta tag, and is left out of the sitemap, the RSS feed and `/llms-full.txt`. Set it from `transformPage` of a plugin:
+
+```tsx title="press.config.tsx"
+createPress(content).plugins({
+  name: "site:drafts",
+  transformPage(_data, { page }) {
+    if (page?.path.startsWith("drafts/")) return { noindex: true };
+  },
+});
+```
+
+Pages shown in place of an untranslated page have `noindex` already.
+
+### Additional Pages
+
+Custom pages with params, like `/showcase/[slug]`, aren't listed. Add them yourself:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  sitemap: {
+    additionalEntries() {
+      return [{ loc: this.absoluteUrl("/showcase/acme"), changefreq: "weekly", priority: 0.5 }];
+    },
+  },
+});
+```
+
+To serve another sitemap, turn entries into XML with `buildSitemap` of the `plugins/sitemap` module, in an [API route](./authoring/routes.mdx#api-routes). See [Additional Feeds](#additional-feeds).
+
+</section>
+
+<section id="sitemap-options">
+
+### Sitemap Options
+
+<auto-type-table cwd path="../../packages/core/src/plugins/sitemap.ts" name="SitemapOptions" />
+
+</section>
+
+<section id="robots">
+
+The default file allows all crawlers and links to your sitemap. Each rule becomes one section of the file:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  robots: {
+    rules: [
+      { userAgent: "*", allow: "/", disallow: ["/private", "/drafts"] },
+      { userAgent: "GPTBot", disallow: "/" },
+    ],
+  },
+});
+```
+
+For directives without an option, append raw text with `additionalContent`.
+
+### robots.txt Options
+
+<auto-type-table cwd path="../../packages/core/src/plugins/robots.ts" name="RobotsOptions" />
+
+</section>
+
+<section id="rss">
+
+The feed has the 20 newest pages. Each page links to the feed, so that feed readers can find it.
+
+<Callout type="warn" title="Pages need a date">
+  A page without a date is left out of the feed. The feed uses the creation date from your content
+  source, or the last modified date. In MDX pages, the creation date is the `date` frontmatter.
+</Callout>
+
+Use `getItem` to change an item or filter pages:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  rss: {
+    async getItem(page) {
+      if (!page.url.startsWith("/blog/")) return;
+
+      return {
+        title: page.data.title,
+        link: this.absoluteUrl(page.url),
+        description: page.data.description,
+        pubDate: await this.getPageCreatedAt(page),
+      };
+    },
+  },
+});
+```
+
+For entries that aren't pages, add `additionalItems`. Their `link` must be a full URL.
+
+### Additional Feeds
+
+`buildRSS` of the `plugins/rss` module turns a channel into XML. Serve it from an [API route](./authoring/routes.mdx#api-routes):
+
+```tsx title="press.config.tsx"
+createPress(content).plugins({
+  name: "blog-rss",
+  routes({ createApi }) {
+    createApi({
+      path: "/blog/rss.xml",
+      render: "static",
+      GET: () =>
+        new Response(
+          buildRSS({
+            title: "My Blog",
+            link: this.absoluteUrl("/blog"),
+            description: "Posts from my blog",
+            items: [
+              {
+                title: "Hello World",
+                link: this.absoluteUrl("/blog/hello-world"),
+                pubDate: new Date("2026-08-29"),
+              },
+            ],
+          }),
+          { headers: { "Content-Type": "application/rss+xml" } },
+        ),
+    });
+  },
+});
+```
+
+### RSS Options
+
+<auto-type-table cwd path="../../packages/core/src/plugins/rss.ts" name="RSSOptions" />
+
+</section>
+
+<section id="og">
+
+Each content page gets an image with its title, description and site name, rendered by [Takumi](https://takumi.kane.tw).
+
+`ogImage` in the page data of any page sets its image: `title` and `description` for the default design, or a `node`. Plugin pages get it from `createView({ data })`, and every page from `transformPage`:
+
+```tsx title="press.config.tsx"
+createPress(content).plugins({
+  name: "site:og",
+  transformPage(data, { page }) {
+    if (page?.path.startsWith("reference/")) return { ogImage: { title: `API: ${data.title}` } };
+  },
+});
+```
+
+### Custom Image
+
+Return the image from `getImage` as `node`, a React element. The default size is 1200x630.
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  ogImage: {
+    getImage(page) {
+      return {
+        node: (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              padding: 80,
+              background: "#111",
+              color: "white",
+            }}
+          >
+            <p>{this.siteConfig.name}</p>
+            <h1>{page.data.title}</h1>
+          </div>
+        ),
+        options: { quality: 80 },
+      };
+    },
+  },
+});
+```
+
+### Fonts
+
+`googleFonts()` of the `plugins/takumi` module downloads the font files on every call. Call it outside `getImage()`:
+
+```tsx title="press.config.tsx"
+const fonts = googleFonts([{ name: "Geist", weight: [500, 800] }]);
+
+recommendedPreset({
+  ogImage: {
+    options: { fonts },
+  },
+});
+```
+
+`fontFromUrl()` does the same for a font file you host.
+
+</section>
+
+<section id="og-options">
+
+### Image Options
+
+<auto-type-table cwd path="../../packages/core/src/plugins/takumi.tsx" name="TakumiOptions" />
+
+</section>

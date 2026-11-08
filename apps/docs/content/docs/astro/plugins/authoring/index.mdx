@@ -1,0 +1,37 @@
+---
+title: Writing Plugins
+description: Add routes, UI and other features with your own plugin.
+---
+
+<include cwd>content/shared/plugins/authoring/index.mdx#intro</include>
+
+## Hooks
+
+<Cards>
+  <Card href="/docs/astro/plugins/authoring/routes" title="Routes">
+    Add pages and API routes.
+  </Card>
+  <Card href="/docs/astro/plugins/authoring/ui" title="UI">
+    Add buttons, navbar links and head tags, or render a source your way.
+  </Card>
+  <Card href="/docs/astro/plugins/authoring/server" title="Middleware and Lifecycle">
+    Handle requests, or run code at startup and after the build.
+  </Card>
+  <Card href="/docs/astro/content-sources/custom" title="Custom Source">
+    Render pages from anywhere, with content hooks like `getPageBody`.
+  </Card>
+</Cards>
+
+## Sharing Plugins
+
+In these samples, `AppShape` and `Plugin` come from `@fumapress/astro/config`.
+
+<include cwd>content/shared/plugins/authoring/index.mdx#reusable</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#types</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#package</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#sharing-data</include>
+
+<include cwd>content/shared/plugins/authoring/index.mdx#search</include>

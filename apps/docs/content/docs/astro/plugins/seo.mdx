@@ -1,0 +1,39 @@
+---
+title: SEO
+description: The sitemap, robots.txt, RSS feed and Open Graph images of your site.
+---
+
+<include cwd>content/shared/plugins/seo.mdx#intro</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+
+createPress(content).config({
+  preset: recommendedPreset({
+    sitemap: { path: "/sitemap.xml" },
+    robots: { sitemap: false },
+    rss: { title: "My Docs", limit: 50 },
+    ogImage: { width: 1600, height: 840 },
+  }),
+});
+```
+
+## Sitemap
+
+<include cwd>content/shared/plugins/seo.mdx#sitemap</include>
+
+<include cwd>content/shared/plugins/seo.mdx#sitemap-options</include>
+
+## robots.txt
+
+<include cwd>content/shared/plugins/seo.mdx#robots</include>
+
+## RSS
+
+<include cwd>content/shared/plugins/seo.mdx#rss</include>
+
+## Open Graph Images
+
+<include cwd>content/shared/plugins/seo.mdx#og</include>
+
+<include cwd>content/shared/plugins/seo.mdx#og-options</include>

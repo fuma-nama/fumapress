@@ -1,15 +1,12 @@
 {
   "compilerOptions": {
-    "target": "ES2025",
-    "lib": ["dom", "dom.iterable", "ES2025"],
-    "types": ["vite", "vite/client"],
+    "target": "ES2023",
+    "lib": ["dom", "dom.iterable", "ES2023"],
+    "types": ["node"],
     "jsx": "react-jsx",
-    "allowImportingTsExtensions": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "allowJs": true,
-    "checkJs": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -17,7 +14,8 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@fumapress/core": ["./src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist"]

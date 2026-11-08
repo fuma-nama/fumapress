@@ -1,0 +1,30 @@
+---
+title: Authentication
+description: Restrict your site or a section of it with middleware.
+---
+
+<include cwd>content/shared/authentication.mdx#why</include>
+
+Vercel, Netlify and Cloudflare serve prerendered pages and the files of `public/` without your server, so middleware never sees those requests. Render your content on demand to put it behind middleware.
+
+## Protecting the Whole Site
+
+### Render Content on Demand [step]
+
+Set `mode` to `force-dynamic`. Pages of every source render on demand, and so do the files generated from them, like `/llms.txt` and the search index.
+
+```tsx title="press.config.tsx"
+createPress(content, { mode: "force-dynamic" }); // [!code highlight]
+```
+
+[Custom pages](/docs/custom-pages#on-demand-rendering) are prerendered by default, so set `render: "dynamic"` in the `getConfig()` of each one you protect.
+
+### Add the Check [step]
+
+<include cwd>content/shared/authentication.mdx#check</include>
+
+## Protecting a Section
+
+<include cwd>content/shared/authentication.mdx#rest</include>
+
+<include cwd>content/shared/authentication.mdx#generated</include>

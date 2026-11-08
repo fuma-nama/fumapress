@@ -1,0 +1,119 @@
+---
+title: Deployment
+description: Build your site and put it online.
+---
+
+`fumapress build` writes the site to `dist/`. Deploy to a platform if anything renders on demand, or to a static host if nothing does.
+
+<include cwd>content/shared/deployment.mdx#routes</include>
+
+## What Needs a Server
+
+<include cwd>content/shared/deployment.mdx#server</include>
+
+[Self-hosted image optimization](/docs/content#image-optimization) and the `middleware` of a plugin that you list in `.plugins()`, like [authentication](/docs/authentication), need one too. A build without a server warns about that middleware.
+
+The default plugins don't need a server. On a static build, they leave out what needs one, like the Markdown [content negotiation](/docs/plugins/ai#content-negotiation) of llms.txt.
+
+<include cwd>content/shared/deployment.mdx#mode</include>
+
+## Platforms
+
+The adapter for Vercel, Netlify or Cloudflare is detected at build time. Other platforms get the Node.js adapter. When nothing [needs a server](#what-needs-a-server), the build has no function, like a Vercel Function, and the platform serves static files.
+
+The platforms serve prerendered pages and the files of `public/` without your function, so middleware only runs for routes rendered on demand. On a Node.js server, it runs for every request.
+
+### Node.js
+
+```npm
+npm run build
+npm run start
+```
+
+To run the server without the CLI, like in a container:
+
+```bash
+PORT=8080 node dist/serve-node.js
+```
+
+### Vercel
+
+Import the repository.
+
+### Netlify
+
+Import the repository. The build generates a `netlify.toml`, unless your project has one. Commit it, or copy its settings into yours.
+
+<Callout type="warn">
+  Keep Pretty URLs off in your own `netlify.toml`, so that pages keep their URLs without a trailing
+  slash.
+</Callout>
+
+### Cloudflare
+
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) is detected for you. To deploy from elsewhere, [set the adapter](#building-for-another-platform), build, then run:
+
+```bash
+npx wrangler deploy
+```
+
+Workers Builds doesn't expose the site URL, so set [`site.baseUrl`](/docs/configuration#url).
+
+The build generates a `wrangler.jsonc`, unless your project has a Wrangler config. In your own config, keep `html_handling: "drop-trailing-slash"`, and set `assets.directory` to `./dist/public` when nothing needs a server.
+
+<Callout type="warn">
+  Open Graph images rendered on demand can exceed the 10 ms of CPU time per request on the Workers
+  Free plan.
+</Callout>
+
+### Building for Another Platform
+
+To build for a platform outside of its own build system, like in your own CI, set `adapter`:
+
+```ts title="vite.config.ts"
+press({
+  adapter: "waku/adapters/cloudflare",
+});
+```
+
+## Static Hosts
+
+For GitHub Pages, a CDN or any file host, the site must have [nothing that needs a server](#what-needs-a-server).
+
+### Turn Off Image Optimization [step]
+
+If you installed `sharp`, [turn off image optimization](/docs/content#disabling-optimization).
+
+### Upload the Build [step]
+
+Build, then upload `dist/public`.
+
+The build generates a `404.html`, which most hosts use automatically. With [internationalization](/docs/internationalization), it is in the default language.
+
+## Base Path
+
+For a URL like `https://user.github.io/repo/`, set `basePath` and include the path in `site.baseUrl`. On Cloudflare, this needs Wrangler 4.148 or later.
+
+```ts tab="vite.config.ts"
+press({
+  basePath: "/repo/",
+});
+```
+
+```tsx tab="press.config.tsx"
+createPress(content).config({
+  site: {
+    baseUrl: "https://user.github.io/repo",
+  },
+});
+```
+
+## Build Errors
+
+<Accordions>
+<Accordion title="fumapress must run through its own CLI">
+
+The build runs `vite` directly. Use [`fumapress build`](/docs/configuration#cli).
+
+</Accordion>
+</Accordions>

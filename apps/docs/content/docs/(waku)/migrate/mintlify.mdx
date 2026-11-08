@@ -1,0 +1,37 @@
+---
+title: Migrate from Mintlify
+description: Run your Mintlify docs on Fumapress, using your docs.json.
+---
+
+<include cwd>content/shared/migrate/mintlify.mdx#intro</include>
+
+## Setup
+
+### Install [step]
+
+<include cwd>content/shared/migrate/mintlify.mdx#install</include>
+
+### Move Your Files [step]
+
+<include cwd>content/shared/migrate/mintlify.mdx#move</include>
+
+### Add the Plugin [step]
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+// [!code ++]
+import { mintlifyPlugin } from "@fumapress/mintlify";
+
+const docs = defineDocs({ dir: "content/docs" });
+
+export default createPress({ docs: docs.toFumadocsSource() })
+  // [!code ++]
+  .plugins(mintlifyPlugin());
+```
+
+<include cwd>content/shared/migrate/mintlify.mdx#after</include>
+
+## Customization
+
+<include cwd>content/shared/migrate/mintlify.mdx#rest</include>

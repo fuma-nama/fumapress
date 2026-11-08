@@ -1,0 +1,152 @@
+<section id="main">
+
+Readers rate a page from a form below it, or comment on text they select. You decide where the messages go.
+
+## Setup
+
+### Install [step]
+
+```npm
+npm i @fumapress/feedback
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/feedback/css/preset.css";
+```
+
+### Choose Where Feedback Goes [step]
+
+Use one of these options. They all register the same routes, so a site can only have one.
+
+<Tabs items={["Your Server", "The Browser", "GitHub Discussions", "Email"]}>
+<Tab value="Your Server">
+
+Plain functions run on the server, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+```tsx title="press.config.tsx"
+import { feedbackPlugin } from "@fumapress/feedback";
+
+export default createPress(content).plugins(
+  feedbackPlugin({
+    async onPageFeedbackAction({ opinion, url, message }) {
+      await analytics.track("page-feedback", { opinion, url, message });
+      return {};
+    },
+    async onTextFeedbackAction({ url, blockId, blockBody, message }) {
+      const discussion = await createDiscussion({ url, blockId, blockBody, message });
+      return { githubUrl: discussion.url };
+    },
+  }),
+);
+```
+
+The returned `githubUrl` or `emailSent` tells the form where the feedback went. Types are in `@fumapress/feedback/schema`.
+
+</Tab>
+<Tab value="The Browser">
+
+Export the action from a `"use client"` module. It runs in the browser, so it needs no server:
+
+```ts tab="src/feedback.ts"
+"use client";
+import type { ActionResponse, PageFeedback } from "@fumapress/feedback/schema";
+
+export async function onPageFeedbackAction(feedback: PageFeedback): Promise<ActionResponse> {
+  await fetch("https://feedback.acme.dev", { method: "POST", body: JSON.stringify(feedback) });
+  return {};
+}
+```
+
+```tsx tab="press.config.tsx"
+import { feedbackPlugin } from "@fumapress/feedback";
+import { onPageFeedbackAction } from "./src/feedback";
+
+feedbackPlugin({ onPageFeedbackAction });
+```
+
+</Tab>
+<Tab value="GitHub Discussions">
+
+Create a GitHub App, then a `Feedback` category in your GitHub Discussions. See [Managing private keys](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps) for the private key of the app.
+
+```tsx tab="press.config.tsx"
+import { githubFeedbackPlugin } from "@fumapress/feedback/github";
+
+export default createPress(content).plugins(
+  githubFeedbackPlugin({
+    appId: process.env.GITHUB_APP_ID!,
+    privateKey: process.env.GITHUB_PRIVATE_KEY!,
+    storage: {
+      owner: "acme",
+      repo: "docs",
+      category: "Feedback",
+    },
+  }),
+);
+```
+
+```dotenv tab=".env.local"
+GITHUB_APP_ID=...
+GITHUB_PRIVATE_KEY=...
+```
+
+<Callout type="warn">
+  GitHub has no spam filtering, and anonymous visitors can post through this plugin. Prefer another
+  service if you can, and [limit requests](#rate-limiting).
+</Callout>
+
+</Tab>
+<Tab value="Email">
+
+Messages are sent through [Resend](https://resend.com). [Create an API key](https://resend.com/api-keys), and [verify a sending domain](https://resend.com/docs/dashboard/domains/introduction) for the `from` address.
+
+```tsx tab="press.config.tsx"
+import { emailFeedbackPlugin } from "@fumapress/feedback/email";
+
+export default createPress(content).plugins(
+  emailFeedbackPlugin({
+    apiKey: process.env.RESEND_API_KEY!,
+    from: "Docs <feedback@yourdomain.com>",
+    to: "team@yourdomain.com", // one address or a list
+    subjectPrefix: "[Docs feedback]",
+  }),
+);
+```
+
+```dotenv tab=".env.local"
+RESEND_API_KEY=re_...
+```
+
+</Tab>
+</Tabs>
+
+## Rate Limiting
+
+<Callout type="warn">
+  Anyone can post, and the plugins don't limit field lengths or URL schemes. Add rate limiting and
+  bot checks before you go live.
+</Callout>
+
+Each plugin takes `beforeRequest`. Return a `Response` to reject a request:
+
+```tsx title="press.config.tsx"
+feedbackPlugin({
+  async beforeRequest(req) {
+    if (await isRateLimited(req)) return new Response("Too Many Requests", { status: 429 });
+  },
+});
+```
+
+</section>
+
+<section id="options">
+
+## Options
+
+<auto-type-table cwd path="../../packages/feedback/src/index.tsx" name="FeedbackPluginOptions" />
+
+</section>

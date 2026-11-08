@@ -1,54 +1,54 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AppContext } from "@/app/context";
-import type { PressRoute, RouteFns } from "@/lib/types";
+import type { ApiRoute, RouteParams } from "@/routes";
+import type { I18nConfig } from "fumadocs-core/i18n";
+import type { VirtualFile } from "fumadocs-core/source";
+import { pressContext, type TestSite } from "./harness";
 import { takumiPlugin, type TakumiOptions } from "@/plugins/takumi";
-import type { RouteParams } from "@/lib/routes";
-import type { FC, ReactElement } from "react";
-import { localizePath } from "@/lib/i18n";
-import { joinPaths } from "@/lib/pathname";
 
-vi.mock("waku/router/server", () => ({
-  unstable_notFound() {
-    throw new Error("not found");
-  },
-}));
-
-type Api = Parameters<RouteFns["createApiIsomorphic"]>[0];
-
-const pages = [
-  { slugs: [], data: { title: "Home" } },
-  { slugs: ["docs", "page"], data: { title: "Page", description: "Description" } },
-];
-
-async function init(options: TakumiOptions, overrides: Partial<AppContext> = {}) {
-  const apis: Api[] = [];
-  const ctx = {
-    mode: "default",
-    data: {},
-    siteConfig: { name: "Site" },
-    interceptPageMeta() {},
-    localizePath: (lang: string | undefined, pathname: string) =>
-      localizePath(overrides.i18nConfig, lang, pathname),
-    absoluteUrl: (pathname: string) =>
-      overrides.siteConfig?.baseUrl ? joinPaths(overrides.siteConfig.baseUrl, pathname) : pathname,
-    getLoader: () => ({
-      getPages: () => pages,
-      getPage: (slugs: string[]) => pages.find((page) => page.slugs.join("/") === slugs.join("/")),
-    }),
-    ...overrides,
-  } as unknown as AppContext;
-  const plugin = takumiPlugin(options);
-
-  await plugin.init!.call(ctx);
-  await plugin.createPages!.call(ctx, {
-    createApiIsomorphic: (api: Api) => apis.push(api),
-  } as unknown as RouteFns);
-
-  return { apis };
+function page(file: string): VirtualFile {
+  return { type: "page", path: file, data: { title: file, description: `About ${file}` } };
 }
 
-async function readImage(api: Api, slugs: string[] = []) {
-  const res = await api.handler(new Request("http://localhost/"), { params: { slugs } });
+const i18n: I18nConfig = {
+  languages: ["en", "cn"],
+  defaultLanguage: "en",
+  hideLocale: "default-locale",
+};
+
+/** `docs/basics` is translated, `docs/only-en` falls back to English in `cn` */
+const files = [
+  page("index.mdx"),
+  page("docs/basics.mdx"),
+  page("docs/basics.cn.mdx"),
+  page("docs/only-en.mdx"),
+];
+const dynamic: Partial<TestSite> = { content: { files: () => files } };
+/** `docs/a` is prerendered, `live/b` renders on demand */
+const mixed: Partial<TestSite> = {
+  content: {
+    docs: { files: [page("docs/a.mdx")] },
+    live: { files: () => [page("live/b.mdx")] },
+  },
+};
+
+function createSite(options?: TakumiOptions, config: Partial<TestSite> = {}) {
+  return pressContext(
+    {
+      content: { files },
+      site: { name: "Site", baseUrl: "https://example.com/docs" },
+      plugins: [takumiPlugin(options)],
+      ...config,
+    },
+    { base: "/docs" },
+  );
+}
+
+function request(route: ApiRoute, slugs: string[]) {
+  return route.GET!(new Request("https://example.com/"), { params: { slugs } });
+}
+
+async function readImage(route: ApiRoute, slugs: string[]) {
+  const res = await request(route, slugs);
   const bytes = new Uint8Array(await res.arrayBuffer());
 
   expect(res.headers.get("content-type")).toBe("image/webp");
@@ -56,155 +56,223 @@ async function readImage(api: Api, slugs: string[] = []) {
   return res;
 }
 
-describe("og:image", () => {
-  async function metaOf(options: TakumiOptions, overrides: Partial<AppContext>, page: object) {
-    let meta!: ReactElement<{ children: ReactElement[] }>;
-    await init(options, {
-      ...overrides,
-      interceptPageMeta(fn) {
-        meta = fn({ page, next: () => null } as never) as never;
-      },
-    } as Partial<AppContext>);
-    const image = meta.props.children[1] as ReactElement<{ page: object }, FC<{ page: object }>>;
-    const rendered = (await image.type(image.props)) as ReactElement<{ children: ReactElement[] }>;
-    return rendered.props.children[0]!.props as { content: string };
-  }
+describe("routes", () => {
+  it("serves the images of every language without fallback pages", async () => {
+    const ctx = await createSite({}, { i18n });
+    const routes = await ctx.getApiRoutes();
 
-  it("resolves the page image against the base URL", async () => {
-    const { content } = await metaOf(
-      {},
-      { siteConfig: { name: "Site", baseUrl: "https://example.com" } },
-      pages[1]!,
-    );
-    expect(content).toBe("https://example.com/docs/page.webp");
+    // the most specific first
+    expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
+      { path: "/cn/[...slugs]", render: "static", staticPaths: [["docs", "basics.webp"]] },
+      {
+        path: "/[...slugs]",
+        render: "static",
+        staticPaths: [["index.webp"], ["docs", "basics.webp"], ["docs", "only-en.webp"]],
+      },
+    ]);
+
+    await readImage(routes[1]!, ["index.webp"]);
+    await readImage(routes[0]!, ["docs", "basics.webp"]);
+    expect((await request(routes[1]!, ["docs", "missing.webp"])).status).toBe(404);
   });
 
-  it("follows locale and the dynamic base path", async () => {
-    const { content } = await metaOf(
-      {},
-      { mode: "dynamic", i18nConfig: { languages: ["en", "cn"], defaultLanguage: "en" } as never },
-      { slugs: ["docs"], locale: "cn", path: "docs.cn.mdx" },
-    );
-    expect(content).toBe("/cn/_takumi/docs.webp");
+  it("renders on demand on a dynamic source, under `/_takumi` or `path`", async () => {
+    const routes = async (options: TakumiOptions) =>
+      (await createSite(options, dynamic)).getApiRoutes();
+
+    expect(await routes({})).toMatchObject([{ path: "/_takumi/[...slugs]", render: "dynamic" }]);
+    const [route] = await routes({ path: "/images/" });
+    expect(route).toMatchObject({ path: "/images/[...slugs]", render: "dynamic" });
+    await readImage(route!, ["docs", "only-en.webp"]);
+    expect((await request(route!, ["index.webp"])).headers.get("Cache-Control")).toBeNull();
+  });
+
+  it("gives the images rendered on demand the `staleTime` of their source", async () => {
+    const [route] = await (
+      await createSite({}, { content: { files: () => files, staleTime: 5000 } })
+    ).getApiRoutes();
+    const res = await readImage(route!, ["docs", "only-en.webp"]);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=5");
+  });
+
+  it("prerenders the images of static sources next to the on-request route of dynamic ones", async () => {
+    const routes = await (await createSite({}, mixed)).getApiRoutes();
+
+    expect(routes.map(({ path, render, staticPaths }) => ({ path, render, staticPaths }))).toEqual([
+      { path: "/_takumi/[...slugs]", render: "dynamic", staticPaths: undefined },
+      { path: "/[...slugs]", render: "static", staticPaths: [["docs", "a.webp"]] },
+    ]);
+    await readImage(routes[0]!, ["live", "b.webp"]);
+    await readImage(routes[1]!, ["docs", "a.webp"]);
+  });
+
+  it("takes both routes at `path`, the static one first for frameworks registering its pattern once", async () => {
+    const routes = await (await createSite({ path: "/images" }, mixed)).getApiRoutes();
+
+    expect(routes.map(({ path, render }) => [path, render])).toEqual([
+      ["/images/[...slugs]", "static"],
+      ["/images/[...slugs]", "dynamic"],
+    ]);
   });
 });
 
-describe("routes", () => {
-  it("registers page images", async () => {
-    const { apis } = await init({});
+describe("page image", () => {
+  async function headOf(slugs: string[], options?: TakumiOptions, config?: Partial<TestSite>) {
+    const ctx = await createSite(options, config);
+    const page = (await ctx.getLoader()).getPage(slugs, config?.i18n ? "cn" : undefined);
+    return ctx.getHead({ lang: page!.locale, page: page! });
+  }
 
-    expect(apis.map((api) => [api.path, api.render])).toEqual([["/[...slugs]", "static"]]);
-    expect(apis[0]!.staticPaths).toEqual([["index.webp"], ["docs", "page.webp"]]);
+  const imageOf = async (slugs: string[], options?: TakumiOptions, config?: Partial<TestSite>) =>
+    (await headOf(slugs, options, config)).find((tag) => tag.attrs?.property === "og:image")?.attrs
+      ?.content;
+
+  it("adds the meta tags of content pages", async () => {
+    const url = "https://example.com/docs/docs/basics.webp";
+
+    const tags = await headOf(["docs", "basics"], { width: 600, height: 315 });
+    expect(
+      tags.filter((tag) => /^(og:image|twitter:card)/.test(tag.attrs?.property ?? "")),
+    ).toEqual([
+      { tag: "meta", attrs: { property: "og:image", content: url } },
+      { tag: "meta", attrs: { property: "og:image:width", content: "600" } },
+      { tag: "meta", attrs: { property: "og:image:height", content: "315" } },
+      { tag: "meta", attrs: { property: "twitter:card", content: "summary_large_image" } },
+    ]);
+    await expect((await createSite()).getHead({ lang: undefined })).resolves.toEqual([]);
   });
 
-  it("applies shared options under the ones from generate()", async () => {
-    const { apis } = await init({
-      options: { headers: { "x-shared": "1" } },
-      generate: () => ({ node: <div>Page</div>, options: { status: 201 } }),
-    });
+  const origin = "https://example.com/docs";
+  const basics = ["docs", "basics"];
 
-    const page = await readImage(apis[0]!, ["docs", "page.webp"]);
-    expect(page.status).toBe(201);
-    expect(page.headers.get("x-shared")).toBe("1");
+  it.each<[string, string[], Partial<TestSite> | undefined, string]>([
+    ["localizes the image", basics, { i18n }, `${origin}/cn/docs/basics.webp`],
+    [
+      "uses the origin's on fallback pages",
+      ["docs", "only-en"],
+      { i18n },
+      `${origin}/docs/only-en.webp`,
+    ],
+    ["names the root image `index`", [], undefined, `${origin}/index.webp`],
+    [
+      "serves under `/_takumi` on a dynamic source",
+      basics,
+      dynamic,
+      `${origin}/_takumi/docs/basics.webp`,
+    ],
+    ["follows a static source of a mixed site", ["docs", "a"], mixed, `${origin}/docs/a.webp`],
+    [
+      "follows a dynamic source of a mixed site",
+      ["live", "b"],
+      mixed,
+      `${origin}/_takumi/live/b.webp`,
+    ],
+    [
+      "falls back to the base path without `site.baseUrl`",
+      basics,
+      { site: { name: "Site" } },
+      "/docs/docs/basics.webp",
+    ],
+  ])("%s", async (_, slugs, config, expected) => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(imageOf(slugs, {}, config)).resolves.toBe(expected);
+  });
+
+  it("is under `path` for every source", async () => {
+    const options = { path: "/images" };
+
+    await expect(imageOf(["docs", "a"], options, mixed)).resolves.toBe(
+      `${origin}/images/docs/a.webp`,
+    );
+    await expect(imageOf(["live", "b"], options, mixed)).resolves.toBe(
+      `${origin}/images/live/b.webp`,
+    );
   });
 });
 
 describe("route images", () => {
-  async function createRoute(
-    partial: Partial<PressRoute> & { path: string },
-    siteConfig: object = { name: "Site" },
-  ) {
-    const apis: Api[] = [];
-    const route: PressRoute = {
-      render: "static",
-      component: () => null,
-      meta: [],
-      pages: [],
-      ...partial,
-    };
-    const ctx = {
-      mode: "default",
-      data: {},
-      siteConfig,
-      interceptPageMeta() {},
-      absoluteUrl: (pathname: string) =>
-        "baseUrl" in siteConfig ? joinPaths(siteConfig.baseUrl as string, pathname) : pathname,
-    } as unknown as AppContext;
-    const plugin = takumiPlugin();
-
-    await plugin.init!.call(ctx);
-    await plugin.configureRoutes!.call(ctx, {
-      createApiIsomorphic: (api: Api) => apis.push(api),
-      getRoutes: () => [route],
-    } as unknown as RouteFns);
-
-    return { apis, route };
-  }
-
-  function metaOf(route: PressRoute, path: string) {
-    const meta = route.meta[0]!({ path }) as ReactElement<{ children: ReactElement[] }>;
-    return meta.props.children[0]!.props as { property: string; content: string };
-  }
-
-  it("prerenders an image per static path and adds the meta tags", async () => {
-    const seen: RouteParams[] = [];
-    const { apis, route } = await createRoute({
-      path: "/tags/[tag]",
-      pages: [
-        { path: "/tags/react", params: { tag: "react" }, translations: [] },
-        { path: "/tags/vue", params: { tag: "vue" }, translations: [] },
-      ],
-      takumiOptions(params) {
-        seen.push(params);
-        return { title: `Tag ${params.tag}` };
-      },
-    });
-
-    expect(apis.map((api) => [api.path, api.render])).toEqual([
-      ["/tags/react.webp", "static"],
-      ["/tags/vue.webp", "static"],
-    ]);
-    await readImage(apis[0]!);
-    expect(seen).toEqual([{ tag: "react" }]);
-    expect(metaOf(route, "/tags/react")).toEqual({
-      property: "og:image",
-      content: "/tags/react.webp",
-    });
-  });
-
-  it("names the root image index.webp and resolves it against the base URL", async () => {
-    const { apis, route } = await createRoute(
+  it("draws the `ogImage` of page routes, with their head tags", async () => {
+    const ctx = await pressContext(
       {
-        path: "/",
-        pages: [{ path: "/", params: {}, translations: [] }],
-        takumiOptions: { node: <div /> },
+        content: { files: [] },
+        site: { baseUrl: "https://example.com/docs" },
+        plugins: [takumiPlugin()],
       },
-      { name: "Site", baseUrl: "https://example.com" },
+      {
+        base: "/docs/",
+        routes: [{ path: "/about", render: "static", data: { ogImage: { title: "About" } } }],
+      },
     );
+    const [route] = await ctx.getPageRoutes();
+    const image = (await ctx.getApiRoutes()).find((item) => item.path === "/about.webp");
 
-    expect(apis.map((api) => api.path)).toEqual(["/index.webp"]);
-    expect(metaOf(route, "/").content).toBe("https://example.com/index.webp");
+    expect(image?.render).toBe("static");
+    expect(await ctx.getHead({ lang: undefined, route, path: "/about" })).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:image", content: "https://example.com/docs/about.webp" },
+    });
   });
 
-  it("serves dynamic pages from an image route with their params", async () => {
-    const seen: RouteParams[] = [];
-    const { apis, route } = await createRoute({
-      path: "/[lang]/tags/[tag]",
-      render: "dynamic",
-      takumiOptions(params) {
-        seen.push(params);
-        return { title: String(params.tag) };
+  it("follows a page route rendered on demand under `/_takumi`", async () => {
+    const ctx = await pressContext(
+      {
+        content: { files: [] },
+        site: { baseUrl: "https://example.com" },
+        plugins: [takumiPlugin()],
       },
-    });
+      {
+        routes: [{ path: "/live/[id]", render: "dynamic", data: { ogImage: { title: "Live" } } }],
+      },
+    );
+    const [route] = await ctx.getPageRoutes();
+    const image = (await ctx.getApiRoutes()).find((item) => item.path === "/_takumi/live/[id]");
 
-    expect(apis.map((api) => [api.path, api.render])).toEqual([
-      ["/_takumi/[lang]/tags/[tag]", "dynamic"],
-    ]);
-    const res = await apis[0]!.handler(new Request("http://localhost/"), {
-      params: { lang: "en", tag: "react" },
+    expect(image?.render).toBe("dynamic");
+    expect(await ctx.getHead({ lang: undefined, route, path: "/live/42" })).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:image", content: "https://example.com/_takumi/live/42" },
     });
-    expect(res.headers.get("content-type")).toBe("image/webp");
-    expect(seen).toEqual([{ lang: "en", tag: "react" }]);
-    expect(metaOf(route, "/en/tags/react").content).toBe("/_takumi/en/tags/react");
+  });
+
+  it("follows the page data: an `ogImage` of `transformPage`, a function called with the params", async () => {
+    const image = vi.fn((params: RouteParams) => ({ title: `Live ${String(params.id)}` }));
+    const ctx = await pressContext(
+      {
+        content: { files: [] },
+        site: { baseUrl: "https://example.com" },
+        plugins: [
+          takumiPlugin(),
+          { transformPage: (_, { path }) => (path === "/about" ? { ogImage: {} } : undefined) },
+        ],
+      },
+      {
+        routes: [
+          { path: "/about", render: "static" },
+          { path: "/plain", render: "static" },
+          { path: "/live/[id]", render: "dynamic", data: { ogImage: image } },
+        ],
+      },
+    );
+    const [about, plain, live] = await ctx.getPageRoutes();
+    const paths = (await ctx.getApiRoutes()).map((route) => route.path);
+
+    expect(paths).toContain("/about.webp");
+    expect(paths).not.toContain("/plain.webp");
+    expect(await ctx.getHead({ lang: undefined, route: about!, path: "/about" })).toContainEqual(
+      expect.objectContaining({
+        attrs: { property: "og:image", content: "https://example.com/about.webp" },
+      }),
+    );
+    expect(
+      (await ctx.getHead({ lang: undefined, route: plain!, path: "/plain" })).some(
+        (tag) => tag.attrs?.property === "og:image",
+      ),
+    ).toBe(false);
+    // `ui.renderPage` gets data, not functions: Astro serializes it into the island
+    await expect(ctx.getPageData(live!, "/live/42")).resolves.toMatchObject({
+      ogImage: { title: "Live 42" },
+    });
+    expect(image).toHaveBeenCalledWith({ id: "42" });
   });
 });

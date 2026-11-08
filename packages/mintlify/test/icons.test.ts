@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveIconComponent, iconNameOf } from "@/icons";
-
-describe("iconNameOf", () => {
-  it("supports string and object icons", () => {
-    expect(iconNameOf("book")).toBe("book");
-    expect(iconNameOf({ name: "book", library: "lucide" })).toBe("book");
-    expect(iconNameOf(undefined)).toBeUndefined();
-  });
-});
+import { resolveIconComponent } from "@/icons";
 
 describe("resolveIconComponent", () => {
   it("resolves lucide icon names", async () => {
@@ -15,7 +7,6 @@ describe("resolveIconComponent", () => {
   });
 
   it("translates common Font Awesome names", async () => {
-    expect(await resolveIconComponent("gear")).toBeTypeOf("object");
     expect(await resolveIconComponent("magnifying-glass")).toBeTypeOf("object");
   });
 

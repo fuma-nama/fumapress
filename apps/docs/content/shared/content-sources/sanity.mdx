@@ -1,0 +1,108 @@
+## Setup
+
+### Set Up the Studio [step]
+
+Create a document type named `docs`, with these fields:
+
+| Field         | Type                          |
+| ------------- | ----------------------------- |
+| `title`       | string (required)             |
+| `slug`        | slug (required)               |
+| `description` | string                        |
+| `body`        | block content (Portable Text) |
+
+### Store the Project Settings [step]
+
+```ini title=".env.local"
+SANITY_STUDIO_PROJECT_ID=...
+SANITY_STUDIO_DATASET=...
+```
+
+### Install the Packages [step]
+
+```npm
+npm i @fumadocs/sanity @sanity/client
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { createSanitySource } from "@fumadocs/sanity";
+import sanityPlugin from "@fumadocs/sanity/press";
+import { createClient } from "@sanity/client";
+
+const source = createSanitySource({
+  client: createClient({
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
+    dataset: process.env.SANITY_STUDIO_DATASET,
+    apiVersion: "2024-12-04",
+  }),
+  docType: "docs",
+});
+
+export default createPress(source, {
+  alwaysRevalidate: true,
+}).plugins(sanityPlugin());
+```
+
+`alwaysRevalidate` shows Sanity edits right away. To refresh from a webhook instead, see [Refreshing Content](#refreshing-content).
+
+## Customization
+
+### URLs
+
+URLs come from the `slug` field, which can contain `/` for nested pages. Use `baseDir` to place pages under a prefix, or `generatePath` to set each path:
+
+```tsx title="press.config.tsx"
+createSanitySource({
+  // ...
+  baseDir: "docs",
+  generatePath(doc) {
+    return `${doc.slug?.current ?? doc._id}.mdx`;
+  },
+});
+```
+
+See the [Fumadocs Sanity integration](https://fumadocs.dev/docs/integrations/content/sanity) for all source options.
+
+### Custom Blocks
+
+Pass Portable Text `components` to render your own block types.
+
+```tsx title="press.config.tsx"
+import { Callout } from "fumadocs-ui/components/callout";
+
+sanityPlugin({
+  components: {
+    types: {
+      callout: ({ value }) => <Callout title={value.title}>{/* ... */}</Callout>,
+    },
+  },
+});
+```
+
+### Drafts
+
+To preview unpublished edits, create a second deployment that reads drafts. Its client uses the `drafts` perspective, which needs a token with read access and API version `2025-02-19` or later:
+
+```tsx title="press.config.tsx"
+const preview = process.env.SANITY_PREVIEW === "true";
+
+const source = createSanitySource({
+  client: createClient({
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
+    dataset: process.env.SANITY_STUDIO_DATASET,
+    apiVersion: "2025-02-19",
+    useCdn: false,
+    perspective: preview ? "drafts" : "published",
+    token: preview ? process.env.SANITY_API_READ_TOKEN : undefined,
+  }),
+  docType: "docs",
+});
+```
+
+Set `SANITY_PREVIEW` and the token only on the preview deployment, and keep it private, since anyone who can open it reads your drafts. [Authentication](../authentication.mdx) can restrict it.
+
+## Refreshing Content
+
+<include cwd>content/shared/content-sources/refresh.mdx</include>

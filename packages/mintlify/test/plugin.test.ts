@@ -1,103 +1,171 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { AppContext } from "fumapress";
-import { mintlifyPlugin } from "@/index";
-
-// `waku/router/server` needs the `react-server` condition, which this environment doesn't enable
-vi.mock("waku/router/server", () => ({}));
+import type { Context, PageData, ViewRoute } from "@fumapress/core";
+import type { Root } from "fumadocs-core/page-tree";
+import type { LoaderPlugin } from "fumadocs-core/source";
+import { MintlifyBannerBar } from "@/features/banner";
+import { notFoundView } from "@/features/not-found";
+import { mintlifyPlugin, type MintlifyPluginOptions } from "@/index";
+import { page } from "./fixtures/page-tree";
 
 const fixturesRoot = path.join(import.meta.dirname, "fixtures");
 
-function createContext(): AppContext {
-  const rootMetaInterceptors: ((opts: { next: () => unknown }) => unknown)[] = [];
-  let defaultLayoutProps = async () => ({});
-  let renderNotFound = () => null;
+/** views of this plugin are static, the request is unused */
+const env = { lang: undefined, request: new Request("https://example.com/404") };
 
-  return {
-    $context: undefined as never,
-    mode: "default",
-    getLoader: () => {
-      throw new Error("not implemented");
-    },
-    revalidateLoader: () => Promise.resolve(),
-    invalidateLoader: () => undefined,
-    plugins: [],
-    adapters: [],
-    data: {},
-    siteConfig: { name: "Test" },
-    get defaultLayoutProps() {
-      return defaultLayoutProps;
-    },
-    set defaultLayoutProps(value) {
-      defaultLayoutProps = value;
-    },
-    get renderNotFound() {
-      return renderNotFound;
-    },
-    set renderNotFound(value) {
-      renderNotFound = value;
-    },
-    interceptRootMeta(interceptor: (opts: { next: () => unknown }) => unknown) {
-      rootMetaInterceptors.push(interceptor);
-    },
-    interceptPageMeta() {},
-    renderRootMeta() {
-      return rootMetaInterceptors[0]?.({ next: () => null }) ?? null;
-    },
-  } as unknown as AppContext;
+/** the members of a context the plugin uses, the home page is `/` */
+const ctx = {
+  mode: "default",
+  languages: [undefined],
+  withBase: (pathname: string) => (pathname === "/" ? "/base" : `/base${pathname}`),
+  localizePath: (_lang: string | undefined, pathname: string) => pathname,
+  getLoader: async () => ({ getPageByUrl: () => ({}) }),
+} as unknown as Context;
+
+async function setup(options: Omit<MintlifyPluginOptions, "path" | "root"> = {}) {
+  const plugin = mintlifyPlugin({ path: "docs.json", root: fixturesRoot, ...options });
+  await plugin.init?.call(ctx);
+  return { ctx, plugin };
 }
 
+const off = {
+  theme: false,
+  navbar: false,
+  notFound: false,
+  redirects: false,
+  navigation: false,
+  appearance: false,
+  banner: false,
+  footer: false,
+  search: false,
+  metadata: false,
+};
+
 describe("mintlifyPlugin", () => {
-  it("wires docs.json features into the app context", async () => {
-    const ctx = createContext();
-    const plugin = mintlifyPlugin({ path: "docs.json", root: fixturesRoot });
+  it("adds head tags of every page and noindex to pages outside the navigation", async () => {
+    const { ctx, plugin } = await setup();
 
-    await plugin.init?.call(ctx);
+    const tags = (await plugin.head?.call(ctx, { lang: undefined })) ?? [];
+    expect(tags[0]?.tag).toBe("style");
+    expect(tags).toContainEqual({
+      tag: "script",
+      attrs: expect.objectContaining({ async: "async" }),
+    });
+    expect(tags).toContainEqual({
+      tag: "meta",
+      attrs: { property: "og:site_name", content: "Full Docs" },
+    });
 
-    // head injection
-    expect(ctx.renderRootMeta()).not.toBeNull();
-    // appearance + search + banner/footer provider hooks
-    expect(ctx.data["core:provider"]?.transformers?.length).toBeGreaterThanOrEqual(3);
-    // navigation transformers for docs & notebook layouts
-    expect(ctx.data["core:docs-layout"]?.transformers).toHaveLength(1);
-    expect(ctx.data["core:notebook-layout"]?.transformers).toHaveLength(1);
-    // custom 404
-    expect(ctx.renderNotFound.name).toContain("MintlifyNotFound");
-    // navbar defaults
-    const props = await ctx.defaultLayoutProps({ lang: undefined });
-    expect(props?.links?.length).toBeGreaterThanOrEqual(3);
-    expect(props?.themeSwitch).toEqual({ enabled: false });
+    const quickstart = { url: "/quickstart", path: "quickstart.mdx", slugs: ["quickstart"] };
+    const hidden = { url: "/hidden", path: "hidden.mdx", slugs: ["hidden"] };
+    expect(
+      await plugin.head?.call(ctx, { lang: undefined, page: quickstart as never }),
+    ).toBeUndefined();
+    expect(await plugin.head?.call(ctx, { lang: undefined, page: hidden as never })).toEqual([
+      { tag: "meta", attrs: { name: "robots", content: "noindex" } },
+    ]);
+  });
 
-    // redirects middleware
-    const middlewares = await plugin.createMiddlewares?.call(ctx, { app: null as never });
-    expect(middlewares).toHaveLength(1);
+  it("builds the page tree from the navigation", async () => {
+    const { ctx, plugin } = await setup();
+    const options = await plugin.configureLoader?.call(ctx, { baseUrl: "/" });
+    const [loaderPlugin] = (options?.plugins ?? []) as LoaderPlugin[];
+
+    const root: Root = {
+      $id: "root",
+      name: "Docs",
+      children: [page("index.mdx", "Home"), page("quickstart.mdx", "Quickstart")],
+    };
+    const tree = loaderPlugin?.transformPageTree?.root?.call({ locale: undefined } as never, root);
+
+    expect(tree?.name).toBe("Full Docs");
+    expect(tree?.children).toMatchObject([
+      {
+        type: "folder",
+        name: "Docs",
+        icon: expect.anything(),
+        children: [{ type: "folder", children: [{ name: "Home" }, { name: "Quickstart" }] }],
+      },
+    ]);
+  });
+
+  it("contributes navbar and provider props", async () => {
+    const { ctx, plugin } = await setup();
+
+    const options = await plugin.layoutProps?.call(ctx, { lang: undefined });
+    expect(options?.links?.length).toBeGreaterThanOrEqual(3);
+    expect(options?.nav?.title).toBeDefined();
+    expect(options?.themeSwitch).toEqual({ enabled: false });
+
+    const provider = await plugin.providerProps?.call(ctx, { lang: undefined });
+    expect(provider?.theme).toEqual({ defaultTheme: "dark", forcedTheme: "dark" });
+    expect(provider?.i18n?.translations?.["Search(search trigger)"]).toBe("Search the docs...");
+  });
+
+  it("adds the banner above the layout and the footer below it, site-wide", async () => {
+    const { ctx, plugin } = await setup();
+
+    expect(await plugin.slots?.call(ctx, { lang: undefined })).toMatchObject([
+      { name: "mintlify:banner", region: "banner", component: MintlifyBannerBar },
+      { name: "mintlify:footer", region: "layout-wrapper" },
+    ]);
+    expect(await plugin.slots?.call(ctx, { lang: undefined, page: {} as never })).toBeUndefined();
+  });
+
+  it("redirects requests", async () => {
+    const { ctx, plugin } = await setup();
+    const next = vi.fn(async () => new Response("page"));
+
+    const response = await plugin.middleware?.call(
+      ctx,
+      new Request("https://example.com/base/old/a/b"),
+      next,
+    );
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("Location")).toBe("/base/new/a/b");
+
+    await plugin.middleware?.call(ctx, new Request("https://example.com/base/other"), next);
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("adds the 404 page as a view", async () => {
+    const { ctx, plugin } = await setup();
+
+    const createView = vi.fn();
+    await plugin.routes?.call(ctx, { createApi: vi.fn(), createView });
+    const route: ViewRoute | undefined = createView.mock.calls[0]?.[0];
+    expect(route?.path).toBe("/404");
+    const view = await route?.view({}, env);
+    expect(view?.props).toEqual({ title: "Not found", description: "Try **searching**." });
+    expect(view?.node).toMatchObject({ type: "div" });
+  });
+
+  it("redirects the 404 page home by default", async () => {
+    const view = await notFoundView(ctx, {})?.view({}, env);
+    expect(view?.props.title).toBe("Page not found");
+    expect(JSON.stringify(view?.node)).toContain("0;url=/base");
+    expect(notFoundView(ctx, { 404: { redirect: false } })).toBeUndefined();
   });
 
   it("respects feature toggles", async () => {
-    const ctx = createContext();
-    const notFound = ctx.renderNotFound;
-    const plugin = mintlifyPlugin({
-      path: "docs.json",
-      root: fixturesRoot,
-      features: {
-        theme: false,
-        navbar: false,
-        notFound: false,
-        redirects: false,
-        navigation: false,
-        appearance: false,
-        banner: false,
-        footer: false,
-        search: false,
-        metadata: false,
-      },
-    });
+    const { ctx, plugin } = await setup({ features: off });
 
-    await plugin.init?.call(ctx);
+    expect(await plugin.head?.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.slots?.call(ctx, { lang: undefined })).toEqual([]);
+    expect(await plugin.configureLoader?.call(ctx, { baseUrl: "/" })).toBeUndefined();
+    expect(await plugin.layoutProps?.call(ctx, { lang: undefined })).toBeUndefined();
+    expect(await plugin.providerProps?.call(ctx, { lang: undefined })).toEqual({});
+    const createView = vi.fn();
+    await plugin.routes?.call(ctx, { createApi: vi.fn(), createView });
+    expect(createView).not.toHaveBeenCalled();
+    expect(
+      await plugin.transformPage?.call(ctx, { lastModified: new Date() } as PageData, {
+        lang: undefined,
+      }),
+    ).toBeUndefined();
 
-    expect(ctx.renderRootMeta()).toBeNull();
-    expect(ctx.data["core:docs-layout"]?.transformers).toBeUndefined();
-    expect(ctx.renderNotFound).toBe(notFound);
-    expect(await plugin.createMiddlewares?.call(ctx, { app: null as never })).toBeUndefined();
+    const next = vi.fn(async () => new Response("page"));
+    await plugin.middleware?.call(ctx, new Request("https://example.com/base/old/a"), next);
+    expect(next).toHaveBeenCalledOnce();
   });
 });

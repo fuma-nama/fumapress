@@ -1,0 +1,90 @@
+---
+title: Deployment
+description: Build your site and put it online.
+---
+
+`astro build` writes the site to `dist/`. Without an adapter, the whole site is static, so [deploy it](https://docs.astro.build/en/guides/deploy) to any static host. With an adapter, your `output` and `prerender` settings work as they do in Astro.
+
+<include cwd>content/shared/deployment.mdx#routes</include>
+
+## What Needs a Server
+
+Without an [adapter](#adapters), the build fails on anything in this list and prints the reason.
+
+<include cwd>content/shared/deployment.mdx#server</include>
+
+A plugin with `middleware` doesn't fail the build. Without an adapter, the build warns that its middleware never runs.
+
+<include cwd>content/shared/deployment.mdx#mode</include>
+
+With `output: "server"`, `auto` renders every source on demand, like other Astro routes. To build a dynamic source without an adapter, set `mode: "force-static"`.
+
+## Adapters
+
+Add an [adapter](https://docs.astro.build/en/guides/on-demand-rendering) to render routes on demand. Pages of static sources stay prerendered.
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  site: "https://acme.dev",
+  adapter: node({ mode: "standalone" }), // [!code ++]
+  integrations: [press()],
+});
+```
+
+<Callout type="warn">
+  With the Node.js adapter, start the server with `NODE_ENV=production`. Without it, React runs its
+  development build on the server.
+</Callout>
+
+```bash
+NODE_ENV=production node dist/server/entry.mjs
+```
+
+### Rendering Every Page on Demand
+
+With `output: "server"`, pages of static sources render on demand too, unless `mode` prerenders them. Use it when every page must run middleware, like [authentication](/docs/astro/authentication).
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  output: "server", // [!code ++]
+  adapter: node({ mode: "standalone" }),
+  integrations: [press()],
+});
+```
+
+### Post-Build Plugins
+
+Plugins like [link validation](/docs/astro/plugins/link-validation) read the pages that Astro prerenders during the build. A build that prerenders elsewhere, with `experimental.parallelPrerender` or an adapter prerendering outside of Node.js, fails and prints the reason.
+
+Files written by these plugins go to your Astro `outDir`, which is public on a static host.
+
+## Base Path
+
+For a URL like `https://user.github.io/repo/`, set `site` and `base`:
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  site: "https://user.github.io",
+  base: "/repo",
+  integrations: [press()],
+});
+```
+
+`page.url` and other loader paths don't include `base`, so use `withBase()` on [custom pages](/docs/astro/custom-pages#reading-content).
+
+## Build Errors
+
+The build stops with one of these messages:
+
+<Accordions>
+<Accordion title="content renders on demand, add an adapter to Astro">
+
+The build has a dynamic source, or content rendered on demand by `mode`. Add an [adapter](#adapters), or prerender the content with `mode: "force-static"`.
+
+</Accordion>
+<Accordion title='the route "/path" renders on demand, add an adapter to Astro'>
+
+A route needs a server. Add an [adapter](#adapters), or remove the plugin or page that adds the route.
+
+</Accordion>
+</Accordions>

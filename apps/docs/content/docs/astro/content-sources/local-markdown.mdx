@@ -1,0 +1,63 @@
+---
+title: Local Markdown
+description: Read Markdown files on the server.
+---
+
+[Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md) reads files on the server instead of compiling them in a bundler. Its pages render with your [MDX components](/docs/astro/content#components).
+
+<Callout type="warn">MDX `import` statements are not available.</Callout>
+
+## Setup
+
+### Install the Package [step]
+
+```npm
+npm i @fumadocs/local-md shiki
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { createPress } from "@fumapress/astro/config";
+import { localMd } from "@fumadocs/local-md";
+
+const docs = localMd({ dir: "content/docs" });
+
+export default createPress(docs.dynamicSource());
+```
+
+`dynamicSource()` reads files on the server, so the site [needs a server](/docs/astro/deployment#what-needs-a-server). To prerender the pages instead, pass `await docs.staticSource()`.
+
+## Content Updates
+
+Fumapress reads your files once. To see changes, use hot reload on the dev server, and refresh the content on a deployed site.
+
+### Hot Reload
+
+The dev server doesn't watch these files by default. Add the Vite plugin, then connect your source:
+
+```js tab="astro.config.mjs"
+import { localContentPlugin } from "@fumadocs/local-md/dev/vite"; // [!code ++]
+
+export default defineConfig({
+  integrations: [press()],
+  vite: {
+    plugins: [
+      tailwindcss(),
+      localContentPlugin(), // [!code ++]
+    ],
+  },
+});
+```
+
+```tsx tab="press.config.tsx"
+import { watchWithVite } from "@fumadocs/local-md/dev/vite";
+
+if (import.meta.env.DEV) watchWithVite(docs);
+```
+
+### Refreshing Content
+
+<include cwd>content/shared/content-sources/refresh.mdx</include>
+
+See [Local Markdown](https://fumadocs.dev/docs/integrations/content/local-md) in the Fumadocs docs for schemas and other options. [Local HTML](https://fumadocs.dev/docs/integrations/content/local-html) and [Python](https://fumadocs.dev/docs/integrations/content/python) sources work the same way.

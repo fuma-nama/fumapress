@@ -1,0 +1,71 @@
+<section id="setup">
+
+## Setup
+
+### Install the Package [step]
+
+```npm
+npm i fumadocs-obsidian
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "fumadocs-obsidian/css/preset.css";
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { obsidian } from "fumadocs-obsidian";
+import obsidianPlugin from "fumadocs-obsidian/press";
+
+const vault = obsidian({
+  dir: "public/vault",
+  url: (file) => `/vault/${file}`,
+});
+
+const plugin = obsidianPlugin({ vault }); // [!code highlight]
+
+export default createPress(vault.dynamicSource()).plugins(plugin);
+```
+
+</section>
+
+<section id="reload-intro">
+
+The dev server doesn't watch the vault by default. Add the Vite plugin, then connect your vault:
+
+</section>
+
+<section id="components">
+
+## Components
+
+Pass the Fumadocs UI defaults along with your own components, since `components` replaces the defaults:
+
+```tsx title="press.config.tsx"
+import defaultMdxComponents from "fumadocs-ui/mdx";
+
+obsidianPlugin({
+  vault,
+  components: {
+    ...defaultMdxComponents,
+    img: (props) => <img {...props} className="rounded-xl" />,
+  },
+});
+```
+
+</section>
+
+<section id="options">
+
+## Options
+
+<auto-type-table type="import('fumadocs-obsidian/press').ObsidianPluginOptions" />
+
+For schemas and remark or rehype plugins, like Mermaid and math, see the [Fumadocs Obsidian integration](https://fumadocs.dev/docs/integrations/content/obsidian).
+
+</section>

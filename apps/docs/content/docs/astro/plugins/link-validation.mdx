@@ -1,0 +1,25 @@
+---
+title: Link Validation
+description: Find broken links at build time.
+---
+
+<include cwd>content/shared/plugins/link-validation.mdx#intro</include>
+
+Add the plugin:
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "@fumapress/astro/plugins/link-validation";
+
+createPress(content).plugins(linkValidationPlugin());
+```
+
+It checks links in Fumadocs layouts and your content.
+
+<include cwd>content/shared/plugins/link-validation.mdx#rest</include>
+
+<Callout type="warn">
+  The file goes to your `outDir`, which is public on a static host. See [Post-Build
+  Plugins](/docs/astro/deployment#post-build-plugins).
+</Callout>
+
+<include cwd>content/shared/plugins/link-validation.mdx#options</include>

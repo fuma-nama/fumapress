@@ -2,7 +2,7 @@ import { z } from "zod/mini";
 
 export const blockFeedback = z.object({
   /** full URL of page where fired */
-  url: z.string(),
+  url: z.string().check(z.refine((url) => URL.canParse(url))),
   blockId: z.string(),
   message: z.string(),
 
@@ -13,7 +13,7 @@ export const blockFeedback = z.object({
 export const pageFeedback = z.object({
   opinion: z.enum(["good", "bad"]),
   /** full URL of page where fired */
-  url: z.string(),
+  url: z.string().check(z.refine((url) => URL.canParse(url))),
   message: z.string(),
 });
 

@@ -1,0 +1,26 @@
+---
+title: Feedback
+description: Collect feedback on pages and selected text.
+---
+
+<include cwd>content/shared/plugins/feedback.mdx#main</include>
+
+## Custom Layout
+
+The default layout places the form for you. In a [custom layout](/docs/astro/layouts#slots), place the `feedback:page` slot in your island:
+
+```tsx title="src/components/docs-island.tsx"
+export const DocsIsland = createIsland(
+  ({ layoutProps, pageData, toc, slots, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{children}</DocsBody>
+        {slots["feedback:page"]?.element} {/* [!code highlight] */}
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+<include cwd>content/shared/plugins/feedback.mdx#options</include>

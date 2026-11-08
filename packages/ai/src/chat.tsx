@@ -9,14 +9,22 @@ import {
   tool,
   type UIMessage,
 } from "ai";
-import type { AppShape, PressPlugin } from "fumapress";
+import type { AppShape, Awaitable, Plugin } from "@fumapress/core";
 import { createSearch, type PageDocument, type SearchOptions } from "./search";
 import z from "zod";
 import type { MergedDocumentSearchResults } from "flexsearch";
 import { aiTranslations } from "./i18n";
-import type { DocsLayoutContextData } from "fumapress/layouts/docs";
-import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import { type ElementType, isValidElement } from "react";
+
+/** what the UI sends: other roles and parts are the server's, a `file` part makes it download the URL */
+const messageParts = new Set(["text", "data-client", "reasoning", "step-start", "tool-search"]);
+
+function isChatMessage({ role, parts }: ChatUIMessage): boolean {
+  return (
+    (role === "user" || role === "assistant") &&
+    Array.isArray(parts) &&
+    parts.every((part) => messageParts.has(part.type))
+  );
+}
 
 export type ChatUIMessage = UIMessage<
   never,
@@ -24,10 +32,8 @@ export type ChatUIMessage = UIMessage<
   { search: InferUITool<SearchTool> }
 >;
 
-type Awaitable<T> = T | Promise<T>;
-
 export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<C> {
-  /** @default true */
+  /** add the chat around every page, docked by every layout reading `useLayoutProps()` @default true */
   configureUI?: boolean;
 
   model: LanguageModel;
@@ -37,75 +43,29 @@ export interface AIOptions<C extends AppShape = AppShape> extends SearchOptions<
   beforeRequest?: (request: Request) => Awaitable<Response | undefined>;
 }
 
-/** add AI chat */
+/** AI chat: the `/api/ai` endpoint, and the chat that layouts dock through the `aiChat` of `useLayoutProps()` */
 export function aiPlugin<C extends AppShape = AppShape>(
   options: AIOptions<NoInfer<C>>,
-): PressPlugin<C> {
+): Plugin<C, { slots: "ai:chat" }> {
   const { configureUI = true } = options;
 
   return {
     name: "ai:main",
-    async init() {
-      if (this.translationsConfig) {
-        // ensure language pack works correctly without calling `extend()`
-        this.translationsConfig.extend(aiTranslations());
-      }
-
-      if (configureUI) {
-        const { AIChatLayout } = await import("./components/chat");
-        const { DocsLayout } = await import("./components/layouts/docs");
-        const { DocsLayout: NotebookLayout } = await import("./components/layouts/notebook");
-
-        /**
-         * render the layout element from a client component, with the chat as its `aiChat` option.
-         *
-         * @param layout - the layout as a client component, defaults to the element type: Glass and Spacious layouts are client components already, and importing Spacious layout (Base UI only) would fail Radix UI builds.
-         * @param trigger - add a floating trigger, for layouts without their own
-         */
-        const initUI = (
-          data: DocsLayoutContextData<C>,
-          layout: ElementType | undefined,
-          trigger: boolean,
-        ) => {
-          (data.layoutInterceptors ??= []).push(({ props, next }) => {
-            const element = next(props);
-            if (!isValidElement<DocsLayoutProps>(element)) return element;
-
-            return (
-              <AIChatLayout
-                layout={layout ?? (element.type as ElementType)}
-                trigger={trigger}
-                {...element.props}
-              />
-            );
-          });
-        };
-
-        initUI((this.data["core:docs-layout"] ??= {}), DocsLayout, true);
-        initUI(
-          (this.data["core:notebook-layout"] ??= {}) as DocsLayoutContextData<C>,
-          NotebookLayout,
-          true,
-        );
-        initUI(
-          (this.data["core:glass-layout"] ??= {}) as DocsLayoutContextData<C>,
-          undefined,
-          false,
-        );
-        initUI(
-          (this.data["core:spacious-layout"] ??= {}) as DocsLayoutContextData<C>,
-          undefined,
-          false,
-        );
-      }
+    translations: aiTranslations(),
+    async slots({ page }) {
+      if (!configureUI || page) return;
+      const { AIChat } = await import("./components/chat");
+      return [
+        {
+          name: "ai:chat",
+          region: "layout-wrapper",
+          component: AIChat,
+          props: { api: this.withBase("/api/ai") },
+          order: -1,
+        },
+      ];
     },
-    createPages({ createApi }) {
-      if (this.mode === "static") {
-        throw new Error(
-          "[Fumapress] the @fumapress/ai plugin is not compatible with mode: 'static'",
-        );
-      }
-
+    routes({ createApi }) {
       const {
         model,
         beforeRequest,
@@ -136,49 +96,48 @@ export function aiPlugin<C extends AppShape = AppShape>(
 
       createApi({
         path: "/api/ai",
-        render: "dynamic",
-        handlers: {
-          async POST(req: Request) {
-            if (beforeRequest) {
-              const res = await beforeRequest(req);
-              if (res) return res;
-            }
+        async POST(req) {
+          if (beforeRequest) {
+            const res = await beforeRequest(req);
+            if (res) return res;
+          }
 
-            const reqJson: { messages: ChatUIMessage[] } = await req.json();
-            let locale: string | null = null;
+          const { messages } = (await req.json()) as { messages: ChatUIMessage[] };
+          if (!Array.isArray(messages) || !messages.every(isChatMessage))
+            return new Response("invalid messages", { status: 400 });
+          let locale: string | null = null;
 
-            const result = streamText({
-              model,
-              stopWhen: stepCountIs(5),
+          const result = streamText({
+            model,
+            stopWhen: stepCountIs(5),
+            tools: {
+              search: searchTool,
+            },
+            system: systemPrompt,
+            messages: await convertToModelMessages<ChatUIMessage>(messages, {
               tools: {
                 search: searchTool,
               },
-              system: systemPrompt,
-              messages: await convertToModelMessages<ChatUIMessage>(reqJson.messages, {
-                tools: {
-                  search: searchTool,
-                },
-                convertDataPart(part) {
-                  if (part.type === "data-client") {
-                    locale = part.data.locale;
+              convertDataPart(part) {
+                if (part.type === "data-client") {
+                  locale = part.data.locale;
 
-                    return {
-                      type: "text",
-                      text: `[Client Context: ${JSON.stringify(part.data)}]`,
-                    };
-                  }
-                },
-              }),
-              toolsContext: {
-                search: {
-                  locale,
-                },
+                  return {
+                    type: "text",
+                    text: `[Client Context: ${JSON.stringify(part.data)}]`,
+                  };
+                }
               },
-              toolChoice: "auto",
-            });
+            }),
+            toolsContext: {
+              search: {
+                locale,
+              },
+            },
+            toolChoice: "auto",
+          });
 
-            return result.toUIMessageStreamResponse();
-          },
+          return result.toUIMessageStreamResponse();
         },
       });
     },

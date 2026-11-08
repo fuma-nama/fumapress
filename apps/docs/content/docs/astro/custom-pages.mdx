@@ -1,0 +1,167 @@
+---
+title: Custom Pages
+description: Add landing pages, API routes and other pages outside your content.
+---
+
+For a landing page or other custom UI, add a file under `src/pages`. It uses [Astro's routing](https://docs.astro.build/en/guides/routing/), and takes priority over a plugin page at the same path.
+
+## Creating a Page
+
+```astro title="src/pages/about.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="About" description="About this project.">
+  <main>
+    <h1>About</h1>
+    <p>Built with Fumapress.</p>
+  </main>
+</HomeLayout>
+```
+
+It is available at `/about`. React components are islands on your page, like `<Stars client:load />`.
+
+To render the page on demand, add [`export const prerender = false`](https://docs.astro.build/en/guides/on-demand-rendering/). The site then [needs a server](/docs/astro/deployment#what-needs-a-server).
+
+<Callout type="warn">
+  Don't give a custom page the same URL as a content page. Astro warns about the collision. To leave
+  `/` free, put your content under a
+  [`baseDir`](/docs/astro/content-sources/collections#multiple-collections).
+</Callout>
+
+### Layouts
+
+`HomeLayout.astro` adds the navbar and the head tags of your site. Content in its `head` slot goes into `<head>`. Your editor lists its props.
+
+```astro title="src/pages/index.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+---
+
+<HomeLayout title="My Docs" description="The docs of my project.">
+  <main class="flex flex-1 flex-col items-center justify-center">
+    <h1 class="text-xl font-bold">Hello World</h1>
+    <a href={getPressContext().withBase("/docs")}>Open Docs</a>
+  </main>
+</HomeLayout>
+```
+
+### Dynamic Routes
+
+```astro title="src/pages/showcase/[slug].astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getStaticPaths() {
+  return Object.keys(items).map((slug) => ({ params: { slug } }));
+}
+
+const item = items[Astro.params.slug];
+---
+
+<HomeLayout title={item.title}>
+  <main>{item.description}</main>
+</HomeLayout>
+```
+
+### 404 Page
+
+```astro title="src/pages/404.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="Not Found">
+  <main class="p-8 text-center">This page doesn't exist.</main>
+</HomeLayout>
+```
+
+Without this file, Fumapress renders the not found page of Fumadocs UI. Pass `notFound` to `HomeLayout.astro` to reuse it.
+
+With [internationalization](/docs/astro/internationalization), the built-in page uses the language of the URL when a server renders it. In static builds, `404.html` is in the default language.
+
+## Reading Content
+
+`getPressContext()` gives you the loader and helpers of your site. To get its types, export `app` from your config:
+
+```tsx tab="press.config.tsx"
+export const app = createPress(content).plugins(/* ... */); // [!code highlight]
+
+export default app.config({/* ... */});
+```
+
+```astro tab="src/pages/all-pages.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+import type { app } from "../../press.config";
+
+const ctx = getPressContext<typeof app>();
+const pages = (await ctx.getLoader()).getPages();
+---
+
+<HomeLayout title="All Pages">
+  <ul>
+    {pages.map((page) => <li><a href={ctx.withBase(page.url)}>{page.data.title}</a></li>)}
+  </ul>
+</HomeLayout>
+```
+
+See the [Loader API](https://fumadocs.dev/docs/headless/source-api) for its other methods. If you are coming from Fumadocs, `getPressContext()` replaces your `lib/source.ts`.
+
+<Callout type="warn">
+  Page URLs don't include your `base` setting. Add it with `withBase()`.
+</Callout>
+
+### Rendering a Collection
+
+A collection you leave out of `createPress()` has no docs pages. Render its entries yourself, and pass `getProviderData(Astro)` so that links and your [MDX components](/docs/astro/content#components) work:
+
+```astro title="src/pages/guides/[slug].astro"
+---
+import { getCollection, render } from "astro:content";
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getProviderData } from "@fumapress/astro/runtime";
+import type { app } from "../../../press.config";
+
+export async function getStaticPaths() {
+  const guides = await getCollection("guides");
+  return guides.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const provider = getProviderData<typeof app>(Astro);
+---
+
+<HomeLayout title={entry.data.title}>
+  <Content provider={provider} />
+</HomeLayout>
+```
+
+## API Routes
+
+```ts title="src/pages/api/version.ts"
+import type { APIRoute } from "astro";
+
+export const prerender = false;
+
+export const GET: APIRoute = () => Response.json({ version: "1.0.0" });
+```
+
+Handlers can read `getPressContext()`. A route with `prerender = false` [needs a server](/docs/astro/deployment#what-needs-a-server).
+
+## Feature Support
+
+Some features of content pages work differently on custom pages:
+
+- **Languages**: create a page [per language](/docs/astro/internationalization#custom-pages).
+- **Sitemap**: pages with params aren't listed, so [add them](/docs/astro/plugins/seo#additional-pages).
+- **Open Graph images**: add `og:image` tags to the `head` slot of `HomeLayout.astro`.
+- **Markdown**: custom pages have no Markdown version.

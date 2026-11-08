@@ -1,32 +1,25 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import {
-  AIChatPanel,
-  AIChatProvider,
-  AIChatSearch,
-  AIChatTrigger,
-  useAIChat,
-} from "@fumadocs/ai-chat";
+import { AIChatPanel, AIChatProvider, AIChatSearch, useAIChat } from "@fumadocs/ai-chat";
+import { LayoutPropsProvider } from "@fumapress/core/ui/docs";
 import { DefaultChatTransport } from "ai";
 import { useI18n } from "fumadocs-ui/contexts/i18n";
-import type { DocsLayoutProps } from "fumadocs-ui/layouts/docs";
-import type { ElementType, ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import type { ChatUIMessage } from "@/chat";
-import { joinPaths } from "@/lib/pathname";
 
 export { AIChatPanel, AIChatTrigger, useAIChat } from "@fumadocs/ai-chat";
 
 /**
- * The chat state of the `/api/ai` endpoint, `Ctrl + /` opens it and `Escape` closes it.
+ * The chat of the `api` endpoint, `aiPlugin()` adds it around every page. `Ctrl + /` opens it, `Escape` closes it.
+ * Layouts dock it from the `aiChat` of `useLayoutProps()`: Docs and Notebook add a floating Ask AI button, Glass and
+ * Spacious show their own.
  */
-export function AIChat({ children }: { children: ReactNode }) {
+export function AIChat({ api, children }: { api: string; children: ReactNode }) {
   const { locale } = useI18n();
   const chat = useChat<ChatUIMessage>({
     id: "search",
     throttle: 40,
-    transport: new DefaultChatTransport({
-      api: joinPaths("/", import.meta.env.BASE_URL, "/api/ai"),
-    }),
+    transport: new DefaultChatTransport({ api }),
   });
 
   return (
@@ -44,33 +37,22 @@ export function AIChat({ children }: { children: ReactNode }) {
         ],
       })}
     >
-      {children}
+      <ChatLayoutProps>{children}</ChatLayoutProps>
     </AIChatProvider>
   );
 }
 
+function ChatLayoutProps({ children }: { children: ReactNode }) {
+  const { open, setOpen } = useAIChat();
+  // a new value re-renders the layout: once per open state, not per streamed part of a reply
+  const value = useMemo(
+    () => ({ aiChat: { open, onOpenChange: setOpen, panel: <AIChatPanel />, trigger: true } }),
+    [open, setOpen],
+  );
+
+  return <LayoutPropsProvider value={value}>{children}</LayoutPropsProvider>;
+}
+
 function renderPart(part: ChatUIMessage["parts"][number], live: boolean) {
   if (part.type === "tool-search") return <AIChatSearch part={part} live={live} />;
-}
-
-/**
- * Render a layout with the chat as its `aiChat` option, `trigger` adds a floating one for layouts without their own.
- */
-export function AIChatLayout({
-  layout: Layout,
-  trigger = false,
-  ...props
-}: DocsLayoutProps & { layout: ElementType; trigger?: boolean }) {
-  return (
-    <AIChat>
-      <ChatLayout layout={Layout} {...props} />
-      {trigger && <AIChatTrigger />}
-    </AIChat>
-  );
-}
-
-function ChatLayout({ layout: Layout, ...props }: DocsLayoutProps & { layout: ElementType }) {
-  const { open, setOpen } = useAIChat();
-
-  return <Layout {...props} aiChat={{ open, onOpenChange: setOpen, panel: <AIChatPanel /> }} />;
 }

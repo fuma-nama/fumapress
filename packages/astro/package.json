@@ -1,0 +1,102 @@
+{
+  "name": "@fumapress/astro",
+  "version": "0.1.0",
+  "description": "Fumapress on Astro",
+  "keywords": [
+    "Astro",
+    "Docs",
+    "Fumadocs",
+    "Fumapress",
+    "astro-integration",
+    "withastro"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "files": [
+    "dist",
+    "css"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js",
+    "./config": "./dist/config.js",
+    "./plugins/content-source": "./dist/plugins/content-source.js",
+    "./plugins/flexsearch": "./dist/plugins/flexsearch.js",
+    "./plugins/link-validation": "./dist/plugins/link-validation.js",
+    "./plugins/llms.txt": "./dist/plugins/llms.txt.js",
+    "./plugins/orama-search": "./dist/plugins/orama-search.js",
+    "./plugins/robots": "./dist/plugins/robots.js",
+    "./plugins/rss": "./dist/plugins/rss.js",
+    "./plugins/sitemap": "./dist/plugins/sitemap.js",
+    "./plugins/takumi": "./dist/plugins/takumi.js",
+    "./runtime": "./dist/runtime.js",
+    "./package.json": "./package.json",
+    "./components/HomeLayout.astro": "./dist/components/HomeLayout.astro",
+    "./css/preset.css": "./css/preset.css",
+    "./css/default.css": "./css/default.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --clean false",
+    "test": "vitest",
+    "types:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fumapress/core": "workspace:^",
+    "devalue": "^6.0.2",
+    "flexsearch": "^0.8.212"
+  },
+  "devDependencies": {
+    "@astrojs/react": "^7.1.1",
+    "@fumadocs/astro": "^0.2.1",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "astro": "^7.4.2",
+    "fumadocs-core": "^16.18.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
+    "jsdom": "^29.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "tsdown": "0.23.0",
+    "typescript": "7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "@astrojs/react": "^7.0.0",
+    "@fumadocs/astro": "^0.2.1",
+    "@types/mdx": "*",
+    "@types/react": "*",
+    "astro": "^7.4.0",
+    "fumadocs-core": "^16.18.2",
+    "fumadocs-ui": "^16.18.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.0.0",
+    "takumi-js": "^2.14.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/mdx": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "tailwindcss": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  }
+}

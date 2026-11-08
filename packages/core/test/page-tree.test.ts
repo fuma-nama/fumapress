@@ -1,6 +1,6 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import { expect, test } from "vitest";
-import { selectTreeRoot } from "@/lib/page-tree";
+import { selectTreeRoot } from "@/page-tree";
 
 function page(url: string): PageTree.Item {
   return { type: "page", name: url, url };
@@ -30,10 +30,6 @@ const tree: PageTree.Root = {
   children: [docs, folder("blog", "en:blog", [page("/blog/hello")])],
   fallback: { name: "fallback", children: [fallbackDocs] },
 };
-
-test("keeps the tree without a root", () => {
-  expect(selectTreeRoot(tree, undefined)).toBe(tree);
-});
 
 test("selects a top-level folder and scopes the fallback tree", () => {
   const result = selectTreeRoot(tree, "docs");

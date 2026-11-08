@@ -1,8 +1,8 @@
 import type { TranslationPreset } from "fumadocs-core/i18n";
 import { zhCN as zhCNBase } from "@fumadocs/language/zh-cn";
 import type { Translations as AITranslations } from "@fumapress/ai/i18n";
+import type { Translations as BlogTranslations } from "@fumapress/blog/i18n";
 import type { Translations as FeedbackTranslations } from "@fumapress/feedback/i18n";
-import type { Translations as FumapressTranslations } from "fumapress/i18n";
 
 const feedback = {
   "How is this guide?(feedback)": "这份指南怎么样？",
@@ -48,7 +48,7 @@ const ai = {
   "Try again(AI chat)": "再试一次",
 } satisfies AITranslations;
 
-const fumapress = {
+const blog = {
   "Blog(blog)": "博客",
   "All Tags(blog tags page)": "全部标签",
   "{count} tags in total.(blog tags page)": "共 {count} 个标签。",
@@ -60,13 +60,13 @@ const fumapress = {
   "Copied(blog panel)": "已复制",
   "Newer post(blog post navigation)": "较新文章",
   "Older post(blog post navigation)": "较旧文章",
-} satisfies FumapressTranslations;
+} satisfies BlogTranslations;
 
 type Keys =
   | (ReturnType<typeof zhCNBase> extends TranslationPreset<infer K> ? K : never)
-  | keyof FumapressTranslations
-  | keyof FeedbackTranslations
-  | keyof AITranslations;
+  | keyof typeof blog
+  | keyof typeof feedback
+  | keyof typeof ai;
 
 /**
  * Simplified Chinese, including Fumadocs UI, OpenAPI, Story, and Fumapress translations.
@@ -77,7 +77,7 @@ export function zhCN(): TranslationPreset<Keys> {
     name: base.name,
     value: {
       ...base.value,
-      ...fumapress,
+      ...blog,
       ...feedback,
       ...ai,
     },

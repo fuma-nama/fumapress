@@ -1,0 +1,13 @@
+---
+import Layout from "../ui/Layout.astro";
+import { getHomeLayout, type HomeLayoutOptions } from "../routes/render.js";
+
+type Props = HomeLayoutOptions;
+
+const page = await getHomeLayout(Astro, Astro.props);
+---
+
+<Layout {...page}>
+  <slot name="head" slot="head" />
+  <slot />
+</Layout>

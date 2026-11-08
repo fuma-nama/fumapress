@@ -19,8 +19,6 @@ export const colorPairSchema = z.looseObject({
   dark: z.optional(hexColor),
 });
 
-export type MintlifyColorPair = output<typeof colorPairSchema>;
-
 /** an asset that can differ between light & dark mode */
 export const themedAssetSchema = z.union([
   z.string(),
@@ -29,8 +27,6 @@ export const themedAssetSchema = z.union([
     dark: z.string(),
   }),
 ]);
-
-export type MintlifyThemedAsset = output<typeof themedAssetSchema>;
 
 export const iconSchema = z.union([
   z.string(),
@@ -447,20 +443,11 @@ export const mintlifyDocsJsonSchema = z.looseObject({
 });
 
 export type MintlifyNavigation = output<typeof mintlifyNavigationSchema>;
-export type MintlifyNavbar = output<typeof mintlifyNavbarSchema>;
 export type MintlifyNavbarLink = output<typeof mintlifyNavbarLinkSchema>;
-export type MintlifyNavbarPrimary = output<typeof mintlifyNavbarPrimarySchema>;
 export type MintlifyRedirect = output<typeof mintlifyRedirectSchema>;
 export type MintlifyApiSource = output<typeof mintlifyApiSourceSchema>;
-/** @deprecated use `MintlifyApiSource` */
-export type MintlifyOpenAPISource = MintlifyApiSource;
-export type MintlifyApiConfig = output<typeof mintlifyApiSchema>;
 export type MintlifyDocsJson = output<typeof mintlifyDocsJsonSchema>;
-export type MintlifyLogo = MintlifyDocsJson["logo"];
-export type MintlifyAppearance = MintlifyDocsJson["appearance"];
-export type MintlifyBackground = MintlifyDocsJson["background"];
 export type MintlifyErrors = MintlifyDocsJson["errors"];
-export type MintlifySeo = MintlifyDocsJson["seo"];
 
 export function parseMintlifyDocsJson(input: unknown): MintlifyDocsJson {
   const result = mintlifyDocsJsonSchema.safeParse(input);

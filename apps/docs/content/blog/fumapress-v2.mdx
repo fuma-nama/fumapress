@@ -1,0 +1,214 @@
+---
+title: Fumapress v2
+description: Type-safety, Astro support, and smarter rendering mode.
+date: 2026-11-07
+tags: [release]
+authors: [fuma]
+---
+
+import { RenderingFigure } from "./fumapress-v2/rendering";
+
+Fumapress v2 is out. This release brings:
+
+- **Astro support:** use the same plugins, layouts and search on Astro.
+- **Smarter render mode:** the render mode of a route now matches the content it references.
+- **Type-safety:** your config is typed from your content sources and plugins.
+
+This is a major release, so existing sites need to rewrite their config. See [Upgrading](#upgrading).
+
+## Astro
+
+Until now, Fumapress only supported Waku.js. `@fumapress/astro` adds support for Astro:
+
+```npm
+npm create fumapress -- --framework astro
+```
+
+Astro still handles routing, builds and deployment. Your pages are stored in content collections, and Fumapress uses your `output`, adapter, `site` and `base` settings:
+
+```js tab="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  integrations: [press({ collections: { docs: { dir: "content" } } })],
+});
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+).config({
+  site: { name: "My Docs" },
+});
+```
+
+Custom pages are `.astro` files with React components as islands, and a [custom layout](/docs/astro/layouts#islands) is an `.astro` file that wraps a React island. `@fumapress/astro` needs Astro 7.4 and Node.js 22.23.4 or later.
+
+## Smarter Render Mode
+
+v1 had a `mode` option that set the render mode of the whole site. With a Notion source, `mode: "dynamic"` also rendered your Markdown pages on demand, even though they only change when you deploy.
+
+In v2, the render mode of a route matches the content it references by default. Pages of a dynamic source render on demand, pages of a static source are prerendered, and one site can have both:
+
+```tsx title="press.config.tsx"
+export default createPress({
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  guides: notion.dynamicSource({ baseDir: "guides" }),
+}).plugins(notionPlugin({ notion }));
+```
+
+<RenderingFigure />
+
+The `mode` option of `createPress()` can still force a render mode: `force-dynamic` renders your content on demand, and `force-static` prerenders a dynamic source at build time.
+
+## Type-Safety
+
+### `createPress()`
+
+`defineConfig()` is replaced by `createPress()`. You pass your content first, then plugins, then options:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { blogPlugin } from "@fumapress/blog";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({ dir: "content/docs" });
+const blog = defineDocs({ dir: "content/blog" });
+
+export const app = createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource(),
+}).plugins(blogPlugin({ source: "blog" }));
+
+export default app.config({
+  site: { name: "My Docs" },
+});
+```
+
+Each stage is typed from the ones before it, so your options have types for your source keys and for everything your plugins add. In other files, `typeof app` gives you the same types. `.config()` is optional when the defaults are enough.
+
+### JSX Layouts
+
+The layout factories are removed. A layout is now a Fumadocs UI component that you render in `ui.renderPage`. This function is called for every page, and `props.type` tells you the kind of page:
+
+```tsx title="press.config.tsx"
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      const { renderDefault } = props;
+      if (props.type !== "docs") return renderDefault();
+
+      return (
+        <DocsLayout {...props.layoutProps}>
+          <DocsPage toc={props.toc}>
+            <DocsTitle>{props.pageData.title}</DocsTitle>
+            <DocsBody>{props.body}</DocsBody>
+          </DocsPage>
+        </DocsLayout>
+      );
+    },
+  },
+});
+```
+
+The options of each factory are now props of these components. To change the source of a component, [copy it into your project](/docs/layouts#customizing-fumadocs-ui) with the Fumadocs CLI:
+
+```bash
+npx @fumadocs/cli add banner
+```
+
+On a Fumapress site, `add` only installs UI components. It rejects everything else and prints the reason.
+
+## Plugins
+
+Plugins now create routes with `createApi()` and `createView()` in the `routes` hook, and `ui.renderPage` receives their pages with typed props:
+
+```tsx tab="acme/index.tsx"
+import type { AppShape, Plugin } from "fumapress";
+
+type Types = {
+  views: { status: { ok: boolean } };
+};
+
+export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, Types> {
+  return {
+    name: "acme:status",
+    routes({ createApi, createView }) {
+      createApi({
+        path: "/api/status",
+        GET: () => Response.json({ ok: true }),
+      });
+      createView({
+        path: "/status",
+        view: () => ({ type: "status", props: { ok: true }, node: <p>All good.</p> }),
+      });
+    },
+  };
+}
+```
+
+```tsx tab="press.config.tsx"
+export const app = createPress(content).plugins(statusPlugin());
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      if (props.type === "status") return <main>{props.ok ? "Up" : "Down"}</main>;
+      return props.renderDefault();
+    },
+  },
+});
+```
+
+Fumapress checks the routes of all plugins. When two plugins use the same path, it throws an error with both names:
+
+```text
+[Fumapress] "acme:status" and "acme:health" both take the path "/status": a path has one route.
+```
+
+A route at the path of a page from a static source also fails the build. A dynamic source can add pages at any time, so the route takes priority over its pages.
+
+Integrations moved out of `fumapress`. The OpenAPI, AsyncAPI, GraphQL, Notion, Sanity and Obsidian plugins are now exported by the Fumadocs packages, like `fumadocs-openapi/press`. The blog is now a separate package, [`@fumapress/blog`](/docs/plugins/blog).
+
+## Client Navigation
+
+On Waku.js, every page used to include the whole page tree. The page tree is now a separate file that the browser fetches once per language. A site with 2000 pages used to crash the build. It now builds, and a client navigation on that site transfers 3.5 KB.
+
+Client state no longer carries over to the next page. Before, a selected code tab could leave a tab group on the next page with no content.
+
+## Security Fixes
+
+- URLs like `//docs` and `/%64ocs` now redirect to `/docs`, so [a prefix check in middleware](/docs/authentication#protecting-a-section) also covers them.
+- The self-hosted image optimizer now resolves relative images from `site.baseUrl` instead of the `Host` header, and limits its memory use.
+- `/api/ai` now rejects system messages and message parts that the UI never sends.
+
+## Upgrading
+
+v2 is `fumapress` 2.0.0. It needs `fumadocs-core` and the Base UI build of `fumadocs-ui` 16.18.2 or later, and `fumadocs-mdx` 15.5.1 or later:
+
+```npm
+npm i fumapress@latest
+npm i fumadocs-core@latest fumadocs-mdx@latest
+npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
+```
+
+Then follow the [upgrade guide](/docs/migrate/v2). If you didn't customize your site, rewriting the config is enough. Otherwise, the guide has a section for each feature, so you only need to read the ones your site uses.
+
+New to Fumapress? Each framework has its own docs:
+
+<Cards>
+  <Card href="/docs" title="Waku.js">
+    Create a site with React Server Components.
+  </Card>
+  <Card href="/docs/astro" title="Astro">
+    Create a site with your pages in content collections.
+  </Card>
+</Cards>

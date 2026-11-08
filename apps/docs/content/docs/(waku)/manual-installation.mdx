@@ -1,0 +1,131 @@
+---
+title: Manual Installation
+description: Add Fumapress to a project yourself.
+---
+
+This guide creates by hand the files that `npm create fumapress` generates.
+
+## Setup
+
+### Install Dependencies [step]
+
+```npm
+npm i fumapress
+npm i fumadocs-core fumadocs-mdx
+npm i fumadocs-ui@npm:@fumadocs/base-ui @base-ui/react
+npm i react react-dom
+
+npm i vite tailwindcss @tailwindcss/vite -D
+npm i typescript @types/mdx @types/node @types/react @types/react-dom -D
+```
+
+Fumapress uses the [Base UI build](https://fumadocs.dev/docs/ui/component-library) of Fumadocs UI, installed as `fumadocs-ui`.
+
+### Create the Config Files [step]
+
+```ts tab="vite.config.ts"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import press from "fumapress/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
+
+export default defineConfig({
+  plugins: [press(), fumadocsMdx(), tailwindcss()],
+});
+```
+
+```tsx tab="press.config.tsx"
+import { createPress } from "fumapress";
+import { metaSchema, pageSchema } from "fumapress/schema";
+import { defineDocs } from "fumadocs-mdx/macro";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    async: true,
+    schema: pageSchema,
+    lastModified: true,
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema,
+  },
+});
+
+export default createPress(docs.toFumadocsSource()).config({
+  site: {
+    name: "My Docs",
+    // the URL of your deployed site, for the sitemap and other full URLs
+    // baseUrl: "https://example.com",
+  },
+});
+```
+
+```css tab="src/app.css"
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+```
+
+```json tab="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["dom", "dom.iterable", "ES2023"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+The [Fumadocs CLI](/docs/layouts#customizing-fumadocs-ui) uses the `paths` alias in the files it copies.
+
+### Update package.json [step]
+
+```json title="package.json"
+{
+  // [!code ++]
+  "type": "module",
+  "scripts": {
+    // [!code ++:4]
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start",
+    "types:check": "tsc --noEmit"
+  }
+}
+```
+
+### Write Your First Page [step]
+
+```mdx title="content/index.mdx"
+---
+title: My Page
+description: Hello World
+---
+
+## Overview
+
+This is my first document.
+```
+
+### Start the Site [step]
+
+```npm
+npm run dev
+```

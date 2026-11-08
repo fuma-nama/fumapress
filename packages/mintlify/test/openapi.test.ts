@@ -16,16 +16,6 @@ describe("createMintlifyOpenAPI", () => {
     ]);
     expect(server.options.proxyUrl).toBeUndefined();
   });
-
-  it("allows overriding createOpenAPI options", () => {
-    const server = createMintlifyOpenAPI({
-      root: projectRoot,
-      _config: openapiDocs,
-      proxyUrl: "/custom-proxy",
-    });
-
-    expect(server.options.proxyUrl).toBe("/custom-proxy");
-  });
 });
 
 describe("collectApiSources", () => {

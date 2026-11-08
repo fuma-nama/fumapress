@@ -1,0 +1,235 @@
+---
+title: Custom Pages
+description: Add landing pages, API routes and other pages outside your content.
+---
+
+For a landing page or other custom UI, add a file under `src/pages`. It uses [Waku's routing](https://waku.gg/#routing), and takes priority over a plugin page at the same path.
+
+## Creating a Page
+
+```tsx title="src/pages/about.tsx"
+export default function Page() {
+  return (
+    <main>
+      <h1>About</h1>
+      <p>Built with Fumapress.</p>
+    </main>
+  );
+}
+```
+
+It is available at `/about`. Custom pages are [React Server Components](https://www.joshwcomeau.com/react/server-components), and they are prerendered by default.
+
+<Callout type="warn">
+  Don't give a custom page the same URL as a content page. To leave `/` free, put your content under
+  a [`baseDir`](/docs/content-sources/fumadocs-mdx#multiple-sources).
+</Callout>
+
+### Page Data
+
+`data` in `getConfig()` is the page data of the page. Fumapress renders its `title` and `description` in `<head>`, and plugins read the rest, like `ogImage` for [Open Graph images](/docs/plugins/seo#custom-pages-1):
+
+```tsx title="src/pages/about.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
+export function getConfig() {
+  return {
+    data: { title: "About", description: "Who builds Acme." },
+  } satisfies WakuRouteConfig;
+}
+```
+
+### On-Demand Rendering
+
+Set `render` in `getConfig()`:
+
+```tsx title="src/pages/status.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
+export function getConfig() {
+  return { render: "dynamic" } satisfies WakuRouteConfig;
+}
+```
+
+### Layouts
+
+`_layout.tsx` wraps the pages in its folder. Show your site's navbar with the Home Layout:
+
+```tsx title="src/pages/_layout.tsx"
+import type { ReactNode } from "react";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import { getPressContext, type WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export default async function Layout({
+  lang,
+  children,
+}: WakuRouteProps<typeof app> & { children: ReactNode }) {
+  const layoutProps = await getPressContext<typeof app>().getLayoutProps({ lang });
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+
+  return <HomeLayout {...home}>{children}</HomeLayout>;
+}
+```
+
+### Dynamic Routes
+
+```tsx title="src/pages/showcase/[slug].tsx"
+import type { WakuRouteConfig, WakuRouteProps } from "fumapress";
+import type { app } from "../../../press.config";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getConfig() {
+  return {
+    render: "static",
+    staticPaths: Object.keys(items),
+    data: { title: "Showcase" },
+  } satisfies WakuRouteConfig;
+}
+
+type Props = WakuRouteProps<typeof app, "/showcase/[slug]">;
+
+export default function Showcase({ slug }: Props) {
+  const item = items[slug];
+  if (!item) return null;
+
+  return (
+    <main>
+      <h1>{item.title}</h1>
+      {item.description}
+    </main>
+  );
+}
+```
+
+`data` is the same for every path of the route. To give each path its own title, return it from [`head`](/docs/configuration#tags-per-page), which receives the `path`.
+
+### 404 Page
+
+```tsx title="src/pages/404.tsx"
+export default function NotFound() {
+  return <main>This page doesn't exist.</main>;
+}
+```
+
+Without this file, Fumapress renders the not found page of Fumadocs UI.
+
+With [internationalization](/docs/internationalization), the built-in page uses the language of the URL when a server renders it. In static builds, `404.html` is in the default language.
+
+## Reading Content
+
+`getPressContext()` gives you the loader and helpers of your site. To get its types, export `app` from your config:
+
+```tsx tab="press.config.tsx"
+export const app = createPress(content).plugins(/* ... */); // [!code highlight]
+
+export default app.config({/* ... */});
+```
+
+```tsx tab="src/pages/all-pages.tsx"
+import { getPressContext } from "fumapress";
+import { Link } from "fumapress/client";
+import type { app } from "../../press.config";
+
+export default async function Page() {
+  const loader = await getPressContext<typeof app>().getLoader();
+
+  return (
+    <ul>
+      {loader.getPages().map((page) => (
+        <li key={page.url}>
+          <Link href={page.url}>{page.data.title}</Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+See the [Loader API](https://fumadocs.dev/docs/headless/source-api) for its other methods. If you are coming from Fumadocs, `getPressContext()` replaces your `lib/source.ts`.
+
+## Navigation
+
+Import the client helpers from `fumapress/client`:
+
+```tsx title="src/components/nav.tsx"
+"use client";
+import { Link, useRouter } from "fumapress/client";
+
+export function Nav() {
+  const router = useRouter();
+
+  return (
+    <nav>
+      <Link href="/about">About</Link>
+      <p>{router.path}</p>
+      <button type="button" onClick={() => router.push("/docs", { scroll: false })}>
+        Docs
+      </button>
+    </nav>
+  );
+}
+```
+
+Use `Link` rather than `<a>`, so that [link validation](/docs/plugins/link-validation) can check it.
+
+The router also has `replace()`, `reload()`, `back()`, `forward()` and `prefetch()`, and the `query` and `hash` of the URL. Inside a `Link`, `useNavigationStatus()` returns `pending` while its navigation loads.
+
+In a server component, redirect or show the not found page with `fumapress/router`:
+
+```tsx title="src/pages/secret.tsx"
+import { notFound, redirect } from "fumapress/router";
+
+export default function Page() {
+  if (!isSignedIn()) redirect("/login");
+  if (!hasAccess()) notFound();
+
+  return <main>Secret</main>;
+}
+```
+
+## API Routes
+
+```ts title="src/pages/_api/version.ts"
+export async function GET() {
+  return Response.json({ version: "1.0.0" });
+}
+```
+
+The path under `_api` is the URL, so this one is `/version`. Name each handler after an HTTP method, or use a default export for all methods.
+
+API routes render on demand by default, and handlers can read `getPressContext()`. To generate a file at build time, use a single `GET` handler:
+
+```ts title="src/pages/_api/version.json.ts"
+export function getConfig() {
+  return { render: "static" };
+}
+
+export async function GET() {
+  return Response.json({ version: "1.0.0" });
+}
+```
+
+## Feature Support
+
+Some features of content pages work differently on custom pages:
+
+<Cards>
+  <Card href="/docs/internationalization#custom-pages" title="Languages">
+    Create a page once per language.
+  </Card>
+  <Card href="/docs/plugins/seo#custom-pages-1" title="Open Graph Images">
+    Give a page an image with `ogImage`.
+  </Card>
+  <Card href="/docs/plugins/ai#custom-pages" title="Markdown">
+    Give a page a Markdown version with `asMarkdown()`.
+  </Card>
+  <Card href="/docs/plugins/seo#additional-pages" title="Sitemap">
+    Pages with params aren't listed, so add them.
+  </Card>
+</Cards>

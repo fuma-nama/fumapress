@@ -1,0 +1,166 @@
+<section id="intro">
+
+Turn a content source into a blog. Each post gets a page, like `/blog/hello-world`, with an index at `/blog` and tag pages at `/blog/tags`.
+
+</section>
+
+<section id="install">
+
+```npm
+npm i @fumapress/blog
+```
+
+</section>
+
+<section id="styles">
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/blog/css/preset.css";
+```
+
+</section>
+
+<section id="write">
+
+```mdx title="content/blog/hello-world.mdx"
+---
+title: My Blog Post
+description: Hello World!!!
+date: 2026-09-06
+tags: [my-tag]
+authors: [fuma]
+image: /covers/hello.png
+---
+
+## Introduction
+
+Welcome to my first blog post.
+```
+
+Posts are ordered by `date`. Each tag gets a page, and `image` shows on post cards.
+
+### Authors
+
+The keys of `authors` are the IDs in the frontmatter. An ID that isn't registered shows as the plain ID.
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  authors: {
+    fuma: {
+      name: "Fuma Nama",
+      title: "Maintainer",
+      url: "https://fuma-nama.dev",
+      image: "https://github.com/fuma-nama.png",
+    },
+  },
+});
+```
+
+<auto-type-table type="import('@fumapress/blog').BlogAuthor" />
+
+</section>
+
+<section id="rest">
+
+### Other Content Sources
+
+Posts can come from any content source, like Notion. The date comes from the `getPageCreatedAt` hook of its plugin. These options read the other fields when they aren't in the frontmatter:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  getTags: (page) => page.data.tags,
+  getAuthors: (page) => page.data.authors,
+  getImage: (page) => page.data.image,
+});
+```
+
+To use multiple sources as posts, pass their keys:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: ["blog", "news"],
+  getTags: (page) => page.data.tags ?? [page.type],
+});
+```
+
+### URLs
+
+Set a path to move a page, or `false` to remove it:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  paths: {
+    index: "/news",
+    tags: false,
+  },
+});
+```
+
+### Custom UI
+
+In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`. The other pages are `blog.index`, `blog.tags` and `blog.tag`. This example replaces the index, and renders the built-in post in another layout:
+
+```tsx title="press.config.tsx"
+import { BlogPostView } from "@fumapress/blog";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+
+renderPage(props) {
+  const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+  switch (props.type) {
+    case "blog.index":
+      return (
+        <HomeLayout {...home}>
+          <ul>
+            {props.posts.map((post) => (
+              <li key={post.page.url}>{post.page.data.title}</li>
+            ))}
+          </ul>
+        </HomeLayout>
+      );
+    case "blog":
+      return (
+        <HomeLayout {...home}>
+          <BlogPostView post={props.post} newer={props.newer} older={props.older}>
+            {props.body}
+          </BlogPostView>
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+},
+```
+
+`@fumapress/blog` also exports `BlogIndexView`, `BlogTagsView` and `BlogTagView`.
+
+</section>
+
+<section id="posts-lead">
+
+## Listing Posts
+
+`getBlogPosts()` returns all posts, newest first:
+
+</section>
+
+<section id="posts-tail">
+
+With [internationalization](../internationalization.mdx), pass the language: `getBlogPosts(ctx, { lang })`.
+
+</section>
+
+<section id="options">
+
+## Options
+
+<auto-type-table cwd path="../../packages/blog/src/plugin.tsx" name="BlogPluginOptions" />
+
+</section>
