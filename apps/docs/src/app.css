@@ -89,3 +89,32 @@
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
+
+/*
+ * the sponsors marquee fades into its card above the track instead of through a mask: a mask over moving content
+ * redraws every frame, which costs the GPU process about as much as the motion itself
+ */
+.fumari-sponsors-marquee-track {
+  position: relative;
+  mask-image: none;
+}
+
+.fumari-sponsors-marquee-track::before,
+.fumari-sponsors-marquee-track::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  z-index: 1;
+  width: 10%;
+  pointer-events: none;
+}
+
+.fumari-sponsors-marquee-track::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-fd-card), transparent);
+}
+
+.fumari-sponsors-marquee-track::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-fd-card), transparent);
+}
