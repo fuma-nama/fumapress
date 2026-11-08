@@ -93,10 +93,13 @@ import { HomeLayout } from "fumadocs-ui/layouts/home";
 
 renderPage(props) {
   const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
   switch (props.type) {
     case "changelog.index":
       return (
-        <HomeLayout {...props.baseOptions}>
+        <HomeLayout {...home}>
           <ChangelogIndexView
             entries={props.entries.filter((entry) => entry.packages.length > 0)}
           />

@@ -25,9 +25,23 @@ It is available at `/about`. Custom pages are [React Server Components](https://
   a [`baseDir`](/docs/content-sources/fumadocs-mdx#multiple-sources).
 </Callout>
 
+### Page Data
+
+`data` in `getConfig()` is the page data of the page. Fumapress renders its `title` and `description` in `<head>`, and plugins read the rest, like `ogImage` for [Open Graph images](/docs/plugins/seo#custom-pages-1):
+
+```tsx title="src/pages/about.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
+export function getConfig() {
+  return {
+    data: { title: "About", description: "Who builds Acme." },
+  } satisfies WakuRouteConfig;
+}
+```
+
 ### On-Demand Rendering
 
-Export `getConfig()`:
+Set `render` in `getConfig()`:
 
 ```tsx title="src/pages/status.tsx"
 import type { WakuRouteConfig } from "fumapress";
@@ -51,8 +65,12 @@ export default async function Layout({
   lang,
   children,
 }: WakuRouteProps<typeof app> & { children: ReactNode }) {
-  const ctx = getPressContext<typeof app>();
-  return <HomeLayout {...await ctx.getBaseOptions({ lang })}>{children}</HomeLayout>;
+  const layoutProps = await getPressContext<typeof app>().getLayoutProps({ lang });
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+
+  return <HomeLayout {...home}>{children}</HomeLayout>;
 }
 ```
 
@@ -70,6 +88,7 @@ export function getConfig() {
   return {
     render: "static",
     staticPaths: Object.keys(items),
+    data: { title: "Showcase" },
   } satisfies WakuRouteConfig;
 }
 
@@ -81,12 +100,14 @@ export default function Showcase({ slug }: Props) {
 
   return (
     <main>
-      <title>{item.title}</title>
+      <h1>{item.title}</h1>
       {item.description}
     </main>
   );
 }
 ```
+
+`data` is the same for every path of the route. To give each path its own title, return it from [`head`](/docs/configuration#tags-per-page), which receives the `path`.
 
 ### 404 Page
 
@@ -202,7 +223,7 @@ Some features of content pages work differently on custom pages:
   <Card href="/docs/internationalization#custom-pages" title="Languages">
     Create a page once per language.
   </Card>
-  <Card href="/docs/plugins/seo#custom-pages" title="Open Graph Images">
+  <Card href="/docs/plugins/seo#custom-pages-1" title="Open Graph Images">
     Give a page an image with `ogImage`.
   </Card>
   <Card href="/docs/plugins/ai#custom-pages" title="Markdown">

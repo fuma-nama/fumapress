@@ -13,12 +13,13 @@ export const plugins = [
     description: <>Built-in full-text search, on your server or in the browser.</>,
     keywords: ["search", "flexsearch"],
     docsHref: "/docs/search#search-engines",
-    usage: `import { createPress } from "fumapress";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
+    usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
   // ...
-}).plugins(flexsearchPlugin());`,
+}).config({
+  preset: recommendedPreset({ search: { render: "dynamic" } }),
+});`,
   },
   {
     id: "orama-search",
@@ -26,12 +27,14 @@ export default createPress({
     description: "Full-text search powered by ZBSearch with the same search dialog UX.",
     keywords: ["search", "orama", "zbsearch"],
     docsHref: "/docs/search#search-engines",
-    usage: `import { createPress } from "fumapress";
+    usage: `import { createPress, recommendedPreset } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
 export default createPress({
   // ...
-}).plugins(oramaSearchPlugin());`,
+})
+  .plugins(oramaSearchPlugin())
+  .config({ preset: recommendedPreset({ search: false }) });`,
   },
   {
     id: "llms",
@@ -44,12 +47,13 @@ export default createPress({
     ),
     keywords: ["llm", "ai", "markdown"],
     docsHref: "/docs/plugins/ai#llmstxt",
-    usage: `import { createPress } from "fumapress";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
+    usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
   // ...
-}).plugins(llmsPlugin());`,
+}).config({
+  preset: recommendedPreset({ llms: { routes: "all" } }),
+});`,
   },
   {
     id: "blog",
@@ -81,12 +85,13 @@ export default createPress({
     description: "Generate Open Graph images for every docs page automatically.",
     keywords: ["og", "open graph", "social"],
     docsHref: "/docs/plugins/seo#open-graph-images",
-    usage: `import { createPress } from "fumapress";
-import { takumiPlugin } from "fumapress/plugins/takumi";
+    usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
   // ...
-}).plugins(takumiPlugin());`,
+}).config({
+  preset: recommendedPreset({ ogImage: { width: 1600, height: 840 } }),
+});`,
   },
   {
     id: "image",
@@ -112,15 +117,12 @@ export default function Hero() {
     keywords: ["seo", "sitemap", "xml"],
     docsHref: "/docs/plugins/seo#sitemap",
     usage: `import { createPress } from "fumapress";
-import { sitemapPlugin } from "fumapress/plugins/sitemap";
 
 export default createPress({
   // ...
-})
-  .plugins(sitemapPlugin())
-  .config({
-    site: { baseUrl: "https://example.com" },
-  });`,
+}).config({
+  site: { baseUrl: "https://example.com" },
+});`,
   },
   {
     id: "link-validation",
@@ -221,9 +223,9 @@ export default createPress({
   // ...
 }).plugins(
   feedbackPlugin({
-    onPageFeedbackAction(data) {
-      "use server";
-      // ...
+    async onPageFeedbackAction(data) {
+      await analytics.track("page-feedback", data);
+      return {};
     },
   }),
 );`,

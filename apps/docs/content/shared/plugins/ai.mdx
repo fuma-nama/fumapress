@@ -174,13 +174,15 @@ A new site already has these files:
 Return the text of a page from `getLLMText`, or `undefined` to leave it out of `/llms-full.txt`:
 
 ```tsx title="press.config.tsx"
-llmsPlugin({
-  async getLLMText(page) {
-    if (page.path.startsWith("internal/")) return;
+recommendedPreset({
+  llms: {
+    async getLLMText(page) {
+      if (page.path.startsWith("internal/")) return;
 
-    return `# ${page.data.title} (${this.absoluteUrl(page.url)})
+      return `# ${page.data.title} (${this.absoluteUrl(page.url)})
 
 ${await this.getPageText(page)}`;
+    },
   },
 });
 ```
@@ -196,9 +198,9 @@ curl -H "Accept: text/markdown" https://docs.example.com/docs/install
 Turn it off with `autoRedirect: false`.
 
 <Callout>
-  This needs a server, so a static site ignores it. On Vercel, Netlify and Cloudflare, it only
-  applies to pages rendered on demand, because these platforms serve prerendered pages before your
-  server.
+  This needs a server, and a static build doesn't add one for it. On Vercel, Netlify and Cloudflare,
+  it only applies to pages rendered on demand, because these platforms serve prerendered pages
+  without your server.
 </Callout>
 
 </section>

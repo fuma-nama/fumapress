@@ -5,6 +5,7 @@
 `createPress()` takes your [content sources](./content-sources/index.mdx) and these options:
 
 - `i18n`: your [languages](./internationalization.mdx).
+- `mode`: when your content renders, see [Render Mode](./deployment.mdx#render-mode).
 - `alwaysRevalidate`: read [dynamic content](./content-sources/custom.mdx#refreshing-content) again on every request.
 - `loaderPlugins`, `url`, `pageTree` and the other [Fumadocs loader options](https://fumadocs.dev/docs/headless/source-api).
 
@@ -79,8 +80,8 @@ createPress(content).config({
   head({ page }) {
     if (!page)
       return [{ tag: "link", attrs: { rel: "icon", href: this.withBase("/favicon.ico") } }];
-    if (page.data.title === "Pricing")
-      return [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }];
+    if (page.path.startsWith("blog/"))
+      return [{ tag: "meta", attrs: { property: "og:type", content: "article" } }];
   },
 });
 ```
@@ -101,12 +102,12 @@ These options change the look of your site. Most of them are under `ui` in `.con
 
 ### Navbar and Links
 
-The navbar shows `site.name`, linked to your home page. `ui.baseOptions` adds links and changes the title for every layout:
+The navbar shows `site.name`, linked to your home page. `ui.layoutProps` adds links and changes the title for every layout:
 
 ```tsx title="press.config.tsx"
 createPress(content).config({
   ui: {
-    baseOptions: {
+    layoutProps: {
       nav: { title: "Acme" },
       links: [
         { url: "/blog", text: "Blog", active: "nested-url" },
@@ -117,7 +118,9 @@ createPress(content).config({
 });
 ```
 
-See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. Links from plugins come after yours. For other options, your value takes priority.
+See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. `ui.layoutProps` also takes the props that every docs layout shares, like `sidebar` and `tabs`.
+
+Links from plugins come after yours. For other options, your value takes priority.
 
 </section>
 
@@ -130,7 +133,7 @@ With [internationalization](./internationalization.mdx), use a function. `this.l
 ```tsx title="press.config.tsx"
 createPress(content, { i18n }).config({
   ui: {
-    baseOptions({ lang }) {
+    layoutProps({ lang }) {
       return {
         links: [
           {
@@ -148,7 +151,7 @@ createPress(content, { i18n }).config({
 
 <section id="navbar-file">
 
-To keep `baseOptions` in its own file, type it with `UIOptions`:
+To keep `layoutProps` in its own file, type it with `UIOptions`:
 
 </section>
 

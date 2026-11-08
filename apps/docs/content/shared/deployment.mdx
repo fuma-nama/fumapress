@@ -4,6 +4,38 @@ Pages of a static source are prerendered. Pages of a dynamic source, like [Notio
 
 </section>
 
+<section id="mode">
+
+## Render Mode
+
+The `mode` option of `createPress()` changes when content renders, for every source or by source key:
+
+```tsx title="press.config.tsx"
+createPress(
+  {
+    docs: docsSource,
+    guides: notion.dynamicSource({ baseDir: "guides" }),
+  },
+  { mode: { guides: "force-static" } },
+);
+```
+
+- `auto`: the default described above.
+- `force-dynamic`: render on demand, so that every request reaches middleware, like for [authentication](./authentication.mdx).
+- `force-static`: load a dynamic source once at build time, and prerender its pages.
+
+### Cache Headers
+
+A dynamic source with `staleTime`, in milliseconds, is read again once that time has passed. Its pages rendered on demand, with their `.md` file and Open Graph image, get `Cache-Control: public, s-maxage=<staleTime in seconds>`, so a CDN keeps them for the same time:
+
+```tsx title="press.config.tsx"
+createPress({ ...notion.dynamicSource(), staleTime: 60_000 });
+```
+
+Without `staleTime`, Fumapress sets no `Cache-Control`.
+
+</section>
+
 <section id="server">
 
 - A dynamic source, like [Notion](./content-sources/notion.mdx) and [Sanity](./content-sources/sanity.mdx).
@@ -12,6 +44,5 @@ Pages of a static source are prerendered. Pages of a dynamic source, like [Notio
 - [Feedback](./plugins/feedback.mdx) with actions on the server. Actions in the browser don't need a server.
 - [Server-side search](./search.mdx#server-side-search), when you enable it.
 - Custom pages and API routes rendered on demand.
-- Plugin middleware, like [authentication](./authentication.mdx).
 
 </section>

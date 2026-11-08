@@ -9,12 +9,14 @@ description: Give AI tools your docs as Markdown, add a chat, or connect clients
 
 <include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
 
-Add the plugin to pass options. It replaces the default one:
+Pass its options to `recommendedPreset()`:
 
 ```tsx title="press.config.tsx"
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
+import { createPress, recommendedPreset } from "fumapress";
 
-createPress(content).plugins(llmsPlugin());
+createPress(content).config({
+  preset: recommendedPreset({ llms: { autoRedirect: false } }),
+});
 ```
 
 <Callout type="warn">
@@ -45,7 +47,7 @@ Welcome! Read the [docs](/docs).
 ```
 
 ```tsx tab="press.config.tsx"
-llmsPlugin({ routes: "all" });
+recommendedPreset({ llms: { routes: "all" } });
 ```
 
 <Callout type="warn">
@@ -74,7 +76,7 @@ function Callout({ title, children }) {
 
 ### Custom Layout
 
-The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a custom [`renderPage`](/docs/layouts#rendering-pages), read it in a client component around the layout:
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a [custom layout](/docs/layouts#custom-layouts), read it in a client component around the layout:
 
 ```tsx tab="src/components/layout.tsx"
 "use client";
@@ -90,10 +92,10 @@ export function Layout(props: DocsLayoutProps) {
 import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
 import { Layout } from "../components/layout";
 
-function Docs({ baseOptions, tree, pageData, body }: RenderPageProps<typeof app, "docs">) {
+function Docs({ layoutProps, pageData, toc, body }: RenderPageProps<typeof app, "docs">) {
   return (
-    <Layout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc}>
+    <Layout {...layoutProps}>
+      <DocsPage toc={toc}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{body}</DocsBody>
       </DocsPage>

@@ -120,6 +120,18 @@ notionPlugin({
 
 Notion file URLs expire after one hour, so the plugin serves them through your site. Turn off this proxy with `fileProxy: false` only when your content uses permanent external URLs, or a custom renderer copies files to permanent storage.
 
+## Prerendering Pages
+
+To deploy to a static host, set `mode` to `force-static`. The build reads the database once and prerenders its pages, so edits appear on the next build.
+
+```tsx title="press.config.tsx"
+export default createPress(notion.dynamicSource(), {
+  mode: "force-static", // [!code highlight]
+}).plugins(notionPlugin({ notion, fileProxy: false }));
+```
+
+The [file proxy](#file-urls) needs a server, so turn it off. Files hosted by Notion then expire one hour after the build.
+
 ## Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>

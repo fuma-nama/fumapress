@@ -7,25 +7,24 @@ description: Set up the search dialog of your site.
 
 ## Search Engines
 
-FlexSearch is the default. Add a search plugin to change the engine or pass options to the [Fumadocs integration](https://fumadocs.dev/docs/headless/search/flexsearch). A site can only have one search plugin.
-
-```tsx tab="FlexSearch" title="press.config.tsx"
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-
-createPress(content).plugins(flexsearchPlugin());
-```
+FlexSearch is the default, and `search` of `recommendedPreset()` takes its options, like in [Customization](#customization). To use another engine, set `search: false` and add the plugin of the engine. Without one, the site has no search:
 
 ```tsx tab="Orama" title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
-createPress(content).plugins(oramaSearchPlugin());
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
 ```
 
 ```tsx tab="None" title="press.config.tsx"
 import { createPress, recommendedPreset } from "fumapress";
 
 createPress(content).config({
-  preset: recommendedPreset().filter((entry) => entry.provides !== "search"),
+  preset: recommendedPreset({ search: false }),
 });
 ```
 

@@ -13,31 +13,24 @@ Content pages use the Docs Layout by default, and plugin pages like the blog use
 
 Every page goes through `ui.renderPage`, and <include cwd>content/shared/layouts.mdx#types</include>
 
-To change the structure of a page, write its layout yourself. `actions` has the built-in buttons too:
+### Custom Layouts
+
+To change the structure of a page, write its layout yourself with the components of Fumadocs UI:
 
 ```tsx title="src/ui/layout.tsx"
 import type { RenderPageProps } from "fumapress";
 import { DocsLayout } from "fumadocs-ui/layouts/notebook";
-import {
-  DocsBody,
-  DocsDescription,
-  DocsPage,
-  DocsTitle,
-  PageLastUpdate,
-} from "fumadocs-ui/layouts/notebook/page";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
 import type { app } from "../../press.config";
 
-function Docs(props: RenderPageProps<typeof app, "docs">) {
-  const { tree, baseOptions, pageData, body, actions, footer } = props;
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
   return (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc} full={pageData.full}>
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc} full={pageData.full}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsDescription>{pageData.description}</DocsDescription>
-        <div className="flex gap-2">{Object.values(actions)}</div>
+        {slots["core:markdown"]?.element}
         <DocsBody>{body}</DocsBody>
-        {pageData.lastModified && <PageLastUpdate date={pageData.lastModified} />}
-        {Object.values(footer)}
       </DocsPage>
     </DocsLayout>
   );
@@ -55,7 +48,15 @@ export function renderPage(props: RenderPageProps<typeof app>) {
 }
 ```
 
-The second type argument of `RenderPageProps` narrows the props to one page type. `pageData` has the fields a layout needs, and `page.data` has your frontmatter.
+The second type argument of `RenderPageProps` narrows the props to one page type. The layout reads these props:
+
+- `layoutProps`: [`ui.layoutProps`](/docs/configuration#navbar-and-links) with the props from plugins, and the page tree as `tree`.
+- `pageData`: the title, description and other fields a layout shows. Your frontmatter is on `page.data`.
+- `toc`: the table of contents.
+- `body`: the content.
+- `slots`: the UI of plugins and the page buttons, see [Slots](#slots).
+
+The [AI chat](/docs/plugins/ai#custom-layout) reaches a custom layout through `useLayoutProps()` in a client component.
 
 ### Layout per Source
 
@@ -89,36 +90,35 @@ You can also check `props.page.path`, for example to use another layout for page
 
 ### Sidebar
 
-`tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+`layoutProps.tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
 
 ```tsx title="src/ui/layout.tsx"
 import { selectTreeRoot } from "fumapress";
 
-<DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")} />;
+<DocsLayout {...layoutProps} tree={selectTreeRoot(layoutProps.tree, "docs")} />;
 ```
 
 <include cwd>content/shared/layouts.mdx#nested</include>
 
-### Page Actions and Footers
+### Slots
 
 <include cwd>content/shared/layouts.mdx#slots</include>
 
 ```tsx title="src/ui/layout.tsx"
-function Docs({
-  tree,
-  baseOptions,
-  pageData,
-  body,
-  actions,
-  footer,
-}: RenderPageProps<typeof app, "docs">) {
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
+  const footer: ReactNode[] = [];
+  for (const slot of Object.values(slots)) if (slot?.region === "footer") footer.push(slot.element);
+
   return (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc}>
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
         <DocsTitle>{pageData.title}</DocsTitle>
-        <div className="flex gap-2">{Object.values(actions)}</div> {/* [!code highlight] */}
+        <div className="flex gap-2">
+          {slots["core:markdown"]?.element} {/* [!code highlight] */}
+          {slots["core:view-options"]?.element} {/* [!code highlight] */}
+        </div>
         <DocsBody>{body}</DocsBody>
-        {footer.feedback} {/* [!code highlight] */}
+        {footer} {/* [!code highlight] */}
       </DocsPage>
     </DocsLayout>
   );

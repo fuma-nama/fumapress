@@ -9,17 +9,17 @@ description: Every option of your site, from press.config.tsx to the integration
 import { getCollection } from "astro:content";
 import { toFumadocsSource } from "@fumadocs/astro/source";
 import { createPress } from "@fumapress/astro/config";
-import { rssPlugin } from "@fumapress/astro/plugins/rss";
+import { linkValidationPlugin } from "@fumapress/astro/plugins/link-validation";
 
 export const app = createPress(
   toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
   { i18n },
-).plugins(rssPlugin());
+).plugins(linkValidationPlugin());
 
 export default app.config({
   site: { name: "Acme" },
   head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
-  ui: { baseOptions, renderPage },
+  ui: { layoutProps, renderPage },
 });
 ```
 
@@ -59,7 +59,7 @@ export default defineConfig({
 ```tsx title="press.config.tsx"
 createPress(content).config({
   ui: {
-    baseOptions: {
+    layoutProps: {
       nav: {
         title: (
           <>
@@ -77,11 +77,11 @@ createPress(content).config({
 
 <include cwd>content/shared/configuration.mdx#navbar-file</include>
 
-```tsx title="src/lib/base-options.tsx"
+```tsx title="src/lib/layout-props.tsx"
 import type { UIOptions } from "@fumapress/astro/config";
 import type { app } from "../../press.config";
 
-export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+export const layoutProps: UIOptions<typeof app>["layoutProps"] = function ({ lang }) {
   return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
 };
 ```
@@ -138,12 +138,12 @@ type Props = LayoutProps<typeof app, "docs">;
 ---
 ```
 
-| Helper            | For                                                            |
-| ----------------- | -------------------------------------------------------------- |
-| `LayoutProps`     | props of an [`.astro` layout](./layouts.mdx#islands)           |
-| `IslandProps`     | props of its island                                            |
-| `RenderPageProps` | props of `ui.renderPage`, narrowed to a source or plugin page  |
-| `UIOptions`       | an option of `ui`, like `UIOptions<typeof app>["baseOptions"]` |
-| `PressContext`    | `this` in callbacks, the result of `getPressContext()`         |
-| `BaseOptions`     | the Fumadocs layout props                                      |
-| `ProviderProps`   | the root provider props                                        |
+| Helper              | For                                                            |
+| ------------------- | -------------------------------------------------------------- |
+| `LayoutProps`       | props of an [`.astro` layout](./layouts.mdx#islands)           |
+| `IslandProps`       | props of its island                                            |
+| `RenderPageProps`   | props of `ui.renderPage`, narrowed to a source or plugin page  |
+| `UIOptions`         | an option of `ui`, like `UIOptions<typeof app>["layoutProps"]` |
+| `PressContext`      | `this` in callbacks, the result of `getPressContext()`         |
+| `SharedLayoutProps` | the props of every docs layout                                 |
+| `ProviderProps`     | the root provider props                                        |

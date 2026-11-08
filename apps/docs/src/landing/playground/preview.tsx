@@ -113,7 +113,7 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
   const links: LinkItemType[] = [];
   if (config.blog) links.push({ url: "/blog", text: "Blog", active: "nested-url" });
   if (config.changelog) links.push({ url: "/changelog", text: "Changelog", active: "nested-url" });
-  const baseOptions: BaseLayoutProps = {
+  const layoutProps: BaseLayoutProps = {
     nav: { title: siteName(config), url: previewPath },
     links,
   };
@@ -166,7 +166,7 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
   return config.layout === "notebook" ? (
     <DocsLayoutNotebook
       key={key}
-      {...baseOptions}
+      {...layoutProps}
       tree={tree}
       tabs={tabs}
       tabMode={config.tabs === "top" ? "navbar" : "sidebar"}
@@ -178,7 +178,7 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
   ) : (
     <DocsLayoutDocs
       key={key}
-      {...baseOptions}
+      {...layoutProps}
       tree={tree}
       tabs={tabs}
       tabMode={config.tabs === "top" ? "top" : "auto"}

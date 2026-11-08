@@ -81,6 +81,28 @@ sanityPlugin({
 });
 ```
 
+### Drafts
+
+To preview unpublished edits, create a second deployment that reads drafts. Its client uses the `drafts` perspective, which needs a token with read access and API version `2025-02-19` or later:
+
+```tsx title="press.config.tsx"
+const preview = process.env.SANITY_PREVIEW === "true";
+
+const source = createSanitySource({
+  client: createClient({
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID,
+    dataset: process.env.SANITY_STUDIO_DATASET,
+    apiVersion: "2025-02-19",
+    useCdn: false,
+    perspective: preview ? "drafts" : "published",
+    token: preview ? process.env.SANITY_API_READ_TOKEN : undefined,
+  }),
+  docType: "docs",
+});
+```
+
+Set `SANITY_PREVIEW` and the token only on the preview deployment, and keep it private, since anyone who can open it reads your drafts. [Authentication](../authentication.mdx) can restrict it.
+
 ## Refreshing Content
 
 <include cwd>content/shared/content-sources/refresh.mdx</include>

@@ -73,32 +73,41 @@ You can also check `props.page.path`, for example to use another layout for page
 
 ### Sidebar
 
-`tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+`layoutProps.tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
 
 ```tsx title="src/components/docs-island.tsx"
 import { selectTreeRoot } from "@fumapress/astro/client";
 
-<DocsLayout {...baseOptions} tree={selectTreeRoot(tree, "docs")} />;
+<DocsLayout {...layoutProps} tree={selectTreeRoot(layoutProps.tree, "docs")} />;
 ```
 
 <include cwd>content/shared/layouts.mdx#nested</include>
 
-### Page Actions and Footers
+### Slots
 
 <include cwd>content/shared/layouts.mdx#slots</include>
 
 ```tsx title="src/components/docs-island.tsx"
 export const DocsIsland = createIsland(
-  ({ tree, baseOptions, pageData, actions, footer, children }: IslandProps<typeof app, "docs">) => (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc}>
-        <DocsTitle>{pageData.title}</DocsTitle>
-        <div className="flex gap-2">{Object.values(actions)}</div> {/* [!code highlight] */}
-        <DocsBody>{children}</DocsBody>
-        {footer.feedback} {/* [!code highlight] */}
-      </DocsPage>
-    </DocsLayout>
-  ),
+  ({ layoutProps, pageData, toc, slots, children }: IslandProps<typeof app, "docs">) => {
+    const footer: ReactNode[] = [];
+    for (const slot of Object.values(slots))
+      if (slot?.region === "footer") footer.push(slot.element);
+
+    return (
+      <DocsLayout {...layoutProps}>
+        <DocsPage toc={toc}>
+          <DocsTitle>{pageData.title}</DocsTitle>
+          <div className="flex gap-2">
+            {slots["core:markdown"]?.element} {/* [!code highlight] */}
+            {slots["core:view-options"]?.element} {/* [!code highlight] */}
+          </div>
+          <DocsBody>{children}</DocsBody>
+          {footer} {/* [!code highlight] */}
+        </DocsPage>
+      </DocsLayout>
+    );
+  },
 );
 ```
 
@@ -115,7 +124,7 @@ Fumadocs layouts are React components, so an Astro layout has two files. Fumapre
   >
     <Layer
       title="DocsIsland, from createIsland()"
-      note="Renders the Fumadocs layout, in the browser too. The sidebar, actions and footer are rendered here."
+      note="Renders the Fumadocs layout, in the browser too. The sidebar and the slots of plugins are rendered here."
     >
       <Layer
         title="Page content"
@@ -156,9 +165,9 @@ import type { app } from "../../press.config";
 type Props = IslandProps<typeof app, "docs"> & { stars: number; banner?: ReactNode };
 
 export const DocsIsland = createIsland(
-  ({ tree, baseOptions, pageData, stars, banner, children }: Props) => (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc}>
+  ({ layoutProps, pageData, toc, stars, banner, children }: Props) => (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
         {banner}
         <DocsTitle>
           {pageData.title} ({stars})
@@ -187,7 +196,7 @@ export const DocsIsland = createIsland(
 
 ### The Island
 
-`IslandProps` types the props from the site, like `tree`, `baseOptions` and `pageData`. Other props come from your `.astro` layout:
+`IslandProps` types the props from the site: `layoutProps` with the page tree as `tree`, `pageData`, `toc` and `slots`. The [AI chat](/docs/astro/plugins/ai#custom-layout) comes from `useLayoutProps()`. Other props come from your `.astro` layout:
 
 - Named slots become props, and `children` is the default slot. `.astro` parts in slots are static.
 - Other values must be serializable. Many plugin page props aren't, like the pages in `posts` of `blog.index`.

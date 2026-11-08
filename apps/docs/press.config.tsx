@@ -1,4 +1,4 @@
-import { createPress } from "fumapress";
+import { createPress, recommendedPreset } from "fumapress";
 import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons";
 import { metaSchema, pageSchema } from "fumapress/schema";
 import { blogPlugin } from "@fumapress/blog";
@@ -9,9 +9,7 @@ import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 import { vercelImage } from "fumapress/plugins/image/vercel";
 import { mcpPlugin } from "@fumapress/ai";
 import { defineDocs } from "fumadocs-mdx/macro";
-import { flexsearchPlugin } from "fumapress/plugins/flexsearch";
-import { llmsPlugin } from "fumapress/plugins/llms.txt";
-import { baseOptions, renderPage } from "./src/ui/layout";
+import { layoutProps, renderPage } from "./src/ui/layout";
 import { frameworkOf } from "./src/ui/framework";
 import { DocsSearchDialog } from "./src/ui/search";
 import { playgroundPlugin } from "./src/landing/playground/plugin";
@@ -95,35 +93,8 @@ export const app = createPress(
       return Promise.resolve(new Response(null, { status: 308, headers: { Location: location } }));
     },
   },
-  flexsearchPlugin({
-    // the dialog filters by framework on the server
-    render: "dynamic",
-    async buildIndex(page) {
-      return {
-        id: page.url,
-        title: page.data.title ?? page.path,
-        description: page.data.description,
-        url: page.url,
-        structuredData: (await this.getPageStructuredData(page)) ?? { headings: [], contents: [] },
-        tag: frameworkOf(page.url) ?? "site",
-      };
-    },
-  }),
   linkValidationPlugin(),
   mcpPlugin(),
-  llmsPlugin({
-    routes: "all",
-    // processed Markdown keeps links as authored, and shared partials can only use relative ones
-    async getLLMText(page) {
-      const [text, loader] = await Promise.all([this.getPageText(page), this.getLoader()]);
-      if (text === undefined) return;
-      const resolved = text.replace(
-        /\]\(<?(\.\.?\/[^)>]+)>?\)/g,
-        (_, href: string) => `](${loader.resolveHref(href, page)})`,
-      );
-      return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${resolved}`;
-    },
-  }),
   // `github.com/<user>.png` redirects to the avatars host, both are validated
   vercelImage({ domains: ["github.com", "avatars.githubusercontent.com"] }),
   blogPlugin({
@@ -143,7 +114,40 @@ export const app = createPress(
 );
 
 export default app.config({
-  // the optimizer of Vercel has no route elsewhere, other builds keep plain image URLs
+  preset: recommendedPreset({
+    search: {
+      // the dialog filters by framework on the server
+      render: "dynamic",
+      async buildIndex(page) {
+        return {
+          id: page.url,
+          title: page.data.title ?? page.path,
+          description: page.data.description,
+          url: page.url,
+          structuredData: (await this.getPageStructuredData(page)) ?? {
+            headings: [],
+            contents: [],
+          },
+          tag: frameworkOf(page.url) ?? "site",
+        };
+      },
+    },
+    llms: {
+      routes: "all",
+      // processed Markdown keeps links as authored, and shared partials can only use relative ones
+      async getLLMText(page) {
+        const [text, loader] = await Promise.all([this.getPageText(page), this.getLoader()]);
+        if (text === undefined) return;
+        const resolved = text.replace(
+          /\]\(<?(\.\.?\/[^)>]+)>?\)/g,
+          (_, href: string) => `](${loader.resolveHref(href, page)})`,
+        );
+        return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${resolved}`;
+      },
+    },
+    // the optimizer of Vercel has no route elsewhere, other builds keep plain image URLs
+    image: false,
+  }),
   site: {
     name: "Fumapress",
     baseUrl: import.meta.env.DEV ? "http://localhost:3000" : "https://press.fumadocs.dev",
@@ -170,7 +174,7 @@ export default app.config({
     { tag: "link", attrs: { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" } },
   ],
   ui: {
-    baseOptions,
+    layoutProps,
     renderPage,
     providerProps: { search: { SearchDialog: DocsSearchDialog } },
   },

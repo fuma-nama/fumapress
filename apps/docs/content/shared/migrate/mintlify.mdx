@@ -20,7 +20,7 @@ Keep `docs.json` at your project root, and move your MDX pages to `content/docs`
 
 <section id="after">
 
-Your [`ui.baseOptions`](../configuration.mdx#navbar-and-links) and `ui.providerProps` take priority over `docs.json`.
+Your [`ui.layoutProps`](../configuration.mdx#navbar-and-links) and `ui.providerProps` take priority over `docs.json`.
 
 </section>
 
@@ -122,7 +122,7 @@ Unsupported properties are accepted and ignored, so they never stop the migratio
 - `logo`: Single or light/dark image, optional `href`.
 - `favicon`: Single or light/dark icon.
 - `navigation`: `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions`, `languages` and `global`, in the sidebar. Also per-item `icon`, `tag`, `hidden`, `root`, `expanded` and external `href`s.
-- `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button. They come after the links of `ui.baseOptions`.
+- `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button. They come after the links of `ui.layoutProps`.
 - `appearance`: `default` color scheme. `strict` hides the theme toggle, and forces the default scheme when it is explicit.
 - `background.color` / `background.image`: Applied with CSS, with light and dark variants.
 - `fonts`: Google Fonts, self-hosted `woff`/`woff2`, and separate `heading` and `body` fonts.

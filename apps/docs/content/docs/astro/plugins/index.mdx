@@ -38,21 +38,40 @@ description: Add, replace and remove the features of your site.
 
 There is no image plugin, since [Astro Images](https://docs.astro.build/en/guides/images/) handles images.
 
-<include cwd>content/shared/plugins/index.mdx#replace</include>
-
-```tsx title="press.config.tsx"
-import { rssPlugin } from "@fumapress/astro/plugins/rss";
-
-createPress(content).plugins(rssPlugin({ limit: 50 }));
-```
-
-<include cwd>content/shared/plugins/index.mdx#remove</include>
+<include cwd>content/shared/plugins/index.mdx#options</include>
 
 ```tsx title="press.config.tsx"
 import { createPress, recommendedPreset } from "@fumapress/astro/config";
 
 createPress(content).config({
-  preset: recommendedPreset().filter((entry) => entry.provides !== "rss"),
+  preset: recommendedPreset({ rss: { limit: 50 } }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#replace</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
+
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#remove</include>
+
+```tsx tab="One plugin" title="press.config.tsx"
+createPress(content).config({
+  preset: recommendedPreset({ rss: false }),
+});
+```
+
+```tsx tab="All plugins" title="press.config.tsx"
+createPress(content).config({
+  preset: [],
 });
 ```
 

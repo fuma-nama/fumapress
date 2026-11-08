@@ -110,7 +110,7 @@ If you didn't customize your site, you're done. Otherwise, open the section for 
 <Accordions multiple>
 <Accordion title="Your layout">
 
-The `page` module becomes an `.astro` layout with a React island. `page` is now `pageData`, `layout` is `baseOptions`, and `ui.renderPage` chooses the layout. See [Islands](/docs/astro/layouts#islands) for how the two files work together.
+The `page` module becomes an `.astro` layout with a React island. `page` is now `pageData`, `layout` is `layoutProps`, and `ui.renderPage` chooses the layout. See [Islands](/docs/astro/layouts#islands) for how the two files work together.
 
 ```tsx tab="src/components/docs-island.tsx"
 import { createIsland } from "@fumapress/astro/client";
@@ -120,9 +120,9 @@ import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import type { app } from "../../press.config";
 
 export const DocsIsland = createIsland(
-  ({ tree, pageData, baseOptions, children }: IslandProps<typeof app, "docs">) => (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc} full={pageData.full}>
+  ({ layoutProps, pageData, toc, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc} full={pageData.full}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{children}</DocsBody>
       </DocsPage>
@@ -164,12 +164,12 @@ export default app.config({
 </Accordion>
 <Accordion title="Navbar and links">
 
-`baseOptions()` of the `layout` module moves to `ui.baseOptions`, and receives `{ lang }` in place of `locale`.
+`baseOptions()` of the `layout` module moves to `ui.layoutProps`, and receives `{ lang }` in place of `locale`.
 
 ```tsx title="press.config.tsx"
 export default app.config({
   ui: {
-    baseOptions({ lang }) {
+    layoutProps({ lang }) {
       return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
     },
   },
@@ -179,13 +179,13 @@ export default app.config({
 </Accordion>
 <Accordion title="Provider around the layout">
 
-`Provider` of the `layout` module becomes a [`layout.wrapper` slot](/docs/astro/plugins/authoring/ui#available-slots).
+`Provider` of the `layout` module becomes a slot item in the [`layout-wrapper` region](/docs/astro/plugins/authoring/ui#regions).
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
   name: "site:provider",
   slots({ page }) {
-    if (!page) return [{ slot: "layout.wrapper", component: Provider }];
+    if (!page) return [{ name: "site:provider", region: "layout-wrapper", component: Provider }];
   },
 });
 ```
@@ -193,12 +193,15 @@ createPress(content).plugins({
 </Accordion>
 <Accordion title="Search">
 
-The default search is now FlexSearch. To keep Orama, add its plugin:
+The default search is now FlexSearch. To keep Orama, turn FlexSearch off and add the Orama plugin:
 
 ```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
 import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
 
-createPress(content).plugins(oramaSearchPlugin());
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({ preset: recommendedPreset({ search: false }) });
 ```
 
 `SearchDialog` and `useSearch` of the `layout` module become one dialog in `ui.providerProps`. See [Custom Search Dialog](/docs/astro/search#custom-search-dialog).
@@ -266,6 +269,7 @@ import { takumiPlugin } from "@fumapress/astro/plugins/takumi";
 
 - `asyncapi`, `graphql` and `sanity` change the same way as `openapi`.
 - `flexsearch`, `llms.txt`, `orama-search` and `link-validation` change the same way as `takumi`, to `@fumapress/astro/plugins/*`.
+- Takumi, FlexSearch and llms.txt are [default plugins](/docs/astro/plugins#default-plugins). To pass them options, use `recommendedPreset()` instead of listing them.
 
 A few are removed:
 
@@ -314,13 +318,13 @@ routes({ createApi }) {
 
 The other changes are renames, with two changes in signature. `middleware` now receives a `Request`, and only runs for routes rendered on demand. `transformPage` receives the data first, and returns the changed fields.
 
-| 0.1                         | Now                         |
-| --------------------------- | --------------------------- |
-| `getBody`                   | `getPageBody`               |
-| `getText`                   | `getPageText`               |
-| `App`                       | `PressContext`              |
-| `middleware(context, next)` | `middleware(request, next)` |
-| `transformPage(page, data)` | `transformPage(data, page)` |
+| 0.1                         | Now                             |
+| --------------------------- | ------------------------------- |
+| `getBody`                   | `getPageBody`                   |
+| `getText`                   | `getPageText`                   |
+| `App`                       | `PressContext`                  |
+| `middleware(context, next)` | `middleware(request, next)`     |
+| `transformPage(page, data)` | `transformPage(data, { page })` |
 
 </Accordion>
 </Accordions>

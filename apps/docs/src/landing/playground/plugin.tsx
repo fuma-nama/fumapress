@@ -22,7 +22,12 @@ export function playgroundPlugin<C extends WakuAppShape>(): WakuPlugin<C> {
     waku: {
       createPages({ createPage }) {
         // a page for the iframe only, not one to list
-        createPage({ path: previewPath, render: "static", component: PreviewPage, sitemap: false });
+        createPage({
+          path: previewPath,
+          render: "static",
+          component: PreviewPage,
+          data: { sitemap: false },
+        });
       },
     },
   };

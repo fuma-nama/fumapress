@@ -53,7 +53,7 @@ Custom pages are `.astro` files with React components as islands, and a [custom 
 
 v1 had a `mode` option that set the render mode of the whole site. With a Notion source, `mode: "dynamic"` also rendered your Markdown pages on demand, even though they only change when you deploy.
 
-v2 removes `mode`, and the render mode of a route now matches the content it references. Pages of a dynamic source render on demand, pages of a static source are prerendered, and one site can have both:
+In v2, the render mode of a route matches the content it references by default. Pages of a dynamic source render on demand, pages of a static source are prerendered, and one site can have both:
 
 ```tsx title="press.config.tsx"
 export default createPress({
@@ -64,6 +64,8 @@ export default createPress({
 
 <RenderingFigure />
 
+The `mode` option of `createPress()` can still force a render mode: `force-dynamic` renders your content on demand, and `force-static` prerenders a dynamic source at build time.
+
 ## Type-Safety
 
 ### `createPress()`
@@ -72,12 +74,16 @@ export default createPress({
 
 ```tsx title="press.config.tsx"
 import { createPress } from "fumapress";
-import { rssPlugin } from "fumapress/plugins/rss";
+import { blogPlugin } from "@fumapress/blog";
 import { defineDocs } from "fumadocs-mdx/macro";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs({ dir: "content/docs" });
+const blog = defineDocs({ dir: "content/blog" });
 
-export const app = createPress({ docs: docs.toFumadocsSource() }).plugins(rssPlugin({ limit: 50 }));
+export const app = createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource(),
+}).plugins(blogPlugin({ source: "blog" }));
 
 export default app.config({
   site: { name: "My Docs" },
@@ -101,8 +107,8 @@ export default app.config({
       if (props.type !== "docs") return renderDefault();
 
       return (
-        <DocsLayout {...props.baseOptions} tree={props.tree}>
-          <DocsPage toc={props.pageData.toc}>
+        <DocsLayout {...props.layoutProps}>
+          <DocsPage toc={props.toc}>
             <DocsTitle>{props.pageData.title}</DocsTitle>
             <DocsBody>{props.body}</DocsBody>
           </DocsPage>

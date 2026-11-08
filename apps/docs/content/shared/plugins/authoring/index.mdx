@@ -5,7 +5,7 @@ A plugin is an object with hooks. This one adds a link to the navbar:
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
   name: "site:blog-link",
-  baseOptions({ lang }) {
+  layoutProps({ lang }) {
     return {
       links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }], // [!code highlight]
     };
@@ -13,7 +13,7 @@ createPress(content).plugins({
 });
 ```
 
-`baseOptions` is a hook, and Fumapress calls it for each language. `this` in a hook is the press context, the same object `getPressContext()` returns on custom pages.
+`layoutProps` is a hook, and Fumapress calls it for each page it renders. `this` in a hook is the press context, the same object `getPressContext()` returns on custom pages.
 
 </section>
 
@@ -81,12 +81,8 @@ type AcmeTypes = {
   views: { "showcase.index": { items: ShowcaseItem[] } };
   // content pages it renders: `props.type === "reviews"`, with `props.stars`
   pages: { reviews: { stars: number } };
-  // `this.getCapability("acme:status")`
-  provides: "acme:status";
-  // `props.actions.share`
-  actions: "share";
-  // `props.footer.rating`
-  footer: "rating";
+  // the names of its slot items: `props.slots["acme:share"]`
+  slots: "acme:share" | "acme:rating";
 };
 ```
 
@@ -115,51 +111,47 @@ export default function acmePlugin(): Plugin {
 
 </section>
 
-<section id="capabilities">
+<section id="sharing-data">
 
-## Capabilities
+### Sharing Data
 
-Some features, like search, can only exist once on a site. A plugin declares one with `provides`. It replaces a default plugin that provides the same capability, and adding two plugins that provide it is an error.
+To give custom pages and other plugins data of your plugin, export a function that takes the press context. Store the data by context, since one process can run more than one site:
 
-`api` is what the plugin exposes to other plugins. They read it with `this.getCapability(name)`, which is `undefined` when no plugin provides it.
+```ts title="acme/index.ts"
+const statuses = new WeakMap<Context, Promise<Status>>();
 
-```tsx tab="acme/status.tsx"
-type Types = { provides: "acme:status" };
-
-export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, Types> {
+export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C> {
   return {
     name: "acme:status",
-    provides: ["acme:status"],
-    api: { ping: () => "pong" },
+    configure() {
+      statuses.set(this, fetchStatus());
+    },
   };
+}
+
+export function getStatus(ctx: Context): Promise<Status> | undefined {
+  return statuses.get(ctx);
 }
 ```
 
-```tsx tab="acme/other.tsx"
-createApi({
-  path: "/ping.json",
-  GET: () => Response.json({ sitemap: this.getCapability("sitemap")?.path }), // [!code highlight]
-});
-```
+`getBlogPosts()` of `@fumapress/blog` works this way.
 
-<Callout type="warn">
-  `getCapability()` returns `unknown` for a capability you name yourself, so export a typed helper
-  from your package, like `getBlogPosts()` of `@fumapress/blog`.
-</Callout>
+</section>
 
-### Custom Search Engine
+<section id="search">
 
-A search engine is a plugin that provides `search`, so it replaces FlexSearch. The plugin returns its dialog from `providerProps`, and adds its own routes. See [Custom Search Dialog](../../search.mdx#custom-search-dialog) for the parts.
+## Custom Search Engine
+
+A search engine is a plugin that returns its dialog from `providerProps`, and adds its own routes. A site using it sets `search: false` in `recommendedPreset()`. See [Custom Search Dialog](../../search.mdx#custom-search-dialog) for the parts.
 
 ```tsx tab="acme/index.ts"
 import { AcmeSearchDialog } from "./client";
 
 export function acmeSearchPlugin<C extends AppShape = AppShape>(options: {
   index: string;
-}): Plugin<C, { provides: "search" }> {
+}): Plugin<C> {
   return {
     name: "acme:search",
-    provides: ["search"], // [!code highlight]
     providerProps({ lang }) {
       const api = this.withBase("/api/acme-search");
       const options = { api, locale: lang };

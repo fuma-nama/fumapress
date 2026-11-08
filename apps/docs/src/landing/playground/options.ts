@@ -16,7 +16,7 @@ export interface PlaygroundConfig {
   openLevel: 0 | 1;
   /** `tableOfContent.style` of `DocsPage` */
   toc: TocStyle;
-  /** render `MarkdownCopyButton` and `ViewOptionsPopover` */
+  /** render the page buttons, the `core:markdown` and `core:view-options` slots */
   actions: boolean;
   /** the theme import of `src/app.css` */
   theme: ThemeId;
@@ -74,7 +74,6 @@ function configCode(config: PlaygroundConfig): string {
   const pkg = `fumadocs-ui/layouts/${config.layout}`;
   const Layout = config.ai ? "ChatLayout" : "DocsLayout";
   const pageImports = ["DocsBody", "DocsDescription", "DocsPage", "DocsTitle"];
-  if (config.actions) pageImports.push("MarkdownCopyButton", "ViewOptionsPopover");
 
   const imports = [
     'import { createPress } from "fumapress";',
@@ -134,42 +133,27 @@ function configCode(config: PlaygroundConfig): string {
 
   const layoutOpen =
     layoutProps.length === 0
-      ? [`          <${Layout} {...baseOptions} tree={tree}>`]
+      ? [`          <${Layout} {...layoutProps}>`]
       : [
           `          <${Layout}`,
-          "            {...baseOptions}",
-          "            tree={tree}",
+          "            {...layoutProps}",
           ...layoutProps.map((prop) => `            ${prop}`),
           "          >",
         ];
 
   const pageOpen =
     config.toc === "normal"
-      ? ["            <DocsPage toc={pageData.toc} full={pageData.full}>"]
+      ? ["            <DocsPage toc={toc} full={pageData.full}>"]
       : [
           "            <DocsPage",
-          "              toc={pageData.toc}",
+          "              toc={toc}",
           "              full={pageData.full}",
           `              tableOfContent={{ style: "${config.toc}" }}`,
           "            >",
         ];
 
-  const actions: string[] = [];
-  if (config.actions)
-    actions.push(
-      "                {pageData.markdownUrl && (",
-      "                  <MarkdownCopyButton markdownUrl={pageData.markdownUrl} />",
-      "                )}",
-      "                <ViewOptionsPopover",
-      "                  markdownUrl={pageData.markdownUrl}",
-      "                  githubUrl={pageData.githubUrl}",
-      "                />",
-    );
-  if (config.ai) actions.push("                {Object.values(actions)}");
-
-  const props = ["baseOptions", "tree", "pageData", "body"];
-  if (config.ai) props.push("actions");
-  if (config.feedback) props.push("footer");
+  const props = ["layoutProps", "pageData", "toc", "body"];
+  if (config.actions || config.feedback) props.push("slots");
   const types = config.openapi
     ? 'props.type !== "docs" && props.type !== "openapi"'
     : 'props.type !== "docs"';
@@ -187,7 +171,7 @@ function configCode(config: PlaygroundConfig): string {
     `    site: { name: ${JSON.stringify(siteName(config))} },`,
     "    ui: {",
     ...(links.length > 0
-      ? ["      baseOptions: {", "        links: [", ...links, "        ],", "      },"]
+      ? ["      layoutProps: {", "        links: [", ...links, "        ],", "      },"]
       : []),
     "      renderPage(props) {",
     "        const { renderDefault } = props;",
@@ -199,11 +183,16 @@ function configCode(config: PlaygroundConfig): string {
     ...pageOpen,
     "              <DocsTitle>{pageData.title}</DocsTitle>",
     "              <DocsDescription>{pageData.description}</DocsDescription>",
-    ...(actions.length > 0
-      ? ['              <div className="flex gap-2">', ...actions, "              </div>"]
+    ...(config.actions
+      ? [
+          '              <div className="flex gap-2">',
+          '                {slots["core:markdown"]?.element}',
+          '                {slots["core:view-options"]?.element}',
+          "              </div>",
+        ]
       : []),
     "              <DocsBody>{body}</DocsBody>",
-    ...(config.feedback ? ["              {Object.values(footer)}"] : []),
+    ...(config.feedback ? ['              {slots["feedback:page"]?.element}'] : []),
     "            </DocsPage>",
     `          </${Layout}>`,
     "        );",
@@ -229,18 +218,15 @@ function cssCode(config: PlaygroundConfig): string {
   return lines.join("\n");
 }
 
-/** `src/chat-layout.tsx`, the layout of `ui.renderPage` with the chat of `aiPlugin` docked */
+/** `src/chat-layout.tsx`, the layout of `ui.renderPage` with the chat of `aiPlugin` docked through `useLayoutProps()` */
 function chatLayoutCode(config: PlaygroundConfig): string {
   return [
     '"use client";',
     `import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/${config.layout}";`,
-    'import { AIChatPanel, useAIChat } from "@fumapress/ai/components/chat";',
+    'import { useLayoutProps } from "fumapress/client";',
     "",
     "export function ChatLayout(props: DocsLayoutProps) {",
-    "  const { open, setOpen } = useAIChat();",
-    "  const aiChat = { open, onOpenChange: setOpen, panel: <AIChatPanel /> };",
-    "",
-    "  return <DocsLayout {...props} aiChat={aiChat} />;",
+    "  return <DocsLayout {...props} {...useLayoutProps()} />;",
     "}",
   ].join("\n");
 }

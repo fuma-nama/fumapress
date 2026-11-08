@@ -5,6 +5,12 @@ description: Handle requests, and run code at startup and after the build.
 
 <include cwd>content/shared/plugins/authoring/server.mdx#middleware</include>
 
+### Requests That Reach Middleware
+
+On a Node.js server, `middleware` also runs for prerendered pages and the files of `public/`. Vercel, Netlify and Cloudflare serve those files without your server, so only the routes rendered on demand reach it there. See [Authentication](/docs/authentication) for which routes a check should cover.
+
+A plugin with `middleware` in `.plugins()` makes your site [need a server](/docs/deployment#what-needs-a-server). A build without one warns that the middleware never runs.
+
 <include cwd>content/shared/plugins/authoring/server.mdx#lifecycle</include>
 
 ## Waku APIs

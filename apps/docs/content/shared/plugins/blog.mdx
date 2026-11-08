@@ -111,10 +111,13 @@ import { HomeLayout } from "fumadocs-ui/layouts/home";
 
 renderPage(props) {
   const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
   switch (props.type) {
     case "blog.index":
       return (
-        <HomeLayout {...props.baseOptions}>
+        <HomeLayout {...home}>
           <ul>
             {props.posts.map((post) => (
               <li key={post.page.url}>{post.page.data.title}</li>
@@ -124,7 +127,7 @@ renderPage(props) {
       );
     case "blog":
       return (
-        <HomeLayout {...props.baseOptions}>
+        <HomeLayout {...home}>
           <BlogPostView post={props.post} newer={props.newer} older={props.older}>
             {props.body}
           </BlogPostView>

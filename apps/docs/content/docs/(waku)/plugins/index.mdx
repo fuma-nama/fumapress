@@ -36,23 +36,42 @@ description: Add, replace and remove the features of your site.
 
 <include cwd>content/shared/plugins/index.mdx#table</include>
 
-The default plugins also choose an [image optimizer](/docs/content#image-optimization) for your platform, with the `provides` value `image`.
+The default plugins also choose an [image optimizer](/docs/content#image-optimization) for your platform. `image: false` leaves it out.
 
-<include cwd>content/shared/plugins/index.mdx#replace</include>
-
-```tsx title="press.config.tsx"
-import { rssPlugin } from "fumapress/plugins/rss";
-
-createPress(content).plugins(rssPlugin({ limit: 50 }));
-```
-
-<include cwd>content/shared/plugins/index.mdx#remove</include>
+<include cwd>content/shared/plugins/index.mdx#options</include>
 
 ```tsx title="press.config.tsx"
 import { createPress, recommendedPreset } from "fumapress";
 
 createPress(content).config({
-  preset: recommendedPreset().filter((entry) => entry.provides !== "rss"),
+  preset: recommendedPreset({ rss: { limit: 50 } }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#replace</include>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
+
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+<include cwd>content/shared/plugins/index.mdx#remove</include>
+
+```tsx tab="One plugin" title="press.config.tsx"
+createPress(content).config({
+  preset: recommendedPreset({ rss: false }),
+});
+```
+
+```tsx tab="All plugins" title="press.config.tsx"
+createPress(content).config({
+  preset: [],
 });
 ```
 

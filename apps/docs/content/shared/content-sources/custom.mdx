@@ -1,6 +1,6 @@
 <section id="list">
 
-A source is an object with `files`. The `path` of a file sets its URL, and its `data` becomes `page.data`. When `files` is a function, the source is dynamic: pages are read on the server and render on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+A source is an object with `files`. The `path` of a file sets its URL, and its `data` becomes `page.data`. When `files` is a function, the source is dynamic: by default, pages are read on the server and render on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
 
 ```tsx tab="Static" title="press.config.tsx"
 const data = { title: "Home", load: async () => "Hello", plainText: () => "Hello" };

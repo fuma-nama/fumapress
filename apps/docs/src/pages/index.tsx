@@ -27,7 +27,7 @@ const description = "The composable site generator powered by Fumadocs";
 
 export function getConfig() {
   return {
-    ogImage: { title: "Fumapress", description },
+    data: { title: "Fumapress", description, ogImage: { title: "Fumapress", description } },
   } satisfies WakuRouteConfig;
 }
 
@@ -90,11 +90,7 @@ const pluginIndex: {
   { id: "openapi", short: "REST reference", focus: [/openapi/i] },
   { id: "asyncapi", short: "event reference", focus: [/asyncapi/i] },
   { id: "link-validation", short: "fails on broken links", focus: [/linkValidation/] },
-  {
-    id: "feedback",
-    short: "ratings and comments",
-    focus: [/feedback|use server/i],
-  },
+  { id: "feedback", short: "ratings and comments", focus: [/feedback|analytics/i] },
 ];
 
 const frameworks = [
@@ -132,7 +128,6 @@ export default function Page() {
 
   return (
     <>
-      <title>Fumapress</title>
       <meta property="og:title" content="Fumapress" />
       <meta property="og:description" content={description} />
       <div

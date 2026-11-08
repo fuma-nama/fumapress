@@ -10,19 +10,27 @@ export default createPress(content).plugins(blogPlugin({ source: "blog" }));
 
 </section>
 
+<section id="options">
+
+### Options of a Default Plugin
+
+`recommendedPreset()` takes the options of each default plugin. Pass it to `preset` in `.config()`:
+
+</section>
+
 <section id="replace">
 
 ### Replacing a Default Plugin
 
-Add `rssPlugin()` to pass it options. It replaces the default RSS plugin, because both provide `rss`. A site can only have one plugin per `provides` value.
+Set the default plugin to `false`, then list your own. This site uses Orama for search:
 
 </section>
 
 <section id="remove">
 
-### Removing a Default Plugin
+### Removing Default Plugins
 
-Filter it out of `preset`, or pass an empty list to remove them all:
+Set a default plugin to `false` to remove it, or pass an empty list to remove them all:
 
 </section>
 
@@ -38,21 +46,21 @@ const blog = process.env.ENABLE_BLOG && blogPlugin({ source: "blog" });
 createPress(content).plugins(blog);
 ```
 
-The order matters in two places. Middleware is nested in list order, so your first plugin wraps the others. Navbar links also use the list order, after your `ui.baseOptions` links.
+The order matters in two places. Middleware is nested in list order, so your first plugin wraps the others. Navbar links also use the list order, after your `ui.layoutProps` links.
 
 </section>
 
 <section id="table">
 
-A site can have each of these features once. The second column is its `provides` value:
+`recommendedPreset()` has these plugins. The key is its option:
 
-| Feature                                          | `provides` |
-| ------------------------------------------------ | ---------- |
-| [Sitemap](./seo.mdx#sitemap)                     | `sitemap`  |
-| [robots.txt](./seo.mdx#robotstxt)                | `robots`   |
-| [RSS](./seo.mdx#rss)                             | `rss`      |
-| [Open Graph images](./seo.mdx#open-graph-images) | `og-image` |
-| [llms.txt](./ai.mdx#llmstxt)                     | `llms`     |
-| [Search](../search.mdx) with FlexSearch          | `search`   |
+| Feature                                          | Key       |
+| ------------------------------------------------ | --------- |
+| [Sitemap](./seo.mdx#sitemap)                     | `sitemap` |
+| [robots.txt](./seo.mdx#robotstxt)                | `robots`  |
+| [RSS](./seo.mdx#rss)                             | `rss`     |
+| [Open Graph images](./seo.mdx#open-graph-images) | `ogImage` |
+| [llms.txt](./ai.mdx#llmstxt)                     | `llms`    |
+| [Search](../search.mdx) with FlexSearch          | `search`  |
 
 </section>

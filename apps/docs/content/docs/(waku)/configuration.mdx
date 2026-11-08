@@ -7,14 +7,14 @@ description: Every option of your site, from press.config.tsx to the Vite plugin
 
 ```tsx title="press.config.tsx"
 import { createPress } from "fumapress";
-import { rssPlugin } from "fumapress/plugins/rss";
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 
-export const app = createPress(content, { i18n }).plugins(rssPlugin());
+export const app = createPress(content, { i18n }).plugins(linkValidationPlugin());
 
 export default app.config({
   site: { name: "Acme" },
   head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
-  ui: { baseOptions, renderPage },
+  ui: { layoutProps, renderPage },
 });
 ```
 
@@ -57,7 +57,7 @@ import { Image } from "fumapress/image";
 
 createPress(content).config({
   ui: {
-    baseOptions: {
+    layoutProps: {
       nav: {
         title: (
           <>
@@ -75,11 +75,11 @@ createPress(content).config({
 
 <include cwd>content/shared/configuration.mdx#navbar-file</include>
 
-```tsx title="src/ui/base-options.tsx"
+```tsx title="src/ui/layout-props.tsx"
 import type { UIOptions } from "fumapress";
 import type { app } from "../../press.config";
 
-export const baseOptions: UIOptions<typeof app>["baseOptions"] = function ({ lang }) {
+export const layoutProps: UIOptions<typeof app>["layoutProps"] = function ({ lang }) {
   return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
 };
 ```
@@ -239,12 +239,12 @@ export function renderPage(props: RenderPageProps<typeof app>) {
 }
 ```
 
-| Helper            | For                                                            |
-| ----------------- | -------------------------------------------------------------- |
-| `RenderPageProps` | props of `ui.renderPage`, narrowed to a source or plugin page  |
-| `UIOptions`       | an option of `ui`, like `UIOptions<typeof app>["baseOptions"]` |
-| `PressContext`    | `this` in callbacks, the result of `getPressContext()`         |
-| `WakuRouteProps`  | props of custom pages                                          |
-| `WakuRouteConfig` | the result of `getConfig()`                                    |
-| `BaseOptions`     | the Fumadocs layout props                                      |
-| `ProviderProps`   | the root provider props                                        |
+| Helper              | For                                                            |
+| ------------------- | -------------------------------------------------------------- |
+| `RenderPageProps`   | props of `ui.renderPage`, narrowed to a source or plugin page  |
+| `UIOptions`         | an option of `ui`, like `UIOptions<typeof app>["layoutProps"]` |
+| `PressContext`      | `this` in callbacks, the result of `getPressContext()`         |
+| `WakuRouteProps`    | props of custom pages                                          |
+| `WakuRouteConfig`   | the result of `getConfig()`                                    |
+| `SharedLayoutProps` | the props of every docs layout                                 |
+| `ProviderProps`     | the root provider props                                        |

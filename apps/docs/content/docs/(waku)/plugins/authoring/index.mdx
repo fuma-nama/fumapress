@@ -32,28 +32,28 @@ In these samples, `AppShape` and `Plugin` come from `fumapress`.
 
 <include cwd>content/shared/plugins/authoring/index.mdx#package</include>
 
-<include cwd>content/shared/plugins/authoring/index.mdx#capabilities</include>
+<include cwd>content/shared/plugins/authoring/index.mdx#sharing-data</include>
 
 ### Replacing a Default Plugin
 
-A plugin replaces a [default plugin](/docs/plugins#default-plugins) when both have the same `provides` value. This image optimizer provides `image`, and its provider wraps every layout:
+A site replaces a [default plugin](/docs/plugins#replacing-a-default-plugin) by setting it to `false` and listing yours. This image optimizer wraps every page in its provider:
 
 ```tsx tab="press.config.tsx"
-import { createPress, type WakuAppShape, type WakuPlugin } from "fumapress";
+import { createPress, recommendedPreset, type WakuAppShape, type WakuPlugin } from "fumapress";
 import { CloudinaryProvider } from "./src/provider";
 
 function cloudinaryImage<C extends WakuAppShape = WakuAppShape>(options: {
   cloud: string;
-}): WakuPlugin<C, { provides: "image" }> {
+}): WakuPlugin<C, { slots: "cloudinary:provider" }> {
   return {
     name: "cloudinary:image",
-    provides: ["image"], // [!code highlight]
     slots: ({ page }) =>
       page
         ? undefined
         : [
             {
-              slot: "layout.wrapper",
+              name: "cloudinary:provider",
+              region: "layout-wrapper",
               component: CloudinaryProvider,
               props: { cloud: options.cloud },
               order: -10,
@@ -62,7 +62,11 @@ function cloudinaryImage<C extends WakuAppShape = WakuAppShape>(options: {
   };
 }
 
-export default createPress(content).plugins(cloudinaryImage({ cloud: "acme" }));
+export const app = createPress(content).plugins(cloudinaryImage({ cloud: "acme" }));
+
+export default app.config({
+  preset: recommendedPreset({ image: false }), // [!code highlight]
+});
 ```
 
 ```tsx tab="src/provider.tsx"
@@ -73,3 +77,5 @@ export function CloudinaryProvider({ cloud, children }: { cloud: string; childre
   return <div data-cloud={cloud}>{children}</div>;
 }
 ```
+
+<include cwd>content/shared/plugins/authoring/index.mdx#search</include>

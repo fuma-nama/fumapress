@@ -14,8 +14,14 @@ These options work with both FlexSearch and Orama.
 
 On a large site, the index is a big download for every reader. To keep the index on the server, set the `render` option of the search plugin. The site then [needs a server](./deployment.mdx#what-needs-a-server).
 
-```tsx title="press.config.tsx"
-createPress(content).plugins(flexsearchPlugin({ render: "dynamic" }));
+```tsx tab="FlexSearch" title="press.config.tsx"
+createPress(content).config({
+  preset: recommendedPreset({ search: { render: "dynamic" } }),
+});
+```
+
+```tsx tab="Orama" title="press.config.tsx"
+oramaSearchPlugin({ render: "dynamic" });
 ```
 
 ### Search Index
@@ -25,18 +31,20 @@ The index contains the headings and text of each page, from your content source.
 Both plugins take `buildIndex` to change the fields. The result must include `structuredData`, the headings and text. This example adds a `tag` to each page, so that a [dialog](#custom-search-dialog) can filter by it:
 
 ```tsx title="press.config.tsx"
-flexsearchPlugin({
-  async buildIndex(page) {
-    const data = await this.getPageStructuredData(page);
+recommendedPreset({
+  search: {
+    async buildIndex(page) {
+      const data = await this.getPageStructuredData(page);
 
-    return {
-      id: page.url,
-      title: page.data.title ?? page.path,
-      description: page.data.description,
-      url: page.url,
-      structuredData: data ?? { headings: [], contents: [] },
-      tag: page.path.split("/")[0], // [!code highlight]
-    };
+      return {
+        id: page.url,
+        title: page.data.title ?? page.path,
+        description: page.data.description,
+        url: page.url,
+        structuredData: data ?? { headings: [], contents: [] },
+        tag: page.path.split("/")[0], // [!code highlight]
+      };
+    },
   },
 });
 ```

@@ -64,6 +64,27 @@ You can also import a component directly in an MDX file.
 
 To use hooks like `usePathname` from `fumadocs-core/framework`, add `"use client"` to the component.
 
+### Components per Page
+
+List the MDX renderer yourself, with `components` as a function of the page. It replaces the renderer that `press()` builds from your module:
+
+```tsx title="press.config.tsx"
+import mdxPlugin from "fumadocs-mdx/press";
+import components from "./src/components/mdx";
+import { Mermaid } from "./src/components/mermaid";
+
+createPress(content).plugins(
+  mdxPlugin({
+    components: (page) =>
+      page.path.startsWith("guides/") ? { ...components, Mermaid } : components,
+  }),
+);
+```
+
+`page` has the types of your content. The plugins of the [Notion, Sanity and Obsidian sources](/docs/content-sources) take `components` as a function too.
+
+<Callout type="warn">These plugins take a function from the next release of Fumadocs.</Callout>
+
 ## Images and Files
 
 <include cwd>content/shared/content.mdx#files</include>
@@ -96,15 +117,18 @@ Markdown images and `Image` are optimized when your platform supports image opti
 
 ### Remote Images
 
-Local paths are always allowed. For remote images, add the provider with its options. It replaces the default one:
+Local paths are always allowed. For remote images, pass `image: false` to `recommendedPreset()` and add the provider with its options:
 
 <Tabs items={["Vercel", "Cloudflare", "Self-hosted"]}>
 <Tab value="Vercel">
 
 ```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
 import { vercelImage } from "fumapress/plugins/image/vercel";
 
-createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
+export const app = createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
 ```
 
 <Accordions>
@@ -121,9 +145,12 @@ createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
 Allow remote sources in the Cloudflare dashboard.
 
 ```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
 import { cloudflareImage } from "fumapress/plugins/image/cloudflare";
 
-createPress(content).plugins(cloudflareImage({ format: "auto" }));
+export const app = createPress(content).plugins(cloudflareImage({ format: "auto" }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
 ```
 
 <Accordions>
@@ -138,9 +165,12 @@ createPress(content).plugins(cloudflareImage({ format: "auto" }));
 <Tab value="Self-hosted">
 
 ```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
 import { selfHostedImage } from "fumapress/plugins/image/self-hosted";
 
-createPress(content).plugins(selfHostedImage({ allowedHosts: ["github.com"] }));
+export const app = createPress(content).plugins(selfHostedImage({ allowedHosts: ["github.com"] }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
 ```
 
 <Accordions>
@@ -162,8 +192,8 @@ On a static host with `sharp` installed, turn off image optimization, since the 
 import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress(content).config({
-  preset: recommendedPreset().filter((entry) => entry.provides !== "image"),
+  preset: recommendedPreset({ image: false }),
 });
 ```
 
-For another optimizer, see [Replacing a Default Plugin](/docs/plugins/authoring#replacing-a-default-plugin).
+For another optimizer, see [Replacing a Default Plugin](/docs/plugins#replacing-a-default-plugin).

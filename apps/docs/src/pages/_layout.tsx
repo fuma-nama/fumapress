@@ -7,6 +7,6 @@ export default async function Layout({
   lang,
   children,
 }: WakuRouteProps<typeof app> & { children: ReactNode }) {
-  const baseOptions = await getPressContext<typeof app>().getBaseOptions({ lang });
-  return <HomeShell baseOptions={baseOptions}>{children}</HomeShell>;
+  const layoutProps = await getPressContext<typeof app>().getLayoutProps({ lang });
+  return <HomeShell layoutProps={layoutProps}>{children}</HomeShell>;
 }

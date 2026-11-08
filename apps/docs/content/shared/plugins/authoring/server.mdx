@@ -2,7 +2,7 @@
 
 ## Middleware
 
-`middleware` runs before routes on the server. Call `next()` to continue, or return a `Response` to stop. This plugin protects a prefix with a token:
+`middleware` runs first on every request your server receives. Call `next()` to continue, or return a `Response` to stop. This plugin protects a prefix with a token:
 
 ```tsx title="acme/index.tsx"
 async middleware(request, next) {
@@ -17,11 +17,6 @@ async middleware(request, next) {
   return next(); // [!code highlight]
 },
 ```
-
-<Callout type="warn">
-  `middleware` only runs for routes rendered on demand. See
-  [Authentication](../../authentication.mdx) for which routes a check should cover.
-</Callout>
 
 ### Changing the Response
 
@@ -84,7 +79,7 @@ export function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
     async init() {
       config = JSON.parse(await readFile("acme.json", "utf8"));
     },
-    baseOptions: () => ({ nav: { title: config.title } }),
+    layoutProps: () => ({ nav: { title: config.title } }),
   };
 }
 ```

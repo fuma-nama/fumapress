@@ -6,17 +6,16 @@ description: The sitemap, robots.txt, RSS feed and Open Graph images of your sit
 <include cwd>content/shared/plugins/seo.mdx#intro</include>
 
 ```tsx title="press.config.tsx"
-import { sitemapPlugin } from "@fumapress/astro/plugins/sitemap";
-import { robotsPlugin } from "@fumapress/astro/plugins/robots";
-import { rssPlugin } from "@fumapress/astro/plugins/rss";
-import { takumiPlugin } from "@fumapress/astro/plugins/takumi";
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
 
-createPress(content).plugins(
-  sitemapPlugin({ path: "/sitemap.xml" }),
-  robotsPlugin({ sitemap: false }),
-  rssPlugin({ title: "My Docs", limit: 50 }),
-  takumiPlugin({ width: 1600, height: 840 }),
-);
+createPress(content).config({
+  preset: recommendedPreset({
+    sitemap: { path: "/sitemap.xml" },
+    robots: { sitemap: false },
+    rss: { title: "My Docs", limit: 50 },
+    ogImage: { width: 1600, height: 840 },
+  }),
+});
 ```
 
 ## Sitemap

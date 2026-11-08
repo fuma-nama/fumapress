@@ -86,6 +86,23 @@ press({
   component inside a link.
 </Callout>
 
+### Components per Page
+
+List the content renderer yourself, with `components` as a function of the page. They go over the components of your module:
+
+```tsx title="press.config.tsx"
+import { contentSourcePlugin } from "@fumapress/astro/plugins/content-source";
+import { Mermaid } from "./src/components/mermaid";
+
+createPress(content).plugins(
+  contentSourcePlugin({
+    components: (page) => (page.path.startsWith("guides/") ? { Mermaid } : {}),
+  }),
+);
+```
+
+`page` has the types of your content, and the [rules for MDX components](#rules-for-mdx-components) apply to these components too. The plugins of the [Notion, Sanity and Obsidian sources](/docs/astro/content-sources) take `components` as a function from the next release of Fumadocs.
+
 ## Images and Files
 
 <include cwd>content/shared/content.mdx#files</include>

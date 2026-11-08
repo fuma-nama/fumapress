@@ -7,16 +7,16 @@ description: Collect feedback on pages and selected text.
 
 ## Custom Layout
 
-The default layout places the form for you. With a custom [layout](/docs/astro/layouts#page-actions-and-footers), place `footer.feedback` in your island:
+The default layout places the form for you. In a [custom layout](/docs/astro/layouts#slots), place the `feedback:page` slot in your island:
 
 ```tsx title="src/components/docs-island.tsx"
 export const DocsIsland = createIsland(
-  ({ tree, baseOptions, pageData, footer, children }: IslandProps<typeof app, "docs">) => (
-    <DocsLayout {...baseOptions} tree={tree}>
-      <DocsPage toc={pageData.toc}>
+  ({ layoutProps, pageData, toc, slots, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{children}</DocsBody>
-        {footer.feedback} {/* [!code highlight] */}
+        {slots["feedback:page"]?.element} {/* [!code highlight] */}
       </DocsPage>
     </DocsLayout>
   ),

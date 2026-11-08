@@ -89,7 +89,7 @@ With `"never"`, `/` redirects to `/en`. When `/en` has no page, like with conten
 
 ### Localized Links
 
-`localizePath()` adds the prefix, unless `hideLocale` hides it. Use it in [`ui.baseOptions`](./configuration.mdx#links-per-language), in plugins, and with `getPressContext()` on custom pages.
+`localizePath()` adds the prefix, unless `hideLocale` hides it. Use it in [`ui.layoutProps`](./configuration.mdx#links-per-language), in plugins, and with `getPressContext()` on custom pages.
 
 ```tsx title="press.config.tsx"
 this.localizePath("zh", "/setup"); // "/zh/setup"

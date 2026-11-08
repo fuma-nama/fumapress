@@ -7,20 +7,22 @@ description: Collect feedback on pages and selected text.
 
 ## Custom Layout
 
-The default layout places the form for you. With a custom [`renderPage`](/docs/layouts#page-actions-and-footers), place `footer.feedback`:
+The default layout places the form for you. In a [custom layout](/docs/layouts#slots), place the `feedback:page` slot:
 
 ```tsx title="src/ui/layout.tsx"
-function Docs(props: RenderPageProps<typeof app, "docs">) {
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
   return (
-    <DocsLayout {...props.baseOptions} tree={props.tree}>
-      <DocsPage toc={props.pageData.toc}>
-        <DocsTitle>{props.pageData.title}</DocsTitle>
-        <DocsBody>{props.body}</DocsBody>
-        {props.footer.feedback} {/* [!code highlight] */}
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+        {slots["feedback:page"]?.element} {/* [!code highlight] */}
       </DocsPage>
     </DocsLayout>
   );
 }
 ```
+
+The form of text feedback is already around `body`.
 
 <include cwd>content/shared/plugins/feedback.mdx#options</include>

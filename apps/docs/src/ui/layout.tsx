@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
-import { selectTreeRoot, type BaseOptions, type RenderPageProps } from "fumapress";
+import { selectTreeRoot, type RenderPageProps, type SharedLayoutProps } from "fumapress";
 import { DocsLayout } from "fumadocs-ui/layouts/notebook";
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle,
-  MarkdownCopyButton,
   PageLastUpdate,
-  ViewOptionsPopover,
 } from "fumadocs-ui/layouts/notebook/page";
 import { HomeLayout } from "fumadocs-ui/layouts/home";
 import { getLayoutTabs, type LinkItemType } from "fumadocs-ui/layouts/shared";
@@ -18,7 +16,7 @@ import type { app } from "../../press.config";
 import { frameworkOf } from "./framework";
 import { Logo } from "./logo";
 
-export const baseOptions: BaseOptions = {
+export const layoutProps: SharedLayoutProps = {
   nav: {
     title: (
       <>
@@ -38,14 +36,19 @@ const homeLinks: LinkItemType[] = [
 
 /** the landing, blog and changelog pages */
 export function HomeShell({
-  baseOptions,
+  layoutProps,
   children,
 }: {
-  baseOptions: BaseOptions;
+  layoutProps: SharedLayoutProps;
   children: ReactNode;
 }) {
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links = [], githubUrl, i18n, themeSwitch, searchToggle } = layoutProps;
   return (
-    <HomeLayout {...baseOptions} links={[...homeLinks, ...(baseOptions.links ?? [])]}>
+    <HomeLayout
+      {...{ nav, githubUrl, i18n, themeSwitch, searchToggle }}
+      links={[...homeLinks, ...links]}
+    >
       <div
         data-fd-home-layout-container=""
         className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto"
@@ -57,18 +60,21 @@ export function HomeShell({
 }
 
 function NotebookDocs({
-  tree,
-  baseOptions,
+  layoutProps: { tree, ...layoutProps },
   pageData,
+  toc,
   body,
-  actions,
+  slots,
 }: RenderPageProps<typeof app, "docs" | "changelog">) {
   const docsTree = selectTreeRoot(tree, "docs");
+  const actions: ReactNode[] = [];
+  for (const slot of Object.values(slots))
+    if (slot?.region === "actions") actions.push(slot.element);
 
   return (
     // the sidebar shows the docs on every page of this layout
     <DocsLayout
-      {...baseOptions}
+      {...layoutProps}
       tree={docsTree}
       tabs={getLayoutTabs(docsTree, {
         transform: (option) => ({
@@ -78,18 +84,10 @@ function NotebookDocs({
       })}
       containerProps={{ className: frameworkOf(pageData.url) }}
     >
-      <DocsPage
-        toc={pageData.toc}
-        full={pageData.full}
-        tableOfContent={{ footer: <SponsorsMarquee /> }}
-      >
+      <DocsPage toc={toc} full={pageData.full} tableOfContent={{ footer: <SponsorsMarquee /> }}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsDescription className="mb-0">{pageData.description}</DocsDescription>
-        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">
-          {pageData.markdownUrl && <MarkdownCopyButton markdownUrl={pageData.markdownUrl} />}
-          <ViewOptionsPopover markdownUrl={pageData.markdownUrl} githubUrl={pageData.githubUrl} />
-          {Object.values(actions)}
-        </div>
+        <div className="flex flex-row gap-2 items-center border-b pt-2 pb-6">{actions}</div>
         <DocsBody>{body}</DocsBody>
         {pageData.lastModified && <PageLastUpdate date={pageData.lastModified} />}
       </DocsPage>
@@ -109,7 +107,7 @@ export function renderPage(props: RenderPageProps<typeof app>) {
     case "blog.tags":
     case "blog.tag":
     case "changelog.index":
-      return <HomeShell baseOptions={props.baseOptions}>{props.children}</HomeShell>;
+      return <HomeShell layoutProps={props.layoutProps}>{props.children}</HomeShell>;
     default:
       return renderDefault();
   }

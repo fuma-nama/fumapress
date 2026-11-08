@@ -1,6 +1,6 @@
 ## Pages
 
-`createView()` adds a page. `view` returns its content, and `type` tells `ui.renderPage` which page it is:
+`createView()` adds a page. `view` returns its content, and `type` tells `ui.renderPage` which page it is. `data` is the [page data](./ui.mdx#page-data), like its title in `<head>`:
 
 ```tsx tab="acme/index.tsx"
 type Types = {
@@ -15,11 +15,11 @@ export function showcasePlugin<C extends AppShape = AppShape>(options: {
     routes({ createView }) {
       createView({
         path: "/showcase",
+        data: { title: "Showcase" },
         view: () => ({
           type: "showcase.index", // [!code highlight]
           props: { items: options.items }, // [!code highlight]
           node: <p>{options.items.join(", ")}</p>, // [!code highlight]
-          title: "Showcase",
         }),
       });
     },
@@ -38,9 +38,11 @@ export default createPress(content)
       renderPage(props) {
         const { renderDefault } = props;
         if (props.type === "showcase.index") {
-          // [!code highlight]
+          // the Home Layout takes these props, the others are for docs layouts
+          const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+          const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
           return (
-            <HomeLayout {...props.baseOptions}>
+            <HomeLayout {...home}>
               <p>{props.items.length} projects</p> {/* [!code highlight] */}
               {props.children} {/* [!code highlight] */}
             </HomeLayout>
@@ -95,6 +97,7 @@ With `render: "dynamic"`, `view` also receives the request. Return `undefined` f
 createView({
   path: "/account",
   render: "dynamic", // [!code highlight]
+  data: { title: "Account", noindex: true },
   view(_params, { request }) {
     const user = /session=([^;]+)/.exec(request.headers.get("cookie") ?? "")?.[1];
     if (!user) return;
@@ -103,7 +106,6 @@ createView({
       type: "acme.account",
       props: { user },
       node: <p>Signed in as {user}</p>,
-      title: "Account",
     };
   },
 });
@@ -139,7 +141,7 @@ A route at the path of a page in a static source fails the build. A dynamic sour
 
 ## Content Render Mode
 
-A route that lists your pages depends on them. With a dynamic source, like Notion, that list changes after the build, so the route must render on demand too. `this.getContentRender()` returns the render mode of your content:
+A route that lists your pages depends on them. With a dynamic source, like Notion, that list changes after the build, so the route must render on demand too. `this.getContentRender()` returns the render mode of your content, which follows the [`mode`](../../deployment.mdx#render-mode) of the site:
 
 ```tsx title="acme/index.tsx"
 routes({ createApi }) {
@@ -173,6 +175,7 @@ async deriveRoutes({ createView }, { lang }) { // [!code highlight]
   createView({
     path: "/print/[...slugs]",
     render: this.getContentRender(),
+    data: { noindex: true },
     staticPaths: loader.getPages(lang).map((page) => page.slugs),
     view: async ({ slugs }) => {
       const page = loader.getPage(slugs as string[], lang);
@@ -183,7 +186,6 @@ async deriveRoutes({ createView }, { lang }) { // [!code highlight]
         type: "print",
         props: { page },
         node: body?.node,
-        title: page.data.title,
       };
     },
   });

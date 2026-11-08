@@ -3,7 +3,7 @@ title: Upgrade to Fumapress 2
 description: Move a Fumapress 1.x site to version 2.
 ---
 
-Fumapress 2 replaces `defineConfig()` with `createPress()`. The render mode of each page now matches its content source, so one site can have both prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
+Fumapress 2 replaces `defineConfig()` with `createPress()`. By default, the render mode of each page now matches its content source, so one site can have both prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
 
 ## Upgrade Steps
 
@@ -39,11 +39,11 @@ export default defineConfig({
   site: { name: "My Docs" },
 })
   .adapters(fumadocsMdx())
-  .plugins(llmsPlugin());
+  .plugins(linkValidationPlugin());
 // [!code ++:5]
 export const app = createPress(docs.toFumadocsSource(), {
   loaderPlugins: [lucideIconsPlugin()],
-}).plugins(llmsPlugin());
+}).plugins(linkValidationPlugin());
 
 export default app.config({ site: { name: "My Docs" } });
 ```
@@ -130,7 +130,7 @@ export default app.config({
       if (props.type !== "docs") return props.renderDefault();
       return props.renderDefault({
         layout: "notebook",
-        layoutProps: { tree: selectTreeRoot(props.tree, "docs") },
+        layoutProps: { tree: selectTreeRoot(props.layoutProps.tree, "docs") },
         pageProps: { full: true },
       });
     },
@@ -138,18 +138,12 @@ export default app.config({
 });
 ```
 
-The other options of the factories map to `renderDefault()` too:
+`layoutProps` and `pageProps` of `render()` keep their names. For `body`, `lastModified`, `renderBody` and `renderPageActions`, write the layout yourself from `props.body`, `props.pageData` and `props.slots`. See [Custom Layouts](/docs/layouts#custom-layouts).
 
-- `layoutProps` and `pageProps` of `render()` keep their names.
-- `body` and `lastModified` of `render()`, and `renderBody`, become the `body` and `pageData` options. See [Replacing Parts](/docs/layouts#replacing-parts).
-- `renderPageActions` becomes the `actions` option.
-
-For a different structure, write the layout yourself. See [Rendering Pages](/docs/layouts#rendering-pages).
-
-On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts). `HomeLayout` has no content container, so wrap your content to keep the width and padding of `createHomeLayout()`:
+On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts) and the props it takes from `ctx.getLayoutProps({ lang })`. `HomeLayout` has no content container, so wrap your content to keep the width and padding of `createHomeLayout()`:
 
 ```tsx
-<HomeLayout {...baseOptions}>
+<HomeLayout {...home}>
   <div className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto">{children}</div>
 </HomeLayout>
 ```
@@ -163,12 +157,12 @@ export default app.config({
   defaultLayoutProps: { links: [{ url: "/blog", text: "Blog" }] },
   // [!code ++:3]
   ui: {
-    baseOptions: { links: [{ url: "/blog", text: "Blog" }] },
+    layoutProps: { links: [{ url: "/blog", text: "Blog" }] },
   },
 });
 ```
 
-To read these options elsewhere, use `ctx.getBaseOptions({ lang })` in place of `ctx.defaultLayoutProps({ lang })`.
+To read these props elsewhere, use `ctx.getLayoutProps({ lang })` in place of `ctx.defaultLayoutProps({ lang })`.
 
 </Accordion>
 <Accordion title="Root document and provider">
@@ -250,12 +244,18 @@ export default app.config({
 </Accordion>
 <Accordion title="Render mode">
 
-Delete `mode`. Content from a static source, like Fumadocs MDX, is prerendered. Content from a dynamic source renders on demand, and one site can have both. Search and other generated files use the same render mode.
+`mode` moves to `createPress()`, with new values. The default, `auto`, prerenders static sources like Fumadocs MDX and renders dynamic sources on demand. Search and other generated files follow the content.
 
-<Callout type="warn">
-  If you used `mode: "dynamic"` with a static source, its pages no longer render on demand, so
-  middleware doesn't run for them. See [Authentication](/docs/authentication) if you relied on that.
-</Callout>
+```tsx title="press.config.tsx"
+// [!code --]
+defineConfig({ content, mode: "dynamic" });
+// [!code ++]
+createPress(content, { mode: "force-dynamic" });
+```
+
+- `mode: "dynamic"` becomes `force-dynamic`. Keep it if middleware has to run for your pages, like for [authentication](/docs/authentication).
+- `mode: "static"` becomes `force-static`, which prerenders a dynamic source at build time.
+- Otherwise, delete `mode`.
 
 <Callout type="warn">
   `mode` no longer affects custom pages and API routes. Pages are prerendered and API routes render
@@ -265,16 +265,22 @@ Delete `mode`. Content from a static source, like Fumadocs MDX, is prerendered. 
 </Accordion>
 <Accordion title="Default plugins">
 
+A default plugin that you list with options now runs twice, and its routes conflict. Pass its options to `recommendedPreset()` instead:
+
 ```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+// [!code --]
+createPress(content).plugins(rssPlugin({ limit: 50 }));
+// [!code ++:3]
 createPress(content).config({
-  // [!code --]
-  preset: false,
-  // [!code ++]
-  preset: [],
+  preset: recommendedPreset({ rss: { limit: 50 } }),
 });
 ```
 
-Delete `preset: "recommended"`, since it is the default.
+To replace a default plugin, like FlexSearch with Orama, set it to `false` and list yours. See [Default Plugins](/docs/plugins#default-plugins).
+
+`preset: false` becomes `preset: []`. Delete `preset: "recommended"`, since it is the default.
 
 </Accordion>
 <Accordion title="Search dialog">
@@ -288,6 +294,8 @@ createPress(content).config({
 ```
 
 The exported search index is now at `/api/search.json`. On a dynamic source, search still runs at `/api/search`.
+
+The options of FlexSearch go to `recommendedPreset({ search })`. To keep Orama, set `search: false` and list `oramaSearchPlugin()`. See [Search Engines](/docs/search#search-engines).
 
 A site deployed with a server used to search on the server. Now static sources send the index to the browser. On a large site, keep search on the server with [Server-Side Search](/docs/search#server-side-search).
 
@@ -312,7 +320,7 @@ export function getConfig() {
     // [!code --]
     takumiOptions: { title: "Showcase" },
     // [!code ++]
-    ogImage: { title: "Showcase" },
+    data: { title: "Showcase", ogImage: { title: "Showcase" } },
     // [!code --]
   } satisfies RouteConfig;
   // [!code ++]
@@ -321,6 +329,8 @@ export function getConfig() {
 ```
 
 `typeof config.$context` is now `typeof app`. Rename `AppContext<...>` to `PressContext<typeof app>`.
+
+`data` is the [page data](/docs/custom-pages#page-data) of the page. Fumapress renders its `title` and `description` in `<head>`, so replace a `<title>` that your page renders with `data.title`.
 
 </Accordion>
 <Accordion title="Server entry">
@@ -416,20 +426,28 @@ vercelImage({ domains: ["github.com"] });
 
 The others are `cloudflareImage()` and `selfHostedImage()`. `selfHostedImage()` now needs [`site.baseUrl`](/docs/configuration#url).
 
+The default plugins add the provider of your platform. When you list one with options, set `image: false` in `recommendedPreset()`. See [Remote Images](/docs/content#remote-images).
+
 </Accordion>
 <Accordion title="Open Graph images">
 
+The options move to `recommendedPreset()`, since the plugin is a default one. `basePath` becomes `path`, and `generate` becomes `getImage`.
+
 ```tsx title="press.config.tsx"
+// [!code --:6]
 takumiPlugin({
-  // [!code --]
   basePath: "/og",
-  // [!code ++]
-  path: "/og",
-  // [!code --]
   generate(page) {
-  // [!code ++]
-  getImage(page) {
     return { node: <h1>{page.data.title}</h1> };
+  },
+});
+// [!code ++:8]
+recommendedPreset({
+  ogImage: {
+    path: "/og",
+    getImage(page) {
+      return { node: <h1>{page.data.title}</h1> };
+    },
   },
 });
 ```
@@ -588,7 +606,7 @@ feedbackPlugin({
 });
 ```
 
-In a custom layout, place `props.footer.feedback`.
+In a [custom layout](/docs/plugins/feedback#custom-layout), place `props.slots["feedback:page"]`.
 
 </Accordion>
 <Accordion title="AI">
@@ -678,7 +696,7 @@ Then rename these APIs:
 | `core:get-modified-date`   | `getPageLastModified`       |
 | `unstable_onServerEntry`   | `waku.unstable_serverEntry` |
 
-`enforce` is removed, since plugins run in list order. `preinit` becomes [`provides`](/docs/plugins/authoring#capabilities), and `this.mode` becomes [`this.getContentRender()`](/docs/plugins/authoring/routes#content-render-mode).
+`enforce` is removed, since plugins run in list order. `preinit` is removed: to replace a default plugin, the site sets it to `false` in [`recommendedPreset()`](/docs/plugins#replacing-a-default-plugin). `this.mode` becomes [`this.getContentRender()`](/docs/plugins/authoring/routes#content-render-mode).
 
 These need more than a rename:
 

@@ -53,7 +53,7 @@ export default createPress({
 
 ### Remote Images
 
-An optimizer rejects hosts you don't allow, including for covers and avatars:
+An optimizer rejects hosts you don't allow, including for covers and avatars. List the provider with the allowed hosts, and set `image: false` in [`recommendedPreset()`](/docs/content#remote-images):
 
 ```tsx tab="Self-hosted" title="press.config.tsx"
 import { selfHostedImage } from "fumapress/plugins/image/self-hosted";

@@ -6,17 +6,16 @@ description: The sitemap, robots.txt, RSS feed and Open Graph images of your sit
 <include cwd>content/shared/plugins/seo.mdx#intro</include>
 
 ```tsx title="press.config.tsx"
-import { sitemapPlugin } from "fumapress/plugins/sitemap";
-import { robotsPlugin } from "fumapress/plugins/robots";
-import { rssPlugin } from "fumapress/plugins/rss";
-import { takumiPlugin } from "fumapress/plugins/takumi";
+import { createPress, recommendedPreset } from "fumapress";
 
-createPress(content).plugins(
-  sitemapPlugin({ path: "/sitemap.xml" }),
-  robotsPlugin({ sitemap: false }),
-  rssPlugin({ title: "My Docs", limit: 50 }),
-  takumiPlugin({ width: 1600, height: 840 }),
-);
+createPress(content).config({
+  preset: recommendedPreset({
+    sitemap: { path: "/sitemap.xml" },
+    robots: { sitemap: false },
+    rss: { title: "My Docs", limit: 50 },
+    ogImage: { width: 1600, height: 840 },
+  }),
+});
 ```
 
 ## Sitemap
@@ -25,15 +24,17 @@ createPress(content).plugins(
 
 ### Custom Pages
 
-Custom pages and plugin pages are listed with priority `1`. To leave a page out or change its entry, set `sitemap` in `getConfig()`:
+Custom pages and plugin pages are listed with priority `1`. To leave a page out or change its entry, set `sitemap` in the `data` of `getConfig()`:
 
 ```tsx title="src/pages/preview.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
 export function getConfig() {
-  return { sitemap: false };
+  return { data: { sitemap: false } } satisfies WakuRouteConfig;
 }
 ```
 
-A plugin passes the same option to `createPage()` in `waku.createPages`.
+A plugin passes the same `data` to `createPage()` in `waku.createPages`, or to `createView()`.
 
 <include cwd>content/shared/plugins/seo.mdx#sitemap-options</include>
 
@@ -51,13 +52,13 @@ A plugin passes the same option to `createPage()` in `waku.createPages`.
 
 ### Custom Pages
 
-To give a custom page an image, set `ogImage` in `getConfig()`. It uses the default design unless you pass `node`. For a page with params, use a function:
+To give a custom page an image, set `ogImage` in the `data` of `getConfig()`. It uses the default design unless you pass `node`. For a page with params, use a function:
 
 ```tsx tab="src/pages/pricing.tsx"
 import type { WakuRouteConfig } from "fumapress";
 
 export function getConfig() {
-  return { render: "static", ogImage: { title: "Pricing" } } satisfies WakuRouteConfig;
+  return { data: { ogImage: { title: "Pricing" } } } satisfies WakuRouteConfig;
 }
 ```
 
@@ -68,9 +69,11 @@ export function getConfig() {
   return {
     render: "static",
     staticPaths: Object.keys(items),
-    ogImage(params) {
-      const item = items[params.slug as string];
-      return { title: item?.title, description: item?.description };
+    data: {
+      ogImage(params) {
+        const item = items[params.slug as string];
+        return { title: item?.title, description: item?.description };
+      },
     },
   } satisfies WakuRouteConfig;
 }
@@ -81,12 +84,14 @@ export function getConfig() {
 When the machine building your site can't load the native addon of Takumi, pass the WebAssembly build. On Cloudflare Workers, it is used automatically.
 
 ```tsx title="press.config.tsx"
-import { takumiPlugin } from "fumapress/plugins/takumi";
+import { recommendedPreset } from "fumapress";
 import wasm from "fumapress/plugins/takumi.wasm"; // [!code ++]
 
-takumiPlugin({
-  options: {
-    module: wasm, // [!code ++]
+recommendedPreset({
+  ogImage: {
+    options: {
+      module: wasm, // [!code ++]
+    },
   },
 });
 ```

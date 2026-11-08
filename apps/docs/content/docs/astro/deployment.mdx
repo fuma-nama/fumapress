@@ -13,6 +13,12 @@ Without an [adapter](#adapters), the build fails on anything in this list and pr
 
 <include cwd>content/shared/deployment.mdx#server</include>
 
+A plugin with `middleware` doesn't fail the build. Without an adapter, the build warns that its middleware never runs.
+
+<include cwd>content/shared/deployment.mdx#mode</include>
+
+With `output: "server"`, `auto` renders every source on demand, like other Astro routes. To build a dynamic source without an adapter, set `mode: "force-static"`.
+
 ## Adapters
 
 Add an [adapter](https://docs.astro.build/en/guides/on-demand-rendering) to render routes on demand. Pages of static sources stay prerendered.
@@ -36,7 +42,7 @@ NODE_ENV=production node dist/server/entry.mjs
 
 ### Rendering Every Page on Demand
 
-With `output: "server"`, pages of static sources render on demand too. Use it when every page must run middleware, like [authentication](/docs/astro/authentication).
+With `output: "server"`, pages of static sources render on demand too, unless `mode` prerenders them. Use it when every page must run middleware, like [authentication](/docs/astro/authentication).
 
 ```js title="astro.config.mjs"
 export default defineConfig({
@@ -71,9 +77,9 @@ export default defineConfig({
 The build stops with one of these messages:
 
 <Accordions>
-<Accordion title="a dynamic content source renders its pages on demand, add an adapter to Astro">
+<Accordion title="content renders on demand, add an adapter to Astro">
 
-The build has a dynamic source. Add an [adapter](#adapters), or use a static source.
+The build has a dynamic source, or content rendered on demand by `mode`. Add an [adapter](#adapters), or prerender the content with `mode: "force-static"`.
 
 </Accordion>
 <Accordion title='the route "/path" renders on demand, add an adapter to Astro'>

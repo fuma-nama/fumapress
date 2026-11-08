@@ -11,11 +11,17 @@ description: Build your site and put it online.
 
 <include cwd>content/shared/deployment.mdx#server</include>
 
-[Self-hosted image optimization](/docs/content#image-optimization) also needs a server.
+[Self-hosted image optimization](/docs/content#image-optimization) and the `middleware` of a plugin that you list in `.plugins()`, like [authentication](/docs/authentication), need one too. A build without a server warns about that middleware.
+
+The default plugins don't need a server. On a static build, they leave out what needs one, like the Markdown [content negotiation](/docs/plugins/ai#content-negotiation) of llms.txt.
+
+<include cwd>content/shared/deployment.mdx#mode</include>
 
 ## Platforms
 
 The adapter for Vercel, Netlify or Cloudflare is detected at build time. Other platforms get the Node.js adapter. When nothing [needs a server](#what-needs-a-server), the build has no function, like a Vercel Function, and the platform serves static files.
+
+The platforms serve prerendered pages and the files of `public/` without your function, so middleware only runs for routes rendered on demand. On a Node.js server, it runs for every request.
 
 ### Node.js
 

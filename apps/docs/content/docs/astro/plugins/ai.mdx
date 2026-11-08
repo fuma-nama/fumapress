@@ -9,12 +9,14 @@ description: Give AI tools your docs as Markdown, add a chat, or connect clients
 
 <include cwd>content/shared/plugins/ai.mdx#llms-intro</include>
 
-Add the plugin to pass options. It replaces the default one:
+Pass its options to `recommendedPreset()`:
 
 ```tsx title="press.config.tsx"
-import { llmsPlugin } from "@fumapress/astro/plugins/llms.txt";
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
 
-createPress(content).plugins(llmsPlugin());
+createPress(content).config({
+  preset: recommendedPreset({ llms: { autoRedirect: false } }),
+});
 ```
 
 <Callout>
@@ -37,15 +39,15 @@ createPress(content).plugins(llmsPlugin());
 
 ### Custom Layout
 
-The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a custom [layout](/docs/astro/layouts#rendering-pages), your island reads it:
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you. In a custom [layout](/docs/astro/layouts#islands), your island reads it:
 
 ```tsx title="src/components/docs-island.tsx"
 import { createIsland, useLayoutProps } from "@fumapress/astro/client";
 
 export const DocsIsland = createIsland(
-  ({ baseOptions, tree, pageData, children }: IslandProps<typeof app, "docs">) => (
-    <DocsLayout {...baseOptions} tree={tree} {...useLayoutProps()}>
-      <DocsPage toc={pageData.toc}>
+  ({ layoutProps, pageData, toc, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...layoutProps} {...useLayoutProps()}>
+      <DocsPage toc={toc}>
         <DocsTitle>{pageData.title}</DocsTitle>
         <DocsBody>{children}</DocsBody>
       </DocsPage>
