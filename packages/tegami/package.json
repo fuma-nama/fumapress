@@ -34,25 +34,25 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "@base-ui/react": "^1.8.0",
+    "@base-ui/react": "^1.9.0",
     "@fumapress/core": "workspace:^",
-    "cn": "^0.4.0",
-    "lucide-react": "^1.47.0",
+    "cn": "^0.5.2",
+    "lucide-react": "^1.70.0",
     "yaml": "^2.9.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "fumadocs-core": "^16.18.2",
     "fumadocs-ui": "^16.18.2",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tegami": "^1.5.0",
-    "tsdown": "0.23.0",
+    "tsdown": "0.23.7",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@types/react": "*",

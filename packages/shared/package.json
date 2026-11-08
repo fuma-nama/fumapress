@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@tailwindcss/oxide": "^4.3.3",
-    "@types/node": "^26.6.2",
+    "@tailwindcss/oxide": "^4.3.5",
+    "@types/node": "^26.6.6",
     "fuma-translate": "^1.0.2"
   }
 }
