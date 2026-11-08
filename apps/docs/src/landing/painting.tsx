@@ -410,7 +410,7 @@ function paintLayers(name: FigureName, painting: ReactElement<Props>): ReactNode
         <svg
           key={i}
           viewBox={viewBox as string}
-          className={`absolute inset-0 size-full overflow-visible${layer.intro ? " will-change-transform" : ""}`}
+          className="absolute inset-0 size-full overflow-visible"
           aria-hidden
         >
           {layer.nodes}
@@ -433,8 +433,6 @@ function paintLayers(name: FigureName, painting: ReactElement<Props>): ReactNode
           key={`${i}-${theme}`}
           src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${route}/${fileName(name, i, file, theme)}`}
           alt=""
-          loading="lazy"
-          decoding="async"
           data-key={layer.hoverKey}
           className={`absolute max-w-none ${theme === "light" ? "dark:hidden" : "hidden dark:block"}`}
           style={style}
@@ -455,10 +453,24 @@ function paintLayers(name: FigureName, painting: ReactElement<Props>): ReactNode
   return out;
 }
 
-/** a large figure with its static painting in cached files, see the top of this module */
-export function Painting({ name, className }: { name: FigureName; className?: string }) {
+/**
+ * A large figure with its static painting in cached files, see the top of this module. `inline` keeps the painting in
+ * the page instead, for a figure in the first screen, which must show with the first paint.
+ */
+export function Painting({
+  name,
+  className,
+  inline,
+}: {
+  name: FigureName;
+  className?: string;
+  inline?: boolean;
+}) {
   return (
-    <Layered className={className} paint={(painting) => paintLayers(name, painting)}>
+    <Layered
+      className={className}
+      paint={inline ? undefined : (painting) => paintLayers(name, painting)}
+    >
       {figures[name]()}
     </Layered>
   );

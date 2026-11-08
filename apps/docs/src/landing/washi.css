@@ -258,7 +258,8 @@ html:has([data-washi]) body {
 .w-cord-shadow {
   stroke: var(--w-shadow-glaze);
   stroke-width: 3;
-  transform: translate(14px, 8px);
+  /* the shadow offset of the plugs: 14 and 8 units of a 520-unit figure, which narrows to the page on phones */
+  transform: translate(min(14px, (100vw - 2rem) * 14 / 520), min(8px, (100vw - 2rem) * 8 / 520));
 }
 
 /* code fed out of the press when it changes: the new sheet from the top, the old one leaving below the same line */

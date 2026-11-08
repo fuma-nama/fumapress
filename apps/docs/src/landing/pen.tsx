@@ -805,8 +805,8 @@ export function paintingOf(children: ReactNode): ReactElement<Props> | undefined
 
 /**
  * The painting cut at its intros, in drawing order: a run of top-level groups without intros, then the groups with
- * one, and so on, each its own SVG over the last. The groups with an intro get a compositor layer of their own, so an
- * intro repaints just them, not the filtered painting around it.
+ * one, and so on, each its own SVG over the last. No run keeps a compositor layer of its own: phones run out of GPU
+ * memory with one per intro, and an intro plays once.
  */
 function slices(painting: ReactElement<Props>): ReactNode {
   const { children, viewBox } = painting.props;
@@ -825,7 +825,7 @@ function slices(painting: ReactElement<Props>): ReactNode {
       <svg
         key={i}
         viewBox={viewBox as string}
-        className={`absolute inset-0 size-full overflow-visible${run.intro ? " will-change-transform" : ""}`}
+        className="absolute inset-0 size-full overflow-visible"
         aria-hidden
       >
         {run.nodes}
