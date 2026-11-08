@@ -6,6 +6,7 @@ import type { Context, RuntimeContext } from "./context";
 import {
   nameOf,
   takeKey,
+  addedTwice,
   type AnyPlugin,
   type AppShape,
   type Awaitable,
@@ -469,11 +470,7 @@ export function collectRoutes(
     for (const key of keys)
       takeKey(owners, key, owner, (other) => {
         const name = typeof other === "string" ? other : nameOf(other);
-        // like a default plugin listed in `.plugins()` too
-        const twice =
-          typeof other !== "string" && owner.name !== undefined && other.name === owner.name
-            ? ` ${name} is added twice: pass the options of a default plugin to \`recommendedPreset()\` instead of listing it.`
-            : "";
+        const twice = typeof other === "string" ? "" : addedTwice(other, owner);
         return `${name} and ${nameOf(owner)} both take the path "${path}": a path has one route.${twice}`;
       });
     return true;

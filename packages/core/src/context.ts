@@ -10,6 +10,7 @@ import {
   recommendedPreset,
   resolveLayers,
   takeKey,
+  addedTwice,
   type AnyPlugin,
   type AppShape,
   type Awaitable,
@@ -516,7 +517,7 @@ export async function createPressContext(
               item.name,
               plugin,
               (other) =>
-                `${nameOf(other)} and ${nameOf(plugin)} both add the slot item "${item.name}": a name has one item.`,
+                `${nameOf(other)} and ${nameOf(plugin)} both add the slot item "${item.name}": a name has one item.${addedTwice(other, plugin)}`,
             );
             items.push(item);
           }
