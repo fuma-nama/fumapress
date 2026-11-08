@@ -6,14 +6,7 @@ import { useState, type SyntheticEvent } from "react";
 import Link from "fumadocs-core/link";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Collapsible, CollapsibleContent } from "fumadocs-ui/components/ui/collapsible";
-import {
-  ArrowUpIcon,
-  SearchIcon,
-  SquarePenIcon,
-  ThumbsDown,
-  ThumbsUp,
-  XIcon,
-} from "lucide-react";
+import { ArrowUpIcon, SearchIcon, SquarePenIcon, ThumbsDown, ThumbsUp, XIcon } from "lucide-react";
 import { cn } from "../../cn";
 import { previewPath } from "./options";
 import { href } from "./sample";
