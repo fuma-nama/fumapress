@@ -10,10 +10,10 @@
     "types:check": "tsc --noEmit"
   },
   "dependencies": {
-    "fumadocs-core": "^16.18.1",
-    "fumadocs-mdx": "^15.5.0",
+    "fumadocs-core": "^16.18.2",
+    "fumadocs-mdx": "^15.5.1",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "^16.18.1",
+    "fumadocs-ui": "^16.18.2",
     "fumapress": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

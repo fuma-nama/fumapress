@@ -14,9 +14,9 @@
     "@fumadocs/astro": "^0.2.1",
     "@fumapress/astro": "workspace:*",
     "astro": "^7.4.2",
-    "fumadocs-core": "^16.18.1",
+    "fumadocs-core": "^16.18.2",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.1",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "takumi-js": "^2.14.0"
