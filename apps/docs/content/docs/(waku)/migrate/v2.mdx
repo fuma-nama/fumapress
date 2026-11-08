@@ -192,7 +192,7 @@ createPress(content).config({
 });
 ```
 
-A custom `ui.renderRoot` also receives `head`, the styles of your site. Render it in `<head>`, or the page has no CSS.
+A custom `ui.renderRoot` also receives `head`, with the charset, the viewport and the styles of your site. Render it in `<head>`, or the page has no CSS.
 
 </Accordion>
 <Accordion title="Not found page">
@@ -346,7 +346,7 @@ export function getConfig() {
 </Accordion>
 <Accordion title="Server entry">
 
-Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version that Fumapress uses, `1.0.0-rc.1`.
+Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version that Fumapress uses, `1.0.0-rc.4`.
 
 ```tsx title="src/waku.server.tsx"
 const router = await createRouter(press);

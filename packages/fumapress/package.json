@@ -20,7 +20,8 @@
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/router/client-entry.js"
+    "./dist/router/client-entry.browser.js",
+    "./dist/router/client-entry.ssr.js"
   ],
   "exports": {
     ".": "./dist/index.js",
@@ -65,7 +66,7 @@
     "lucide-react": "^1.47.0",
     "takumi-js": "^2.14.0",
     "vite": "^8.3.0",
-    "waku": "1.0.0-rc.1"
+    "waku": "1.0.0-rc.4"
   },
   "devDependencies": {
     "@types/http-cache-semantics": "^4.2.0",
@@ -79,8 +80,8 @@
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
     "hono": "^4.13.9",
     "http-cache-semantics": "^4.2.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "resolve.exports": "^2.0.3",
     "sharp": "^0.35.4",
     "tsdown": "0.23.0",
@@ -93,8 +94,8 @@
     "fumadocs-mdx": "^15.5.1",
     "fumadocs-ui": "^16.18.2",
     "hono": "*",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "sharp": "^0.34.0"
   },
   "peerDependenciesMeta": {

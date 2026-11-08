@@ -7,9 +7,12 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import * as vite from "vite";
-import { unstable_combinedPlugins as combinedPlugins } from "waku/vite-plugins";
+import {
+  unstable_combinedPlugins as combinedPlugins,
+  unstable_resolveConfig as resolveWakuConfig,
+} from "waku/vite-plugins";
 import type { Config } from "waku/config";
-import { getDefaultAdapter, type WakuPressOptions } from "./vite";
+import type { WakuPressOptions } from "./vite";
 import { assertEsmApp } from "./lib/fs";
 
 const require = createRequire(import.meta.url);
@@ -87,9 +90,7 @@ function loadDotEnv() {
 
 const configCandidates = ["vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs"];
 
-type ResolvedConfig = Required<Omit<Config, "vite">> & Pick<Config, "vite">;
-
-async function loadConfig(configEnv: vite.ConfigEnv): Promise<ResolvedConfig> {
+async function loadConfig(configEnv: vite.ConfigEnv): Promise<Required<Config>> {
   assertEsmApp();
   let userConfig: vite.UserConfig | undefined;
 
@@ -131,25 +132,18 @@ async function flattenPlugins(plugins: vite.PluginOption[]): Promise<vite.Plugin
   return out;
 }
 
+/** Waku's config from the options of `press()` */
 function resolveConfig(
   options: WakuPressOptions | undefined,
   userConfig: vite.UserConfig | undefined,
-): ResolvedConfig {
-  const config: ResolvedConfig = {
-    basePath: options?.basePath ?? "/",
-    srcDir: options?.srcDir ?? "src",
-    distDir: options?.distDir ?? "dist",
-    privateDir: options?.privateDir ?? "private",
-    rscBase: options?.rscBase ?? "RSC",
-    unstable_adapter: options?.adapter ?? getDefaultAdapter(),
+): Required<Config> {
+  const { adapter, generateViteConfig: _, components: __, ...waku } = options ?? {};
+  // Waku spreads the config over its defaults, `undefined` included
+  return resolveWakuConfig({
+    ...waku,
+    ...(adapter && { unstable_adapter: adapter }),
     vite: userConfig,
-  };
-
-  if (!config.basePath.endsWith("/")) {
-    throw new Error("basePath must end with /");
-  }
-
-  return config;
+  });
 }
 
 function createServerRestartHandler(strictPort: boolean) {
@@ -179,7 +173,7 @@ async function startDevServer(
 
   const server = await vite.createServer({
     configFile: false,
-    plugins: [combinedPlugins(config as Required<Config>)],
+    plugins: [combinedPlugins(config)],
     server: { host, port, strictPort },
   });
   const handleServerRestart = createServerRestartHandler(strictPort);
@@ -223,7 +217,7 @@ async function runBuild() {
 
   const builder = await vite.createBuilder({
     configFile: false,
-    plugins: [combinedPlugins(config as Required<Config>)],
+    plugins: [combinedPlugins(config)],
   });
   // Waku's static-build plugin prerenders pages through this hook
   (globalThis as Record<string, unknown>).__WAKU_START_PREVIEW_SERVER__ = () =>
@@ -231,10 +225,10 @@ async function runBuild() {
   await builder.buildApp();
 }
 
-async function startPreviewServer(config: ResolvedConfig) {
+async function startPreviewServer(config: Required<Config>) {
   const server = await vite.preview({
     configFile: false,
-    plugins: [combinedPlugins(config as Required<Config>)],
+    plugins: [combinedPlugins(config)],
   });
 
   return {

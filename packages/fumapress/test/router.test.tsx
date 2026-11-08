@@ -72,7 +72,7 @@ vi.mock("waku", () => ({
 vi.mock("waku/router/server", () => {
   const canonical = (pathname: string) => pathname.replace(/(\/index\.html|\/)$/, "") || "/";
   return {
-    unstable_getRequest: () => recorded.request,
+    getRequest: () => recorded.request,
     unstable_parseRouterRequest(req: Request) {
       const url = new URL(req.url);
       const rsc = /^\/RSC\/R(\/.*)\.txt$/.exec(url.pathname);

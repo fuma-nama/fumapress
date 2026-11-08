@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { crawlFrameworkPkgs } from "@fumapress/core/runtime/vite";
+import { unstable_resolveConfig as resolveWakuConfig } from "waku/vite-plugins";
 import { lucideImports } from "./lib/lucide";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
@@ -65,14 +66,9 @@ export interface WakuPressOptions {
   components?: string;
 }
 
+/** Waku's adapter for the platform of the environment variables */
 export function getDefaultAdapter(): string {
-  return process.env.VERCEL
-    ? "waku/adapters/vercel"
-    : process.env.NETLIFY
-      ? "waku/adapters/netlify"
-      : process.env.CLOUDFLARE || process.env.WORKERS_CI
-        ? "waku/adapters/cloudflare"
-        : "waku/adapters/node";
+  return resolveWakuConfig(undefined).unstable_adapter;
 }
 
 export default function press(options?: WakuPressOptions): Plugin[] {
@@ -322,8 +318,9 @@ function core(options: WakuPressOptions = {}): Plugin {
       // runs before Waku's entries, after `@vitejs/plugin-rsc` sets its client module loader on import
       filter: { id: /\/waku\/dist\/lib\/vite-entries\/entry\.(browser|ssr)\.js/ },
       handler(code, id) {
-        const file = fileURLToPath(new URL("./router/client-entry.js", import.meta.url));
-        return `import "@vitejs/plugin-rsc/${id.includes("entry.ssr") ? "ssr" : "browser"}";\nimport ${JSON.stringify(file)};\n${code}`;
+        const env = id.includes("entry.ssr") ? "ssr" : "browser";
+        const file = fileURLToPath(new URL(`./router/client-entry.${env}.js`, import.meta.url));
+        return `import ${JSON.stringify(file)};\n${code}`;
       },
     },
     async resolveId(source, _importer, options) {
