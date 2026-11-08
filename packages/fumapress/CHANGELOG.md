@@ -1,3 +1,16 @@
+## fumapress@2.0.1
+
+### Fixed sites with an old `@vitejs/plugin-rsc` in the lockfile
+
+- Fumapress uses the `@vitejs/plugin-rsc` of Waku. A lockfile from Fumapress 1 no longer installs a second copy that fails every page.
+
+### Updated Waku to 1.0.0-rc.4
+
+- Fumapress runs on Waku `1.0.0-rc.4`, which needs React 19.3.1 or later.
+- A custom server entry pins `waku` to `1.0.0-rc.4`.
+- The `head` of `ui.renderRoot` has the charset and viewport tags, which Waku no longer adds to custom roots.
+- API routes in `src/pages/_api` accept `CONNECT`, `TRACE` and `QUERY` handlers, like Waku.
+
 ## fumapress@2.0.0
 
 ### Fumapress 2
