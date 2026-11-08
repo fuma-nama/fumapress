@@ -6,8 +6,20 @@
  *
  * Server only: the page and the route that serves the files run the same code, so each file's name carries the hash of
  * its content and stays cached until the drawing changes.
+ *
+ * Painted filters never stay in the page: the browser runs them again for every tile it paints, and next to anything
+ * that moves, on every frame. `pnpm bake` draws the files into AVIF images (`./baked`), which only decode; a file without
+ * a bake of its current hash is shown as SVG.
  */
-import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  Fragment,
+  cloneElement,
+  isValidElement,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import type { WakuAppShape, WakuPlugin } from "fumapress";
 import washi from "./washi.css?raw";
 import { InkDefs, Layered, hasIntro, paintingOf, type Props } from "./pen";
@@ -15,15 +27,33 @@ import { HeroPress } from "./ink";
 import { FilesFigure } from "./figures/files";
 import { SourcesFigure } from "./figures/sources";
 import { LayoutsFigure } from "./figures/layouts";
+import { CartridgeBody } from "./figures/cartridge";
+import { WindowFront, WindowOutside } from "./figures/window";
+import { PreviewDevice } from "./playground/device";
+import { Colophon, MdxManuscript, SwatchFan, WelcomeRing } from "./marginalia";
 
 const figures = {
   hero: () => <HeroPress className="h-auto w-full" />,
   files: () => <FilesFigure />,
   sources: () => <SourcesFigure />,
   layouts: () => <LayoutsFigure />,
+  cartridge: () => <CartridgeBody />,
 };
 
 export type FigureName = keyof typeof figures;
+
+/** static drawings with nothing that moves or reacts, each one file per theme, see `Still` */
+const stills = {
+  outside: () => <WindowOutside />,
+  window: () => <WindowFront />,
+  device: () => <PreviewDevice />,
+  manuscript: () => <MdxManuscript />,
+  swatches: () => <SwatchFan />,
+  ring: () => <WelcomeRing />,
+  colophon: () => <Colophon />,
+};
+
+export type StillName = keyof typeof stills;
 
 const themes = ["light", "dark"] as const;
 type Theme = (typeof themes)[number];
@@ -75,6 +105,10 @@ function layersOf(painting: ReactElement<Props>): Layer[] {
 function liftText(node: ReactNode, chain: ReactElement<Props>[], texts: ReactNode[]): ReactNode {
   if (Array.isArray(node)) return node.map((child) => liftText(child, chain, texts));
   if (!isValidElement<Props>(node)) return node;
+  if (node.type === "defs") {
+    texts.push(cloneElement(node, { key: texts.length }));
+    return node;
+  }
   if (node.type === "text") {
     texts.push(
       chain.reduceRight<ReactNode>(
@@ -391,19 +425,66 @@ function figure(name: FigureName): Figure | undefined {
   return out;
 }
 
-const fileName = (name: FigureName, index: number, file: ImageFile, theme: Theme) =>
+interface StillData {
+  painting: ReactElement<Props>;
+  file?: ImageFile;
+}
+
+const stillCache = new Map<StillName, StillData>();
+
+function still(name: StillName): StillData | undefined {
+  let out = stillCache.get(name);
+  if (!out) {
+    const painting = paintingOf(stills[name]());
+    if (!painting) return;
+    out = { painting, file: imageFile(Children.toArray(painting.props.children)) };
+    stillCache.set(name, out);
+  }
+  return out;
+}
+
+const fileName = (name: string, index: number, file: ImageFile, theme: Theme) =>
   `${name}-${index}-${file.hash}-${theme}.svg`;
 const route = "/_figures";
 
+/** the files baked into images by `pnpm bake`, by the name of the SVG file they were drawn from */
+const baked: Record<string, string> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("./baked/*.avif", { eager: true, query: "?url", import: "default" }),
+  ).map(([path, url]) => [path.slice("./baked/".length).replace(/\.avif$/, ".svg"), url]),
+);
+
+/**
+ * The images of a file per theme, as the custom properties of `.w-image`: its bake when one matches its drawing (an
+ * image only decodes, where the browser rasterizes the filters of the SVG file the first time it shows), else the file.
+ */
+function imageStyle(name: string, index: number, file: ImageFile): CSSProperties {
+  const url = (theme: Theme) => {
+    const svg = fileName(name, index, file, theme);
+    return baked[svg] ?? `${import.meta.env.BASE_URL.replace(/\/$/, "")}${route}/${svg}`;
+  };
+  return {
+    "--image-light": `url(${url("light")})`,
+    "--image-dark": `url(${url("dark")})`,
+  } as CSSProperties;
+}
+
+/** the file of a figure's layer or of a still */
+function fileOf(name: string, index: number): ImageFile | undefined {
+  if (name in stills) return index === 0 ? still(name as StillName)?.file : undefined;
+  if (name in figures) return figure(name as FigureName)?.files.get(index);
+}
+
 /* the page */
 
-function paintLayers(name: FigureName, painting: ReactElement<Props>): ReactNode {
+function paintLayers(name: FigureName, painting: ReactElement<Props>, embed = false): ReactNode {
   const data = figure(name);
   if (!data) return painting;
   const { viewBox } = painting.props;
   const [vx = 0, vy = 0, vw = 1, vh = 1] = String(viewBox).split(/\s+/).map(Number);
   const percent = (n: number) => `${round(n * 100)}%`;
   const out: ReactNode[] = [cloneElement(painting, { key: "size" }, null)];
+  const type: ReactNode[] = [];
   data.layers.forEach((layer, i) => {
     if (!layer.image) {
       out.push(
@@ -427,52 +508,80 @@ function paintLayers(name: FigureName, painting: ReactElement<Props>): ReactNode
       width: percent((x1 - x0) / vw),
       height: percent((y1 - y0) / vh),
     };
-    for (const theme of themes)
+    if (embed)
+      for (const theme of themes)
+        out.push(
+          <img
+            key={`${i}-${theme}`}
+            src={`data:image/svg+xml,${file.svg[theme].replace(/[%#\n]/g, encodeURIComponent)}`}
+            alt=""
+            decoding="sync"
+            data-key={layer.hoverKey}
+            className={`absolute max-w-none ${theme === "light" ? "dark:hidden" : "hidden dark:block"}`}
+            style={style}
+          />,
+        );
+    else
       out.push(
-        <img
-          key={`${i}-${theme}`}
-          src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${route}/${fileName(name, i, file, theme)}`}
-          alt=""
+        <div
+          key={i}
           data-key={layer.hoverKey}
-          className={`absolute max-w-none ${theme === "light" ? "dark:hidden" : "hidden dark:block"}`}
-          style={style}
+          className="w-image absolute"
+          style={{ ...style, ...imageStyle(name, i, file) }}
         />,
       );
-    if (file.texts.length > 0)
-      out.push(
-        <svg
-          key={`${i}-type`}
-          viewBox={viewBox as string}
-          className="absolute inset-0 size-full overflow-visible"
-          aria-hidden
-        >
-          {file.texts}
-        </svg>,
-      );
+    if (file.texts.length > 0) type.push(<Fragment key={i}>{file.texts}</Fragment>);
   });
+  // the type of every file in one layer on top, where it was drawn over its file
+  if (type.length > 0)
+    out.push(
+      <svg
+        key="type"
+        viewBox={viewBox as string}
+        className="absolute inset-0 size-full overflow-visible"
+        aria-hidden
+      >
+        {type}
+      </svg>,
+    );
   return out;
 }
 
 /**
- * A large figure with its static painting in cached files, see the top of this module. `inline` keeps the painting in
- * the page instead, for a figure in the first screen, which must show with the first paint.
+ * A large figure with its static painting in cached files, see the top of this module. `embed` puts the files in the
+ * page as data URLs, for a figure in the first screen, which must show with the first paint.
  */
 export function Painting({
   name,
   className,
-  inline,
+  embed,
 }: {
   name: FigureName;
   className?: string;
-  inline?: boolean;
+  embed?: boolean;
 }) {
   return (
-    <Layered
-      className={className}
-      paint={inline ? undefined : (painting) => paintLayers(name, painting)}
-    >
+    <Layered className={className} paint={(painting) => paintLayers(name, painting, embed)}>
       {figures[name]()}
     </Layered>
+  );
+}
+
+/** a static drawing as a cached file per theme, drawn inside its own `<svg>`, so it keeps its box, class and label */
+export function Still({ name, className }: { name: StillName; className?: string }) {
+  const data = still(name);
+  if (!data) return null;
+  const { painting, file } = data;
+  const props = className === undefined ? {} : { className };
+  if (!file) return cloneElement(painting, props);
+  const [x0, y0, x1, y1] = file.box;
+  return cloneElement(
+    painting,
+    props,
+    <foreignObject key="image" x={x0} y={y0} width={round(x1 - x0)} height={round(y1 - y0)}>
+      <div className="w-image size-full" style={imageStyle(name, 0, file)} />
+    </foreignObject>,
+    ...file.texts,
   );
 }
 
@@ -483,19 +592,20 @@ export function paintingPlugin<C extends WakuAppShape>(): WakuPlugin<C> {
   return {
     name: "docs:painting",
     routes({ createApi }) {
-      const names = Object.keys(figures) as FigureName[];
-      const paths = names.flatMap((name) =>
-        [...(figure(name)?.files ?? [])].flatMap(([i, file]) =>
-          themes.map((theme) => fileName(name, i, file, theme)),
-        ),
-      );
+      const paths: string[] = [];
+      const add = (name: string, index: number, file: ImageFile | undefined) => {
+        if (file) for (const theme of themes) paths.push(fileName(name, index, file, theme));
+      };
+      for (const name of Object.keys(figures) as FigureName[])
+        for (const [i, file] of figure(name)?.files ?? []) add(name, i, file);
+      for (const name of Object.keys(stills) as StillName[]) add(name, 0, still(name)?.file);
       createApi({
         path: `${route}/[file]`,
         render: "static",
         staticPaths: paths,
         GET(_request, { params }) {
           const match = /^([a-z]+)-(\d+)-([a-z0-9]+)-(light|dark)\.svg$/.exec(String(params.file));
-          const file = match && figure(match[1] as FigureName)?.files.get(Number(match[2]));
+          const file = match && fileOf(match[1]!, Number(match[2]));
           if (!match || !file || file.hash !== match[3])
             return new Response("Not found", { status: 404 });
           return new Response(file.svg[match[4] as Theme], {

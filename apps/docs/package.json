@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "fumapress dev",
     "build": "fumapress build",
+    "bake": "node scripts/bake-figures.mjs",
     "start": "fumapress start",
     "types:check": "tsc --noEmit"
   },

@@ -13,8 +13,7 @@ import {
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Link } from "fumapress/client";
 import { cn } from "../cn";
-import { PluginCartridge } from "./figures/cartridge";
-import { Layered } from "./pen";
+import { CartridgeType } from "./figures/cartridge";
 import { useEarly } from "./parts.client";
 import { Sheet } from "./sheet";
 
@@ -388,7 +387,16 @@ function CodeFeed({ id, html }: { id: string; html: string }) {
   );
 }
 
-export function PluginCard({ top, bottom }: { top?: ReactNode; bottom?: ReactNode }) {
+export function PluginCard({
+  cartridge,
+  top,
+  bottom,
+}: {
+  /** the painted cartridge, without the type of a plugin */
+  cartridge: ReactNode;
+  top?: ReactNode;
+  bottom?: ReactNode;
+}) {
   const { plugins, active } = usePlugins();
   const index = Math.max(
     0,
@@ -401,9 +409,12 @@ export function PluginCard({ top, bottom }: { top?: ReactNode; bottom?: ReactNod
       {/* the cartridge stands on the page, the cord plugged into it */}
       <div className="relative">
         {top}
-        <Layered key={plugin.id}>
-          <PluginCartridge name={plugin.name} index={index + 1} />
-        </Layered>
+        {cartridge}
+        <CartridgeType
+          name={plugin.name}
+          index={index + 1}
+          className="absolute inset-0 size-full overflow-visible"
+        />
       </div>
       {/* and its setup on a slip below */}
       <Sheet className="mt-6">

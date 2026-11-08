@@ -6,10 +6,10 @@ import { asMarkdown, md } from "fumapress/markdown";
 import type { WakuRouteConfig } from "fumapress";
 import { commands, plugins } from "../home.data";
 import { InkDefs, Jack, Socket, Mark, Sheet, pressJack } from "../landing/ink";
-import { Painting } from "../landing/painting";
-import { VIEWBOX, WindowFront, WindowOutside, glass, panes } from "../landing/figures/window";
+import { Painting, Still } from "../landing/painting";
+import { VIEWBOX, glass, panes } from "../landing/figures/window";
 import { Rain } from "../landing/rain";
-import { Envelopes, MdxManuscript, SwatchFan, Welcome } from "../landing/marginalia";
+import { Envelopes, Welcome } from "../landing/marginalia";
 import {
   CopyCommand,
   CordLayer,
@@ -21,7 +21,6 @@ import {
 } from "../landing/landing.client";
 import { highlight } from "../landing/code";
 import { Playground } from "../landing/playground/playground";
-import { PreviewDevice } from "../landing/playground/device";
 import { bannerImage } from "../og/og";
 
 const description = "The composable site generator powered by Fumadocs";
@@ -144,7 +143,7 @@ export default function Page() {
             gloss="The manuscript"
             title={copy.files.title}
             body={copy.files.body}
-            aside={<MdxManuscript />}
+            aside={<Still name="manuscript" />}
             figure={
               // the devices stand on the page; the cord plugs into the book and leaves from the clipboard
               <InView className="relative">
@@ -183,7 +182,7 @@ export default function Page() {
             mark="装丁"
             gloss="Binding"
             title={copy.layouts.title}
-            body={[copy.layouts.body[0], <SwatchFan key="fan" />, copy.layouts.body[1]]}
+            body={[copy.layouts.body[0], <Still key="fan" name="swatches" />, copy.layouts.body[1]]}
             figure={
               // into the Docs plate, out of the card box of your project
               <InView className="relative">
@@ -204,6 +203,7 @@ export default function Page() {
               figure={
                 <InView>
                   <PluginCard
+                    cartridge={<Painting name="cartridge" />}
                     top={<Jack edge="top" x={23} y={6.3} />}
                     bottom={<Jack edge="bottom" x={60} wander={[0.8, 0.76]} />}
                   />
@@ -224,7 +224,7 @@ export default function Page() {
                 {copy.playground.title}
               </h2>
               <div className="mt-14">
-                <Playground device={<PreviewDevice />} />
+                <Playground device={<Still name="device" />} />
               </div>
             </div>
           </section>
@@ -266,7 +266,10 @@ export default function Page() {
 
           {/* a space of its own between the last chapter and the window */}
           <section aria-label="Welcome" className="-mt-10 xl:-mt-24">
-            <Welcome />
+            <Welcome
+              ring={<Still name="ring" />}
+              colophon={<Still name="colophon" className="w-2/3 overflow-visible" />}
+            />
           </section>
 
           <Ending />
@@ -302,7 +305,7 @@ function Hero() {
         </div>
       </div>
       <InView className="relative mx-auto w-full max-w-lg xl:flex-6">
-        <Painting name="hero" inline />
+        <Painting name="hero" embed />
         <span
           data-cord="start"
           data-wander="0.6,0.56"
@@ -379,9 +382,9 @@ function Ending() {
       <div className="min-w-0 max-xl:pb-20 xl:flex-7 xl:pl-24">
         <InView className="relative w-full max-w-2xl">
           {/* the town outside, the rain, then the glass and the room in front of it */}
-          <WindowOutside className="block h-auto w-full" />
+          <Still name="outside" className="block h-auto w-full" />
           <Rain glass={glass} panes={panes} viewBox={VIEWBOX} />
-          <WindowFront className="absolute inset-0 size-full" />
+          <Still name="window" className="absolute inset-0 size-full" />
           {/* the cord ends in the socket on the wall: left of the window, under its sill on phones */}
           <Socket className="absolute! top-full left-1/16 xl:top-3/5 xl:-left-1/7" />
         </InView>

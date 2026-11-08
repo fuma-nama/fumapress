@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "../cn";
 import { Brush, Line, Sketch, circle, rr, cast } from "./pen";
 import { InView } from "./landing.client";
@@ -505,39 +506,41 @@ const ringPath = `M${RING.c} ${RING.c - RING.r}a${RING.r} ${RING.r} 0 1 1 0 ${RI
 // SVG keeps, around each dot
 const greeting = "Welcome to Fumapress\u2002·\u2002".repeat(6);
 
-export function Welcome() {
+/** the ring of words around the colophon */
+export function WelcomeRing() {
+  return (
+    <svg viewBox="0 0 600 600" className="absolute inset-0 size-full overflow-visible" aria-hidden>
+      <defs>
+        <path id="w-welcome-ring" d={ringPath} />
+      </defs>
+      <g filter="url(#w-ink)" fill="none">
+        <Sketch d={circle(RING.c, RING.c, 250)} w={0.8} c="ink-soft" />
+        <Sketch d={circle(RING.c, RING.c, 286)} w={1.1} />
+        <Line d={circle(RING.c, RING.c, 290)} w={0.5} c="ink-soft" o={0.6} />
+      </g>
+      <text fontSize={22} className="font-serif fill-w-ink italic" letterSpacing="0.12em">
+        <textPath
+          href="#w-welcome-ring"
+          textLength={Math.round(2 * Math.PI * RING.r)}
+          lengthAdjust="spacing"
+        >
+          {greeting}
+        </textPath>
+      </text>
+    </svg>
+  );
+}
+
+/** the welcome at the end of the page; `ring` and `colophon` are `WelcomeRing` and `Colophon`, as the page draws them */
+export function Welcome({ ring, colophon }: { ring: ReactNode; colophon: ReactNode }) {
   return (
     <InView
       // round, so the turning square of the ring never reaches past the page
       className="relative mx-auto aspect-square w-full max-w-md overflow-clip rounded-full"
     >
-      <svg
-        viewBox="0 0 600 600"
-        className="absolute inset-0 size-full overflow-visible"
-        aria-hidden
-      >
-        <defs>
-          <path id="w-welcome-ring" d={ringPath} />
-        </defs>
-        <g filter="url(#w-ink)" fill="none">
-          <Sketch d={circle(RING.c, RING.c, 250)} w={0.8} c="ink-soft" />
-          <Sketch d={circle(RING.c, RING.c, 286)} w={1.1} />
-          <Line d={circle(RING.c, RING.c, 290)} w={0.5} c="ink-soft" o={0.6} />
-        </g>
-        <text fontSize={22} className="font-serif fill-w-ink italic" letterSpacing="0.12em">
-          <textPath
-            href="#w-welcome-ring"
-            textLength={Math.round(2 * Math.PI * RING.r)}
-            lengthAdjust="spacing"
-          >
-            {greeting}
-          </textPath>
-        </text>
-      </svg>
+      {ring}
       <p className="sr-only">Welcome to Fumapress</p>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Colophon className="w-2/3" />
-      </div>
+      <div className="absolute inset-0 flex items-center justify-center">{colophon}</div>
     </InView>
   );
 }
