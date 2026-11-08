@@ -6,8 +6,6 @@
 @import "@fumapress/tegami/css/preset.css";
 @import "@fumari/sponsors/style.css";
 @import "./landing/washi.css";
-@import "@fontsource-variable/geist/wght.css";
-@import "@fontsource-variable/geist/wght-italic.css";
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 @import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 /* with the optical sizes, so headings and small text each get their own cut */
@@ -46,7 +44,7 @@
 
 @theme {
   --font-mono: "JetBrains Mono Variable", monospace;
-  --default-font-family: "Geist Variable", sans-serif;
+  --default-font-family: var(--font-serif);
 
   --color-fd-primary: oklch(55.639% 0.16448 43.087);
 }
