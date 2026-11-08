@@ -18,7 +18,7 @@ packages:
 - `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI: `layout` picks a Fumadocs layout, and `layoutProps` and `pageProps` are typed by it.
 - A custom layout reads `props.layoutProps`, `props.pageData`, `props.toc`, `props.body` and `props.slots`.
 - Removed the layout factories of `fumapress/layouts/*`, use `renderDefault({ layout })` or the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, "docs")` of `fumapress` replaces their `treeRoot` option.
-- `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.layoutProps` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the keyed `head` tags replace `meta`.
+- `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.layoutProps` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the `head` tags replace `meta`.
 - `ui.providerProps` sets the root provider of every page, like `theme` or a custom `search.SearchDialog`.
 - Removed `renderNotFound`. The 404 page is a custom `src/pages/404.tsx`, else a plugin view at `/404`, else the built-in page in the Home Layout.
 - `preset` takes a list: `preset: []` replaces `preset: false`. `recommendedPreset({ rss: false })` drops one default plugin, `recommendedPreset({ sitemap: { path: "/map.xml" } })` passes it options.

@@ -43,6 +43,14 @@ export default createPress({
   .plugins(blogPlugin({ source: "blog" }));
 ```
 
+With `baseDir: "blog"`, the posts show as a `blog` folder in the docs sidebar. To hide it, exclude the folder in the root `meta.json` of your docs:
+
+```json title="content/docs/meta.json"
+{
+  "pages": ["...", "!blog"]
+}
+```
+
 ## Writing Posts
 
 <include cwd>content/shared/plugins/blog.mdx#write</include>

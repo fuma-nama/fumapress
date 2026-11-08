@@ -74,6 +74,8 @@ export default async function Layout({
 }
 ```
 
+`links` has the links of `ui.layoutProps` and plugins. To add links to this layout only, put them in front, like `links={[...homeLinks, ...links]}`. A `links` prop without them replaces them.
+
 ### Dynamic Routes
 
 ```tsx title="src/pages/showcase/[slug].tsx"
