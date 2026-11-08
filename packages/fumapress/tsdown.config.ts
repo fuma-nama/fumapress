@@ -28,7 +28,8 @@ export default defineConfig({
   },
   deps: {
     onlyBundle: ["http-cache-semantics", "resolve.exports"],
-    neverBundle: [/^virtual:/, /^node:/],
+    // resolved from Waku at runtime, see `wakuCompat()`
+    neverBundle: [/^virtual:/, /^node:/, /^@vitejs\/plugin-rsc\//],
   },
   onSuccess: () =>
     compilePresetCss(

@@ -4,6 +4,7 @@ import { lucideImports } from "./lib/lucide";
 import { fileURLToPath } from "node:url";
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import * as r from "resolve.exports";
 
 export interface WakuPressOptions {
@@ -77,7 +78,7 @@ export function getDefaultAdapter(): string {
 export default function press(options?: WakuPressOptions): Plugin[] {
   return [
     core(options),
-    wakuCompat(),
+    ...wakuCompat(),
     lucideImports(),
     takumiOnWorkers(options),
     // see https://github.com/wakujs/waku/issues/2092
@@ -102,6 +103,8 @@ export default function press(options?: WakuPressOptions): Plugin[] {
  * - specifiers resolved against the project root fail entirely, e.g. the configured adapter module (resolved without an importer) or imports from Waku's virtual modules.
  * - packages with their own `waku` peer dependency (e.g. `fumadocs-core`) can otherwise resolve a second `waku` instance, which breaks the RSC runtime.
  *
+ * `@vitejs/plugin-rsc` always resolves from Waku: two copies fail every page, and a lockfile can keep an older one for Waku than other packages install.
+ *
  * Note: don't call `this.resolve()` with the same specifier during builds, Rolldown awaits the in-flight resolution of the same source and deadlocks. Build-time resolution is served from Waku's exports map, read once here.
  *
  * The config hooks patch Waku's assumption that `waku` and `react-server-dom-webpack` are installed at the project root:
@@ -109,22 +112,43 @@ export default function press(options?: WakuPressOptions): Plugin[] {
  * - it rewrites `optimizeDeps.include` entries like `@vitejs/plugin-rsc/x` into `waku > @vitejs/plugin-rsc/x` chains, resolved from root. Prefix them with `fumapress > ` so the optimizer resolves them through `fumapress` instead.
  * - `react-server-dom-webpack` must be in `noExternal`: Vite's dev-time `fetchModule` externalizes bare imports BEFORE plugins run, so Waku's `patch-rsdw` plugin never gets to alias them to `@vitejs/plugin-rsc`'s vendored copy, and the runtime loads the real package without the `react-server` condition. With a root install, vitefu's crawl used to add it to `noExternal`; replicate that.
  */
-function wakuCompat(): Plugin {
-  let waku: { dir: string; packageJson: Record<string, unknown> } | undefined;
+function wakuCompat(): Plugin[] {
+  let waku: Pkg | undefined;
+  let rsc: Pkg | undefined;
   try {
-    // realpath: `import.meta.resolve` keeps symlink paths, while Vite resolves to real paths — mixing them duplicates modules (and React contexts)
-    const pkgPath = realpathSync(fileURLToPath(import.meta.resolve("waku/package.json")));
-    waku = {
-      dir: path.dirname(pkgPath),
-      packageJson: JSON.parse(readFileSync(pkgPath, "utf-8")),
-    };
+    const pkgPath = fileURLToPath(import.meta.resolve("waku/package.json"));
+    waku = readPkg(pkgPath);
+    rsc = readPkg(createRequire(pkgPath).resolve("@vitejs/plugin-rsc/package.json"));
   } catch {
     // types-only install of fumapress, let Vite resolve waku
   }
 
   const selfImporter = realpathSync(fileURLToPath(import.meta.url));
 
-  return {
+  const rscFromWaku: Plugin = {
+    name: "fumapress:plugin-rsc",
+    // before Vite's resolver, which can find another copy from the importer
+    enforce: "pre",
+    resolveId: {
+      filter: { id: /^@vitejs\/plugin-rsc\// },
+      handler(source, importer, options) {
+        if (!waku || !rsc || importer?.startsWith(rsc.dir)) return;
+        // like `waku` specifiers below: through Vite in dev, from the exports map in builds
+        if (this.environment?.mode === "dev")
+          return this.resolve(source, path.join(waku.dir, "package.json"), {
+            ...options,
+            skipSelf: true,
+          });
+        return exportOf(
+          rsc,
+          source.slice("@vitejs/plugin-rsc".length),
+          this.environment?.config.resolve.conditions ?? [],
+        );
+      },
+    },
+  };
+
+  const compat: Plugin = {
     name: "fumapress:waku",
     configEnvironment: {
       // after Waku's own rewrite of `optimizeDeps.include`
@@ -166,16 +190,33 @@ function wakuCompat(): Plugin {
               return this.resolve(source, selfImporter, { ...options, skipSelf: true });
             }
 
-            const targets = r.exports(waku.packageJson, source.replace(/^waku/, "."), {
-              conditions: this.environment?.config.resolve.conditions ?? [],
-            });
-            // fallback
-            if (!targets || targets.length === 0) return;
-            return path.join(waku.dir, targets[0]!);
+            return exportOf(
+              waku,
+              source.slice("waku".length),
+              this.environment?.config.resolve.conditions ?? [],
+            );
           },
         }
       : undefined,
   };
+  return [rscFromWaku, compat];
+}
+
+interface Pkg {
+  dir: string;
+  packageJson: Record<string, unknown>;
+}
+
+/** realpath: `import.meta.resolve` keeps symlink paths, while Vite resolves to real paths — mixing them duplicates modules (and React contexts) */
+function readPkg(pkgPath: string): Pkg {
+  const real = realpathSync(pkgPath);
+  return { dir: path.dirname(real), packageJson: JSON.parse(readFileSync(real, "utf-8")) };
+}
+
+/** the file of `subpath` (like `/client`) in the exports map of `pkg`, undefined to let Vite resolve it */
+function exportOf(pkg: Pkg, subpath: string, conditions: readonly string[]): string | undefined {
+  const [target] = r.exports(pkg.packageJson, `.${subpath}`, { conditions: [...conditions] }) ?? [];
+  return target && path.join(pkg.dir, target);
 }
 
 /**
