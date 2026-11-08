@@ -1,3 +1,10 @@
+## @fumapress/language@1.1.4
+
+### Translations of `@fumapress/blog`
+
+- `zhCN()` and `zhTW()` translate `@fumapress/blog`.
+- `fumapress`, `@fumapress/ai` and `@fumapress/feedback` are no longer peer dependencies.
+
 ## @fumapress/language@1.1.3
 
 ### Translate the Spacious layout

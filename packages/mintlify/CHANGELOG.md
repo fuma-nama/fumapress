@@ -1,3 +1,15 @@
+## @fumapress/mintlify@2.0.0
+
+### Mintlify migration on Waku and Astro
+
+- `mintlifyPlugin()` works on Waku and Astro, and `fumapress`, `waku` and `hono` are no longer peer dependencies.
+- The sidebar from `navigation` is the page tree of the site, every layout uses it.
+- The navbar, `appearance` and `search.prompt` apply under custom `ui.layoutProps` and `ui.providerProps`, which win.
+- The `navbar` links come after the links of `ui.layoutProps`.
+- The `banner` of a language in `navigation.languages` replaces the site's banner on its pages.
+- `redirects` run on a server: a static site needs them in the config of its host.
+- Without a home page, the `errors.404` redirect goes to the first page of the language.
+
 ## @fumapress/mintlify@1.1.5
 
 ### Support the Spacious layout

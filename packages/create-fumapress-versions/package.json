@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress-versions",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "private": true,
   "dependencies": {
     "@astrojs/react": "^7.1.1",
