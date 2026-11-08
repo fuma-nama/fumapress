@@ -22,12 +22,13 @@ import {
 import { highlight } from "../landing/code";
 import { Playground } from "../landing/playground/playground";
 import { PreviewDevice } from "../landing/playground/device";
+import { bannerImage } from "../og/og";
 
 const description = "The composable site generator powered by Fumadocs";
 
 export function getConfig() {
   return {
-    data: { title: "Fumapress", description, ogImage: { title: "Fumapress", description } },
+    data: { title: "Fumapress", description, ogImage: { node: bannerImage() } },
   } satisfies WakuRouteConfig;
 }
 

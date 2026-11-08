@@ -14,6 +14,7 @@ import { frameworkOf } from "./src/ui/framework";
 import { DocsSearchDialog } from "./src/ui/search";
 import { playgroundPlugin } from "./src/landing/playground/plugin";
 import { paintingPlugin } from "./src/landing/painting";
+import { ogFonts, pageImage } from "./src/og/og";
 import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?url";
 
 const docsOptions = {
@@ -143,6 +144,19 @@ export default app.config({
           (_, href: string) => `](${loader.resolveHref(href, page)})`,
         );
         return `# ${page.data.title} (${this.absoluteUrl(page.url)})\n\n${resolved}`;
+      },
+    },
+    ogImage: {
+      options: { fonts: ogFonts },
+      async getImage(page) {
+        const { title, description } = await this.getPageData(page);
+        const framework = frameworkOf(page.url);
+        const label = framework
+          ? `Docs for ${framework === "astro" ? "Astro" : "Waku"}`
+          : page.type === "blog"
+            ? "Blog"
+            : "Changelog";
+        return { node: pageImage({ label, title, description }) };
       },
     },
     // the optimizer of Vercel has no route elsewhere, other builds keep plain image URLs
