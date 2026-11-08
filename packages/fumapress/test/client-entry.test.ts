@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-vi.mock("@vitejs/plugin-rsc/ssr", () => ({ createFromReadableStream: vi.fn() }));
+vi.mock("@vitejs/plugin-rsc/browser", () => ({ createFromFetch: vi.fn() }));
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -17,7 +17,7 @@ it("recovers from the 404 of a stale client like from a failed client chunk", as
   vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
 
   globalThis.__vite_rsc_client_require__ = (id) => `client:${id}`;
-  await import("@/router/client-entry");
+  await import("@/router/client-entry.browser");
   const require = globalThis.__vite_rsc_client_require__;
 
   await expect(require("page-tree:/old.txt")).rejects.toThrow("failed to fetch the page tree");

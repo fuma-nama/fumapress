@@ -28,7 +28,7 @@ export type WakuAppShape = AppShape & { runtime: "waku" };
 export interface WakuPressConfig<C extends AppShape> {
   site?: Pick<SiteConfig, "baseUrl">;
   ui?: {
-    /** the document: `head` is the styles, `children` the page in the root provider; returns `<html>`, `<head>` and `<body>` */
+    /** the document: `head` is the charset, viewport and styles, `children` the page in the root provider; returns `<html>`, `<head>` and `<body>` */
     renderRoot?: (
       this: Context<C>,
       props: LangEnv<C> & { head: ReactNode; children: ReactNode },

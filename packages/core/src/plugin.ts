@@ -301,6 +301,12 @@ export function nameOf(plugin: PluginInfo): string {
   return plugin.name ? `"${plugin.name}"` : "an unnamed plugin";
 }
 
+/** the end of a conflict error between two plugins of one name, like a default plugin listed in `.plugins()` too */
+export function addedTwice(first: PluginInfo, second: PluginInfo): string {
+  if (first.name === undefined || first.name !== second.name) return "";
+  return ` ${nameOf(first)} is added twice: configure a default plugin in \`recommendedPreset()\`, or set it to \`false\` there before listing it.`;
+}
+
 /** `key` of `owners` has one owner, `conflict` names both */
 export function takeKey<K, O>(owners: Map<K, O>, key: K, owner: O, conflict: (first: O) => string) {
   const first = owners.get(key);

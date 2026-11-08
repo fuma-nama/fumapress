@@ -32,20 +32,20 @@
   },
   "dependencies": {
     "@fumapress/core": "workspace:^",
-    "lucide-react": "^1.47.0",
-    "zod": "^4.6.5"
+    "lucide-react": "^1.70.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@fumadocs/asyncapi": "^0.6.0",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "fumadocs-core": "^16.18.2",
     "fumadocs-openapi": "^12.6.0",
     "fumadocs-ui": "^16.18.2",
-    "react": "^19.3.0",
-    "tsdown": "0.23.0",
+    "react": "^19.3.1",
+    "tsdown": "0.23.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@fumadocs/asyncapi": "*",

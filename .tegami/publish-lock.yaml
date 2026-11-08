@@ -1,104 +1,54 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@fumapress/ai:\n    type: major\n---\n\n### AI chat on Waku and Astro\n\n- `aiPlugin()` and `mcpPlugin()` work on Waku and Astro, and `fumapress` is no longer a peer dependency.\n- The built-in UI docks the chat, with a floating \"Ask AI\" button.\n- The chat reaches layouts as their `aiChat` prop through `useLayoutProps()`, so a custom layout docks it by spreading `useLayoutProps()`. Docs and Notebook layouts show a floating \"Ask AI\" button, Glass and Spacious their own.\n- Removed `AIChatLayout`, and `AIChat` takes the endpoint as its `api` prop.\n- AI search indexes the pages of every plugin with page text, like OpenAPI pages.\n- `/api/ai` answers 400 to messages the UI never sends: system messages and parts like files, which the server would download.\n"
-    filename: 2026-11-06-ai.md
+  - content: "---\npackages:\n  npm:@fumapress/core:\n    type: patch\n---\n\n### Named a default plugin listed twice in more errors\n\n- Listing a default plugin that adds a slot item, like `vercelImage()`, says that it is added twice, like plugins that add a route.\n"
+    filename: 2026-11-08-plugin-added-twice.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/astro:\n    type: minor\n---\n\n### Fumapress on Astro\n\n- `@fumapress/astro` runs the site of `press.config.tsx` on Astro, with the plugins, `ui` options and search of Fumapress.\n- Add its default export to the `integrations` of Astro, and write the site with `createPress()` of `@fumapress/astro/config`. The core plugins are at `@fumapress/astro/plugins/*`.\n- It follows the `output`, adapter, `site` and `base` of Astro. A route rendered on demand without an adapter fails the build, naming the route.\n- With `output: \"server\"`, content renders on demand unless `mode` of `createPress()` sets it. `mode: \"force-static\"` builds a dynamic source without an adapter.\n- A build without an adapter warns that the `middleware` of plugins never runs.\n- `ui.renderPage` can return an `.astro` file as the layout of a page, with a React root from `createIsland()` of `@fumapress/astro/client` in `client:*`. `LayoutProps<typeof app, \"docs\">` and `IslandProps<typeof app, \"docs\">` of `@fumapress/astro/config` type them.\n- `contentSourcePlugin()` of `@fumapress/astro/plugins/content-source` renders content collections and runtime sources: list it with `components` as a function of the page for components per page.\n- `@fumapress/astro/css/default.css` is the whole stylesheet, `@fumapress/astro/css/preset.css` only the styles of Fumapress for a custom Tailwind and Fumadocs UI setup.\n- It needs the Base UI build of Fumadocs UI, Astro 7.4 and Node.js 22.23.4 or later.\n"
-    filename: 2026-11-06-astro.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Fixed sites with an old `@vitejs/plugin-rsc` in the lockfile\n\n- Fumapress uses the `@vitejs/plugin-rsc` of Waku. A lockfile from Fumapress 1 no longer installs a second copy that fails every page.\n"
+    filename: 2026-11-08-plugin-rsc-from-waku.md
     v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/blog:\n    type: minor\n---\n\n### Blog for Waku and Astro\n\n- `@fumapress/blog` is the blog of a Fumapress site, replacing `fumapress/plugins/blog`. `blogPlugin({ source: \"blog\" })` renders the posts of one or more source keys.\n- Import its styles with `@import \"@fumapress/blog/css/preset.css\";` and its frontmatter schema `blogPageSchema` from `@fumapress/blog/schema`.\n- `ui.renderPage` receives typed props for `blog.index`, `blog.tags`, `blog.tag` and the post pages. Compose them with `BlogIndexView`, `BlogTagsView`, `BlogTagView` and `BlogPostView`.\n- Tags, authors and cover images come from the `getTags`, `getAuthors` and `getImage` options, falling back to the frontmatter.\n- `getBlogPosts(ctx, { lang })` lists the posts on custom pages, like a landing page. Without i18n, `getBlogPosts(ctx)`.\n- The index and tag pages render on demand when their content source is dynamic.\n"
-    filename: 2026-11-06-blog.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/core:\n    type: minor\n---\n\n### Shared engine of Fumapress\n\n- `@fumapress/core` is the internal engine of `fumapress` and `@fumapress/astro`. Sites import from those two packages.\n"
-    filename: 2026-11-06-core.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/core:\n    type: patch\n---\n\n### Fixes\n\n- Content pages are served at the URLs of the `url` option of `createPress()`.\n- Boolean attributes of head tags, like `async: \"\"`, are kept.\n- Page actions and the feedback form reset on client navigation, and no empty row is left without actions.\n- A rest param in a custom page path, like `/[...lang]/about`, matches only its own paths.\n"
-    filename: 2026-11-08-fixes.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Astro template\n\n- `create-fumapress` asks for a framework, and `--framework astro` scaffolds an Astro site. `--yes` picks Waku.\n- The Waku template uses `createPress()`.\n"
-    filename: 2026-11-06-create-fumapress.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/feedback:\n    type: major\n---\n\n### Feedback on Waku and Astro\n\n- `feedbackPlugin()`, `githubFeedbackPlugin()` and `emailFeedbackPlugin()` work on Waku and Astro, and `fumapress` is no longer a peer dependency.\n- Page feedback is the `feedback:page` slot item, `props.slots[\"feedback:page\"]` in `ui.renderPage`.\n- Changed: actions of `feedbackPlugin()` run on the server at `/api/feedback/page` and `/api/feedback/text` instead of as Server Functions. A `Response` an action throws is the answer.\n- Actions exported from `'use client'` modules run in the browser, also on a site without a server.\n- `feedbackPlugin()` accepts `beforeRequest`, like the integrations.\n- `githubFeedbackPlugin()` finds the existing discussion of a page instead of opening a new one for each feedback.\n- Feedback routes answer 400 to invalid JSON.\n"
-    filename: 2026-11-06-feedback.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: major\n---\n\n### Fumapress 2\n\n- This release has breaking changes, follow the [migration guide](https://press.fumadocs.dev/docs/migrate).\n\n### Changed the site config to `createPress()`\n\n- `press.config` exports `createPress(content, options).plugins(...).config({...})`, replacing `defineConfig()`, `.adapters()` and `.layouts()`.\n- Removed `loaderOptions`: its fields are options of `createPress()`, and `loaderPlugins` replaces `loaderOptions.plugins`.\n- `.config()` is optional: `createPress(content).plugins(...)` is a complete site.\n- `ui.renderPage(props)` renders every page, content pages and plugin views, typed by `props.type`. `props.renderDefault()` is the built-in UI: `layout` picks a Fumadocs layout, and `layoutProps` and `pageProps` are typed by it.\n- A custom layout reads `props.layoutProps`, `props.pageData`, `props.toc`, `props.body` and `props.slots`.\n- Removed the layout factories of `fumapress/layouts/*`, use `renderDefault({ layout })` or the Fumadocs UI layouts directly in `ui.renderPage`. `selectTreeRoot(tree, \"docs\")` of `fumapress` replaces their `treeRoot` option.\n- `ui.renderRoot` replaces `renderRoot` and also receives the styles as `head`. `ui.layoutProps` replaces `defaultLayoutProps`, `ui.translations` replaces `translations`, and the keyed `head` tags replace `meta`.\n- `ui.providerProps` sets the root provider of every page, like `theme` or a custom `search.SearchDialog`.\n- Removed `renderNotFound`. The 404 page is a custom `src/pages/404.tsx`, else a plugin view at `/404`, else the built-in page in the Home Layout.\n- `preset` takes a list: `preset: []` replaces `preset: false`. `recommendedPreset({ rss: false })` drops one default plugin, `recommendedPreset({ sitemap: { path: \"/map.xml\" } })` passes it options.\n- The MDX renderer is built in: `press({ components: \"./src/components/mdx.tsx\" })` of `fumapress/vite` replaces `fumadocsMdx()` of `fumapress/adapters/mdx`.\n- `RenderPageProps<typeof app>`, `UIOptions<typeof app>`, `WakuRouteProps<typeof app, \"/showcase/[slug]\">` and `getPressContext<typeof app>()` type custom files, replacing `$context` and `.utils()`. `WakuRouteConfig` replaces `RouteConfig`.\n- Fumapress needs the Base UI build of Fumadocs UI, `fumadocs-ui@npm:@fumadocs/base-ui`. The Radix UI build is no longer supported.\n- Update `fumadocs-core` and `fumadocs-ui` to 16.18.2 or later, and `fumadocs-mdx` to 15.5.1 or later.\n\n### Changed rendering to be per route\n\n- `mode` of `createPress()` replaces the `mode` option, for one source or per source key. `auto` prerenders static sources and renders dynamic ones on demand, `force-dynamic` renders content on demand, and `force-static` prerenders a dynamic source loaded at build.\n- Removed `this.mode` and `BuildMode`. Plugins read `this.getContentRender(source?)` instead.\n- By default, pages of dynamic content sources render on demand, pages of static sources are prerendered, and one site can mix both.\n- Pages rendered on demand from a dynamic source with `staleTime`, and their `.md` file and OG image, get `Cache-Control: public, s-maxage=<staleTime in seconds>`.\n- The `.md` file and OG image of a page follow its route. The sitemap, RSS, `llms.txt` and `llms-full.txt` are prerendered unless a content source is dynamic.\n- Custom pages default to `render: \"static\"` and custom API routes to `render: \"dynamic\"`. A static API route sets `render: \"static\"` in `getConfig()`, and can set `staticPaths`.\n- `flexsearchPlugin()` and `oramaSearchPlugin()` follow the content source: static sources export an index at `/api/search.json`, dynamic sources search on the server. `render` overrides it.\n- A site deploys as static files when no route renders on demand and no plugin has `middleware`. On a platform, the `static` option of Waku in a server entry leaves out the function of the adapter.\n- A build without a server warns that the `middleware` of plugins never runs, naming the plugins.\n\n### Changed the plugin API\n\n- Plugins are `Plugin` of `fumapress`, replacing `PressPlugin`, and extend the framework plugins of `fumadocs-core/framework/plugin`. `PressContext<typeof app>` replaces `AppContext`.\n- Hooks: `routes({ createApi, createView })`, `deriveRoutes()`, `middleware()`, `head()`, `slots()`, `layoutProps()`, `providerProps()`, `configureLoader()`, `transformPage()`, `getPageView()` and `build()`.\n- `middleware()` runs first on every request of the server, the prerendered pages and static files of a Node.js server included. Files a platform serves never reach it.\n- The `waku` hooks `createPages`, `honoMiddleware` and `unstable_serverEntry` replace `createPages`, `createMiddlewares` and `unstable_onServerEntry`. Plugin layouts live in route groups only.\n- To replace a default plugin, set it to `false` in `recommendedPreset()` and list your plugin.\n- `layoutProps()` of plugins sets the props of every layout, like `sidebar`, `tabs` and `aiChat`.\n- `useLayoutProps()` of `fumapress/client` and `@fumapress/astro/client` returns the layout props that plugins give from client state, like the AI chat: spread it into a custom layout. The built-in UI applies them.\n- Slot items have a unique name and a region: `actions`, `footer`, `toc-header`, `toc-footer`, `sidebar-banner`, `sidebar-footer`, `banner`, `body-wrapper` or `layout-wrapper`. The built-in UI places them, and `ui.renderPage` receives them by name in `props.slots`.\n- The built-in page buttons are the slot items `core:markdown` and `core:view-options`.\n- `PageData` is the data of every page. `getConfig()` of custom pages and `createView()` take `data`, like the `title` and `description` of the page in `<head>`. Plugins read it with `this.getPageData()`.\n- For components per page, list the renderer, like `mdxPlugin()` of `fumadocs-mdx/press`, with `components` as a function of the page.\n- Removed `preinit`, `configureRoutes`, plugin `renderPage`, `this.data` and `Adapter`.\n- `fumapress` exports the types that plugins use, like `Context`, `HeadTag`, `SlotItem` and `PageData`.\n\n### Removed packages and entries\n\n- Removed `fumapress/plugins/openapi`, `fumapress/plugins/asyncapi`, `@fumapress/graphql`, `@fumapress/notion`, `@fumapress/sanity` and `@fumapress/obsidian`. Use the default export of `fumadocs-openapi/press`, `@fumadocs/asyncapi/press`, `@fumadocs/graphql/press`, `@fumadocs/notion/press`, `@fumadocs/sanity/press` and `fumadocs-obsidian/press`.\n- Removed `fumapress/plugins/blog` and `fumapress/layouts/blog*`, use `@fumapress/blog`. `fumapress/css/preset.css` leaves out the blog styles, import `@fumapress/blog/css/preset.css` with it.\n- Removed `fumapress/adapters/mdx/schema`. `pageSchema` and `metaSchema` are in `fumapress/schema`, `blogPageSchema` in `@fumapress/blog/schema`.\n- Removed `fumapress/i18n`, the translations of plugins are added for you.\n\n### Changed images\n\n- `vercelImage()`, `cloudflareImage()` and `selfHostedImage()` replace `imagePlugin()` of `fumapress/plugins/image/*`. The preset picks the platform's.\n- `selfHostedImage()` needs a server and `site.baseUrl`, without them images stay as they are. `vercelImage()` and `cloudflareImage()` work with static output.\n- `data.ogImage` in `getConfig()` replaces `takumiOptions`, and `takumiPlugin()` takes `path` and `getImage` instead of `basePath` and `generate`.\n- On Cloudflare Workers, Open Graph images use the WebAssembly build of Takumi without passing it yourself.\n\n### Fixes\n\n- A `basePath` works on Cloudflare, which needs Wrangler 4.148 or later, and on Netlify. Its root opened without a trailing slash hydrates on every host.\n- `llms.txt` and the Markdown of pages link full page URLs, with the base path.\n- The browser fetches the page tree once, instead of receiving it with every page. Change its lists in `pageTree.transformers` of the loader, not in `ui.renderPage`.\n- On a Node.js server, `.md` files are served as `text/markdown` and `Accept: text/markdown` also serves the Markdown of prerendered pages.\n- Markdown negotiation works on URLs with a trailing slash.\n- The robots.txt sitemap link follows the sitemap `path` of `recommendedPreset()`, and sitemaps escape `&` in alternate links.\n- Without a home page, the navbar title goes to the first page of the language, and so does `/` with i18n.\n- When pages render on demand, a language root like `/cn` renders its page instead of a 404.\n\n### Fixed client state between pages\n\n- Client state of a page, like selected code tabs, no longer carries over to the next page. Tabs of the next page could show no content.\n\n### Secured requests\n\n- Other spellings of a URL path, like `//docs`, `/%64ocs`, `/docs/` or `/docs/index.html`, redirect to the normal path, so middleware sees the path the router matches.\n- Middleware sees the page URL on every client navigation, whatever the request method.\n- The self-hosted image optimizer fetches relative images from `site.baseUrl`, never from the `Host` of a request, and limits its memory.\n- The route of `llmsPlugin({ routes: \"all\" })` that renders Markdown is unreachable from outside.\n- A fully dynamic source no longer writes its page tree to the public directory.\n"
-    filename: 2026-11-06-fumapress.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Leaving pages out of the sitemap\n\n- `data.sitemap` in `getConfig()` leaves a custom page out of the sitemap with `false`, or sets its entry. Plugins pass it in `data` of `createPage()` in `waku.createPages`.\n"
-    filename: 2026-11-07-sitemap.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Preload links in `head`\n\n- A `<link rel=\"preload\">` or `<link rel=\"modulepreload\">` in `head` is emitted once, near the top of `<head>`, instead of twice.\n- The preload of the site's stylesheet uses `as=\"style\"`, so browsers no longer ignore it with a console warning.\n"
-    filename: 2026-11-08-preload.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/mintlify:\n    type: major\n---\n\n### Mintlify migration on Waku and Astro\n\n- `mintlifyPlugin()` works on Waku and Astro, and `fumapress`, `waku` and `hono` are no longer peer dependencies.\n- The sidebar from `navigation` is the page tree of the site, every layout uses it.\n- The navbar, `appearance` and `search.prompt` apply under custom `ui.layoutProps` and `ui.providerProps`, which win.\n- The `navbar` links come after the links of `ui.layoutProps`.\n- The `banner` of a language in `navigation.languages` replaces the site's banner on its pages.\n- `redirects` run on a server: a static site needs them in the config of its host.\n- Without a home page, the `errors.404` redirect goes to the first page of the language.\n"
-    filename: 2026-11-06-mintlify.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/language:\n    type: patch\n---\n\n### Translations of `@fumapress/blog`\n\n- `zhCN()` and `zhTW()` translate `@fumapress/blog`.\n- `fumapress`, `@fumapress/ai` and `@fumapress/feedback` are no longer peer dependencies.\n"
-    filename: 2026-11-06-language.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:@fumapress/tegami:\n    type: major\n---\n\n### Changelog on Waku and Astro\n\n- `changelogPlugin()` works on Waku and Astro, and `fumapress` is no longer a peer dependency.\n- Changed `changelogPlugin()` to require the source keys of the changelog: `changelogPlugin({ source: \"changelog\" })`, replacing `isChangelog`.\n- Removed `layouts`, `createChangelogLayout()`, `createChangelogIndexPage()` and `getChangelogContext()`, customize the page in `ui.renderPage`.\n- The `changelog.index` page has typed `entries` in `ui.renderPage`, compose them with `ChangelogIndexView`.\n- Entry dates come from the creation date of pages, like the `date` frontmatter.\n- The index renders on demand when its content source is dynamic.\n"
-    filename: 2026-11-06-tegami.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Updated Waku to 1.0.0-rc.4\n\n- Fumapress runs on Waku `1.0.0-rc.4`, which needs React 19.3.1 or later.\n- A custom server entry pins `waku` to `1.0.0-rc.4`.\n- The `head` of `ui.renderRoot` has the charset and viewport tags, which Waku no longer adds to custom roots.\n- API routes in `src/pages/_api` accept `CONNECT`, `TRACE` and `QUERY` handlers, like Waku.\n"
+    filename: 2026-11-08-waku-rc-4.md
     v: 0.0.0
 core:packages:
+  - id: npm:@fumapress/ai
+    updated: false
+  - id: npm:@fumapress/blog
+    updated: false
+  - id: npm:@fumapress/astro
+    updated: false
   - changelogIds:
-      - 2026-11-06-ai.md
-    id: npm:@fumapress/ai
-    updated: true
-  - changelogIds:
-      - 2026-11-06-astro.md
-    id: npm:@fumapress/astro
-    updated: true
-  - changelogIds:
-      - 2026-11-06-blog.md
-    id: npm:@fumapress/blog
-    updated: true
-  - changelogIds:
-      - 2026-11-06-core.md
-      - 2026-11-08-fixes.md
+      - 2026-11-08-plugin-added-twice.md
     id: npm:@fumapress/core
     updated: true
-  - changelogIds:
-      - 2026-11-06-create-fumapress.md
-    id: npm:create-fumapress
+  - id: npm:create-fumapress
     updated: true
   - id: npm:create-fumapress-versions
     updated: true
+  - id: npm:@fumapress/feedback
+    updated: false
   - changelogIds:
-      - 2026-11-06-feedback.md
-    id: npm:@fumapress/feedback
-    updated: true
-  - changelogIds:
-      - 2026-11-06-fumapress.md
-      - 2026-11-07-sitemap.md
-      - 2026-11-08-fixes.md
-      - 2026-11-08-preload.md
+      - 2026-11-08-plugin-rsc-from-waku.md
+      - 2026-11-08-waku-rc-4.md
     id: npm:fumapress
     updated: true
-  - changelogIds:
-      - 2026-11-06-mintlify.md
-    id: npm:@fumapress/mintlify
-    updated: true
-  - changelogIds:
-      - 2026-11-06-language.md
-    id: npm:@fumapress/language
-    updated: true
-  - changelogIds:
-      - 2026-11-06-tegami.md
-    id: npm:@fumapress/tegami
-    updated: true
+  - id: npm:@fumapress/language
+    updated: false
+  - id: npm:@fumapress/tegami
+    updated: false
+  - id: npm:@fumapress/mintlify
+    updated: false
 npm:packages:
   - id: npm:@fumapress/ai
-  - id: npm:@fumapress/astro
   - id: npm:@fumapress/blog
+  - id: npm:@fumapress/astro
   - id: npm:@fumapress/core
   - id: npm:create-fumapress
   - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
   - id: npm:fumapress
-  - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/language
   - id: npm:@fumapress/tegami
+  - id: npm:@fumapress/mintlify
   - id: npm:docs
-  - id: npm:example-astro
   - id: npm:example-sanity
   - id: npm:example-notion
   - id: npm:example-obsidian

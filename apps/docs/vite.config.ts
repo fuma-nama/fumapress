@@ -4,7 +4,9 @@ import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 import { remarkMdxFiles } from "fumadocs-core/mdx-plugins/remark-mdx-files";
 import { remarkSteps } from "fumadocs-core/mdx-plugins/remark-steps";
+import { rehypeCodeFromHighlighter } from "fumadocs-core/mdx-plugins/rehype-code.core";
 import { createGenerator, remarkAutoTypeTable, type GenerateOptions } from "fumadocs-typescript";
+import { highlighter } from "./src/highlighter";
 
 const generator = createGenerator();
 
@@ -27,14 +29,16 @@ export default defineConfig({
             remarkSteps,
             ...plugins,
             remarkMdxFiles,
-            [remarkAutoTypeTable, { generator, options: { typeSimplifier } }],
+            [remarkAutoTypeTable, { generator, highlighter, options: { typeSimplifier } }],
           ],
-          rehypeCodeOptions: {
-            themes: {
-              light: "vitesse-light",
-              dark: "catppuccin-mocha",
-            },
-          },
+          rehypeCodeOptions: false,
+          rehypePlugins: (plugins) => [
+            () =>
+              rehypeCodeFromHighlighter(({ transformers }) =>
+                highlighter.override({ shikiTransformers: transformers }),
+              ),
+            ...plugins,
+          ],
         },
       },
     }),

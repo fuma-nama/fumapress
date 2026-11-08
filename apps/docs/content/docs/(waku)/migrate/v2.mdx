@@ -5,19 +5,26 @@ description: Move a Fumapress 1.x site to version 2.
 
 Fumapress 2 replaces `defineConfig()` with `createPress()`. By default, the render mode of each page now matches its content source, so one site can have both prerendered and dynamic pages. Do the steps in order, then open the sections for the features your site uses.
 
+Coming from 0.x, follow [Upgrade to Fumapress 1](/docs/migrate/v1) first.
+
 ## Upgrade Steps
 
 ### Update the Packages [step]
 
-Update Fumapress and Fumadocs together. Also update any `@fumapress/*` plugins that you use.
+Fumapress 2 needs Node.js 24 or later. Update Fumapress, Fumadocs, React and Vite together, and any `@fumapress/*` plugins that you use.
 
 ```npm
-npm i fumapress@latest
+npm i fumapress@latest react@latest react-dom@latest
 npm i fumadocs-core@latest fumadocs-mdx@latest
 npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
+npm i vite@latest -D
 ```
 
-Fumapress 2 needs the Base UI build of Fumadocs UI, which the last line installs as `fumadocs-ui`. Coming from the Radix UI build, your own code only changes where it passes Radix props like `asChild` to Fumadocs UI components.
+Fumapress 2 needs the Base UI build of Fumadocs UI, which the third line installs as `fumadocs-ui`. Coming from the Radix UI build, your own code only changes where it passes Radix props like `asChild` to Fumadocs UI components.
+
+Fumapress 2 installs `@fumapress/core`, and some plugins moved to `@fumapress/*`, like `@fumapress/blog`. If your package manager holds back new releases, like with the `minimumReleaseAge` setting of pnpm, exclude `@fumapress/*` from it.
+
+If your `package.json` lists `react-server-dom-webpack`, uninstall it. A copy that you list replaces the one that matches the React version of Fumapress.
 
 ### Rewrite the Config [step]
 
@@ -140,6 +147,8 @@ export default app.config({
 
 `layoutProps` and `pageProps` of `render()` keep their names. For `body`, `lastModified`, `renderBody` and `renderPageActions`, write the layout yourself from `props.body`, `props.pageData` and `props.slots`. See [Custom Layouts](/docs/layouts#custom-layouts).
 
+`props.type` is the key of the content source, `docs` here. With a single source passed without a key, like `createPress(docs.toFumadocsSource())`, `props.type` is `undefined` on content pages.
+
 On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-pages#layouts) and the props it takes from `ctx.getLayoutProps({ lang })`. `HomeLayout` has no content container, so wrap your content to keep the width and padding of `createHomeLayout()`:
 
 ```tsx
@@ -147,6 +156,8 @@ On custom pages, replace `createHomeLayout()` with [`HomeLayout`](/docs/custom-p
   <div className="flex flex-col w-full max-w-[1400px] flex-1 px-4 py-6 mx-auto">{children}</div>
 </HomeLayout>
 ```
+
+`home.links` has the links of `ui.layoutProps` and plugins. A `links` prop replaces them, so add the links of this layout in front of them, like `links={[...homeLinks, ...home.links]}`.
 
 </Accordion>
 <Accordion title="Navbar and links">
@@ -181,7 +192,7 @@ createPress(content).config({
 });
 ```
 
-A custom `ui.renderRoot` also receives `head`, the styles of your site. Render it in `<head>`, or the page has no CSS.
+A custom `ui.renderRoot` also receives `head`, with the charset, the viewport and the styles of your site. Render it in `<head>`, or the page has no CSS.
 
 </Accordion>
 <Accordion title="Not found page">
@@ -216,7 +227,7 @@ export default app.config({
 });
 ```
 
-For tags that don't depend on the page, pass a plain list. See [Head Tags](/docs/configuration#head-tags).
+For tags that don't depend on the page, pass a plain list. `attrs` take HTML attribute names, like `crossorigin` and `http-equiv`, not the React props. See [Head Tags](/docs/configuration#head-tags).
 
 </Accordion>
 <Accordion title="Languages and translations">
@@ -265,7 +276,7 @@ createPress(content, { mode: "force-dynamic" });
 </Accordion>
 <Accordion title="Default plugins">
 
-A default plugin that you list with options now runs twice, and its routes conflict. Pass its options to `recommendedPreset()` instead:
+A default plugin that you also list in `.plugins()` is added twice, with or without options, and Fumapress stops with an error that names it. Pass its options to `recommendedPreset()` instead:
 
 ```tsx title="press.config.tsx"
 import { createPress, recommendedPreset } from "fumapress";
@@ -335,7 +346,7 @@ export function getConfig() {
 </Accordion>
 <Accordion title="Server entry">
 
-Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version that Fumapress uses, `1.0.0-rc.1`.
+Add the `dispose` line, so that old plugins stop on hot reload. Pin `waku` to the version that Fumapress uses, `1.0.0-rc.4`.
 
 ```tsx title="src/waku.server.tsx"
 const router = await createRouter(press);
@@ -426,7 +437,7 @@ vercelImage({ domains: ["github.com"] });
 
 The others are `cloudflareImage()` and `selfHostedImage()`. `selfHostedImage()` now needs [`site.baseUrl`](/docs/configuration#url).
 
-The default plugins add the provider of your platform. When you list one with options, set `image: false` in `recommendedPreset()`. See [Remote Images](/docs/content#remote-images).
+The default plugins add the provider of your platform. When you list a provider, with or without options, set `image: false` in `recommendedPreset()`. See [Remote Images](/docs/content#remote-images).
 
 </Accordion>
 <Accordion title="Open Graph images">

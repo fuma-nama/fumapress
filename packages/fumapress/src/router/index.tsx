@@ -33,9 +33,10 @@ import {
 } from "@fumapress/core/runtime";
 import { HomeShell } from "@fumapress/core/ui/home";
 import { renderRoute } from "fumadocs-core/server";
+import { unstable_parseRequest } from "waku/minimal/server";
 import {
+  getRequest,
   unstable_formatRouterRequest,
-  unstable_getRequest,
   unstable_notFound,
   unstable_parseRouterRequest,
   unstable_redirect,
@@ -127,11 +128,17 @@ export interface WakuRouteFns<A extends Press<any, any> = Press> {
 const clientReference = Symbol.for("react.client.reference");
 /** route group of pages without a language prefix, rendered inside the root layout of the default language */
 const DEFAULT_GROUP = "/(default)";
-const rscBase: string = import.meta.env.WAKU_CONFIG_RSC_BASE ?? "RSC";
-const styleTag = import.meta.env.DEV ? (
-  <style>{stylesInline}</style>
-) : (
-  <link rel="stylesheet" href={stylesHref} />
+/** Waku adds the charset and viewport only in its own root */
+const headTags = (
+  <>
+    <meta charSet="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {import.meta.env.DEV ? (
+      <style>{stylesInline}</style>
+    ) : (
+      <link rel="stylesheet" href={stylesHref} />
+    )}
+  </>
 );
 
 /** the Waku site of `press.config`, for the server entry */
@@ -185,11 +192,11 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
     ]);
     const body = <PressProvider {...props}>{wrapRoot(slots, children)}</PressProvider>;
     if (config.ui?.renderRoot)
-      return config.ui.renderRoot.call(ctx, { lang, head: styleTag, children: body });
+      return config.ui.renderRoot.call(ctx, { lang, head: headTags, children: body });
 
     return (
       <html lang={lang ?? "en"} suppressHydrationWarning>
-        <head>{styleTag}</head>
+        <head>{headTags}</head>
         <body data-version="1.0" className="flex flex-col min-h-screen">
           {body}
         </body>
@@ -223,7 +230,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
       view &&
       params &&
       (await (view.render === "dynamic"
-        ? view.view(params, { lang, request: unstable_getRequest() })
+        ? view.view(params, { lang, request: getRequest() })
         : view.view(params, { lang })));
     if (!out) unstable_notFound();
 
@@ -280,7 +287,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
       const route = unstable_parseRouterRequest(raw);
       let request = raw;
       // RSC requests of client navigations address the page in their own URL: middleware checks the page, Waku reads the body of `raw`
-      if (route?.type === "route" && pathname.startsWith(ctx.withBase(`/${rscBase}/`))) {
+      if (route?.type === "route" && unstable_parseRequest(raw)?.type === "rsc") {
         const url = new URL(raw.url);
         url.pathname = ctx.withBase(route.path);
         url.search = route.query ?? "";
@@ -612,7 +619,7 @@ export async function createRouter<A extends Press<any, any>>(press: A): Promise
           path: "/404",
           staticPaths: [],
           component: () => {
-            const route = unstable_parseRouterRequest(unstable_getRequest());
+            const route = unstable_parseRouterRequest(getRequest());
             const lang =
               route?.type === "route" ? pathLocale(ctx, route.path) : i18n.defaultLanguage;
             const Page = notFoundPages.get(lang) ?? notFoundPages.get(i18n.defaultLanguage);

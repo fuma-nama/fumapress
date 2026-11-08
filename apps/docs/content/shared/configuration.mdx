@@ -69,7 +69,9 @@ createPress(content).config({
 });
 ```
 
-Your tags replace plugin tags with the same key, like a `meta` tag of the same name.
+`attrs` take HTML attribute names, like `crossorigin` and `http-equiv`, not the React props.
+
+These tags have a key: `title`, a `meta` tag by its `name`, `property` or `http-equiv`, the canonical link, and an alternate link by its `hreflang`. Your tags replace plugin tags with the same key. Other tags are kept, except exact duplicates.
 
 ### Tags per Page
 

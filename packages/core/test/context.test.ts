@@ -829,6 +829,15 @@ describe("a path has one route", () => {
     });
 
     await expect(ctx.getApiRoutes()).rejects.toThrow('"core:rss" is added twice');
+
+    const image: SitePlugin = {
+      name: "vercel-image",
+      slots: () => [{ name: "image:provider", region: "layout-wrapper", component: () => null }],
+    };
+    const site = await createSite({ plugins: [image, image] });
+    await expect(site.getSlots({ lang: undefined })).rejects.toThrow(
+      '"vercel-image" is added twice',
+    );
   });
 
   it("lets a route win over a page of a dynamic source, which can appear while the server runs", async () => {

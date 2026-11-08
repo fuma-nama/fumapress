@@ -2,13 +2,23 @@
  * This is a copy of https://github.com/wakujs/waku/blob/main/packages/waku/src/router/fs-router.ts
  */
 import type { FC } from "react";
-import { unstable_isIgnoredPath as isIgnoredPath } from "waku/minimal/server";
 import type { HandlerInterceptor } from "waku/router/server";
 import type { Awaitable, Context } from "@fumapress/core";
 import type { WakuRouteConfig, WakuRouteFns } from "@/router";
 import { joinPaths } from "@/lib/pathname";
 
-const Methods = ["GET", "POST", "HEAD", "PUT", "DELETE", "PATCH", "OPTIONS"];
+const Methods = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "DELETE",
+  "CONNECT",
+  "OPTIONS",
+  "TRACE",
+  "PATCH",
+  "QUERY",
+];
 const ValidMethods = new Set(Methods);
 
 interface Options {
@@ -26,6 +36,8 @@ interface Options {
 }
 
 const SPECIAL_BASENAME = new Set(["_layout", "index", "_root"]);
+/** folders of colocated code, Waku's router skips them too */
+const IGNORED_PATH_PARTS = new Set(["_actions", "_components", "_hooks"]);
 
 export function fsRouterFn(
   /**
@@ -47,7 +59,7 @@ export function fsRouterFn(
     const { pagesDir = "pages", apiDir = "_api", slicesDir = "_slices" } = options;
 
     const pagesDirPrefix = pagesDir + "/";
-    for (const file in modules) {
+    for (const file of Object.keys(modules).sort()) {
       // Use WHATWG URL encoding for the file path (different from RFC2396-based encoding)
       const srcPath = new URL(file, "http://localhost:3000").pathname.slice(1);
       if (!srcPath.startsWith(pagesDirPrefix)) {
@@ -58,7 +70,7 @@ export function fsRouterFn(
         .replace(/\.\w+$/, "")
         .split("/")
         .filter(Boolean);
-      if (isIgnoredPath(pathItems)) {
+      if (pathItems.some((part) => IGNORED_PATH_PARTS.has(part))) {
         continue;
       }
       if (pathItems[0] === "_interceptors") {

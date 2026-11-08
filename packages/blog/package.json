@@ -36,22 +36,22 @@
   "dependencies": {
     "@fuma-translate/react": "^1.0.2",
     "@fumapress/core": "workspace:^",
-    "cn": "^0.4.0",
-    "lucide-react": "^1.47.0",
-    "zod": "^4.6.5"
+    "cn": "^0.5.2",
+    "lucide-react": "^1.70.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "fumadocs-core": "^16.18.2",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "tsdown": "0.23.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsdown": "0.23.7",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@types/react": "*",

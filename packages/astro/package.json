@@ -50,27 +50,27 @@
   },
   "dependencies": {
     "@fumapress/core": "workspace:^",
-    "devalue": "^6.0.2",
+    "devalue": "^6.0.3",
     "flexsearch": "^0.8.212"
   },
   "devDependencies": {
-    "@astrojs/react": "^7.1.1",
+    "@astrojs/react": "^7.1.4",
     "@fumadocs/astro": "^0.2.1",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "astro": "^7.4.2",
+    "astro": "^7.4.7",
     "fumadocs-core": "^16.18.2",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
-    "jsdom": "^29.1.1",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "tailwindcss": "^4.3.3",
-    "tsdown": "0.23.0",
+    "jsdom": "^31.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5",
+    "tsdown": "0.23.7",
     "typescript": "7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "@astrojs/react": "^7.0.0",
