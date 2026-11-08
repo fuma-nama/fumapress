@@ -1,3 +1,9 @@
+## @fumapress/core@0.1.1
+
+### Named a default plugin listed twice in more errors
+
+- Listing a default plugin that adds a slot item, like `vercelImage()`, says that it is added twice, like plugins that add a route.
+
 ## @fumapress/core@0.1.0
 
 ### Shared engine of Fumapress
