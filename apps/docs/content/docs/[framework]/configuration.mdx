@@ -1,0 +1,586 @@
+---
+title: Configuration
+---
+
+export const frontmatter = {
+  description: `Every option of your site, from press.config.tsx to the ${props.framework === "astro" ? "integration" : "Vite plugin"}.`,
+};
+
+<show when={props.framework === "waku"}>
+
+`press.config.tsx` at the project root configures your site. Only `createPress()` is required.
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+export const app = createPress(content, { i18n }).plugins(linkValidationPlugin());
+
+export default app.config({
+  site: { name: "Acme" },
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
+  ui: { layoutProps, renderPage },
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+`press.config.tsx` at the project root configures your site. Only `createPress()` is required. The file can `await` your collections.
+
+```tsx title="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+import { linkValidationPlugin } from "@fumapress/astro/plugins/link-validation";
+
+export const app = createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+  { i18n },
+).plugins(linkValidationPlugin());
+
+export default app.config({
+  site: { name: "Acme" },
+  head: [{ tag: "link", attrs: { rel: "icon", href: "/favicon.ico" } }],
+  ui: { layoutProps, renderPage },
+});
+```
+
+</show>
+
+## Content and Plugins
+
+`createPress()` takes your [content sources](./content-sources/index.mdx) and these options:
+
+- `i18n`: your [languages](./internationalization.mdx).
+- `mode`: when your content renders, see [Render Mode](./deployment.mdx#render-mode).
+- `alwaysRevalidate`: read [dynamic content](./content-sources/custom.mdx#refreshing-content) again on every request.
+- `loaderPlugins`, `url`, `pageTree` and the other [Fumadocs loader options](https://fumadocs.dev/docs/headless/source-api).
+
+`.plugins()` adds [plugins](./plugins/index.mdx). Call it once.
+
+To change the [default plugins](./plugins/index.mdx#default-plugins), set `preset` in `.config()`.
+
+## Site
+
+### Name
+
+`site.name` shows in the navbar and page metadata.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    name: "Acme Docs",
+  },
+});
+```
+
+### URL
+
+<show when={props.framework === "waku"}>
+
+Set the URL of your deployed site, with its base path if there is one. Without it, canonical links, the sitemap, RSS and Open Graph images fall back to relative URLs.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    baseUrl: "https://docs.example.com",
+  },
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+Set [`site`](https://docs.astro.build/en/reference/configuration-reference/#site) in your Astro config. Without it, canonical links, the sitemap, RSS and Open Graph images fall back to relative URLs.
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  site: "https://docs.example.com",
+  integrations: [press()],
+});
+```
+
+</show>
+
+### Repository
+
+`site.git` adds a repository link to the navbar and a link to the source file of each page.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  site: {
+    git: {
+      user: "acme",
+      repo: "docs",
+      branch: "main",
+    },
+  },
+});
+```
+
+GitHub is the default. For GitLab or Bitbucket, set `provider`. For a self-hosted instance, also set `url`.
+
+<Callout type="warn">
+  Source file links need the git root. Set `rootDir` when the build runs without a `.git` directory.
+</Callout>
+
+### All Site Options
+
+<show when={props.framework === "waku"}>
+
+<auto-type-table cwd path="../../packages/core/src/press.ts" name="SiteConfig" />
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+<auto-type-table cwd path="../../packages/core/src/press.ts" type="Omit<SiteConfig, 'baseUrl'>" />
+
+</show>
+
+## Head Tags
+
+`head` adds tags to `<head>` on every page, like analytics or fonts.
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  head: [{ tag: "meta", attrs: { name: "theme-color", content: "#000000" } }],
+});
+```
+
+`attrs` take HTML attribute names, like `crossorigin` and `http-equiv`, not the React props.
+
+These tags have a key: `title`, a `meta` tag by its `name`, `property` or `http-equiv`, the canonical link, and an alternate link by its `hreflang`. Your tags replace plugin tags with the same key. Other tags are kept, except exact duplicates.
+
+### Tags per Page
+
+Use a function. When `page` is undefined, the tags you return apply to the whole site:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  head({ page }) {
+    if (!page)
+      return [{ tag: "link", attrs: { rel: "icon", href: this.withBase("/favicon.ico") } }];
+    if (page.path.startsWith("blog/"))
+      return [{ tag: "meta", attrs: { property: "og:type", content: "article" } }];
+  },
+});
+```
+
+`this.withBase()` adds the base path for a site with a [base path](./deployment.mdx#base-path).
+
+## UI
+
+These options change the look of your site. Most of them are under `ui` in `.config()`.
+
+### Navbar and Links
+
+The navbar shows `site.name`, linked to your home page. `ui.layoutProps` adds links and changes the title for every layout:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    layoutProps: {
+      nav: { title: "Acme" },
+      links: [
+        { url: "/blog", text: "Blog", active: "nested-url" },
+        { url: "https://github.com/acme", text: "GitHub", external: true },
+      ],
+    },
+  },
+});
+```
+
+See [Layout Links](https://fumadocs.dev/docs/ui/layouts/links) and [Navbar](https://fumadocs.dev/docs/ui/layouts/nav) for what they accept. `ui.layoutProps` also takes the props that every docs layout shares, like `sidebar` and `tabs`.
+
+Links from plugins come after yours. For other options, your value takes priority.
+
+### Logo
+
+`nav.title` can be any React element:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+import { Image } from "fumapress/image";
+
+createPress(content).config({
+  ui: {
+    layoutProps: {
+      nav: {
+        title: (
+          <>
+            <Image src="/logo.png" width={64} height={64} className="size-8" alt="" />
+            Acme
+          </>
+        ),
+      },
+    },
+  },
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    layoutProps: {
+      nav: {
+        title: (
+          <>
+            <img src="/logo.png" width={64} height={64} className="size-8" alt="" />
+            Acme
+          </>
+        ),
+      },
+    },
+  },
+});
+```
+
+</show>
+
+### Links per Language
+
+With [internationalization](./internationalization.mdx), use a function. `this.localizePath()` adds the language prefix.
+
+```tsx title="press.config.tsx"
+createPress(content, { i18n }).config({
+  ui: {
+    layoutProps({ lang }) {
+      return {
+        links: [
+          {
+            url: this.localizePath(lang, "/blog"),
+            text: lang === "zh" ? "部落格" : "Blog",
+          },
+        ],
+      };
+    },
+  },
+});
+```
+
+To keep `layoutProps` in its own file, type it with `UIOptions`:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/ui/layout-props.tsx"
+import type { UIOptions } from "fumapress";
+import type { app } from "../../press.config";
+
+export const layoutProps: UIOptions<typeof app>["layoutProps"] = function ({ lang }) {
+  return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
+};
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="src/lib/layout-props.tsx"
+import type { UIOptions } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+
+export const layoutProps: UIOptions<typeof app>["layoutProps"] = function ({ lang }) {
+  return { links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }] };
+};
+```
+
+</show>
+
+### Colors
+
+Swap the theme import in `src/app.css`. See [Fumadocs UI Themes](https://fumadocs.dev/docs/ui/theme) for the presets.
+
+<show when={props.framework === "waku"}>
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code --] */
+@import "fumadocs-ui/css/neutral.css";
+/* [!code ++] */
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumapress/css/preset.css";
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+`@fumapress/astro/css/default.css` is a shortcut for these imports with the `neutral` theme, so replace it with them first.
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code --] */
+@import "fumadocs-ui/css/neutral.css";
+/* [!code ++] */
+@import "fumadocs-ui/css/black.css";
+@import "fumadocs-ui/css/preset.css";
+@import "@fumapress/astro/css/preset.css";
+```
+
+</show>
+
+### Dark Mode
+
+Start in dark mode with `ui.providerProps`:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    providerProps: {
+      theme: { defaultTheme: "dark" },
+    },
+  },
+});
+```
+
+### Fonts
+
+Load the font in `head`, then set it in `src/app.css`:
+
+```tsx tab="press.config.tsx"
+createPress(content).config({
+  head: [
+    { tag: "link", attrs: { rel: "preconnect", href: "https://fonts.googleapis.com" } },
+    {
+      tag: "link",
+      attrs: { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+    },
+    {
+      tag: "link",
+      attrs: {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+      },
+    },
+  ],
+});
+```
+
+```css tab="src/app.css"
+@theme {
+  --default-font-family: "Inter", sans-serif;
+}
+```
+
+<show when={props.framework === "waku"}>
+
+### Root Document
+
+`ui.renderRoot` replaces the `<html>` document, for example to add a class to `<html>` or `<body>`:
+
+```tsx title="press.config.tsx"
+createPress(content).config({
+  ui: {
+    renderRoot({ lang, head, children }) {
+      return (
+        <html lang={lang ?? "en"} className="dark" suppressHydrationWarning>
+          <head>{head}</head>
+          <body className="antialiased">{children}</body>
+        </html>
+      );
+    },
+  },
+});
+```
+
+Render `head` in `<head>`. It has the charset, the viewport and the styles of your site.
+
+</show>
+
+### Other UI Options
+
+- `ui.renderPage`: changes what each page renders. See [Rendering Pages](./layouts.mdx#rendering-pages).
+- `ui.providerProps`: the [`RootProvider` props](https://fumadocs.dev/docs/ui/layouts/root-provider), like your [search dialog](./search.mdx#custom-search-dialog).
+- `ui.translations`: the strings of the UI. See [Translate the UI](./internationalization.mdx#translate-the-ui).
+
+<show when={props.framework === "waku"}>
+
+## Build and Dev Server
+
+`press.config.tsx` doesn't configure the build or the dev server. Use these instead.
+
+### Vite Plugin
+
+`press()` takes these options:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import press from "fumapress/vite";
+import { fumadocsMdx } from "fumadocs-mdx/vite";
+
+const components = "./src/components/mdx.tsx";
+
+export default defineConfig({
+  plugins: [press({ components }), fumadocsMdx(), tailwindcss()],
+});
+```
+
+<auto-type-table type="import('fumapress/vite').WakuPressOptions" />
+
+### CLI
+
+Run the site through `fumapress` instead of `vite`.
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "fumapress dev",
+    "build": "fumapress build",
+    "start": "fumapress start"
+  }
+}
+```
+
+`dev` listens on port 3000, and `start` uses the first free port from 8080. To choose, set `PORT` and `HOST` or pass a flag:
+
+```npm
+npm run dev -- --port 4000 --host 0.0.0.0
+```
+
+### Environment Variables
+
+The CLI loads `.env`, `.env.local` and mode variants like `.env.production`. Variables already set in the environment take priority.
+
+- **Server code and `press.config.tsx`**: any variable, through `process.env`.
+- **Client code**: only variables prefixed with `VITE_`, through `import.meta.env`.
+
+Files that only the server can read, like key files, go in the `private` directory. Change it with the `privateDir` option of `press()`.
+
+## Server Entry
+
+Most sites don't need one. Create it to pass options to the Waku adapter or to define routes in code.
+
+### Install Waku [step]
+
+Install the version that Fumapress uses:
+
+```npm
+npm i waku@1.0.0-rc.4
+```
+
+### Create the Entry [step]
+
+```tsx title="src/waku.server.tsx"
+import _adapter from "waku/adapters/default";
+import press from "../press.config";
+import { createRouter } from "fumapress/router";
+import { fsRouterFn } from "fumapress/router/fs";
+
+const router = await createRouter(press);
+import.meta.hot?.dispose(router.dispose);
+
+const modules = import.meta.glob("./pages/**/*.{ts,tsx,js,jsx}", {
+  base: "/src",
+});
+
+const pages = router.createPages(fsRouterFn(modules));
+const middlewareFns = router.createMiddlewares();
+const adapter = router.patchAdapter(_adapter);
+
+export default adapter(pages, { middlewareFns });
+```
+
+### Config-Based Routing
+
+To use [config-based routing](https://waku.gg/#routing) instead of `src/pages`, pass a callback to `createPages()`. Don't create a root element, since Fumapress already creates one.
+
+```tsx title="src/waku.server.tsx"
+// [!code --]
+const pages = router.createPages(fsRouterFn(modules));
+// [!code ++:9]
+const pages = router.createPages(({ createPage }) => {
+  createPage({
+    render: "static",
+    path: "/hello-world",
+    component() {
+      return <main>Hello World</main>;
+    },
+  });
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+## Integration
+
+`press()` also takes the [options of `@fumadocs/astro`](https://fumadocs.dev/docs/manual-installation/astro), like `collections` and `rehypeCodeOptions`. It adds the React and MDX integrations, so don't list them yourself.
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  integrations: [
+    press({
+      components: "./src/components/mdx.tsx",
+    }),
+  ],
+});
+```
+
+<auto-type-table cwd path="../../packages/astro/src/index.ts" name="AstroPressOptions" />
+
+</show>
+
+## Types
+
+Export the result of `.plugins()` as `app`, and pass `typeof app` to the type helpers from <show when={props.framework === "waku"}>`fumapress`</show><show when={props.framework === "astro"}>`@fumapress/astro/config`</show>:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // ...
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro title="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+
+type Props = LayoutProps<typeof app, "docs">;
+---
+```
+
+</show>
+
+| Helper              | For                                                            |
+| ------------------- | -------------------------------------------------------------- |
+| `RenderPageProps`   | props of `ui.renderPage`, narrowed to a source or plugin page  |
+| `UIOptions`         | an option of `ui`, like `UIOptions<typeof app>["layoutProps"]` |
+| `PressContext`      | `this` in callbacks, the result of `getPressContext()`         |
+| `SharedLayoutProps` | the props of every docs layout                                 |
+| `ProviderProps`     | the root provider props                                        |
+
+<show when={props.framework === "waku"}>
+
+Custom pages take `WakuRouteProps` as props, and their `getConfig()` returns `WakuRouteConfig`.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+An [`.astro` layout](./layouts.mdx#islands) takes `LayoutProps` as props, and its island takes `IslandProps`.
+
+</show>

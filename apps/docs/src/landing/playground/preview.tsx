@@ -145,9 +145,9 @@ function DocsPreview({ config, path }: { config: PlaygroundConfig; path: string 
       </DocsDescription>
       {config.actions && (
         <div className="flex flex-row items-center gap-2 border-b pt-2 pb-6">
-          <MarkdownCopyButton markdownUrl="/docs.md" />
+          <MarkdownCopyButton markdownUrl="/docs/waku.md" />
           <ViewOptionsPopover
-            markdownUrl="/docs.md"
+            markdownUrl="/docs/waku.md"
             githubUrl="https://github.com/fuma-nama/fumapress"
           />
         </div>

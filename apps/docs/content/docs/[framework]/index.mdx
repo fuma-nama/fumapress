@@ -1,0 +1,155 @@
+---
+title: Quick Start
+---
+
+import { frameworks } from "../../../src/ui/framework";
+
+export const frontmatter = {
+  description: `Create a docs site with Fumapress on ${frameworks[props.framework].title}.`,
+};
+
+Fumapress turns your Markdown files into a complete docs site on <show when={props.framework === "waku"}>[Waku](https://waku.gg)</show><show when={props.framework === "astro"}>[Astro](https://astro.build)</show>. It is built on [Fumadocs](https://fumadocs.dev) and comes with layouts, search, SEO files and plugins. <show when={props.framework === "waku"}>Custom pages and layouts are React Server Components.</show><show when={props.framework === "astro"}>Your content is stored in Astro content collections, and Astro handles routing, builds and deployment.</show>
+
+## Creating a Site
+
+<show when={props.framework === "astro"}>
+
+<Callout>Astro needs Node.js 22.23.4 or later.</Callout>
+
+</show>
+
+### Create the Project [step]
+
+<show when={props.framework === "waku"}>
+
+```npm
+npm create fumapress -- --framework waku
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```npm
+npm create fumapress -- --framework astro
+```
+
+</show>
+
+### Start the Dev Server [step]
+
+From the new folder:
+
+```npm
+npm run dev
+```
+
+The project looks like this:
+
+<show when={props.framework === "waku"}>
+
+```files
+├── content
+│   └── index.mdx
+├── src
+│   └── app.css
+├── press.config.tsx
+└── vite.config.ts
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```files
+├── content
+│   └── index.mdx
+├── src
+│   ├── app.css
+│   └── content.config.ts
+├── press.config.tsx
+└── astro.config.mjs
+```
+
+</show>
+
+### Write a Page [step]
+
+Each file under `content/` is a page. Add one:
+
+```mdx title="content/hello.mdx"
+---
+title: Hello
+description: My second page.
+---
+
+## Overview
+
+It is available at `/hello`, and listed in the sidebar.
+```
+
+Learn more in [Content](./content.mdx).
+
+### Name the Site [step]
+
+Set the name in `press.config.tsx`. It shows in the navbar and page metadata.
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+export default createPress(docs.toFumadocsSource()).config({
+  site: {
+    name: "My Docs", // [!code highlight]
+  },
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+export default createPress(
+  toFumadocsSource(await getCollection("docs"), await getCollection("meta")),
+).config({
+  site: {
+    name: "My Docs", // [!code highlight]
+  },
+});
+```
+
+</show>
+
+## Next Steps
+
+<Cards>
+  <Card href={`/docs/${props.framework}/content`} title="Write Content">
+    Pages, sidebar, components and images.
+  </Card>
+  <Card href={`/docs/${props.framework}/layouts`} title="Customize">
+    Choose a layout and add custom pages.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins`} title="Add Features">
+    Blog, AI chat, API docs, feedback and more.
+  </Card>
+  <Card href={`/docs/${props.framework}/deployment`} title="Deploy">
+    Build the site and put it online.
+  </Card>
+</Cards>
+
+<show when={props.framework === "waku"}>
+
+Moving an existing site? See [Upgrade to Fumapress 2](./migrate/v2.mdx) or [Migrate from Mintlify](./migrate/mintlify.mdx).
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+Moving an existing site? See [Migrate from `@fumadocs/astro`](./migrate/from-fumadocs-astro.mdx) or [Migrate from Mintlify](./migrate/mintlify.mdx).
+
+</show>
+
+<Callout>
+  In the samples of these docs, `content` and `docsSource` stand for your content sources, and the
+  import of `createPress` is left out.
+</Callout>

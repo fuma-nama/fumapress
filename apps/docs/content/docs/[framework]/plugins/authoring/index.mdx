@@ -1,0 +1,251 @@
+---
+title: Writing Plugins
+description: Add routes, UI and other features with your own plugin.
+---
+
+A plugin is an object with hooks. This one adds a link to the navbar:
+
+```tsx title="press.config.tsx"
+createPress(content).plugins({
+  name: "site:blog-link",
+  layoutProps({ lang }) {
+    return {
+      links: [{ url: this.localizePath(lang, "/blog"), text: "Blog" }], // [!code highlight]
+    };
+  },
+});
+```
+
+`layoutProps` is a hook, and Fumapress calls it for each page it renders. `this` in a hook is the press context, the same object `getPressContext()` returns on custom pages.
+
+## Hooks
+
+<Cards>
+  <Card href={`/docs/${props.framework}/plugins/authoring/routes`} title="Routes">
+    Add pages and API routes.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/authoring/ui`} title="UI">
+    Add buttons, navbar links and head tags, or render a source your way.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/authoring/server`} title="Middleware and Lifecycle">
+    Handle requests, or run code at startup and after the build.
+  </Card>
+  <Card href={`/docs/${props.framework}/content-sources/custom`} title="Custom Source">
+    Render pages from anywhere, with content hooks like `getPageBody`.
+  </Card>
+</Cards>
+
+## Sharing Plugins
+
+In these samples, `AppShape` and `Plugin` come from <show when={props.framework === "waku"}>`fumapress`</show><show when={props.framework === "astro"}>`@fumapress/astro/config`</show>.
+
+### Reusable Plugins
+
+To use a plugin on more than one site, export a function that returns it. The type parameter `C` gives the hooks the types of the site that uses the plugin. This plugin adds a page, an API route and a response header:
+
+```tsx tab="acme/index.tsx"
+type Types = {
+  views: { "status.page": { ok: boolean } }; // [!code highlight]
+};
+
+export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C, Types> {
+  return {
+    name: "acme:status",
+    routes({ createApi, createView }) {
+      createView({
+        path: "/status",
+        render: "dynamic",
+        view: () => ({
+          type: "status.page", // [!code highlight]
+          props: { ok: true },
+          node: <p>OK</p>,
+        }),
+      });
+      createApi({ path: "/status.json", GET: () => Response.json({ ok: true }) });
+    },
+    async middleware(request, next) {
+      const response = await next();
+      const out = new Response(response.body, response);
+      out.headers.set("x-powered-by", "acme");
+      return out;
+    },
+  };
+}
+```
+
+```tsx tab="press.config.tsx"
+export default createPress(content)
+  .plugins(statusPlugin())
+  .config({
+    ui: {
+      renderPage(props) {
+        // the type declared by the plugin, with its props
+        if (props.type === "status.page") return <main>{props.ok ? "up" : "down"}</main>; // [!code highlight]
+        return props.renderDefault();
+      },
+    },
+  });
+```
+
+### Plugin Types
+
+The second type parameter of `Plugin` lists what your plugin adds, so that `ui.renderPage` and other plugins have its types. Use only the keys you need:
+
+```ts title="acme/index.tsx"
+type AcmeTypes = {
+  // plugin pages: `props.type === "showcase.index"`, with `props.items`
+  views: { "showcase.index": { items: ShowcaseItem[] } };
+  // content pages it renders: `props.type === "reviews"`, with `props.stars`
+  pages: { reviews: { stars: number } };
+  // the names of its slot items: `props.slots["acme:share"]`
+  slots: "acme:share" | "acme:rating";
+};
+```
+
+### Publishing a Package
+
+To support every framework Fumapress runs on, build on the plugin API of Fumadocs, and make the plugin the default export of a `/press` entry. That API has the content hooks and `createApi()`, with no UI hooks.
+
+```ts title="acme/press.ts"
+import type { Plugin } from "fumadocs-core/framework/plugin";
+
+export default function acmePlugin(): Plugin {
+  return {
+    name: "acme",
+    routes({ createApi }) {
+      createApi({ path: "/api/acme", GET: () => Response.json({ ok: true }) });
+    },
+  };
+}
+```
+
+`fumadocs-openapi/press` is a complete example.
+
+### Sharing Data
+
+To give custom pages and other plugins data of your plugin, export a function that takes the press context. Store the data by context, since one process can run more than one site:
+
+```ts title="acme/index.ts"
+const statuses = new WeakMap<Context, Promise<Status>>();
+
+export function statusPlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "acme:status",
+    configure() {
+      statuses.set(this, fetchStatus());
+    },
+  };
+}
+
+export function getStatus(ctx: Context): Promise<Status> | undefined {
+  return statuses.get(ctx);
+}
+```
+
+`getBlogPosts()` of `@fumapress/blog` works this way.
+
+<show when={props.framework === "waku"}>
+
+### Replacing a Default Plugin
+
+A site replaces a [default plugin](../index.mdx#replacing-a-default-plugin) by setting it to `false` and listing yours. This image optimizer wraps every page in its provider:
+
+```tsx tab="press.config.tsx"
+import { createPress, recommendedPreset, type WakuAppShape, type WakuPlugin } from "fumapress";
+import { CloudinaryProvider } from "./src/provider";
+
+function cloudinaryImage<C extends WakuAppShape = WakuAppShape>(options: {
+  cloud: string;
+}): WakuPlugin<C, { slots: "cloudinary:provider" }> {
+  return {
+    name: "cloudinary:image",
+    slots: ({ page }) =>
+      page
+        ? undefined
+        : [
+            {
+              name: "cloudinary:provider",
+              region: "layout-wrapper",
+              component: CloudinaryProvider,
+              props: { cloud: options.cloud },
+              order: -10,
+            },
+          ],
+  };
+}
+
+export const app = createPress(content).plugins(cloudinaryImage({ cloud: "acme" }));
+
+export default app.config({
+  preset: recommendedPreset({ image: false }), // [!code highlight]
+});
+```
+
+```tsx tab="src/provider.tsx"
+"use client";
+import type { ReactNode } from "react";
+
+export function CloudinaryProvider({ cloud, children }: { cloud: string; children?: ReactNode }) {
+  return <div data-cloud={cloud}>{children}</div>;
+}
+```
+
+</show>
+
+## Custom Search Engine
+
+A search engine is a plugin that returns its dialog from `providerProps`, and adds its own routes. A site using it sets `search: false` in `recommendedPreset()`. See [Custom Search Dialog](../../search.mdx#custom-search-dialog) for the parts.
+
+```tsx tab="acme/index.ts"
+import { AcmeSearchDialog } from "./client";
+
+export function acmeSearchPlugin<C extends AppShape = AppShape>(options: {
+  index: string;
+}): Plugin<C> {
+  return {
+    name: "acme:search",
+    providerProps({ lang }) {
+      const api = this.withBase("/api/acme-search");
+      const options = { api, locale: lang };
+      return { search: { SearchDialog: AcmeSearchDialog, options } };
+    },
+    routes({ createApi }) {
+      createApi({
+        path: "/api/acme-search",
+        GET: (request) => {
+          const { search } = new URL(request.url);
+          return fetch(`https://search.acme.dev/${options.index}${search}`);
+        },
+      });
+    },
+  };
+}
+```
+
+```tsx tab="acme/client.tsx"
+"use client";
+import { useFetchSearch, type FetchOptions } from "fumadocs-core/search/client/fetch";
+import {
+  SearchDialog,
+  SearchDialogContent,
+  SearchDialogHeader,
+  SearchDialogInput,
+  SearchDialogList,
+  SearchDialogOverlay,
+  type SharedProps,
+} from "fumadocs-ui/components/dialog/search";
+
+export function AcmeSearchDialog({ api, locale, ...props }: SharedProps & FetchOptions) {
+  return (
+    <SearchDialog {...props} {...useFetchSearch({ api, locale })}>
+      <SearchDialogOverlay />
+      <SearchDialogContent>
+        <SearchDialogHeader>
+          <SearchDialogInput />
+        </SearchDialogHeader>
+        <SearchDialogList />
+      </SearchDialogContent>
+    </SearchDialog>
+  );
+}
+```

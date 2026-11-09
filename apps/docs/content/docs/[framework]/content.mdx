@@ -1,0 +1,442 @@
+---
+title: Content
+description: Write pages, organize the sidebar, and add components and images.
+---
+
+<show when={props.framework === "waku"}>
+
+Each Markdown or MDX file under `content/` is a page, and the sidebar lists them for you. Callouts, code block titles, tabs and other syntax work as in [Fumadocs Markdown](https://fumadocs.dev/docs/markdown).
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+Each MDX file in your [content collection](./content-sources/collections.mdx) is a page, and the sidebar lists them for you. Callouts, code block titles, tabs and other syntax work as in [Fumadocs Markdown](https://fumadocs.dev/docs/markdown).
+
+</show>
+
+## Pages
+
+The URL of a page comes from its file path:
+
+| File                          | URL                |
+| ----------------------------- | ------------------ |
+| `content/index.mdx`           | `/`                |
+| `content/getting-started.mdx` | `/getting-started` |
+| `content/guide/install.mdx`   | `/guide/install`   |
+
+<show when={props.framework === "waku"}>
+
+To put pages under a prefix like `/docs`, see [Multiple Sources](./content-sources/fumadocs-mdx.mdx#multiple-sources).
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+To put pages under a prefix like `/docs`, see [Multiple Collections](./content-sources/collections.mdx#multiple-collections).
+
+</show>
+
+### Frontmatter
+
+```mdx title="content/getting-started.mdx"
+---
+title: Getting Started # required, the main heading of the page
+description: Install and run the app. # below the title, and in the page metadata
+icon: Rocket # a Lucide icon name for the sidebar
+full: true # use the full width
+---
+
+## Install
+
+Start the body at `##`, since `title` is the main heading.
+```
+
+To resolve icon names, add the Lucide plugin of Fumadocs:
+
+```tsx title="press.config.tsx"
+import { lucideIconsPlugin } from "fumadocs-core/source/plugins/lucide-icons"; // [!code ++]
+
+export default createPress(content, {
+  loaderPlugins: [lucideIconsPlugin()], // [!code ++]
+});
+```
+
+<show when={props.framework === "waku"}>
+
+To add fields, [extend the schema](./content-sources/fumadocs-mdx.mdx#frontmatter).
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+To add fields, [extend the schema](./content-sources/collections.mdx#frontmatter-fields).
+
+</show>
+
+### Links
+
+Link to another page with its file path. Fumapress resolves it to the URL of that page:
+
+```mdx
+Read the [install guide](./guide/install.mdx).
+```
+
+### Last Modified Date
+
+Show the date of the last commit on each page. The sitemap and RSS feed also use this date.
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+const docs = defineDocs({
+  dir: "content",
+  docs: {
+    lastModified: true, // [!code ++]
+  },
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```js title="astro.config.mjs"
+press({
+  lastModified: true, // [!code ++]
+});
+```
+
+</show>
+
+<Callout type="warn">
+  The date comes from git history at build time, so uncommitted pages have no date. A shallow clone,
+  common in CI, gives every page the date of the latest commit.
+</Callout>
+
+## Sidebar
+
+The sidebar lists your files by name. Add a `meta.json` next to them to set the order and labels:
+
+```json tab="content/meta.json"
+{
+  "pages": ["index", "---Guides---", "getting-started", "guide"]
+}
+```
+
+```json tab="content/guide/meta.json"
+{
+  "title": "Guide",
+  "icon": "Book",
+  "pages": ["install", "..."]
+}
+```
+
+See [Page Slugs and Page Tree](https://fumadocs.dev/docs/page-conventions) for separators, links, root folders and other syntax.
+
+## Components
+
+### Create the Module [step]
+
+Create a module that default-exports the components your pages can use:
+
+```tsx title="src/components/mdx.tsx"
+import defaultMdxComponents from "fumadocs-ui/mdx";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import type { MDXComponents } from "mdx/types";
+
+export default {
+  ...defaultMdxComponents,
+  Tab,
+  Tabs,
+} satisfies MDXComponents;
+```
+
+### Register the Module [step]
+
+<show when={props.framework === "waku"}>
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  plugins: [
+    press({ components: "./src/components/mdx.tsx" }), // [!code highlight]
+    fumadocsMdx(),
+    tailwindcss(),
+  ],
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```js title="astro.config.mjs"
+export default defineConfig({
+  integrations: [
+    press({ components: "./src/components/mdx.tsx" }), // [!code highlight]
+  ],
+});
+```
+
+</show>
+
+### Use the Components [step]
+
+```mdx title="content/install.mdx"
+<Tabs items={["npm", "pnpm"]}>
+  <Tab value="npm">Install with npm.</Tab>
+  <Tab value="pnpm">Install with pnpm.</Tab>
+</Tabs>
+```
+
+<show when={props.framework === "waku"}>
+
+You can also import a component directly in an MDX file.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+### Rules for MDX Components
+
+The content of a page is a separate React island, so:
+
+- **Props** must be serializable, since components hydrate by name. `<Chart data={[1, 2]} />` runs in the browser, and `<Chart onClick={() => {}} />` renders on the server only.
+- **Providers** from your layout aren't available in the content. Add a `wrapper` to the MDX components instead.
+- **Imports** are also loaded in the browser, so don't import server-only code.
+
+<Callout type="warn" title="No cycles">
+  Don't import `press.config.tsx` or `@fumapress/astro/runtime` from the module. This creates an
+  import cycle with your content, which slows down the build.
+</Callout>
+
+### MDX Components per Collection
+
+```js title="astro.config.mjs"
+press({
+  components: "./src/components/mdx.tsx",
+  collections: {
+    docs: { dir: "content/docs" },
+    blog: { dir: "content/blog", components: "./src/components/blog-mdx.tsx" }, // [!code ++]
+  },
+});
+```
+
+</show>
+
+### Custom Links
+
+Fumapress resolves relative links before your `a` component receives them, so your component only renders the link.
+
+```tsx tab="src/components/link.tsx"
+import type { ComponentProps } from "react";
+
+export function DocsLink(props: ComponentProps<"a">) {
+  const external = props.href?.startsWith("http");
+
+  return <a {...props} target={external ? "_blank" : undefined} />;
+}
+```
+
+```tsx tab="src/components/mdx.tsx"
+export default {
+  ...defaultMdxComponents,
+  a: DocsLink, // [!code ++]
+} satisfies MDXComponents;
+```
+
+<show when={props.framework === "waku"}>
+
+To use hooks like `usePathname` from `fumadocs-core/framework`, add `"use client"` to the component.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+<Callout type="warn">
+  Astro renders your `a` component separately, like in Astro MDX, without hydration or React context
+  from the page. It can't use state, effects or hooks like `usePathname`. The same goes for an MDX
+  component inside a link.
+</Callout>
+
+</show>
+
+### Components per Page
+
+<show when={props.framework === "waku"}>
+
+List the MDX renderer yourself, with `components` as a function of the page. It replaces the renderer that `press()` builds from your module:
+
+```tsx title="press.config.tsx"
+import mdxPlugin from "fumadocs-mdx/press";
+import components from "./src/components/mdx";
+import { Mermaid } from "./src/components/mermaid";
+
+createPress(content).plugins(
+  mdxPlugin({
+    components: (page) =>
+      page.path.startsWith("guides/") ? { ...components, Mermaid } : components,
+  }),
+);
+```
+
+`page` has the types of your content. The plugins of the [Notion, Sanity and Obsidian sources](./content-sources/index.mdx) take `components` as a function too.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+List the content renderer yourself, with `components` as a function of the page. They go over the components of your module:
+
+```tsx title="press.config.tsx"
+import { contentSourcePlugin } from "@fumapress/astro/plugins/content-source";
+import { Mermaid } from "./src/components/mermaid";
+
+createPress(content).plugins(
+  contentSourcePlugin({
+    components: (page) => (page.path.startsWith("guides/") ? { Mermaid } : {}),
+  }),
+);
+```
+
+`page` has the types of your content, and the [rules for MDX components](#rules-for-mdx-components) apply to these components too. The plugins of the [Notion, Sanity and Obsidian sources](./content-sources/index.mdx) take `components` as a function too.
+
+</show>
+
+## Images and Files
+
+Files in `public/` are copied to the build as they are. `public/screenshot.png` is available at `/screenshot.png`. For a favicon, reference it from [`head`](./configuration.mdx#head-tags).
+
+Reference images from Markdown with an absolute path:
+
+```mdx
+![A preview of the editor](/screenshot.png)
+```
+
+<show when={props.framework === "astro"}>
+
+On custom pages, use [Astro Images](https://docs.astro.build/en/guides/images/).
+
+```astro title="src/pages/index.astro"
+---
+import { Image } from "astro:assets";
+import screenshot from "../assets/screenshot.png";
+---
+
+<Image src={screenshot} alt="A preview of the editor" />
+```
+
+</show>
+
+<show when={props.framework === "waku"}>
+
+In components, import `Image`:
+
+```tsx title="src/pages/index.tsx"
+import { Image } from "fumapress/image";
+
+<Image src="/screenshot.png" width={1200} height={630} alt="A preview of the editor" />;
+```
+
+Besides the usual `<img>` props, `Image` takes:
+
+<auto-type-table
+  cwd
+  path="../../packages/fumapress/src/components/image.tsx"
+  type="Pick<ImageProps, 'quality' | 'unoptimized' | 'preload'>"
+/>
+
+### Image Optimization
+
+Markdown images and `Image` are optimized when your platform supports image optimization. Without `site.baseUrl`, the self-hosted provider leaves images as they are.
+
+| Platform   | Provider                                                                                              | Needs                                |
+| ---------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Vercel     | [Vercel Image Optimization](https://vercel.com/docs/image-optimization)                               | nothing                              |
+| Cloudflare | [Image Transformations](https://developers.cloudflare.com/images/transform-images/transform-via-url/) | transformations enabled on your zone |
+| Node.js    | Self-hosted, with [Sharp](https://sharp.pixelplumbing.com)                                            | `sharp`, a server and `site.baseUrl` |
+
+### Remote Images
+
+Local paths are always allowed. For remote images, pass `image: false` to `recommendedPreset()` and add the provider with its options:
+
+<Tabs items={["Vercel", "Cloudflare", "Self-hosted"]}>
+<Tab value="Vercel">
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+import { vercelImage } from "fumapress/plugins/image/vercel";
+
+export const app = createPress(content).plugins(vercelImage({ domains: ["github.com"] }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/vercel').VercelImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+<Tab value="Cloudflare">
+
+Allow remote sources in the Cloudflare dashboard.
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+import { cloudflareImage } from "fumapress/plugins/image/cloudflare";
+
+export const app = createPress(content).plugins(cloudflareImage({ format: "auto" }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/cloudflare').CloudflareImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+<Tab value="Self-hosted">
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+import { selfHostedImage } from "fumapress/plugins/image/self-hosted";
+
+export const app = createPress(content).plugins(selfHostedImage({ allowedHosts: ["github.com"] }));
+
+export default app.config({ preset: recommendedPreset({ image: false }) });
+```
+
+<Accordions>
+<Accordion title="All options">
+
+<auto-type-table type="import('fumapress/plugins/image/self-hosted').SelfHostedImageOptions" />
+
+</Accordion>
+</Accordions>
+
+</Tab>
+</Tabs>
+
+### Disabling Optimization
+
+On a static host with `sharp` installed, turn off image optimization, since the self-hosted provider needs a server:
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+export default createPress(content).config({
+  preset: recommendedPreset({ image: false }),
+});
+```
+
+For another optimizer, see [Replacing a Default Plugin](./plugins/index.mdx#replacing-a-default-plugin).
+
+</show>

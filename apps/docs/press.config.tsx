@@ -10,36 +10,43 @@ import { vercelImage } from "fumapress/plugins/image/vercel";
 import { mcpPlugin } from "@fumapress/ai";
 import { defineDocs } from "fumadocs-mdx/macro";
 import { layoutProps, renderPage } from "./src/ui/layout";
-import { frameworkOf } from "./src/ui/framework";
+import { frameworkOf, frameworks } from "./src/ui/framework";
 import { DocsSearchDialog } from "./src/ui/search";
 import { playgroundPlugin } from "./src/landing/playground/plugin";
 import { paintingPlugin } from "./src/landing/painting";
 import { ogFonts, pageImage } from "./src/og/og";
 import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?url";
 
-const docsOptions = {
-  async: true,
-  lastModified: true,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
-} as const;
-
 const docs = defineDocs({
   dir: "content/docs",
-  docs: { ...docsOptions, schema: pageSchema },
+  docs: {
+    schema: pageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: metaSchema },
 });
 
 const blog = defineDocs({
   dir: "content/blog",
-  docs: { ...docsOptions, schema: blogPageSchema },
+  docs: {
+    schema: blogPageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: blogMetaSchema },
 });
 
 const changelog = defineDocs({
   dir: "content/changelog",
-  docs: { ...docsOptions, schema: changelogPageSchema },
+  docs: {
+    schema: changelogPageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: changelogMetaSchema },
 });
 
@@ -78,6 +85,11 @@ const movedPages = new Map([
   ["/docs/routing", "/docs/custom-pages"],
 ]);
 
+/** adds the `/waku` prefix to an old URL of the Waku docs */
+function wakuPathOf(pathname: string) {
+  return pathname.replace(/^\/docs(?=[/.]|$)(?!\/(?:waku|astro)(?:[/.]|$))/, "/docs/waku");
+}
+
 export const app = createPress(
   {
     docs: docs.toFumadocsSource({ baseDir: "docs" }),
@@ -89,8 +101,9 @@ export const app = createPress(
   {
     name: "docs:moved-pages",
     middleware(request, next) {
-      const location = movedPages.get(new URL(request.url).pathname);
-      if (!location) return next();
+      const { pathname } = new URL(request.url);
+      const location = wakuPathOf(movedPages.get(pathname) ?? pathname);
+      if (location === pathname) return next();
       return Promise.resolve(new Response(null, { status: 308, headers: { Location: location } }));
     },
   },
@@ -135,7 +148,7 @@ export default app.config({
     },
     llms: {
       routes: "all",
-      // processed Markdown keeps links as authored, and shared partials can only use relative ones
+      // processed Markdown keeps links as authored, and the pages of `[framework]` link with relative paths
       async getLLMText(page) {
         const [text, loader] = await Promise.all([this.getPageText(page), this.getLoader()]);
         if (text === undefined) return;
@@ -152,7 +165,7 @@ export default app.config({
         const { title, description } = await this.getPageData(page);
         const framework = frameworkOf(page.url);
         const label = framework
-          ? `Docs for ${framework === "astro" ? "Astro" : "Waku"}`
+          ? `Docs for ${frameworks[framework].title}`
           : page.type === "blog"
             ? "Blog"
             : "Changelog";

@@ -24,8 +24,10 @@ export default defineConfig({
     fumadocsMdx({
       globalOptions: {
         mdxOptions: {
-          // `remarkSteps` first: heading IDs leave out its `[step]` tag
-          remarkPlugins: (plugins) => [
+          // `remarkSteps` after `remarkShow`, the first plugin, so steps count the branches that show,
+          // and before heading IDs, which leave out its `[step]` tag
+          remarkPlugins: ([remarkShow, ...plugins]) => [
+            remarkShow!,
             remarkSteps,
             ...plugins,
             remarkMdxFiles,
