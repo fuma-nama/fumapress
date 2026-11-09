@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "fumadocs-mdx",
+    "collections",
+    "notion",
+    "sanity",
+    "obsidian",
+    "local-markdown",
+    "custom"
+  ]
+}

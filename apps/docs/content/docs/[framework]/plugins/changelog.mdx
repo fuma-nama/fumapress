@@ -1,0 +1,197 @@
+---
+title: Changelog
+description: Publish your Tegami release notes on a filterable page.
+---
+
+[Tegami](https://tegami.fuma-nama.dev) is a tool that manages changelogs, versions and publishing in a monorepo. This plugin shows its release notes on your site at `/changelog`, with filters and search.
+
+`@fumapress/tegami` has two plugins, one for Tegami and one for your site:
+
+<Flow>
+  <FlowStep title="fumapressPlugin()" result="tegami.config.ts">
+    When you apply a Tegami draft, it writes each release as an MDX file in content/changelog.
+  </FlowStep>
+  <FlowStep title="changelogPlugin()" result="press.config.tsx">
+    Reads these files as a content source, and shows them at /changelog.
+  </FlowStep>
+</Flow>
+
+## Setup
+
+### Install [step]
+
+```npm
+npm i @fumapress/tegami tegami
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/tegami/css/preset.css";
+```
+
+### Write the Notes [step]
+
+```ts title="tegami.config.ts"
+import { tegami } from "tegami";
+import { fumapressPlugin } from "@fumapress/tegami/tegami";
+
+export default tegami({
+  plugins: [
+    fumapressPlugin({
+      dir: "content/changelog",
+    }),
+  ],
+});
+```
+
+Each note it writes looks like this. The schema requires `date` and `packages`:
+
+```mdx title="content/changelog/2026-08-24-example.mdx"
+---
+title: Markdown for every route
+date: 2026-08-24T15:26:51.468Z
+packages:
+  fumapress:
+    version: 1.1.0
+---
+```
+
+<show when={props.framework === "waku"}>
+
+### Create the Source [step]
+
+Create a source for the notes, and pass its key to the site plugin:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+// [!code ++:2]
+import { changelogPlugin } from "@fumapress/tegami";
+import { changelogPageSchema } from "@fumapress/tegami/schema";
+
+const docs = defineDocs({ dir: "content/docs" });
+
+// [!code ++:4]
+const changelog = defineDocs({
+  dir: "content/changelog",
+  docs: { schema: changelogPageSchema },
+});
+
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
+})
+  // [!code ++]
+  .plugins(changelogPlugin({ source: "changelog" }));
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+### Add the Collection [step]
+
+Add a [collection](../content-sources/collections.mdx#multiple-collections) for the notes, with the changelog schema, and pass its key to the site plugin:
+
+```js tab="astro.config.mjs"
+press({
+  collections: {
+    docs: { dir: "content/docs" },
+    changelog: { dir: "content/changelog" }, // [!code ++]
+  },
+});
+```
+
+```ts tab="src/content.config.ts"
+import { defineCollection } from "astro:content";
+import { metaLoader, pageLoader } from "@fumadocs/astro/loaders";
+// [!code ++]
+import { changelogPageSchema } from "@fumapress/tegami/schema";
+
+export const collections = {
+  docs: defineCollection({ loader: pageLoader() }),
+  meta: defineCollection({ loader: metaLoader() }),
+  // [!code ++:2]
+  changelog: defineCollection({ loader: pageLoader("changelog"), schema: changelogPageSchema }),
+  changelogMeta: defineCollection({ loader: metaLoader("changelog") }),
+};
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+// [!code ++]
+import { changelogPlugin } from "@fumapress/tegami";
+
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  // [!code ++:5]
+  changelog: toFumadocsSource(
+    await getCollection("changelog"),
+    await getCollection("changelogMeta"),
+    { baseDir: "changelog" },
+  ),
+})
+  // [!code ++]
+  .plugins(changelogPlugin({ source: "changelog" }));
+```
+
+</show>
+
+With another content source, entries take their date from the `getPageCreatedAt` hook of its plugin.
+
+## Customization
+
+### URL
+
+```tsx title="press.config.tsx"
+changelogPlugin({
+  source: "changelog",
+  paths: {
+    index: "/releases", // [!code highlight]
+  },
+});
+```
+
+Set `index` to `false` to remove the page.
+
+### Custom UI
+
+The page type is `changelog.index`. Replace it in [`renderPage`](../layouts.mdx#plugin-pages), or filter its entries:
+
+```tsx title="press.config.tsx"
+import { ChangelogIndexView } from "@fumapress/tegami";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+
+renderPage(props) {
+  const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+  switch (props.type) {
+    case "changelog.index":
+      return (
+        <HomeLayout {...home}>
+          <ChangelogIndexView
+            entries={props.entries.filter((entry) => entry.packages.length > 0)}
+          />
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+},
+```
+
+`ChangelogIndexView` also takes `heading`, `description` and `pageSize`.
+
+## Options
+
+<auto-type-table cwd path="../../packages/tegami/src/plugin.tsx" name="ChangelogPluginOptions" />

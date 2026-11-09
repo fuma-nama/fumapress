@@ -35,7 +35,7 @@ export default defineConfig({
 });
 ```
 
-The escape hatch stays open. [Server entries](/docs/configuration#server-entry) still use Waku APIs directly, you just install `waku` yourself when you need them.
+The escape hatch stays open. [Server entries](/docs/waku/configuration#server-entry) still use Waku APIs directly, you just install `waku` yourself when you need them.
 
 ## One config object
 
@@ -76,4 +76,4 @@ Nothing to configure, and nothing to break elsewhere: on other targets the `Imag
 npm i fumapress@latest
 ```
 
-The [migration guide](/docs/migrate/v2) covers both halves of the release, the dependency changes and the config API. `.layouts()` still works as a compat layer, so you can move the CLI first and reshape the config after.
+The [migration guide](/docs/waku/migrate/v2) covers both halves of the release, the dependency changes and the config API. `.layouts()` still works as a compat layer, so you can move the CLI first and reshape the config after.

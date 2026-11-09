@@ -1,0 +1,88 @@
+---
+title: Custom Source
+description: Load pages from anywhere.
+---
+
+A custom source lists your pages, and a plugin renders them.
+
+## Setup
+
+### List Pages [step]
+
+A source is an object with `files`. The `path` of a file sets its URL, and its `data` becomes `page.data`. When `files` is a function, the source is dynamic: by default, pages are read on the server and render on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+```tsx tab="Static" title="press.config.tsx"
+const data = { title: "Home", load: async () => "Hello", plainText: () => "Hello" };
+
+export default createPress({
+  files: [{ type: "page", path: "index.mdx", data }],
+}).plugins(acmePlugin());
+```
+
+```tsx tab="Dynamic" title="press.config.tsx"
+const data = { title: "Home", load: async () => "Hello", plainText: () => "Hello" };
+
+export default createPress({
+  files: () => [{ type: "page", path: "index.mdx", data }],
+}).plugins(acmePlugin());
+```
+
+### Render Pages [step]
+
+A plugin renders the pages through content hooks, like `getPageBody`. Return `undefined` for pages it doesn't handle.
+
+`AppShape` and `Plugin` come from <show when={props.framework === "waku"}>`fumapress`</show><show when={props.framework === "astro"}>`@fumapress/astro/config`</show>.
+
+```tsx title="acme/index.tsx"
+interface AcmePageData {
+  load: () => Promise<string>;
+  plainText: () => string;
+}
+
+function isAcmePage(data: object): data is AcmePageData {
+  return "load" in data && "plainText" in data;
+}
+
+export default function acmePlugin<C extends AppShape = AppShape>(): Plugin<C> {
+  return {
+    name: "acme",
+    async getPageBody(page) {
+      if (!isAcmePage(page.data)) return;
+      return { node: <div>{await page.data.load()}</div> };
+    },
+    getPageText(page) {
+      if (isAcmePage(page.data)) return page.data.plainText();
+    },
+  };
+}
+```
+
+To make your plugin work on every framework Fumapress runs on, see [Publishing a Package](../plugins/authoring/index.mdx#publishing-a-package).
+
+## Content Hooks
+
+Only `getPageBody` is required. Add other hooks for the features you need:
+
+| Hook                    | Needed for                            |
+| ----------------------- | ------------------------------------- |
+| `getPageToc`            | the table of contents                 |
+| `getPageText`           | `llms.txt`, `<page>.md`, AI chat, MCP |
+| `getPageStructuredData` | full text search                      |
+| `getPageCreatedAt`      | blog, RSS                             |
+| `getPageLastModified`   | the page, sitemap, RSS                |
+
+Without structured data, search only matches the title of a page. To search its text, return the headings and the text under each:
+
+```tsx title="acme/index.tsx"
+getPageStructuredData(page) {
+  return {
+    headings: [{ id: "intro", content: "Intro" }],
+    // `heading` is the `id` of the heading above the text
+    contents: [{ heading: "intro", content: "The text under the heading." }],
+  };
+},
+```
+
+## Refreshing Content
+
+<include cwd>content/shared/content-sources/refresh.mdx</include>

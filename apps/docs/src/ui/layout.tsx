@@ -28,7 +28,7 @@ export const layoutProps: SharedLayoutProps = {
 };
 
 const homeLinks: LinkItemType[] = [
-  { url: "/docs", text: "Documentation", icon: <BookIcon />, active: "nested-url" },
+  { url: "/docs/waku", text: "Documentation", icon: <BookIcon />, active: "nested-url" },
   { url: "/blog", text: "Blog", icon: <RssIcon />, active: "nested-url" },
   { url: "/changelog", text: "Changelog", icon: <HistoryIcon />, active: "nested-url" },
   { url: "https://fuma-nama.dev/sponsors", text: "Sponsors", external: true },

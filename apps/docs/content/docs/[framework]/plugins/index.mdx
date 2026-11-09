@@ -1,0 +1,154 @@
+---
+title: Plugins
+description: Add, replace and remove the features of your site.
+---
+
+Your site starts with a set of default plugins. Add more with `.plugins()`:
+
+```tsx title="press.config.tsx"
+import { blogPlugin } from "@fumapress/blog";
+
+export default createPress(content).plugins(blogPlugin({ source: "blog" }));
+```
+
+<Cards>
+  <Card href={`/docs/${props.framework}/plugins/seo`} title="SEO">
+    Sitemap, robots.txt, RSS and Open Graph images.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/ai`} title="AI">
+    llms.txt, AI chat and MCP.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/api-docs`} title="API Docs">
+    OpenAPI, AsyncAPI and GraphQL.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/blog`} title="Blog">
+    Posts, an index and tag pages.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/changelog`} title="Changelog">
+    Your Tegami release notes.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/feedback`} title="Feedback">
+    A form on pages and selected text.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/link-validation`} title="Link Validation">
+    Find broken links at build time.
+  </Card>
+  <Card href={`/docs/${props.framework}/plugins/authoring`} title="Writing Plugins">
+    Add anything else.
+  </Card>
+</Cards>
+
+## Default Plugins
+
+`recommendedPreset()` has these plugins. The key is its option:
+
+| Feature                                          | Key       |
+| ------------------------------------------------ | --------- |
+| [Sitemap](./seo.mdx#sitemap)                     | `sitemap` |
+| [robots.txt](./seo.mdx#robotstxt)                | `robots`  |
+| [RSS](./seo.mdx#rss)                             | `rss`     |
+| [Open Graph images](./seo.mdx#open-graph-images) | `ogImage` |
+| [llms.txt](./ai.mdx#llmstxt)                     | `llms`    |
+| [Search](../search.mdx) with FlexSearch          | `search`  |
+
+<show when={props.framework === "waku"}>
+
+The default plugins also choose an [image optimizer](../content.mdx#image-optimization) for your platform. `image: false` leaves it out.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+There is no image plugin, since [Astro Images](https://docs.astro.build/en/guides/images/) handles images.
+
+</show>
+
+### Options of a Default Plugin
+
+`recommendedPreset()` takes the options of each default plugin. Pass it to `preset` in `.config()`:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+createPress(content).config({
+  preset: recommendedPreset({ rss: { limit: 50 } }),
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+
+createPress(content).config({
+  preset: recommendedPreset({ rss: { limit: 50 } }),
+});
+```
+
+</show>
+
+### Replacing a Default Plugin
+
+Set the default plugin to `false`, then list your own. This site uses Orama for search:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
+
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+import { oramaSearchPlugin } from "@fumapress/astro/plugins/orama-search";
+
+export const app = createPress(content).plugins(oramaSearchPlugin());
+
+export default app.config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+</show>
+
+### Removing Default Plugins
+
+Set a default plugin to `false` to remove it, or pass an empty list to remove them all:
+
+```tsx tab="One plugin" title="press.config.tsx"
+createPress(content).config({
+  preset: recommendedPreset({ rss: false }),
+});
+```
+
+```tsx tab="All plugins" title="press.config.tsx"
+createPress(content).config({
+  preset: [],
+});
+```
+
+## Conditional Plugins and Plugin Order
+
+Falsy values are skipped, so a plugin can be conditional:
+
+```tsx title="press.config.tsx"
+const blog = process.env.ENABLE_BLOG && blogPlugin({ source: "blog" });
+
+createPress(content).plugins(blog);
+```
+
+The order matters in two places. Middleware is nested in list order, so your first plugin wraps the others. Navbar links also use the list order, after your `ui.layoutProps` links.
