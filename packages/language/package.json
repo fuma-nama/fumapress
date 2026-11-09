@@ -36,9 +36,9 @@
     "@fumapress/blog": "workspace:*",
     "@fumapress/feedback": "workspace:*",
     "@types/node": "^26.6.6",
-    "fumadocs-core": "^16.18.2",
+    "fumadocs-core": "^16.18.3",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
     "tsdown": "0.23.7",
     "typescript": "^7.0.2"
   },
