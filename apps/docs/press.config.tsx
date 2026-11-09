@@ -17,29 +17,36 @@ import { paintingPlugin } from "./src/landing/painting";
 import { ogFonts, pageImage } from "./src/og/og";
 import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-opsz-normal.woff2?url";
 
-const docsOptions = {
-  async: true,
-  lastModified: true,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
-} as const;
-
 const docs = defineDocs({
   dir: "content/docs",
-  docs: { ...docsOptions, schema: pageSchema },
+  docs: {
+    schema: pageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: metaSchema },
 });
 
 const blog = defineDocs({
   dir: "content/blog",
-  docs: { ...docsOptions, schema: blogPageSchema },
+  docs: {
+    schema: blogPageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: blogMetaSchema },
 });
 
 const changelog = defineDocs({
   dir: "content/changelog",
-  docs: { ...docsOptions, schema: changelogPageSchema },
+  docs: {
+    schema: changelogPageSchema,
+    async: true,
+    lastModified: true,
+    postprocess: { includeProcessedMarkdown: true },
+  },
   meta: { schema: changelogMetaSchema },
 });
 
