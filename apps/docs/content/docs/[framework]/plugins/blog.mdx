@@ -1,0 +1,322 @@
+---
+title: Blog
+description: Add a blog with post, index and tag pages.
+---
+
+Turn a content source into a blog. Each post gets a page, like `/blog/hello-world`, with an index at `/blog` and tag pages at `/blog/tags`.
+
+## Setup
+
+### Install [step]
+
+```npm
+npm i @fumapress/blog
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/blog/css/preset.css";
+```
+
+<show when={props.framework === "waku"}>
+
+### Create the Source [step]
+
+Create a source for your posts and pass its key to the plugin:
+
+```tsx title="press.config.tsx"
+import { createPress } from "fumapress";
+import { defineDocs } from "fumadocs-mdx/macro";
+// [!code ++:2]
+import { blogPlugin } from "@fumapress/blog";
+import { blogPageSchema } from "@fumapress/blog/schema";
+
+const docs = defineDocs({ dir: "content/docs" });
+
+// [!code ++:4]
+const blog = defineDocs({
+  dir: "content/blog",
+  docs: { schema: blogPageSchema },
+});
+
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  // [!code ++]
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+})
+  // [!code ++]
+  .plugins(blogPlugin({ source: "blog" }));
+```
+
+With `baseDir: "blog"`, the posts show as a `blog` folder in the docs sidebar. To hide it, exclude the folder in the root `meta.json` of your docs:
+
+```json title="content/docs/meta.json"
+{
+  "pages": ["...", "!blog"]
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+### Add the Collection [step]
+
+Add a [collection](../content-sources/collections.mdx#multiple-collections) for your posts, with the blog schema, and pass its key to the plugin:
+
+```js tab="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import press from "@fumapress/astro";
+
+export default defineConfig({
+  integrations: [
+    press({
+      collections: {
+        docs: { dir: "content/docs" },
+        // [!code ++]
+        blog: { dir: "content/blog" },
+      },
+    }),
+  ],
+});
+```
+
+```ts tab="src/content.config.ts"
+import { defineCollection } from "astro:content";
+import { metaLoader, pageLoader } from "@fumadocs/astro/loaders";
+// [!code ++]
+import { blogPageSchema } from "@fumapress/blog/schema";
+
+export const collections = {
+  docs: defineCollection({ loader: pageLoader() }),
+  meta: defineCollection({ loader: metaLoader() }),
+  // [!code ++:2]
+  blog: defineCollection({ loader: pageLoader("blog"), schema: blogPageSchema }),
+  blogMeta: defineCollection({ loader: metaLoader("blog") }),
+};
+```
+
+```tsx tab="press.config.tsx"
+import { getCollection } from "astro:content";
+import { toFumadocsSource } from "@fumadocs/astro/source";
+import { createPress } from "@fumapress/astro/config";
+// [!code ++]
+import { blogPlugin } from "@fumapress/blog";
+
+export default createPress({
+  docs: toFumadocsSource(await getCollection("docs"), await getCollection("meta"), {
+    baseDir: "docs",
+  }),
+  // [!code ++:3]
+  blog: toFumadocsSource(await getCollection("blog"), await getCollection("blogMeta"), {
+    baseDir: "blog",
+  }),
+})
+  // [!code ++]
+  .plugins(blogPlugin({ source: "blog" }));
+```
+
+</show>
+
+## Writing Posts
+
+```mdx title="content/blog/hello-world.mdx"
+---
+title: My Blog Post
+description: Hello World!!!
+date: 2026-09-06
+tags: [my-tag]
+authors: [fuma]
+image: /covers/hello.png
+---
+
+## Introduction
+
+Welcome to my first blog post.
+```
+
+Posts are ordered by `date`. Each tag gets a page, and `image` shows on post cards.
+
+### Authors
+
+The keys of `authors` are the IDs in the frontmatter. An ID that isn't registered shows as the plain ID.
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  authors: {
+    fuma: {
+      name: "Fuma Nama",
+      title: "Maintainer",
+      url: "https://fuma-nama.dev",
+      image: "https://github.com/fuma-nama.png",
+    },
+  },
+});
+```
+
+<auto-type-table type="import('@fumapress/blog').BlogAuthor" />
+
+## Customization
+
+### Other Content Sources
+
+Posts can come from any content source, like Notion. The date comes from the `getPageCreatedAt` hook of its plugin. These options read the other fields when they aren't in the frontmatter:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  getTags: (page) => page.data.tags,
+  getAuthors: (page) => page.data.authors,
+  getImage: (page) => page.data.image,
+});
+```
+
+To use multiple sources as posts, pass their keys:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: ["blog", "news"],
+  getTags: (page) => page.data.tags ?? [page.type],
+});
+```
+
+### URLs
+
+Set a path to move a page, or `false` to remove it:
+
+```tsx title="press.config.tsx"
+blogPlugin({
+  source: "blog",
+  paths: {
+    index: "/news",
+    tags: false,
+  },
+});
+```
+
+### Custom UI
+
+In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`. The other pages are `blog.index`, `blog.tags` and `blog.tag`. This example replaces the index, and renders the built-in post in another layout:
+
+```tsx title="press.config.tsx"
+import { BlogPostView } from "@fumapress/blog";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+
+renderPage(props) {
+  const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+  switch (props.type) {
+    case "blog.index":
+      return (
+        <HomeLayout {...home}>
+          <ul>
+            {props.posts.map((post) => (
+              <li key={post.page.url}>{post.page.data.title}</li>
+            ))}
+          </ul>
+        </HomeLayout>
+      );
+    case "blog":
+      return (
+        <HomeLayout {...home}>
+          <BlogPostView post={props.post} newer={props.newer} older={props.older}>
+            {props.body}
+          </BlogPostView>
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+},
+```
+
+`@fumapress/blog` also exports `BlogIndexView`, `BlogTagsView` and `BlogTagView`.
+
+<show when={props.framework === "waku"}>
+
+### Remote Images
+
+An optimizer rejects hosts you don't allow, including for covers and avatars. List the provider with the allowed hosts, and set `image: false` in [`recommendedPreset()`](../content.mdx#remote-images):
+
+```tsx tab="Self-hosted" title="press.config.tsx"
+import { selfHostedImage } from "fumapress/plugins/image/self-hosted";
+
+selfHostedImage({ allowedHosts: ["avatars.githubusercontent.com"] });
+```
+
+```tsx tab="Vercel" title="press.config.tsx"
+import { vercelImage } from "fumapress/plugins/image/vercel";
+
+vercelImage({ domains: ["avatars.githubusercontent.com"] });
+```
+
+<Callout type="warn" title="Watch for redirects">
+  A redirect to another origin is checked again, so allow the final host too. An avatar at
+  `github.com`, for example, redirects to `avatars.githubusercontent.com`.
+</Callout>
+
+</show>
+
+## Listing Posts
+
+`getBlogPosts()` returns all posts, newest first:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/pages/index.tsx"
+import { getPressContext } from "fumapress";
+import { Link } from "fumapress/client";
+import { getBlogPosts } from "@fumapress/blog";
+import type { app } from "../../press.config";
+
+export default async function Home() {
+  const posts = await getBlogPosts(getPressContext<typeof app>());
+
+  return (
+    <ul>
+      {posts.slice(0, 3).map((post) => (
+        <li key={post.page.url}>
+          <Link href={post.page.url}>{post.page.data.title}</Link>
+          {post.authors.map((author) => author.name).join(", ")}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro title="src/pages/index.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+import { getBlogPosts } from "@fumapress/blog";
+import type { app } from "../../press.config";
+
+const ctx = getPressContext<typeof app>();
+const posts = await getBlogPosts(ctx);
+---
+
+<HomeLayout title="Acme">
+  <ul>
+    {posts.slice(0, 3).map((post) => <li><a href={ctx.withBase(post.page.url)}>{post.page.data.title}</a></li>)}
+  </ul>
+</HomeLayout>
+```
+
+</show>
+
+With [internationalization](../internationalization.mdx), pass the language: `getBlogPosts(ctx, { lang })`.
+
+## Options
+
+<auto-type-table cwd path="../../packages/blog/src/plugin.tsx" name="BlogPluginOptions" />

@@ -1,0 +1,490 @@
+---
+title: Layouts
+description: Choose a Fumadocs layout and change what each page renders.
+---
+
+Content pages use the Docs Layout by default, and plugin pages like the blog use the Home Layout. To use another layout, pass it to `renderDefault()` in `ui.renderPage`<show when={props.framework === "astro"}>, or return your own `.astro` layout</show>.
+
+## Built-in Layouts
+
+<Tabs items={["Docs", "Notebook", "Glass", "Spacious", "Home"]}>
+<Tab value="Docs">
+
+The default, with a sidebar and a table of contents. [See its props](https://fumadocs.dev/docs/ui/layouts/docs).
+
+![Docs Layout](/layouts/docs.webp)
+
+</Tab>
+<Tab value="Notebook">
+
+The Docs Layout with a navbar above the content. [See its props](https://fumadocs.dev/docs/ui/layouts/notebook).
+
+![Notebook Layout](/layouts/notebook.webp)
+
+</Tab>
+<Tab value="Glass">
+
+The Docs Layout with a floating, translucent sidebar and header. [See its props](https://fumadocs.dev/docs/ui/layouts/glass).
+
+![Glass Layout](/layouts/glass.webp)
+
+</Tab>
+<Tab value="Spacious">
+
+The Docs Layout with the page in an inset panel, which scrolls on its own on desktop. It needs the Base UI build of Fumadocs UI. [See its props](https://fumadocs.dev/docs/ui/layouts/spacious).
+
+![Spacious Layout](/layouts/spacious.webp)
+
+</Tab>
+<Tab value="Home">
+
+A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#layouts). [See its props](https://fumadocs.dev/docs/ui/layouts/home-layout).
+
+![Home Layout](/layouts/home.webp)
+
+</Tab>
+</Tabs>
+
+### Switching the Layout
+
+Pass a Fumadocs layout to `renderDefault()`. This example renders the `docs` source with the Notebook Layout:
+
+```tsx title="press.config.tsx"
+export default app.config({
+  ui: {
+    renderPage(props) {
+      if (props.type === "docs") return props.renderDefault({ layout: "notebook" });
+      return props.renderDefault();
+    },
+  },
+});
+```
+
+`layout` is one of `"docs"`, `"notebook"`, `"glass"`, `"spacious"` and `"flux"`. Plugin pages, like the blog, keep the Home Layout.
+
+Glass and Spacious also need their styles, imported before the theme. Use `spacious.css` for Spacious:
+
+```css title="src/app.css"
+@import "tailwindcss";
+/* [!code ++] */
+@import "fumadocs-ui/css/generated/glass.css";
+@import "fumadocs-ui/css/neutral.css";
+```
+
+A combined stylesheet like `default.css` can't go after them, so use the separate [theme imports](./configuration.mdx#colors).
+
+### Layout Props
+
+`layoutProps` go to the layout, and `pageProps` to the page. Their types follow `layout`:
+
+```tsx title="press.config.tsx"
+props.renderDefault({
+  layout: "notebook",
+  layoutProps: { tabMode: "navbar" },
+  pageProps: { tableOfContent: { style: "clerk" } },
+});
+```
+
+They take priority over [`ui.layoutProps`](./configuration.mdx#navbar-and-links) and over the UI of plugins in the same place, like a banner in `sidebar.banner`.
+
+The layout is a client component, so a function in these props, like the `transform` of `tabs`, must come from a `'use client'` file:
+
+```tsx tab="src/tabs.ts"
+"use client";
+import type { LayoutTab } from "fumadocs-ui/layouts/shared";
+
+export function transformTab(tab: LayoutTab): LayoutTab {
+  return { ...tab, description: undefined };
+}
+```
+
+```tsx tab="press.config.tsx"
+import { transformTab } from "./src/tabs";
+
+props.renderDefault({
+  layoutProps: { tabs: { transform: transformTab } },
+});
+```
+
+## Rendering Pages
+
+Every page goes through `ui.renderPage`. <show when={props.framework === "astro"}>To give a page your own layout, return an `.astro` component from it. </show>`props.type` tells you the kind of page: a source key like `"docs"`, or the name of a plugin page like `"blog.index"`.
+
+<show when={props.framework === "waku"}>
+
+### Custom Layouts
+
+To change the structure of a page, write its layout yourself with the components of Fumadocs UI:
+
+```tsx title="src/ui/layout.tsx"
+import type { RenderPageProps } from "fumapress";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc} full={pageData.full}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsDescription>{pageData.description}</DocsDescription>
+        {slots["core:markdown"]?.element}
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  // taken first: `props` is `never` in `default` once every type has a case
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+The second type argument of `RenderPageProps` narrows the props to one page type. The layout reads these props:
+
+- `layoutProps`: [`ui.layoutProps`](./configuration.mdx#navbar-and-links) with the props from plugins, and the page tree as `tree`.
+- `pageData`: the title, description and other fields a layout shows. Your frontmatter is on `page.data`.
+- `toc`: the table of contents.
+- `body`: the content.
+- `slots`: the UI of plugins and the page buttons, see [Slots](#slots).
+
+The [AI chat](./plugins/ai.mdx#custom-layout) reaches a custom layout through `useLayoutProps()` in a client component.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+import Docs from "./src/layouts/Docs.astro";
+
+export const app = createPress({ docs: docsSource });
+
+export default app.config({
+  ui: {
+    renderPage(props) {
+      // taken first: `props` is `never` in `default` once every type has a case
+      const { renderDefault } = props;
+      switch (props.type) {
+        case "docs":
+          return <Docs {...props} />;
+        default:
+          return renderDefault();
+      }
+    },
+  },
+});
+```
+
+</show>
+
+### Layout per Source
+
+<show when={props.framework === "waku"}>
+
+Add a case for each source. The fields of its schema are typed on `page.data`.
+
+```tsx title="src/ui/layout.tsx"
+// [!code ++:8]
+function Guide({ page, body }: RenderPageProps<typeof app, "guides">) {
+  return (
+    <article>
+      <span>{page.data.level}</span>
+      {body}
+    </article>
+  );
+}
+
+export function renderPage(props: RenderPageProps<typeof app>) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides": // [!code ++:2]
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+Add a case for each source, with its own `.astro` file. In that file, read the typed frontmatter and pass the values your island needs.
+
+```tsx tab="press.config.tsx"
+renderPage(props) {
+  const { renderDefault } = props;
+  switch (props.type) {
+    case "guides": // [!code ++:2]
+      return <Guide {...props} />;
+    case "docs":
+      return <Docs {...props} />;
+    default:
+      return renderDefault();
+  }
+},
+```
+
+```astro tab="src/layouts/Guide.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import { GuideIsland } from "../components/guide-island";
+
+type Props = LayoutProps<typeof app, "guides">;
+const { island, page } = Astro.props;
+---
+
+<GuideIsland client:load island={island} level={page.data.level}>
+  <slot />
+</GuideIsland>
+```
+
+</show>
+
+You can also check `props.page.path`, for example to use another layout for pages under `reference/`.
+
+### Sidebar
+
+`layoutProps.tree` has every source, with each `baseDir` as a folder. `selectTreeRoot()` scopes the sidebar to one folder:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/ui/layout.tsx"
+import { selectTreeRoot } from "fumapress";
+
+<DocsLayout {...layoutProps} tree={selectTreeRoot(layoutProps.tree, "docs")} />;
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="src/components/docs-island.tsx"
+import { selectTreeRoot } from "@fumapress/astro/client";
+
+<DocsLayout {...layoutProps} tree={selectTreeRoot(layoutProps.tree, "docs")} />;
+```
+
+</show>
+
+Nested paths like `"docs/guides"` work too. To hide pages from the sidebar, see [Hiding Pages from the Sidebar](./authentication.mdx#hiding-pages-from-the-sidebar).
+
+### Slots
+
+`props.slots` has the UI of plugins by name, like `feedback:page`, the form of [Feedback](./plugins/feedback.mdx). The page buttons are `core:markdown` and `core:view-options`. Each item has an `element` and the `region` it belongs to, like `actions` or `footer`. Banners of plugins aren't in it, since Fumapress renders them above every page.
+
+A custom layout renders only the items it places. Place an item by its name, or collect the items of a region:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/ui/layout.tsx"
+function Docs({ layoutProps, pageData, toc, body, slots }: RenderPageProps<typeof app, "docs">) {
+  const footer: ReactNode[] = [];
+  for (const slot of Object.values(slots)) if (slot?.region === "footer") footer.push(slot.element);
+
+  return (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <div className="flex gap-2">
+          {slots["core:markdown"]?.element} {/* [!code highlight] */}
+          {slots["core:view-options"]?.element} {/* [!code highlight] */}
+        </div>
+        <DocsBody>{body}</DocsBody>
+        {footer} {/* [!code highlight] */}
+      </DocsPage>
+    </DocsLayout>
+  );
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="src/components/docs-island.tsx"
+export const DocsIsland = createIsland(
+  ({ layoutProps, pageData, toc, slots, children }: IslandProps<typeof app, "docs">) => {
+    const footer: ReactNode[] = [];
+    for (const slot of Object.values(slots))
+      if (slot?.region === "footer") footer.push(slot.element);
+
+    return (
+      <DocsLayout {...layoutProps}>
+        <DocsPage toc={toc}>
+          <DocsTitle>{pageData.title}</DocsTitle>
+          <div className="flex gap-2">
+            {slots["core:markdown"]?.element} {/* [!code highlight] */}
+            {slots["core:view-options"]?.element} {/* [!code highlight] */}
+          </div>
+          <DocsBody>{children}</DocsBody>
+          {footer} {/* [!code highlight] */}
+        </DocsPage>
+      </DocsLayout>
+    );
+  },
+);
+```
+
+</show>
+
+### Plugin Pages
+
+Plugin pages, like the blog index, use the Home Layout by default. To restyle them, add a case to `renderPage` and render `props.children`, which is the content of the plugin page without a layout:
+
+```tsx title="press.config.tsx"
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+
+renderPage(props) {
+  const { renderDefault } = props;
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = props.layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+  switch (props.type) {
+    case "blog":
+    case "blog.index":
+    case "blog.tags":
+    case "blog.tag":
+      return (
+        <HomeLayout {...home}>
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-6">{props.children}</div>
+        </HomeLayout>
+      );
+    default:
+      return renderDefault();
+  }
+},
+```
+
+To replace the content too, use the props of the plugin, as in [the blog](./plugins/blog.mdx#custom-ui).
+
+<show when={props.framework === "astro"}>
+
+## Islands
+
+Fumadocs layouts are React components, so an Astro layout has two files. Fumapress still renders `<html>` and head tags, and runs page transitions.
+
+<Nesting>
+  <Layer
+    title="src/layouts/Docs.astro"
+    note="Runs on the server. The only file that reads page and awaits data."
+  >
+    <Layer
+      title="DocsIsland, from createIsland()"
+      note="Renders the Fumadocs layout, in the browser too. The sidebar and the slots of plugins are rendered here."
+    >
+      <Layer
+        title="Page content"
+        note="A separate island. It can't read providers from the layout."
+      />
+    </Layer>
+  </Layer>
+</Nesting>
+
+```astro tab="src/layouts/Docs.astro"
+---
+import type { LayoutProps } from "@fumapress/astro/config";
+import type { app } from "../../press.config";
+import Banner from "../components/Banner.astro";
+import { DocsIsland } from "../components/docs-island";
+import { getStars } from "../lib/github";
+
+type Props = LayoutProps<typeof app, "docs">;
+const { island, page } = Astro.props;
+const stars = await getStars(); // [!code highlight]
+---
+
+<!-- [!code word:transition\:persist] -->
+<DocsIsland client:load transition:persist="docs" island={island} stars={stars}>
+  <Banner slot="banner" path={page.path} />
+  <slot />
+</DocsIsland>
+```
+
+```tsx tab="src/components/docs-island.tsx"
+import type { ReactNode } from "react";
+import { createIsland } from "@fumapress/astro/client";
+import type { IslandProps } from "@fumapress/astro/config";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import type { app } from "../../press.config";
+
+type Props = IslandProps<typeof app, "docs"> & { stars: number; banner?: ReactNode };
+
+export const DocsIsland = createIsland(
+  ({ layoutProps, pageData, toc, stars, banner, children }: Props) => (
+    <DocsLayout {...layoutProps}>
+      <DocsPage toc={toc}>
+        {banner}
+        <DocsTitle>
+          {pageData.title} ({stars})
+        </DocsTitle>
+        <DocsBody>{children}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+<Callout type="warn">
+  Render the island with `client:load`, and pass `island` as it is. `client:only` doesn't work,
+  because the island also renders on the server.
+</Callout>
+
+### The `.astro` File
+
+`LayoutProps` types `Astro.props`, by source key or plugin page type. Use this file for:
+
+- **Frontmatter**: read it from `page` and pass the values on.
+- **Data**: on prerendered pages, `await` runs at build time, so a star count stays the same until the next build.
+- **State across pages**: `transition:persist` keeps the island and its state on navigation, like the open folders of the sidebar. Without it, the island remounts.
+
+`tsc` doesn't check `.astro` files. Use `astro check` from `@astrojs/check`.
+
+### The Island
+
+`IslandProps` types the props from the site: `layoutProps` with the page tree as `tree`, `pageData`, `toc` and `slots`. The [AI chat](./plugins/ai.mdx#custom-layout) comes from `useLayoutProps()`. Other props come from your `.astro` layout:
+
+- Named slots become props, and `children` is the default slot. `.astro` parts in slots are static.
+- Other values must be serializable. Many plugin page props aren't, like the pages in `posts` of `blog.index`.
+
+React context isn't shared between islands, so everything that uses the Fumadocs layout context must be in the same island. To wrap the page content with a provider, give the [MDX components](./content.mdx#components) a `wrapper`.
+
+### Returning JSX
+
+`renderPage` can also return React directly, like the default UI. Client components and MDX components hydrate, and their props must be serializable. Other components render once on the server, without state or effects.
+
+<Callout type="warn">
+  An `.astro` component only works as the direct result of `renderPage`. Anywhere else, rendering
+  the page throws an error.
+</Callout>
+
+</show>
+
+## Customizing Fumadocs UI
+
+```bash
+npx @fumadocs/cli add banner
+npx @fumadocs/cli customize
+```
+
+The Fumadocs CLI copies Fumadocs UI into your project, so that you can change its source. `add` copies a component, and `customize` copies a layout. Fumapress styles still apply to the copies.
+
+Register a copied component in your [MDX components](./content.mdx#components) module, and use a copied layout from <show when={props.framework === "waku"}>`ui.renderPage`</show><show when={props.framework === "astro"}>your island, with `createIsland()`</show>.
+
+<Callout title="Features come from plugins">
+  On a Fumapress site, the CLI only installs UI and rejects the rest. Use plugins for [AI chat and
+  MCP](./plugins/ai.mdx), [Markdown](./plugins/ai.mdx#llmstxt), [Open Graph
+  images](./plugins/seo.mdx#open-graph-images), [search](./search.mdx) and
+  [feedback](./plugins/feedback.mdx).
+</Callout>

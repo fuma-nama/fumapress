@@ -1,0 +1,428 @@
+---
+title: Custom Pages
+description: Add landing pages, API routes and other pages outside your content.
+---
+
+For a landing page or other custom UI, add a file under `src/pages`. It uses <show when={props.framework === "waku"}>[Waku's routing](https://waku.gg/#routing)</show><show when={props.framework === "astro"}>[Astro's routing](https://docs.astro.build/en/guides/routing/)</show>, and takes priority over a plugin page at the same path.
+
+## Creating a Page
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/pages/about.tsx"
+export default function Page() {
+  return (
+    <main>
+      <h1>About</h1>
+      <p>Built with Fumapress.</p>
+    </main>
+  );
+}
+```
+
+It is available at `/about`. Custom pages are [React Server Components](https://www.joshwcomeau.com/react/server-components), and they are prerendered by default.
+
+<Callout type="warn">
+  Don't give a custom page the same URL as a content page. To leave `/` free, put your content under
+  a [`baseDir`](./content-sources/fumadocs-mdx.mdx#multiple-sources).
+</Callout>
+
+### Page Data
+
+`data` in `getConfig()` is the page data of the page. Fumapress renders its `title` and `description` in `<head>`, and plugins read the rest, like `ogImage` for [Open Graph images](./plugins/seo.mdx#custom-pages-1):
+
+```tsx title="src/pages/about.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
+export function getConfig() {
+  return {
+    data: { title: "About", description: "Who builds Acme." },
+  } satisfies WakuRouteConfig;
+}
+```
+
+### On-Demand Rendering
+
+Set `render` in `getConfig()`:
+
+```tsx title="src/pages/status.tsx"
+import type { WakuRouteConfig } from "fumapress";
+
+export function getConfig() {
+  return { render: "dynamic" } satisfies WakuRouteConfig;
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro title="src/pages/about.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="About" description="About this project.">
+  <main>
+    <h1>About</h1>
+    <p>Built with Fumapress.</p>
+  </main>
+</HomeLayout>
+```
+
+It is available at `/about`. React components are islands on your page, like `<Stars client:load />`.
+
+To render the page on demand, add [`export const prerender = false`](https://docs.astro.build/en/guides/on-demand-rendering/). The site then [needs a server](./deployment.mdx#what-needs-a-server).
+
+<Callout type="warn">
+  Don't give a custom page the same URL as a content page. Astro warns about the collision. To leave
+  `/` free, put your content under a
+  [`baseDir`](./content-sources/collections.mdx#multiple-collections).
+</Callout>
+
+</show>
+
+### Layouts
+
+<show when={props.framework === "waku"}>
+
+`_layout.tsx` wraps the pages in its folder. Show your site's navbar with the Home Layout:
+
+```tsx title="src/pages/_layout.tsx"
+import type { ReactNode } from "react";
+import { HomeLayout } from "fumadocs-ui/layouts/home";
+import { getPressContext, type WakuRouteProps } from "fumapress";
+import type { app } from "../../press.config";
+
+export default async function Layout({
+  lang,
+  children,
+}: WakuRouteProps<typeof app> & { children: ReactNode }) {
+  const layoutProps = await getPressContext<typeof app>().getLayoutProps({ lang });
+  // the Home Layout takes these props, the others are for docs layouts
+  const { nav, links, githubUrl, i18n, themeSwitch, searchToggle } = layoutProps;
+  const home = { nav, links, githubUrl, i18n, themeSwitch, searchToggle };
+
+  return <HomeLayout {...home}>{children}</HomeLayout>;
+}
+```
+
+`links` has the links of `ui.layoutProps` and plugins. To add links to this layout only, put them in front, like `links={[...homeLinks, ...links]}`. A `links` prop without them replaces them.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+`HomeLayout.astro` adds the navbar and the head tags of your site. Content in its `head` slot goes into `<head>`. Your editor lists its props.
+
+```astro title="src/pages/index.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+---
+
+<HomeLayout title="My Docs" description="The docs of my project.">
+  <main class="flex flex-1 flex-col items-center justify-center">
+    <h1 class="text-xl font-bold">Hello World</h1>
+    <a href={getPressContext().withBase("/docs")}>Open Docs</a>
+  </main>
+</HomeLayout>
+```
+
+</show>
+
+### Dynamic Routes
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/pages/showcase/[slug].tsx"
+import type { WakuRouteConfig, WakuRouteProps } from "fumapress";
+import type { app } from "../../../press.config";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getConfig() {
+  return {
+    render: "static",
+    staticPaths: Object.keys(items),
+    data: { title: "Showcase" },
+  } satisfies WakuRouteConfig;
+}
+
+type Props = WakuRouteProps<typeof app, "/showcase/[slug]">;
+
+export default function Showcase({ slug }: Props) {
+  const item = items[slug];
+  if (!item) return null;
+
+  return (
+    <main>
+      <h1>{item.title}</h1>
+      {item.description}
+    </main>
+  );
+}
+```
+
+`data` is the same for every path of the route. To give each path its own title, return it from [`head`](./configuration.mdx#tags-per-page), which receives the `path`.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro title="src/pages/showcase/[slug].astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+
+const items: Record<string, { title: string; description: string }> = {
+  acme: { title: "Acme", description: "Docs of Acme" },
+};
+
+export function getStaticPaths() {
+  return Object.keys(items).map((slug) => ({ params: { slug } }));
+}
+
+const item = items[Astro.params.slug];
+---
+
+<HomeLayout title={item.title}>
+  <main>{item.description}</main>
+</HomeLayout>
+```
+
+</show>
+
+### 404 Page
+
+<show when={props.framework === "waku"}>
+
+```tsx title="src/pages/404.tsx"
+export default function NotFound() {
+  return <main>This page doesn't exist.</main>;
+}
+```
+
+Without this file, Fumapress renders the not found page of Fumadocs UI.
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro title="src/pages/404.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+---
+
+<HomeLayout title="Not Found">
+  <main class="p-8 text-center">This page doesn't exist.</main>
+</HomeLayout>
+```
+
+Without this file, Fumapress renders the not found page of Fumadocs UI. Pass `notFound` to `HomeLayout.astro` to reuse it.
+
+</show>
+
+With [internationalization](./internationalization.mdx), the built-in page uses the language of the URL when a server renders it. In static builds, `404.html` is in the default language.
+
+## Reading Content
+
+`getPressContext()` gives you the loader and helpers of your site. To get its types, export `app` from your config:
+
+```tsx tab="press.config.tsx"
+export const app = createPress(content).plugins(/* ... */); // [!code highlight]
+
+export default app.config({/* ... */});
+```
+
+<show when={props.framework === "waku"}>
+
+```tsx tab="src/pages/all-pages.tsx"
+import { getPressContext } from "fumapress";
+import { Link } from "fumapress/client";
+import type { app } from "../../press.config";
+
+export default async function Page() {
+  const loader = await getPressContext<typeof app>().getLoader();
+
+  return (
+    <ul>
+      {loader.getPages().map((page) => (
+        <li key={page.url}>
+          <Link href={page.url}>{page.data.title}</Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```astro tab="src/pages/all-pages.astro"
+---
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getPressContext } from "@fumapress/astro/runtime";
+import type { app } from "../../press.config";
+
+const ctx = getPressContext<typeof app>();
+const pages = (await ctx.getLoader()).getPages();
+---
+
+<HomeLayout title="All Pages">
+  <ul>
+    {pages.map((page) => <li><a href={ctx.withBase(page.url)}>{page.data.title}</a></li>)}
+  </ul>
+</HomeLayout>
+```
+
+</show>
+
+See the [Loader API](https://fumadocs.dev/docs/headless/source-api) for its other methods. If you are coming from Fumadocs, `getPressContext()` replaces your `lib/source.ts`.
+
+<show when={props.framework === "waku"}>
+
+## Navigation
+
+Import the client helpers from `fumapress/client`:
+
+```tsx title="src/components/nav.tsx"
+"use client";
+import { Link, useRouter } from "fumapress/client";
+
+export function Nav() {
+  const router = useRouter();
+
+  return (
+    <nav>
+      <Link href="/about">About</Link>
+      <p>{router.path}</p>
+      <button type="button" onClick={() => router.push("/docs", { scroll: false })}>
+        Docs
+      </button>
+    </nav>
+  );
+}
+```
+
+Use `Link` rather than `<a>`, so that [link validation](./plugins/link-validation.mdx) can check it.
+
+The router also has `replace()`, `reload()`, `back()`, `forward()` and `prefetch()`, and the `query` and `hash` of the URL. Inside a `Link`, `useNavigationStatus()` returns `pending` while its navigation loads.
+
+In a server component, redirect or show the not found page with `fumapress/router`:
+
+```tsx title="src/pages/secret.tsx"
+import { notFound, redirect } from "fumapress/router";
+
+export default function Page() {
+  if (!isSignedIn()) redirect("/login");
+  if (!hasAccess()) notFound();
+
+  return <main>Secret</main>;
+}
+```
+
+## API Routes
+
+```ts title="src/pages/_api/version.ts"
+export async function GET() {
+  return Response.json({ version: "1.0.0" });
+}
+```
+
+The path under `_api` is the URL, so this one is `/version`. Name each handler after an HTTP method, or use a default export for all methods.
+
+API routes render on demand by default, and handlers can read `getPressContext()`. To generate a file at build time, use a single `GET` handler:
+
+```ts title="src/pages/_api/version.json.ts"
+export function getConfig() {
+  return { render: "static" };
+}
+
+export async function GET() {
+  return Response.json({ version: "1.0.0" });
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+<Callout type="warn">
+  Page URLs don't include your `base` setting. Add it with `withBase()`.
+</Callout>
+
+### Rendering a Collection
+
+A collection you leave out of `createPress()` has no docs pages. Render its entries yourself, and pass `getProviderData(Astro)` so that links and your [MDX components](./content.mdx#components) work:
+
+```astro title="src/pages/guides/[slug].astro"
+---
+import { getCollection, render } from "astro:content";
+import HomeLayout from "@fumapress/astro/components/HomeLayout.astro";
+import { getProviderData } from "@fumapress/astro/runtime";
+import type { app } from "../../../press.config";
+
+export async function getStaticPaths() {
+  const guides = await getCollection("guides");
+  return guides.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const provider = getProviderData<typeof app>(Astro);
+---
+
+<HomeLayout title={entry.data.title}>
+  <Content provider={provider} />
+</HomeLayout>
+```
+
+## API Routes
+
+```ts title="src/pages/api/version.ts"
+import type { APIRoute } from "astro";
+
+export const prerender = false;
+
+export const GET: APIRoute = () => Response.json({ version: "1.0.0" });
+```
+
+Handlers can read `getPressContext()`. A route with `prerender = false` [needs a server](./deployment.mdx#what-needs-a-server).
+
+</show>
+
+## Feature Support
+
+Some features of content pages work differently on custom pages:
+
+<show when={props.framework === "waku"}>
+
+<Cards>
+  <Card href="/docs/waku/internationalization#custom-pages" title="Languages">
+    Create a page once per language.
+  </Card>
+  <Card href="/docs/waku/plugins/seo#custom-pages-1" title="Open Graph Images">
+    Give a page an image with `ogImage`.
+  </Card>
+  <Card href="/docs/waku/plugins/ai#custom-pages" title="Markdown">
+    Give a page a Markdown version with `asMarkdown()`.
+  </Card>
+  <Card href="/docs/waku/plugins/seo#additional-pages" title="Sitemap">
+    Pages with params aren't listed, so add them.
+  </Card>
+</Cards>
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+- **Languages**: create a page [per language](./internationalization.mdx#custom-pages).
+- **Sitemap**: pages with params aren't listed, so [add them](./plugins/seo.mdx#additional-pages).
+- **Open Graph images**: add `og:image` tags to the `head` slot of `HomeLayout.astro`.
+- **Markdown**: custom pages have no Markdown version.
+
+</show>

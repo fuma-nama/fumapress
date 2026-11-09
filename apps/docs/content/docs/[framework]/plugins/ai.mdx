@@ -1,0 +1,348 @@
+---
+title: AI
+description: Give AI tools your docs as Markdown, add a chat, or connect clients over MCP.
+---
+
+Use any of these three features:
+
+- [llms.txt](#llmstxt) gives AI tools your docs as Markdown. It is on by default.
+- [AI Chat](#ai-chat) answers your readers on your site.
+- [MCP](#mcp) lets tools like code editors search your docs.
+
+## llms.txt
+
+A new site already has these files:
+
+- `/llms.txt`: an index of your pages.
+- `/llms-full.txt`: the text of all pages in one file.
+- `<page>.md`: a Markdown version of each page, like `/docs/install.md`. The root page is `/index.md`.
+
+Pass its options to `recommendedPreset()`:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "fumapress";
+
+createPress(content).config({
+  preset: recommendedPreset({ llms: { autoRedirect: false } }),
+});
+```
+
+<Callout type="warn">
+  Keep [`includeProcessedMarkdown`](../content-sources/fumadocs-mdx.mdx#setup) on your Fumadocs MDX
+  collection. This plugin reads the text of pages from the processed Markdown.
+</Callout>
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+import { createPress, recommendedPreset } from "@fumapress/astro/config";
+
+createPress(content).config({
+  preset: recommendedPreset({ llms: { autoRedirect: false } }),
+});
+```
+
+<Callout>
+  Set [`includeProcessedMarkdown`](../content-sources/collections.mdx) in `press()` to use processed
+  Markdown. Without it, pages use their source files. Custom pages have no Markdown version.
+</Callout>
+
+</show>
+
+### Page Text
+
+Return the text of a page from `getLLMText`, or `undefined` to leave it out of `/llms-full.txt`:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  llms: {
+    async getLLMText(page) {
+      if (page.path.startsWith("internal/")) return;
+
+      return `# ${page.data.title} (${this.absoluteUrl(page.url)})
+
+${await this.getPageText(page)}`;
+    },
+  },
+});
+```
+
+### Content Negotiation
+
+An AI agent can ask for Markdown at the URL of a page, without knowing about `<page>.md`:
+
+```bash
+curl -H "Accept: text/markdown" https://docs.example.com/docs/install
+```
+
+Turn it off with `autoRedirect: false`.
+
+<Callout>
+  This needs a server, and a static build doesn't add one for it. On Vercel, Netlify and Cloudflare,
+  it only applies to pages rendered on demand, because these platforms serve prerendered pages
+  without your server.
+</Callout>
+
+<show when={props.framework === "waku"}>
+
+### Custom Pages
+
+Set `routes: "all"`, then return Markdown from a page with `asMarkdown()` and `md`. This page gets a `/index.md`, and an entry in `/llms.txt`.
+
+```tsx tab="src/pages/index.tsx"
+import { asMarkdown, md } from "fumapress/markdown";
+
+export default function Page() {
+  if (asMarkdown()) {
+    return md`
+# My Site
+
+Welcome! Read the [docs](/docs).
+    `;
+  }
+
+  return <main>...</main>;
+}
+```
+
+```tsx tab="press.config.tsx"
+recommendedPreset({ llms: { routes: "all" } });
+```
+
+<Callout type="warn">
+  The Markdown renders without your layouts, so an access check in a layout doesn't cover it. Put the check in the page, or in middleware that also covers `<page>.md`.
+</Callout>
+
+Only server components that call `asMarkdown()` are converted to Markdown. Other components stay as JSX in the output, like `<Card title="...">...</Card>`. To give a client component a Markdown version, wrap it in a server component:
+
+```tsx
+import { asMarkdown, md } from "fumapress/markdown";
+
+function Callout({ title, children }) {
+  if (asMarkdown()) return md.linePrefix("> ")`**${title}**\n${children}`;
+
+  return <div className="callout">...</div>;
+}
+```
+
+`md` also has `md.indent(size)`. To render a React tree to Markdown yourself, use `renderToMarkdown(<Page />)`.
+
+</show>
+
+### llms.txt Options
+
+<show when={props.framework === "waku"}>
+
+<auto-type-table cwd path="../../packages/core/src/plugins/llms.txt.ts" name="LLMsOptions" />
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+<auto-type-table
+  cwd
+  path="../../packages/core/src/plugins/llms.txt.ts"
+  type="Omit<LLMsOptions, 'routes'>"
+/>
+
+</show>
+
+## AI Chat
+
+The chat searches your pages to answer questions, and cites them as links. Its endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+### Install [step]
+
+```npm
+npm i @fumapress/ai
+```
+
+### Add the Plugin [step]
+
+Pass a model: an [AI Gateway](https://ai-sdk.dev/docs/ai-sdk-core/settings#setting-the-model) model ID, or a model from a [provider package](https://ai-sdk.dev/docs/foundations/providers-and-models).
+
+```tsx tab="AI Gateway" title="press.config.tsx"
+import { aiPlugin } from "@fumapress/ai";
+
+export default createPress(content).plugins(aiPlugin({ model: "openai/gpt-5" }));
+```
+
+```tsx tab="Provider Package" title="press.config.tsx"
+import { aiPlugin } from "@fumapress/ai";
+import { openai } from "@ai-sdk/openai";
+
+export default createPress(content).plugins(aiPlugin({ model: openai("gpt-5") }));
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "@fumapress/ai/css/preset.css";
+```
+
+Now the Docs Layout docks the chat, and a floating "Ask AI" button opens it. `Ctrl + /` opens it too.
+
+### Rate Limiting
+
+<Callout type="warn">
+  The endpoint calls your model provider, and has no limit on body size or message count. Anyone who
+  can reach it can spend your budget, so add rate limiting before you go live.
+</Callout>
+
+Return a `Response` from `beforeRequest` to reject a request:
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: "openai/gpt-5",
+  async beforeRequest(req) {
+    if (await isRateLimited(req)) {
+      return new Response("Too Many Requests", { status: 429 });
+    }
+  },
+});
+```
+
+### System Prompt
+
+```tsx title="press.config.tsx"
+aiPlugin({
+  model: "openai/gpt-5",
+  systemPrompt: "You are the assistant for the Acme docs. Keep answers short, with links.",
+});
+```
+
+### Custom Layout
+
+The plugin passes the chat to layouts as the `aiChat` prop, through `useLayoutProps()`. The default layout reads it for you.
+
+<show when={props.framework === "waku"}>
+
+In a [custom layout](../layouts.mdx#custom-layouts), read it in a client component around the layout:
+
+```tsx tab="src/components/layout.tsx"
+"use client";
+import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
+import { useLayoutProps } from "fumapress/client";
+
+export function Layout(props: DocsLayoutProps) {
+  return <DocsLayout {...props} {...useLayoutProps()} />;
+}
+```
+
+```tsx tab="src/ui/layout.tsx"
+import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/notebook/page";
+import { Layout } from "../components/layout";
+
+function Docs({ layoutProps, pageData, toc, body }: RenderPageProps<typeof app, "docs">) {
+  return (
+    <Layout {...layoutProps}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{body}</DocsBody>
+      </DocsPage>
+    </Layout>
+  );
+}
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+In a custom [layout](../layouts.mdx#islands), your island reads it:
+
+```tsx title="src/components/docs-island.tsx"
+import { createIsland, useLayoutProps } from "@fumapress/astro/client";
+
+export const DocsIsland = createIsland(
+  ({ layoutProps, pageData, toc, children }: IslandProps<typeof app, "docs">) => (
+    <DocsLayout {...layoutProps} {...useLayoutProps()}>
+      <DocsPage toc={toc}>
+        <DocsTitle>{pageData.title}</DocsTitle>
+        <DocsBody>{children}</DocsBody>
+      </DocsPage>
+    </DocsLayout>
+  ),
+);
+```
+
+</show>
+
+The Docs and Notebook layouts open the chat with a floating "Ask AI" button. The Glass and Spacious layouts show their own button.
+
+### Chat Options
+
+`pageToIndex` controls which pages the model can search, as in [MCP](#filtering-pages). To keep the endpoint without the chat UI, set `configureUI: false`.
+
+<auto-type-table cwd path="../../packages/ai/src/chat.tsx" name="AIOptions" />
+
+## MCP
+
+An [MCP](https://modelcontextprotocol.io) client, like a code editor, can search your docs through an endpoint on your site. The endpoint renders on demand, so the site [needs a server](../deployment.mdx#what-needs-a-server).
+
+```tsx title="press.config.tsx"
+import { mcpPlugin } from "@fumapress/ai";
+
+export default createPress(content).plugins(mcpPlugin());
+```
+
+Then point your client at `/mcp` on your site, like `https://docs.example.com/mcp`, over [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). The client gets three tools:
+
+- `search`, which also takes a `locale` with [internationalization](../internationalization.mdx).
+- `get_page`, which returns the text of a page.
+- `list_pages`, which lists your pages.
+
+### Filtering Pages
+
+Return `null` from `pageToIndex` to leave a page out:
+
+```tsx title="press.config.tsx"
+mcpPlugin({
+  async pageToIndex(page) {
+    if (page.path.startsWith("internal/")) return null;
+
+    return {
+      title: page.data.title ?? "",
+      description: page.data.description ?? "",
+      url: page.url,
+      content: (await this.getPageText(page)) ?? "",
+      locale: page.locale ?? "",
+    };
+  },
+});
+```
+
+### Custom Tools
+
+`tools` receives the `McpServer` of [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server):
+
+```tsx title="press.config.tsx"
+import { mcpPlugin } from "@fumapress/ai";
+import { z } from "zod";
+
+mcpPlugin({
+  tools(server) {
+    server.registerTool(
+      "get_site_name",
+      {
+        title: "Get Site Name",
+        description: "Return the site name from the config",
+        inputSchema: z.object({}),
+      },
+      async () => ({
+        content: [{ type: "text", text: this.siteConfig.name }],
+      }),
+    );
+  },
+});
+```
+
+### MCP Options
+
+<auto-type-table cwd path="../../packages/ai/src/mcp.ts" name="McpOptions" />

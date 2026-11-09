@@ -1,0 +1,99 @@
+---
+title: Link Validation
+description: Find broken links at build time.
+---
+
+After the build, this plugin checks the links on your prerendered pages, and a broken link fails the build:
+
+```text
+In "/docs/getting-started": link "/docs/missing-page" not-found
+```
+
+Add the plugin:
+
+<show when={props.framework === "waku"}>
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "fumapress/plugins/link-validation";
+
+createPress(content).plugins(linkValidationPlugin());
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```tsx title="press.config.tsx"
+import { linkValidationPlugin } from "@fumapress/astro/plugins/link-validation";
+
+createPress(content).plugins(linkValidationPlugin());
+```
+
+</show>
+
+It checks links in Fumadocs layouts and your content.<show when={props.framework === "waku"}> On custom pages, use `Link` from `fumapress/client`, since a plain `<a>` isn't tracked.</show>
+
+## Ignored and External Links
+
+Full URLs are skipped by default. Use these options to skip more links, or to check full URLs too:
+
+```tsx tab="Skip links" title="press.config.tsx"
+linkValidationPlugin({
+  ignored(href) {
+    return href.startsWith("/preview/");
+  },
+});
+```
+
+```tsx tab="Check full URLs" title="press.config.tsx"
+linkValidationPlugin({
+  // "not-found" for a broken link, `null` for a valid one
+  async externalLink(href) {
+    const res = await fetch(href, { method: "HEAD" });
+    return res.ok ? null : "not-found";
+  },
+});
+```
+
+## CI Reports
+
+To annotate a pull request instead of parsing an error message, write the results to a file. `"json"` keeps the build passing, and `"both"` also fails it.
+
+```tsx tab="press.config.tsx"
+linkValidationPlugin({
+  report: "json", // [!code ++]
+});
+```
+
+```json tab="dist/fumapress-diagnostics.json"
+{
+  "diagnostics": [
+    {
+      "severity": "error",
+      "rule": "link-validation/not-found",
+      "message": "link \"/missing\" not-found",
+      "fromPathname": "/docs",
+      "href": "/missing"
+    }
+  ]
+}
+```
+
+An empty list means validation ran and found nothing. Change the file name with `diagnosticsPath`.
+
+<show when={props.framework === "astro"}>
+
+<Callout type="warn">
+  The file goes to your `outDir`, which is public on a static host. See [Post-Build
+  Plugins](../deployment.mdx#post-build-plugins).
+</Callout>
+
+</show>
+
+## Options
+
+<auto-type-table
+  cwd
+  path="../../packages/core/src/plugins/link-validation.ts"
+  name="LinkValidationOptions"
+/>

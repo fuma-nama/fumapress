@@ -5,6 +5,8 @@
 
 ## Fumapress
 
-A site generator powered by [Fumadocs](https://fumadocs.dev) & [Waku.js](https://waku.gg).
+A site generator for docs, blogs and API references, offering a polished theme, search and many features with zero configuration.
+
+Built on [Fumadocs](https://fumadocs.dev), powered by [Waku.js](https://waku.gg) and [Astro](https://astro.build).
 
 See [Documentation](https://press.fumadocs.dev).

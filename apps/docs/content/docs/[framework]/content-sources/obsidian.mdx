@@ -1,0 +1,120 @@
+---
+title: Obsidian
+description: Publish an Obsidian vault as a docs site.
+---
+
+Fumapress renders your vault with its wikilinks, embeds, callouts, block IDs and comments.
+
+<show when={props.framework === "waku"}>
+
+For a working project, see [`examples/obsidian`](https://github.com/fuma-nama/fumapress/tree/main/examples/obsidian).
+
+</show>
+
+## Setup
+
+### Install the Package [step]
+
+```npm
+npm i fumadocs-obsidian
+```
+
+### Add the Styles [step]
+
+Add this after the imports in your stylesheet:
+
+```css title="src/app.css"
+@import "fumadocs-obsidian/css/preset.css";
+```
+
+### Create the Source [step]
+
+```tsx title="press.config.tsx"
+import { obsidian } from "fumadocs-obsidian";
+import obsidianPlugin from "fumadocs-obsidian/press";
+
+const vault = obsidian({
+  dir: "public/vault",
+  url: (file) => `/vault/${file}`,
+});
+
+const plugin = obsidianPlugin({ vault }); // [!code highlight]
+
+export default createPress(vault.dynamicSource()).plugins(plugin);
+```
+
+The vault is read when a page renders, so the site [needs a server](../deployment.mdx#what-needs-a-server). To prerender the pages instead, pass `await vault.staticSource()`.
+
+## Content Updates
+
+Fumapress reads your vault once. To see changes, use hot reload on the dev server, and refresh the content on a deployed site.
+
+### Hot Reload
+
+The dev server doesn't watch the vault by default. Add the Vite plugin, then connect your vault:
+
+<show when={props.framework === "waku"}>
+
+```ts tab="vite.config.ts"
+import { localContentPlugin } from "fumadocs-obsidian/dev/vite"; // [!code ++]
+
+export default defineConfig({
+  plugins: [
+    press(),
+    localContentPlugin(), // [!code ++]
+    tailwindcss(),
+  ],
+});
+```
+
+</show>
+
+<show when={props.framework === "astro"}>
+
+```js tab="astro.config.mjs"
+import { localContentPlugin } from "fumadocs-obsidian/dev/vite"; // [!code ++]
+
+export default defineConfig({
+  integrations: [press()],
+  vite: {
+    plugins: [
+      tailwindcss(),
+      localContentPlugin(), // [!code ++]
+    ],
+  },
+});
+```
+
+</show>
+
+```tsx tab="press.config.tsx"
+import { watchWithVite } from "fumadocs-obsidian/dev/vite";
+
+if (import.meta.env.DEV) watchWithVite(vault);
+```
+
+### Refreshing Content
+
+<include cwd>content/shared/content-sources/refresh.mdx</include>
+
+## Components
+
+Pass the Fumadocs UI defaults along with your own components, since `components` replaces the defaults:
+
+```tsx title="press.config.tsx"
+import defaultMdxComponents from "fumadocs-ui/mdx";
+
+obsidianPlugin({
+  vault,
+  components: {
+    ...defaultMdxComponents,
+    img: (props) => <img {...props} className="rounded-xl" />,
+  },
+});
+```
+
+## Options
+
+<auto-type-table type="import('fumadocs-obsidian/press').ObsidianPluginOptions" />
+
+For schemas and remark or rehype plugins, like Mermaid and math, see the [Fumadocs Obsidian integration](https://fumadocs.dev/docs/integrations/content/obsidian).

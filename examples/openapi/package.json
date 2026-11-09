@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@fumapress/language": "workspace:*",
-    "fumadocs-core": "^16.18.2",
-    "fumadocs-mdx": "^15.5.1",
+    "fumadocs-core": "^16.18.3",
+    "fumadocs-mdx": "^15.5.3",
     "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.2",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
     "fumapress": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
