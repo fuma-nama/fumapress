@@ -98,7 +98,7 @@ const frameworks = [
     name: "Waku",
     note: "Custom pages are React Server Components.",
     command: "npm create fumapress -- --framework waku",
-    href: "/docs/waku",
+    href: "/docs",
   },
   {
     name: "Astro",
@@ -291,7 +291,7 @@ function Hero() {
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-5">
           <Link
-            href="/docs/waku"
+            href="/docs"
             className="inline-flex items-center gap-2 rounded-full bg-w-label px-4.5 py-2.5 font-serif text-sm font-medium text-w-paper shadow-flat transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-flat-sm dark:bg-w-ink"
           >
             Quick Start

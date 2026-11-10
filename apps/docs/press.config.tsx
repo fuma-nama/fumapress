@@ -85,9 +85,9 @@ const movedPages = new Map([
   ["/docs/routing", "/docs/custom-pages"],
 ]);
 
-/** adds the `/waku` prefix to an old URL of the Waku docs */
-function wakuPathOf(pathname: string) {
-  return pathname.replace(/^\/docs(?=[/.]|$)(?!\/(?:waku|astro)(?:[/.]|$))/, "/docs/waku");
+/** removes the `/waku` prefix from a URL of the Waku docs, they had it for a while */
+function unprefixedPathOf(pathname: string) {
+  return pathname.replace(/^\/docs\/waku(?=[/.]|$)/, "/docs");
 }
 
 export const app = createPress(
@@ -96,13 +96,22 @@ export const app = createPress(
     blog: blog.toFumadocsSource({ baseDir: "blog" }),
     changelog: changelog.toFumadocsSource({ baseDir: "changelog" }),
   },
-  { loaderPlugins: [lucideIconsPlugin()] },
+  {
+    // the Waku docs stay at `/docs`, the docs of other frameworks are at `/docs/<framework>`
+    slugs(file, next) {
+      if (file.params?.framework !== "waku") return;
+      const slugs = next();
+      slugs.splice(slugs.indexOf("waku"), 1);
+      return slugs;
+    },
+    loaderPlugins: [lucideIconsPlugin()],
+  },
 ).plugins(
   {
     name: "docs:moved-pages",
     middleware(request, next) {
       const { pathname } = new URL(request.url);
-      const location = wakuPathOf(movedPages.get(pathname) ?? pathname);
+      const location = movedPages.get(pathname) ?? unprefixedPathOf(pathname);
       if (location === pathname) return next();
       return Promise.resolve(new Response(null, { status: 308, headers: { Location: location } }));
     },

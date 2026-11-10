@@ -12,7 +12,7 @@ export const plugins = [
     name: "FlexSearch",
     description: <>Built-in full-text search, on your server or in the browser.</>,
     keywords: ["search", "flexsearch"],
-    docsHref: "/docs/waku/search#search-engines",
+    docsHref: "/docs/search#search-engines",
     usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
@@ -26,7 +26,7 @@ export default createPress({
     name: "Orama Search",
     description: "Full-text search powered by ZBSearch with the same search dialog UX.",
     keywords: ["search", "orama", "zbsearch"],
-    docsHref: "/docs/waku/search#search-engines",
+    docsHref: "/docs/search#search-engines",
     usage: `import { createPress, recommendedPreset } from "fumapress";
 import { oramaSearchPlugin } from "fumapress/plugins/orama-search";
 
@@ -46,7 +46,7 @@ export default createPress({
       </>
     ),
     keywords: ["llm", "ai", "markdown"],
-    docsHref: "/docs/waku/plugins/ai#llmstxt",
+    docsHref: "/docs/plugins/ai#llmstxt",
     usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
@@ -60,7 +60,7 @@ export default createPress({
     name: "Blog",
     description: "Turn a content collection into blog posts, an index and tag pages.",
     keywords: ["blog", "rss", "posts"],
-    docsHref: "/docs/waku/plugins/blog",
+    docsHref: "/docs/plugins/blog",
     usage: `import { createPress } from "fumapress";
 import { blogPlugin } from "@fumapress/blog";
 import { defineDocs } from "fumadocs-mdx/macro";
@@ -84,7 +84,7 @@ export default createPress({
     name: "Takumi",
     description: "Generate Open Graph images for every docs page automatically.",
     keywords: ["og", "open graph", "social"],
-    docsHref: "/docs/waku/plugins/seo#open-graph-images",
+    docsHref: "/docs/plugins/seo#open-graph-images",
     usage: `import { createPress, recommendedPreset } from "fumapress";
 
 export default createPress({
@@ -99,7 +99,7 @@ export default createPress({
     description:
       "Responsive & optimized images, configured automatically for your deployment target.",
     keywords: ["image", "sharp", "vercel"],
-    docsHref: "/docs/waku/content#image-optimization",
+    docsHref: "/docs/content#image-optimization",
     usage: `import { Image } from "fumapress/image";
 
 export default function Hero() {
@@ -115,7 +115,7 @@ export default function Hero() {
       </>
     ),
     keywords: ["seo", "sitemap", "xml"],
-    docsHref: "/docs/waku/plugins/seo#sitemap",
+    docsHref: "/docs/plugins/seo#sitemap",
     usage: `import { createPress } from "fumapress";
 
 export default createPress({
@@ -133,7 +133,7 @@ export default createPress({
       </>
     ),
     keywords: ["links", "404", "build"],
-    docsHref: "/docs/waku/plugins/link-validation",
+    docsHref: "/docs/plugins/link-validation",
     usage: `import { createPress } from "fumapress";
 import { linkValidationPlugin } from "fumapress/plugins/link-validation";
 
@@ -146,7 +146,7 @@ export default createPress({
     name: "OpenAPI",
     description: "Generate API reference pages from an OpenAPI spec.",
     keywords: ["api", "openapi", "swagger"],
-    docsHref: "/docs/waku/plugins/api-docs#openapi",
+    docsHref: "/docs/plugins/api-docs#openapi",
     usage: `import { createPress } from "fumapress";
 import { createOpenAPI } from "fumadocs-openapi/server";
 import openapiPlugin from "fumadocs-openapi/press";
@@ -165,7 +165,7 @@ export default createPress({
     name: "AsyncAPI",
     description: "Generate event-driven API reference pages from an AsyncAPI spec.",
     keywords: ["api", "asyncapi", "events", "messaging"],
-    docsHref: "/docs/waku/plugins/api-docs#asyncapi",
+    docsHref: "/docs/plugins/api-docs#asyncapi",
     usage: `import { createPress } from "fumapress";
 import { createAsyncAPI } from "@fumadocs/asyncapi/server";
 import asyncapiPlugin from "@fumadocs/asyncapi/press";
@@ -184,7 +184,7 @@ export default createPress({
     name: "AI",
     description: 'Add an "Ask AI" chat powered by the Vercel AI SDK.',
     keywords: ["chat", "ask ai", "gpt"],
-    docsHref: "/docs/waku/plugins/ai#ai-chat",
+    docsHref: "/docs/plugins/ai#ai-chat",
     usage: `import { createPress } from "fumapress";
 import { openai } from "@ai-sdk/openai";
 import { aiPlugin } from "@fumapress/ai";
@@ -202,7 +202,7 @@ export default createPress({
     name: "MCP Server",
     description: "Expose your documentation to MCP clients over Streamable HTTP.",
     keywords: ["mcp", "model context protocol", "tools", "agents"],
-    docsHref: "/docs/waku/plugins/ai#mcp",
+    docsHref: "/docs/plugins/ai#mcp",
     usage: `import { createPress } from "fumapress";
 import { mcpPlugin } from "@fumapress/ai";
 
@@ -215,7 +215,7 @@ export default createPress({
     name: "Feedback",
     description: "Collect page and text feedback with server actions or integrations.",
     keywords: ["feedback", "survey"],
-    docsHref: "/docs/waku/plugins/feedback",
+    docsHref: "/docs/plugins/feedback",
     usage: `import { createPress } from "fumapress";
 import { feedbackPlugin } from "@fumapress/feedback";
 
@@ -235,7 +235,7 @@ export default createPress({
     name: "Tegami",
     description: "Publish package changelogs to a filterable timeline page.",
     keywords: ["changelog", "releases", "tegami", "versioning"],
-    docsHref: "/docs/waku/plugins/changelog",
+    docsHref: "/docs/plugins/changelog",
     usage: `import { createPress } from "fumapress";
 import { changelogPlugin } from "@fumapress/tegami";
 import { defineDocs } from "fumadocs-mdx/macro";
