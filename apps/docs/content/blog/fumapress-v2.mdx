@@ -119,7 +119,7 @@ export default app.config({
 });
 ```
 
-The options of each factory are now props of these components. To change the source of a component, [copy it into your project](/docs/waku/layouts#customizing-fumadocs-ui) with the Fumadocs CLI:
+The options of each factory are now props of these components. To change the source of a component, [copy it into your project](/docs/layouts#customizing-fumadocs-ui) with the Fumadocs CLI:
 
 ```bash
 npx @fumadocs/cli add banner
@@ -176,7 +176,7 @@ Fumapress checks the routes of all plugins. When two plugins use the same path, 
 
 A route at the path of a page from a static source also fails the build. A dynamic source can add pages at any time, so the route takes priority over its pages.
 
-Integrations moved out of `fumapress`. The OpenAPI, AsyncAPI, GraphQL, Notion, Sanity and Obsidian plugins are now exported by the Fumadocs packages, like `fumadocs-openapi/press`. The blog is now a separate package, [`@fumapress/blog`](/docs/waku/plugins/blog).
+Integrations moved out of `fumapress`. The OpenAPI, AsyncAPI, GraphQL, Notion, Sanity and Obsidian plugins are now exported by the Fumadocs packages, like `fumadocs-openapi/press`. The blog is now a separate package, [`@fumapress/blog`](/docs/plugins/blog).
 
 ## Client Navigation
 
@@ -186,7 +186,7 @@ Client state no longer carries over to the next page. Before, a selected code ta
 
 ## Security Fixes
 
-- URLs like `//docs` and `/%64ocs` now redirect to `/docs`, so [a prefix check in middleware](/docs/waku/authentication#protecting-a-section) also covers them.
+- URLs like `//docs` and `/%64ocs` now redirect to `/docs`, so [a prefix check in middleware](/docs/authentication#protecting-a-section) also covers them.
 - The self-hosted image optimizer now resolves relative images from `site.baseUrl` instead of the `Host` header, and limits its memory use.
 - `/api/ai` now rejects system messages and message parts that the UI never sends.
 
@@ -200,12 +200,12 @@ npm i fumadocs-core@latest fumadocs-mdx@latest
 npm i fumadocs-ui@npm:@fumadocs/base-ui@latest
 ```
 
-Then follow the [upgrade guide](/docs/waku/migrate/v2). If you didn't customize your site, rewriting the config is enough. Otherwise, the guide has a section for each feature, so you only need to read the ones your site uses.
+Then follow the [upgrade guide](/docs/migrate/v2). If you didn't customize your site, rewriting the config is enough. Otherwise, the guide has a section for each feature, so you only need to read the ones your site uses.
 
 New to Fumapress? Each framework has its own docs:
 
 <Cards>
-  <Card href="/docs/waku" title="Waku.js">
+  <Card href="/docs" title="Waku.js">
     Create a site with React Server Components.
   </Card>
   <Card href="/docs/astro" title="Astro">

@@ -1,6 +1,6 @@
 {
   "name": "create-fumapress-versions",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "private": true,
   "dependencies": {
     "@astrojs/react": "^7.1.4",
@@ -14,7 +14,7 @@
     "fumapress": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "takumi-js": "^2.19.0"
+    "takumi-js": "^2.20.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

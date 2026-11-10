@@ -19,7 +19,7 @@
     "@fumapress/tegami": "workspace:*",
     "@fumari/sponsors": "0.1.1",
     "@paper-design/shaders-react": "^0.0.82",
-    "@pierre/highlights": "^0.2.0",
+    "@pierre/highlights": "^0.4.0",
     "@shikijs/magic-move": "^4.6.0",
     "cn": "^0.5.2",
     "fumadocs-core": "^16.18.3",

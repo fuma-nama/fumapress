@@ -3,6 +3,8 @@ title: Plugins
 description: Add, replace and remove the features of your site.
 ---
 
+import { docsUrl } from "../../../../src/ui/framework";
+
 Your site starts with a set of default plugins. Add more with `.plugins()`:
 
 ```tsx title="press.config.tsx"
@@ -12,28 +14,28 @@ export default createPress(content).plugins(blogPlugin({ source: "blog" }));
 ```
 
 <Cards>
-  <Card href={`/docs/${props.framework}/plugins/seo`} title="SEO">
+  <Card href={docsUrl(props.framework, "/plugins/seo")} title="SEO">
     Sitemap, robots.txt, RSS and Open Graph images.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/ai`} title="AI">
+  <Card href={docsUrl(props.framework, "/plugins/ai")} title="AI">
     llms.txt, AI chat and MCP.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/api-docs`} title="API Docs">
+  <Card href={docsUrl(props.framework, "/plugins/api-docs")} title="API Docs">
     OpenAPI, AsyncAPI and GraphQL.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/blog`} title="Blog">
+  <Card href={docsUrl(props.framework, "/plugins/blog")} title="Blog">
     Posts, an index and tag pages.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/changelog`} title="Changelog">
+  <Card href={docsUrl(props.framework, "/plugins/changelog")} title="Changelog">
     Your Tegami release notes.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/feedback`} title="Feedback">
+  <Card href={docsUrl(props.framework, "/plugins/feedback")} title="Feedback">
     A form on pages and selected text.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/link-validation`} title="Link Validation">
+  <Card href={docsUrl(props.framework, "/plugins/link-validation")} title="Link Validation">
     Find broken links at build time.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/authoring`} title="Writing Plugins">
+  <Card href={docsUrl(props.framework, "/plugins/authoring")} title="Writing Plugins">
     Add anything else.
   </Card>
 </Cards>

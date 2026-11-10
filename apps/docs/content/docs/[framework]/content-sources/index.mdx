@@ -3,12 +3,14 @@ title: Content Sources
 description: Choose where your pages come from.
 ---
 
+import { docsUrl } from "../../../../src/ui/framework";
+
 Keep your pages in your project with {props.framework === "astro" ? "content collections" : "Fumadocs MDX"}. Choose another source only when your content is already stored elsewhere.
 
 <Cards>
   <show when={props.framework === "waku"}>
     <Card
-      href="/docs/waku/content-sources/fumadocs-mdx"
+      href="/docs/content-sources/fumadocs-mdx"
       title="Fumadocs MDX"
       className="col-span-full"
     >
@@ -23,16 +25,16 @@ Keep your pages in your project with {props.framework === "astro" ? "content col
       Your Markdown files change after the build.
     </Card>
   </show>
-  <Card href={`/docs/${props.framework}/content-sources/notion`} title="Notion">
+  <Card href={docsUrl(props.framework, "/content-sources/notion")} title="Notion">
     Your team writes in a Notion database.
   </Card>
-  <Card href={`/docs/${props.framework}/content-sources/sanity`} title="Sanity">
+  <Card href={docsUrl(props.framework, "/content-sources/sanity")} title="Sanity">
     Your team writes in Sanity Studio.
   </Card>
-  <Card href={`/docs/${props.framework}/content-sources/obsidian`} title="Obsidian">
+  <Card href={docsUrl(props.framework, "/content-sources/obsidian")} title="Obsidian">
     You publish an Obsidian vault.
   </Card>
-  <Card href={`/docs/${props.framework}/content-sources/custom`} title="Custom Source">
+  <Card href={docsUrl(props.framework, "/content-sources/custom")} title="Custom Source">
     Your pages come from anywhere else.
   </Card>
 </Cards>
