@@ -1,53 +1,44 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@fumapress/core:\n    type: patch\n---\n\n### Named a default plugin listed twice in more errors\n\n- Listing a default plugin that adds a slot item, like `vercelImage()`, says that it is added twice, like plugins that add a route.\n"
-    filename: 2026-11-08-plugin-added-twice.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Fixed sites with an old `@vitejs/plugin-rsc` in the lockfile\n\n- Fumapress uses the `@vitejs/plugin-rsc` of Waku. A lockfile from Fumapress 1 no longer installs a second copy that fails every page.\n"
-    filename: 2026-11-08-plugin-rsc-from-waku.md
-    v: 0.0.0
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Updated Waku to 1.0.0-rc.4\n\n- Fumapress runs on Waku `1.0.0-rc.4`, which needs React 19.3.1 or later.\n- A custom server entry pins `waku` to `1.0.0-rc.4`.\n- The `head` of `ui.renderRoot` has the charset and viewport tags, which Waku no longer adds to custom roots.\n- API routes in `src/pages/_api` accept `CONNECT`, `TRACE` and `QUERY` handlers, like Waku.\n"
-    filename: 2026-11-08-waku-rc-4.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Support sharp 0.35\n\n- The optional `sharp` peer dependency accepts 0.35.\n"
+    filename: 2026-11-09-sharp-0-35.md
     v: 0.0.0
 core:packages:
   - id: npm:@fumapress/ai
     updated: false
-  - id: npm:@fumapress/blog
-    updated: false
   - id: npm:@fumapress/astro
     updated: false
-  - changelogIds:
-      - 2026-11-08-plugin-added-twice.md
-    id: npm:@fumapress/core
+  - id: npm:@fumapress/core
+    updated: false
+  - id: npm:@fumapress/blog
+    updated: false
+  - id: npm:create-fumapress-versions
     updated: true
   - id: npm:create-fumapress
-    updated: true
-  - id: npm:create-fumapress-versions
     updated: true
   - id: npm:@fumapress/feedback
     updated: false
   - changelogIds:
-      - 2026-11-08-plugin-rsc-from-waku.md
-      - 2026-11-08-waku-rc-4.md
+      - 2026-11-09-sharp-0-35.md
     id: npm:fumapress
     updated: true
-  - id: npm:@fumapress/language
+  - id: npm:@fumapress/mintlify
     updated: false
   - id: npm:@fumapress/tegami
     updated: false
-  - id: npm:@fumapress/mintlify
+  - id: npm:@fumapress/language
     updated: false
 npm:packages:
   - id: npm:@fumapress/ai
-  - id: npm:@fumapress/blog
   - id: npm:@fumapress/astro
   - id: npm:@fumapress/core
-  - id: npm:create-fumapress
+  - id: npm:@fumapress/blog
   - id: npm:create-fumapress-versions
+  - id: npm:create-fumapress
   - id: npm:@fumapress/feedback
   - id: npm:fumapress
-  - id: npm:@fumapress/language
-  - id: npm:@fumapress/tegami
   - id: npm:@fumapress/mintlify
+  - id: npm:@fumapress/tegami
+  - id: npm:@fumapress/language
   - id: npm:docs
   - id: npm:example-sanity
   - id: npm:example-notion

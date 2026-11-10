@@ -1,3 +1,9 @@
+## fumapress@2.0.2
+
+### Support sharp 0.35
+
+- The optional `sharp` peer dependency accepts 0.35.
+
 ## fumapress@2.0.1
 
 ### Fixed sites with an old `@vitejs/plugin-rsc` in the lockfile
