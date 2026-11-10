@@ -2,7 +2,7 @@
 title: Quick Start
 ---
 
-import { frameworks } from "../../../src/ui/framework";
+import { frameworks, docsUrl } from "../../../src/ui/framework";
 
 export const frontmatter = {
   description: `Create a docs site with Fumapress on ${frameworks[props.framework].title}.`,
@@ -123,16 +123,16 @@ export default createPress(
 ## Next Steps
 
 <Cards>
-  <Card href={`/docs/${props.framework}/content`} title="Write Content">
+  <Card href={docsUrl(props.framework, "/content")} title="Write Content">
     Pages, sidebar, components and images.
   </Card>
-  <Card href={`/docs/${props.framework}/layouts`} title="Customize">
+  <Card href={docsUrl(props.framework, "/layouts")} title="Customize">
     Choose a layout and add custom pages.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins`} title="Add Features">
+  <Card href={docsUrl(props.framework, "/plugins")} title="Add Features">
     Blog, AI chat, API docs, feedback and more.
   </Card>
-  <Card href={`/docs/${props.framework}/deployment`} title="Deploy">
+  <Card href={docsUrl(props.framework, "/deployment")} title="Deploy">
     Build the site and put it online.
   </Card>
 </Cards>

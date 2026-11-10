@@ -3,6 +3,8 @@ title: Writing Plugins
 description: Add routes, UI and other features with your own plugin.
 ---
 
+import { docsUrl } from "../../../../../src/ui/framework";
+
 A plugin is an object with hooks. This one adds a link to the navbar:
 
 ```tsx title="press.config.tsx"
@@ -21,16 +23,16 @@ createPress(content).plugins({
 ## Hooks
 
 <Cards>
-  <Card href={`/docs/${props.framework}/plugins/authoring/routes`} title="Routes">
+  <Card href={docsUrl(props.framework, "/plugins/authoring/routes")} title="Routes">
     Add pages and API routes.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/authoring/ui`} title="UI">
+  <Card href={docsUrl(props.framework, "/plugins/authoring/ui")} title="UI">
     Add buttons, navbar links and head tags, or render a source your way.
   </Card>
-  <Card href={`/docs/${props.framework}/plugins/authoring/server`} title="Middleware and Lifecycle">
+  <Card href={docsUrl(props.framework, "/plugins/authoring/server")} title="Middleware and Lifecycle">
     Handle requests, or run code at startup and after the build.
   </Card>
-  <Card href={`/docs/${props.framework}/content-sources/custom`} title="Custom Source">
+  <Card href={docsUrl(props.framework, "/content-sources/custom")} title="Custom Source">
     Render pages from anywhere, with content hooks like `getPageBody`.
   </Card>
 </Cards>
