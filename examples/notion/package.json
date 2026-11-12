@@ -12,8 +12,8 @@
   "dependencies": {
     "@fumadocs/notion": "^0.3.1",
     "@notionhq/client": "^5.31.1",
-    "fumadocs-core": "^16.18.3",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.19.0",
     "fumapress": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -25,6 +25,6 @@
     "@types/react-dom": "^19.3.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.8"
   }
 }

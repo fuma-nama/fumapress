@@ -32,16 +32,16 @@
   },
   "dependencies": {
     "@fumapress/core": "workspace:^",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.71.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@fumadocs/asyncapi": "^0.6.0",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.18.3",
-    "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "^16.18.3",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-openapi": "^12.6.1",
+    "fumadocs-ui": "^16.19.0",
     "react": "^19.3.1",
     "tsdown": "0.23.7",
     "typescript": "^7.0.2",

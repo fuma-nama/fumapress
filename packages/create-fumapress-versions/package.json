@@ -3,14 +3,14 @@
   "version": "0.1.25",
   "private": true,
   "dependencies": {
-    "@astrojs/react": "^7.1.4",
+    "@astrojs/react": "^7.1.7",
     "@base-ui/react": "^1.9.0",
-    "@fumadocs/astro": "^0.2.2",
+    "@fumadocs/astro": "^0.3.0",
     "@fumapress/astro": "workspace:*",
-    "astro": "^7.4.7",
-    "fumadocs-core": "^16.18.3",
-    "fumadocs-mdx": "^15.5.3",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
+    "astro": "^7.4.10",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-mdx": "^15.6.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.19.0",
     "fumapress": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -24,6 +24,6 @@
     "@types/react-dom": "^19.3.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.8"
   }
 }

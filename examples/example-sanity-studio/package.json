@@ -15,12 +15,12 @@
   "dependencies": {
     "@sanity/code-input": "^7.3.15",
     "@sanity/icons": "^5.3.0",
-    "@sanity/vision": "^6.22.0",
-    "fumadocs-core": "^16.18.3",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
+    "@sanity/vision": "^6.23.0",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "sanity": "^6.22.0",
+    "sanity": "^6.23.0",
     "styled-components": "^6.6.0"
   },
   "devDependencies": {

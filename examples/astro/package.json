@@ -10,13 +10,13 @@
     "types:check": "astro sync && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/react": "^7.1.4",
-    "@fumadocs/astro": "^0.2.2",
+    "@astrojs/react": "^7.1.7",
+    "@fumadocs/astro": "^0.3.0",
     "@fumapress/astro": "workspace:*",
-    "astro": "^7.4.7",
-    "fumadocs-core": "^16.18.3",
-    "fumadocs-openapi": "^12.6.0",
-    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.18.3",
+    "astro": "^7.4.10",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-openapi": "^12.6.1",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@^16.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "takumi-js": "^2.20.0"
