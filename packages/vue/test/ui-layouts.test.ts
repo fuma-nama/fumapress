@@ -4,12 +4,13 @@
 // why it runs apart from this file.
 import { afterEach, expect, inject, test, vi } from "vitest";
 import { nextTick } from "vue";
-import { createTestApp, type LayoutName } from "./ui/app";
+import { PAGE_URL, VIEW_URL, createTestApp, type CaseName } from "./ui/app";
 import { format, stubBrowser } from "./ui/dom";
 
 stubBrowser();
 const rendered = inject("layouts");
-const names = Object.keys(rendered) as LayoutName[];
+const names = Object.keys(rendered) as CaseName[];
+const layouts = ["docs", "notebook", "glass", "spacious", "flux"] as const;
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -18,7 +19,7 @@ afterEach(() => {
 });
 
 /** hydrates the HTML of the server, and returns the warnings of Vue and the console */
-async function hydrate(name: LayoutName, html: string) {
+async function hydrate(name: CaseName, html: string) {
   const issues: string[] = [];
   const record = (...args: unknown[]) => void issues.push(format(args));
   vi.spyOn(console, "warn").mockImplementation(record);
@@ -41,20 +42,28 @@ async function hydrate(name: LayoutName, html: string) {
   await vi.dynamicImportSettled();
   await new Promise((resolve) => setTimeout(resolve, 20));
   await nextTick();
-  // hydrated, not rendered again: the elements of the server are kept
+  // hydrated, not rendered again: the elements of the server are kept, so the page doesn't flash
   expect(title).not.toBeNull();
   expect(container.querySelector("h1")).toBe(title);
   return { issues, container };
 }
 
-test("the server renders every layout", () => {
-  expect([...names].sort()).toEqual(["docs", "flux", "glass", "home", "notebook", "spacious"]);
+test("the server renders every case", () => {
+  expect([...names].sort()).toEqual([
+    "docs",
+    "flux",
+    "glass",
+    "home",
+    "notebook",
+    "spacious",
+    "theme",
+  ]);
 });
 
-test.each(names.filter((name) => name !== "home"))(
-  "the %s layout renders the page on the server and hydrates without a warning",
+test.each(layouts)(
+  "the theme of the %s layout renders the page on the server and hydrates without a warning",
   async (name) => {
-    const { html, warnings, error } = rendered[name];
+    const { html, warnings, error, modules } = rendered[name];
     expect(error).toBeUndefined();
     expect(warnings).toEqual([]);
     // the page, its table of contents, the page tree with both kinds of icons, and the links of the layout
@@ -65,10 +74,33 @@ test.each(names.filter((name) => name !== "home"))(
     expect(html).toContain("lucide-languages");
     expect(html).toContain('href="https://github.com/fuma-nama/fumapress"');
 
+    // the theme imports its layout only: the server renders no other one
+    const wrappers = modules.filter((id) => id.startsWith("theme/layouts/"));
+    expect(wrappers).toEqual([`theme/layouts/${name[0]!.toUpperCase()}${name.slice(1)}.vue`]);
+    expect(modules.some((id) => id.startsWith(`ui/layouts/${name}/`))).toBe(true);
+    for (const other of layouts.filter((each) => each !== name)) {
+      expect(modules.some((id) => id.startsWith(`ui/layouts/${other}/`))).toBe(false);
+    }
+
     const { issues } = await hydrate(name, html);
     expect(issues).toEqual([]);
   },
 );
+
+test("a view of the theme wraps a layout with options over the config's", async () => {
+  const { html, warnings, error } = rendered.theme;
+  expect(error).toBeUndefined();
+  expect(warnings).toEqual([]);
+  expect(html).toContain('id="nd-notebook-layout"');
+  expect(html).not.toContain('id="nd-docs-layout"');
+  expect(html).toContain("Change the colors of the site.");
+  // the props of the theme win over those of the config, which still give the rest
+  expect(html).toContain("From the theme");
+  expect(html).toContain('href="https://github.com/fuma-nama/fumapress"');
+
+  const { issues } = await hydrate("theme", html);
+  expect(issues).toEqual([]);
+});
 
 test("the home layout renders on the server and hydrates without a warning", async () => {
   const { html, warnings, error } = rendered.home;
@@ -79,6 +111,26 @@ test("the home layout renders on the server and hydrates without a warning", asy
 
   const { issues } = await hydrate("home", html);
   expect(issues).toEqual([]);
+});
+
+test("a navigation from a view shows the content page in its layout at once", async () => {
+  // the app starts on a view, which renders no layout of the content
+  const { app, router } = await createTestApp("spacious", VIEW_URL);
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const container = document.createElement("div");
+  document.body.append(container);
+  app.mount(container);
+  cleanups.push(() => {
+    app.unmount();
+    container.remove();
+  });
+  expect(container.querySelector("h1")?.textContent).toBe("Press");
+
+  await router.push(PAGE_URL);
+  await nextTick();
+  // the layout is on screen when the route changes, not after its code loads
+  expect(container.querySelector("h1")?.textContent).toBe("Theme");
+  expect(container.innerHTML).toContain("Change the colors of the site.");
 });
 
 test("a mismatch between the server and the browser is reported", async () => {

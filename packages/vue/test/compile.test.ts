@@ -95,7 +95,7 @@ test("Markdown reads the components of the theme from the app, so a partial has 
     return Component ? h(Component) : "missing";
   };
   const app = createSSRApp({ render: () => h(Content) });
-  app.provide(pressKey, { components: { Callout } } as unknown as PressState);
+  app.provide(pressKey, { theme: { components: { Callout } } } as unknown as PressState);
   expect(await renderToString(app)).toBe("<aside>callout</aside>");
 });
 

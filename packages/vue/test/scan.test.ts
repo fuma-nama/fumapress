@@ -58,20 +58,21 @@ function pluginOf(options: PressOptions, name: string): any {
   return plugins.find((plugin) => plugin.name === name);
 }
 
-test("a site without the default theme imports nothing of it, and needs a theme module", async () => {
+test("the theme module is used as written, and the default theme without one", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "press-theme-"));
-  const plugin = pluginOf({ defaultTheme: false }, "fumapress:vue");
+  const plugin = pluginOf({}, "fumapress:vue");
   await plugin.config({ root }, { command: "build" });
-  expect(() => plugin.configResolved({ command: "build" })).toThrow(
-    "`defaultTheme: false` needs a theme module with a `Layout`",
+  plugin.configResolved({ command: "build", base: "/", environments: {} });
+  expect(plugin.load("\0virtual:press/theme")).toContain(
+    'export { default } from "@fumapress/vue/theme/default"',
   );
 
   await mkdir(path.join(root, "src"));
   await writeFile(path.join(root, "src/theme.ts"), "export default {};");
-  plugin.configResolved({ command: "build" });
   const theme: string = plugin.load("\0virtual:press/theme");
-  expect(theme).not.toContain('"@fumapress/vue/theme"');
-  expect(theme).toContain("has no `Layout`");
+  // nothing of the default theme: a theme builds on it with `extends`
+  expect(theme).not.toContain("@fumapress/vue/theme/default");
+  expect(theme).toContain(`export { default } from ${JSON.stringify(`${root}/src/theme.ts`)}`);
   await rm(root, { recursive: true });
 });
 

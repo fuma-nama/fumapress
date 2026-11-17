@@ -6,11 +6,11 @@ import type { HeadTag } from "../core/types";
 export function sitePlugin(): Plugin {
   return {
     name: "core:site",
-    head({ page, pathname, data }) {
+    head({ page, pathname, pageData }) {
       const { site } = this;
-      const description = data?.description ?? site.description;
+      const description = pageData?.description ?? site.description;
 
-      const tags: HeadTag[] = [{ tag: "title", content: pageTitle(data?.title, site.name) }];
+      const tags: HeadTag[] = [{ tag: "title", content: pageTitle(pageData?.title, site.name) }];
       if (description) {
         tags.push({ tag: "meta", attrs: { name: "description", content: description } });
       }

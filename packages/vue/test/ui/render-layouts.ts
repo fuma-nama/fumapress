@@ -9,19 +9,21 @@
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import type { TestProject } from "vitest/node";
-import type { LayoutName } from "./app";
+import type { CaseName } from "./app";
 
 export interface ServerRender {
   html: string;
   /** Vue warnings and `console.warn`/`console.error` calls while rendering */
   warnings: string[];
+  /** the `.vue` files the render used, by their path from the root */
+  modules: string[];
   /** what the render threw, so one broken layout doesn't stop the tests of the others */
   error?: string;
 }
 
 declare module "vitest" {
   export interface ProvidedContext {
-    layouts: Record<LayoutName, ServerRender>;
+    layouts: Record<CaseName, ServerRender>;
   }
 }
 
@@ -38,16 +40,21 @@ export default async function setup(project: TestProject) {
     const entry = (await server.ssrLoadModule(
       "/test/ui/server-entry.ts",
     )) as typeof import("./server-entry");
-    const results = {} as Record<LayoutName, ServerRender>;
+    const results = {} as Record<CaseName, ServerRender>;
     for (const name of entry.names) {
       const logged: string[] = [];
       console.warn = console.error = (...args: unknown[]) =>
         void logged.push(args.map(String).join(" "));
       try {
-        const { html, warnings } = await entry.render(name);
-        results[name] = { html, warnings: [...warnings, ...logged] };
+        const { html, warnings, modules } = await entry.render(name);
+        results[name] = { html, warnings: [...warnings, ...logged], modules };
       } catch (error) {
-        results[name] = { html: "", warnings: logged, error: String((error as Error).stack) };
+        results[name] = {
+          html: "",
+          warnings: logged,
+          modules: [],
+          error: String((error as Error).stack),
+        };
       }
     }
     project.provide("layouts", results);

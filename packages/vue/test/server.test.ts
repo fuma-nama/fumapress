@@ -6,7 +6,7 @@ import { pressKey, type PressState } from "../src/client";
 import { getPressContext } from "../src/core/context";
 import { directionOf } from "../src/core/i18n";
 import { defineI18n, uiTranslations } from "../src/i18n";
-import type { Plugin } from "../src/core/plugin";
+import type { Plugin, ViewEnv } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
 import { recommendedPreset } from "../src/core/preset";
 import {
@@ -49,7 +49,7 @@ function handlerOf(press: Press, prerender: boolean): Get {
       await load<SiteData>(siteDataPath(lang));
       const content = await load<PageContent>(pageDataPath(pathname));
       return {
-        html: content ? `<h1>${content.data.title}</h1>` : "missing",
+        html: content ? `<h1>${content.pageData.title}</h1>` : "missing",
         status: content ? 200 : 404,
       };
     },
@@ -129,7 +129,9 @@ const press = createPress(collection.toFumadocsSource())
 const get = serve(press);
 const install: PageContent = {
   url: "/guide/install",
-  data: { title: "Install", description: "How to install", words: 17 },
+  // the frontmatter, and the page data with what plugins add
+  data: { title: "Install", description: "How to install" },
+  pageData: { title: "Install", description: "How to install", words: 17 },
   toc: [{ title: "Intro", url: "#intro", depth: 2 }],
   body: { module: "/assets/guide/install.mdx.js" },
   // what the browser shows of the head when it navigates here: the same tags as the document
@@ -269,7 +271,6 @@ test("merges options: the site's own win, then plugins in order, then the defaul
 
   // lists concatenate, and the first defined value wins
   const site: SiteData = await (await get(siteDataPath("en"))).json();
-  expect(site.layout).toBe("docs");
   expect(site.layoutProps).toEqual({
     nav: { title: "From the plugin", url: "/" },
     links: [
@@ -425,8 +426,10 @@ test("renders the pages of a custom source through content hooks", async () => {
   );
   const content: PageContent = {
     url: "/first",
-    // the date of `getPageLastModified` is in the data too, for the layout
-    data: { title: "First", lastModified: "2026-01-02T00:00:00.000Z" },
+    // the data of the file as JSON, the same in the response of the server and of the data route
+    data: notes["first.md"]!,
+    // the date of `getPageLastModified` is in the page data too, for the layout
+    pageData: { title: "First", lastModified: "2026-01-02T00:00:00.000Z" },
     toc: [{ title: "Top", url: "#top", depth: 2 }],
     body: { html: "<p>The <b>first</b> note</p>" },
     head: { title: "First" },
@@ -464,12 +467,17 @@ test("dates a Markdown page by the last commit of its file, with `lastModified: 
 
   const dated = serve(createPress(docs.toFumadocsSource()));
   const content: PageContent = await (await dated("/_press/pages/index.json")).json();
-  expect(content.data.lastModified).toBe("2026-03-04T00:00:00.000Z");
+  expect(content.pageData.lastModified).toBe("2026-03-04T00:00:00.000Z");
+  // the frontmatter as JSON, without the compiled module: a date is a string
+  expect("data" in content && content.data).toEqual({
+    title: "Home",
+    lastModified: "2026-03-04T00:00:00.000Z",
+  });
   expect(await (await dated("/sitemap.xml")).text()).toContain(
     "<lastmod>2026-03-04T00:00:00.000Z</lastmod>",
   );
   const undated: PageContent = await (await dated("/_press/pages/draft.json")).json();
-  expect(undated.data.lastModified).toBeUndefined();
+  expect(undated.pageData.lastModified).toBeUndefined();
 });
 
 test("fails for a page no plugin renders", async () => {
@@ -573,7 +581,7 @@ test("keeps the data a page or an earlier plugin has set", async () => {
     ),
   );
   const content: PageContent = await (await merged("/_press/pages/guide/install.json")).json();
-  expect(content.data).toEqual({
+  expect(content.pageData).toEqual({
     title: "Install",
     description: "How to install",
     author: "first",
@@ -610,9 +618,9 @@ test("serves the pages of plugins as views", async () => {
 
   const content: PageContent = {
     url: "/blog/hello",
-    data: { title: "Hello", description: "From the blog" },
-    toc: [],
-    body: { view: { type: "post", props: { title: "Hello" } } },
+    type: "post",
+    props: { title: "Hello" },
+    pageData: { title: "Hello", description: "From the blog" },
     head: { title: "Hello | Docs", description: "From the blog" },
   };
   const html = await (await blog("/blog/hello")).text();
@@ -648,7 +656,75 @@ test("renders a content page as a view when its plugin says so", async () => {
     }),
   );
   const content: PageContent = await (await cards("/_press/pages/first.json")).json();
-  expect(content.body).toEqual({ view: { type: "card", props: { title: "First" } } });
+  expect(content).toMatchObject({
+    data: notes["first.md"],
+    body: { view: { type: "card", props: { title: "First" } } },
+  });
+});
+
+test("sends the props of a view and the frontmatter of a page as JSON, the same on the server", async () => {
+  let rendered: PageContent | undefined;
+  const handler = createFetchHandler({
+    press: createPress({ files: noteFiles() })
+      .plugins(notesPlugin)
+      .views({
+        dated: { path: "/dated", view: () => ({ date: new Date("2026-01-02T00:00:00Z") }) },
+      }),
+    assets: { entry: "/assets/entry.js", css: [], js: [] },
+    async render({ pathname, load }) {
+      rendered = await load<PageContent>(pageDataPath(pathname));
+      return { html: "" };
+    },
+  });
+  const response = await handler(new Request("http://localhost/dated"));
+  // what the server renders with is what the browser receives: a date is a string in both
+  expect(payloadOf(await response.text())["/_press/pages/dated.json"]).toEqual(rendered);
+  expect(rendered).toMatchObject({ type: "dated", props: { date: "2026-01-02T00:00:00.000Z" } });
+});
+
+test("gives the pages of a view their data, from its params and props", async () => {
+  const tags = serve(
+    createPress(collection.toFumadocsSource())
+      .views({
+        tag: {
+          path: "/tags/[tag]",
+          staticPaths: ["news"],
+          view: ({ params }: ViewEnv) => ({ tag: params.tag, count: 2 }),
+          data: ({ params, props }) => ({ title: `${props.count} posts tagged ${params.tag}` }),
+        },
+        about: { path: "/about", data: { title: "About" }, view: () => ({}) },
+      })
+      .config({ site: { name: "Docs" } }),
+  );
+  const content: PageContent = await (await tags("/_press/pages/tags/news.json")).json();
+  expect(content.pageData).toEqual({ title: "2 posts tagged news" });
+  expect(await (await tags("/tags/news")).text()).toContain(
+    "<title>2 posts tagged news | Docs</title>",
+  );
+  expect(await (await tags("/about")).text()).toContain("<title>About | Docs</title>");
+});
+
+test("refuses a view of the site with the name of a source or of a view of a plugin", async () => {
+  const named = (name: string) => ({ [name]: { path: "/x", view: () => ({}) } });
+  // the theme renders a page by its type: one name for two kinds of pages is two pages for one component
+  const source = serve(createPress({ notes: { files: noteFiles() } }).views(named("notes")));
+  await expect(source("/")).rejects.toThrow(
+    'The view "notes" of `.views()` has the name of the source "notes"',
+  );
+
+  const plugin = serve(
+    createPress(collection.toFumadocsSource())
+      .plugins({
+        name: "blog",
+        routes({ createView }) {
+          createView({ path: "/blog", view: () => ({ type: "post", props: {} }) });
+        },
+      })
+      .views(named("post")),
+  );
+  await expect(plugin("/blog")).rejects.toThrow(
+    'The view "post" of `.views()` has the name of a view of the plugin "blog"',
+  );
 });
 
 const languages = await collectionOf({
@@ -730,7 +806,7 @@ test("serves each language at its prefix, with its own site data", async () => {
     "[安装](https://example.com/cn/guide/install)",
   );
   const view: PageContent = await (await site("/_press/pages/cn/blog.json")).json();
-  expect(view.body).toEqual({ view: { type: "blog", props: { lang: "cn" } } });
+  expect(view).toMatchObject({ type: "blog", props: { lang: "cn" } });
   expect((await prerendered(site)).paths).toEqual(
     expect.arrayContaining(["/blog", "/cn/blog", "/cn", "/_press/site/cn.json", "/cn/llms.txt"]),
   );

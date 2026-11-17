@@ -5,7 +5,7 @@ import type {
   VirtualFile,
 } from "fumadocs-core/source";
 import type { Component } from "vue";
-import type { LayoutData } from "./layouts";
+import type { LayoutProps } from "./layouts";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -136,15 +136,31 @@ export type PageBody<V = any> =
   | { html: string }
   | { view: View<V> };
 
-/** a page as the browser receives it: with the first response, then one request per navigation */
-export interface PageContent {
+/**
+ * A page as the browser receives it: with the first response, then one request per navigation. A content page has
+ * the `data` of its file and its `body`, a view has the `props` its `view` returned. Values are JSON.
+ */
+export type PageContent = {
   url: string;
-  data: PageData;
-  toc: TOCItem[];
-  body: PageBody;
+  /** `getPageData()` of a content page, the `data` of a view: its title, description and what plugins add */
+  pageData: PageData;
   /** the title and description of its `<head>`, which the browser applies when it navigates to the page */
   head: { title?: string; description?: string };
-}
+} & (
+  | {
+      /** its source key, none with one source */
+      type?: string;
+      /** the data of its file: the validated frontmatter of a collection */
+      data: Record<string, unknown>;
+      toc: TOCItem[];
+      body: PageBody;
+    }
+  | {
+      /** the name of the view */
+      type: string;
+      props: Record<string, unknown>;
+    }
+);
 
 /** the page tree of Fumadocs with text names, so the browser can receive it */
 export namespace PageTree {
@@ -206,14 +222,16 @@ export type SiteI18n = {
 );
 
 /** the data every page of a language needs, the same on each: the value of a shared data route */
-export type SiteData = LayoutData & {
+export interface SiteData {
+  /** the props every layout shares: `ui.layoutProps` over those of plugins */
+  layoutProps: LayoutProps;
   site: Pick<SiteConfig, "name" | "description">;
   tree: PageTree.Root;
   /** on a site with languages or `ui.translations` */
   i18n?: SiteI18n;
   /** the direction of the text of the language, which `<html dir>` has too */
   dir: "ltr" | "rtl";
-};
+}
 
 /** the value of a data route by its path, none without a route or a value; on the server, without a request */
 export type Load = <T = unknown>(path: string) => Promise<T | undefined>;

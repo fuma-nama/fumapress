@@ -23,33 +23,37 @@ export default createPress({ docs, changelog })
   .config({ site: { name: "Acme" } });
 ```
 
-`.views()` comes after `.plugins()` and before `.config()`, and each call is optional. `view` receives the `params` of the URL and its `lang`, and returns the props of the page. `this` is the [context](/plugins/context) of the site. The theme renders the page with the component of `views` named after the view:
+`.views()` comes after `.plugins()` and before `.config()`, and each call is optional. `view` receives the `params` of the URL and its `lang`, and returns the props of the page. `this` is the [context](/plugins/context) of the site. The theme renders the page with the component of [`views`](/theme#page-components) named after the view:
 
 ```ts title="src/theme.ts"
-import { defineAsyncComponent } from "vue";
-import type { Theme } from "@fumapress/vue/client";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import type app from "../press.config";
 
-export default {
-  views: { releases: defineAsyncComponent(() => import("./views/Releases.vue")) },
-} satisfies Partial<Theme>;
+export default defineTheme<typeof app>({
+  extends: defaultTheme,
+  // loaded by the pages of the view
+  views: { releases: () => import("./views/Releases.vue") },
+});
 ```
 
-The component receives the props, and renders the whole page with its own layout. `HomeLayout.vue` of the default theme has the navbar of your site:
+The component receives the page as its `page` prop, with the props of the view in `page.props`, and renders the whole page with its own layout. The [home layout](/ui#layouts) has the navbar of your site:
 
 ```vue title="src/views/Releases.vue"
 <script setup lang="ts">
-import { Link } from "@fumapress/vue/client";
-import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+import { Link, type PageOf } from "@fumapress/vue/client";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import type app from "../../press.config";
 
-defineProps<{ releases: { title: string; url: string }[] }>();
+defineProps<{ page: PageOf<typeof app, "releases"> }>();
 </script>
 
 <template>
   <HomeLayout>
     <div class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
-      <h1 class="mb-6 text-3xl font-semibold">Releases</h1>
+      <h1 class="mb-6 text-3xl font-semibold">{{ page.pageData.title }}</h1>
       <ul class="flex flex-col gap-2">
-        <li v-for="release in releases" :key="release.url">
+        <li v-for="release in page.props.releases" :key="release.url">
           <Link :href="release.url" class="block rounded-lg border p-4 hover:bg-fd-accent">
             {{ release.title }}
           </Link>
@@ -60,9 +64,11 @@ defineProps<{ releases: { title: string; url: string }[] }>();
 </template>
 ```
 
-`defineAsyncComponent` keeps the code of the component out of other pages: the browser loads it on the pages that show the view. A view without a component in `views` fails to render, with an error that names it.
+`defineTheme<typeof app>()` requires a component for each view, and checks that it receives the pages of its view. A view without a component also fails to render, with an error that names it.
 
-The props are sent to the browser, so every value must be serializable, like strings, numbers, lists and plain objects. `PageOf<typeof app, "releases">` of `@fumapress/vue/client` is the type of the page as the browser receives it, with its props as JSON: a `Date` is a string there.
+The props are sent to the browser, so every value must be serializable, like strings, numbers, lists and plain objects. `PageOf<typeof app, "releases">` has the props as JSON: a `Date` is a string there.
+
+A view has its own name: a name of `.views()` that is also the key of a source fails when the site starts, and one that is also the name of a view of a plugin fails when that view renders.
 
 ## Params
 
@@ -88,7 +94,22 @@ With `render: "dynamic"`, a view renders on demand, and needs a [server deployme
 
 ## Page Data
 
-`data` of a view sets the data of its pages, like the `title` and `description` of their `<head>`. The data is in `usePage()` of `@fumapress/vue/client`, so the component of a view can read it too.
+`data` of a view sets the data of its pages, like the `title` and `description` of their `<head>`. The component of the view reads it in `page.pageData`.
+
+For data that differs per page, like the title of a tag page, `data` is a function. It receives the `params` and `lang` of the page, and the `props` that `view` returned:
+
+```ts title="press.config.ts"
+createPress(docs.toFumadocsSource()).views({
+  tag: {
+    path: "/tags/[tag]",
+    staticPaths: ["news", "release"],
+    view: ({ params }) => ({ tag: params.tag }),
+    data: ({ params }) => ({ title: `Posts tagged ${params.tag}` }),
+  },
+});
+```
+
+TypeScript types `props` in `data` only when every `view` of the same `.views()` call has no parameter or an annotated one, unlike `({ params })` above. To read `props` with its type, annotate the parameter, like `view(env: ViewEnv)` with `ViewEnv` of `@fumapress/vue/config`.
 
 ## Languages
 
@@ -128,6 +149,22 @@ export function releasesPlugin<C extends AppShape>(): Plugin<
 ```
 
 `C` is the site the plugin is added to, so the hooks receive its pages and languages.
+
+The server can't send a component, so the component of a view of a plugin is in the theme. A plugin package can ship a theme with the components of its views, which a site names in `extends`:
+
+```ts title="src/theme.ts"
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import { releasesTheme } from "acme-releases/theme";
+import type app from "../press.config";
+
+export default defineTheme<typeof app>({
+  extends: [defaultTheme, releasesTheme],
+  views: releasesTheme.views,
+});
+```
+
+`defineTheme<typeof app>()` reads the components of `extends` when it is one theme. Its types can't read them in a list, so the theme above lists the components of the plugin in `views` too.
 
 A view of a plugin can return `data` with its `type` and `props`, for data that differs per page, like the title of each post. It wins over the `data` of `createView()`:
 

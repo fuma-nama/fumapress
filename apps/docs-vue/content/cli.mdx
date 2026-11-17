@@ -23,7 +23,7 @@ The CLI copies from the `@fumapress/vue` package installed in your project.
 npx @fumapress/vue-cli add theme
 ```
 
-The default theme lands in `src/theme`, where Fumapress picks it up as the [theme](/theme) of your site. Its `Layout.vue` renders the pages with the docs layout, imported from the package.
+The default theme lands in `src/theme`, where Fumapress picks up `src/theme/index.ts` as the [theme](/theme) of your site. Its `layouts/Docs.vue` renders the content pages with the docs layout, imported from the package.
 
 </Step>
 <Step>
@@ -34,12 +34,12 @@ The default theme lands in `src/theme`, where Fumapress picks it up as the [them
 npx @fumapress/vue-cli add layouts/docs
 ```
 
-The layout lands in `src/ui/layouts/docs`, and `src/theme/Layout.vue` now imports your copy:
+The layout lands in `src/ui/layouts/docs`, and `src/theme/layouts/Docs.vue` now imports your copy:
 
 ```
 + src/ui/layouts/docs/DocsLayout.vue
 ...
-~ src/theme/Layout.vue (now imports your copy)
+~ src/theme/layouts/Docs.vue (now imports your copy)
 ```
 
 </Step>
@@ -74,7 +74,7 @@ They are `theme` and the modules of the [UI](/ui/components), by their path unde
 npx @fumapress/vue-cli add components/card components/callout
 ```
 
-`add theme` copies the default theme: its `Root`, `Layout`, `HomeLayout`, `NotFound`, Markdown components and stylesheet.
+`add theme` copies the default theme: the base theme with its `Root`, `NotFound`, Markdown components and stylesheet, and the docs and home layouts in `layouts`. The `index.ts` of the copy is the default theme, which you edit like your own theme. Another layout, like `@fumapress/vue/theme/layouts/notebook`, is copied when a file of your project imports it, and the files of `src/theme` then import the copy.
 
 ## Options
 

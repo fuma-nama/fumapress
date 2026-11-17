@@ -7,8 +7,8 @@ const help = `Copies the UI of @fumapress/vue into your project, to change it.
 
 Usage
   fumapress-vue list                 the modules you can copy
-  fumapress-vue add <module...>      copy modules, like \`layouts/docs\` or \`components/card\`
-  fumapress-vue add theme            copy the default theme, which wires the UI to your site
+  fumapress-vue add <module...>      copy modules of the UI, like \`layouts/docs\` or \`components/card\`
+  fumapress-vue add theme            copy the default theme: the base theme, the docs and home layouts, and the layouts the project imports
 
 A copy imports the rest of the UI from the package, and your other copies from your project.
 

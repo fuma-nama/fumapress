@@ -1,5 +1,6 @@
 import type { ComponentOptions } from "vue";
 import { renderToString } from "vue/server-renderer";
+import { resolveTheme } from "@fumapress/vue/client";
 import { createFetchHandler } from "@fumapress/vue/server";
 import press from "virtual:press/config";
 import { routes } from "virtual:press/routes";
@@ -17,7 +18,7 @@ export default {
     press,
     base: import.meta.env.BASE_URL,
     assets: clientAssets,
-    head: theme.head,
+    head: resolveTheme(theme).head,
     // a fact of the build: Nitro replaces it in the server it prerenders with, and in the one it deploys
     prerender: import.meta.prerender === true,
     customPages: routes.map((route) => route.path),
@@ -35,9 +36,9 @@ export default {
       return {
         html: await renderToString(app),
         // a URL without a custom page is a content page or a view, or nothing
-        status: !record && !state.page.value ? 404 : 200,
+        status: !record && !state.shown.value ? 404 : 200,
         // a custom page names its title and description in its options
-        data: record ? (component as ComponentOptions).page : undefined,
+        pageData: record ? (component as ComponentOptions).page : undefined,
         assets: clientAssets.merge(...devAssets, ...pageAssets),
       };
     },

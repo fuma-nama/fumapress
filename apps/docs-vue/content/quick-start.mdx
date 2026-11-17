@@ -103,7 +103,7 @@ See [Configuration](/config) for the other options.
 
 ## TypeScript
 
-A site needs no TypeScript. To type-check your config, theme and pages, install `typescript` and `vue-tsc`, and add a `tsconfig.json`:
+A site needs no TypeScript. To type-check your config, theme and pages, install `typescript@6` and `vue-tsc`, and add a `tsconfig.json`. `vue-tsc` runs on the JavaScript API of TypeScript, which TypeScript 7 doesn't have.
 
 ```json title="tsconfig.json"
 {

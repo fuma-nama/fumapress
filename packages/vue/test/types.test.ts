@@ -1,6 +1,6 @@
 import { expectTypeOf, test } from "vitest";
-import type { Component } from "vue";
-import type { PageOf as ClientPageOf } from "@fumapress/vue/client";
+import { defineComponent, h, type Component, type PropType } from "vue";
+import { usePage, type PageData, type PageOf as ClientPageOf } from "@fumapress/vue/client";
 import {
   createPress,
   recommendedPreset,
@@ -13,6 +13,7 @@ import {
   type PressPageType,
   type Source,
   type SourcePage,
+  type ViewEnv,
 } from "@fumapress/vue/config";
 import {
   defineCollections,
@@ -22,6 +23,11 @@ import {
 } from "@fumapress/vue/content";
 import { defineI18n, defineTranslations, uiTranslations } from "@fumapress/vue/i18n";
 import { metaSchema, pageSchema } from "@fumapress/vue/schema";
+import { baseTheme, defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import DocsLayout from "@fumapress/vue/theme/layouts/docs";
+import GlassLayout from "@fumapress/vue/theme/layouts/glass";
+import NotebookLayout from "@fumapress/vue/theme/layouts/notebook";
 import { z } from "zod";
 
 // The guarantees of the types of the builder, read from the declarations of the build like a site reads them: a
@@ -81,9 +87,7 @@ const app = site
       sitemap: { filter: (page) => page.type !== "blog" || page.data.tags.length > 0 },
     }),
     ui: {
-      layout: "notebook",
-      layoutProps: { tabMode: "navbar", links: [{ text: "Blog", url: "/blog" }] },
-      pageProps: { tableOfContent: { style: "clerk" } },
+      layoutProps: { links: [{ text: "Blog", url: "/blog" }] },
       translations: i18n
         .translations()
         .extend(uiTranslations())
@@ -144,10 +148,12 @@ test("unknown keys are type errors", () => {
   createPress(docs, { unknown: true });
   // @ts-expect-error: the plugins of the site go in `.plugins()`
   createPress(docs, { plugins: [] });
-  // @ts-expect-error: not a layout
-  site.config({ ui: { layout: "book" } });
-  // @ts-expect-error: a prop of the notebook layout, on the docs layout
+  // @ts-expect-error: the theme picks the layout
+  site.config({ ui: { layout: "notebook" } });
+  // @ts-expect-error: the config has the props every layout shares, the theme the others
   site.config({ ui: { layoutProps: { tabMode: "navbar" } } });
+  // @ts-expect-error: the props of the page are in the theme
+  site.config({ ui: { pageProps: { full: true } } });
 });
 
 test("a plugin returns the views it declares", () => {
@@ -188,9 +194,16 @@ test("the views of the site and of its plugins reach `PageOf`", () => {
     releases: { version: string; date: string }[];
   }>();
 
+  expectTypeOf<Index["pageData"]>().toEqualTypeOf<PageData>();
+
+  // a content page: its frontmatter as JSON, its page data, its table of contents and its content
   type Post = PageOf<typeof app, "blog">;
+  expectTypeOf<Post["type"]>().toEqualTypeOf<"blog">();
   expectTypeOf<Post["data"]>().toEqualTypeOf<{ title: string; date: string; tags: string[] }>();
+  expectTypeOf<Post["pageData"]>().toEqualTypeOf<PageData>();
   expectTypeOf<Post["Content"]>().toEqualTypeOf<Component>();
+  // @ts-expect-error: a content page has no props without a plugin rendering it as a view
+  void ({} as Post).props;
   expectTypeOf<ClientPageOf<typeof app, "docs">>().toEqualTypeOf<PageOf<typeof app, "docs">>();
 
   // @ts-expect-error: no view of this name
@@ -284,4 +297,164 @@ test("the content of a site is sources: a collection is one through `toFumadocsS
     createPress({ notes: { baseDir: "notes", files: [] } });
   }
   void content;
+});
+
+test("the data of the pages of a view can come from its params and props", () => {
+  site.views({
+    "blog.tag": {
+      path: "/blog/tags/[tag]",
+      staticPaths: ["news"],
+      view: ({ params }) => ({ tag: params.tag ?? "" }),
+      data: ({ params, lang }) => {
+        expectTypeOf(lang).toEqualTypeOf<"en" | "cn">();
+        return { title: `Posts tagged ${params.tag}` };
+      },
+    },
+  });
+  // TypeScript infers the props `data` receives when the parameter of `view` is annotated or absent
+  site.views({
+    "blog.count": {
+      path: "/blog/count",
+      view: (env: ViewEnv<"en" | "cn">) => ({ count: env.lang.length }),
+      data: ({ props }) => {
+        expectTypeOf(props).toEqualTypeOf<{ count: number }>();
+        return { title: `${props.count} posts` };
+      },
+    },
+  });
+});
+
+/** a site with one source and no views */
+const single = createPress(docs).config({});
+
+/** a component whose one prop is the page of the type `K` of the test site */
+function viewOf<K extends PressPageType<typeof app>>() {
+  return defineComponent({
+    props: { page: { type: Object as PropType<PageOf<typeof app, K>>, required: true } },
+    setup: () => () => null,
+  });
+}
+
+test("a theme gives each page type of the site a component that receives its pages", () => {
+  const Post = viewOf<"blog">();
+  const Index = viewOf<"blog.index">();
+  const Releases = viewOf<"releases">();
+  // a functional component and a function importing the component check the page the same way
+  const Docs = (props: { page: PageOf<typeof app, "docs"> }) => h("p", props.page.url);
+  Docs.props = ["page"];
+  const lazyIndex = async () => ({ default: Index });
+
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    views: { blog: Post, docs: Docs, "blog.index": lazyIndex, releases: Releases },
+  });
+  // the built-in UI renders any content page
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    views: { default: DocsLayout, docs: DocsLayout, "blog.index": Index, releases: Releases },
+  });
+
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    // @ts-expect-error: not a page type of the site
+    views: { "blog.post": Post, "blog.index": Index, releases: Releases },
+  });
+  // @ts-expect-error: the view `releases` has no component
+  defineTheme<typeof app>({ extends: defaultTheme, views: { "blog.index": Index } });
+  // @ts-expect-error: a view without a component, with no theme to build on
+  defineTheme<typeof app>({ views: { "blog.index": Index } });
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    // @ts-expect-error: the component of the posts of the blog receives a view of releases
+    views: { blog: Releases, "blog.index": Index, releases: Releases },
+  });
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    // @ts-expect-error: the same, imported by a function
+    views: { "blog.index": async () => ({ default: Releases }), releases: Releases },
+  });
+  defineTheme<typeof app>({
+    extends: defaultTheme,
+    // @ts-expect-error: the built-in UI renders content pages, not views
+    views: { "blog.index": DocsLayout, releases: Releases },
+  });
+
+  // a theme whose views have components for the page types of the site satisfies them
+  const plugin = { views: { default: DocsLayout, releases: Releases } };
+  defineTheme<typeof app>({ extends: plugin, views: { "blog.index": Index } });
+  defineTheme<typeof app>({
+    extends: { views: { default: DocsLayout, releases: Releases, "blog.index": Index } },
+  });
+  // @ts-expect-error: a theme without the component of `blog.index`
+  defineTheme<typeof app>({ extends: plugin });
+
+  // content pages need their own component or `views.default`, which the base theme doesn't have
+  // @ts-expect-error: no component for the pages of `docs` and `blog`
+  defineTheme<typeof app>({
+    extends: baseTheme,
+    views: { "blog.index": Index, releases: Releases },
+  });
+  defineTheme<typeof app>({
+    extends: baseTheme,
+    views: { docs: Docs, blog: Post, "blog.index": Index, releases: Releases },
+  });
+
+  // a theme of a site without views needs a component for its content pages, and checks nothing without the type
+  // of the site
+  defineTheme<typeof single>({ views: { default: DocsLayout } });
+  // @ts-expect-error: no component for the content pages
+  defineTheme<typeof single>({ extends: baseTheme });
+  defineTheme<typeof single>({ extends: defaultTheme });
+  defineTheme({ views: { anything: Post } });
+});
+
+/** the props of a component that is a function, like a `.vue` file with `generic` */
+type PropsOf<C extends (props: never) => unknown> = Parameters<C>[0];
+
+test("the options of the built-in UI are typed by its layout", () => {
+  const page = {} as PageOf<typeof app, "docs">;
+  const ofDocs: PropsOf<typeof DocsLayout> = { page, layoutProps: { tabMode: "top" } };
+  const ofNotebook: PropsOf<typeof NotebookLayout> = {
+    page,
+    layoutProps: { tabMode: "navbar", nav: { mode: "top" } },
+    pageProps: { tableOfContentPopover: { enabled: false } },
+  };
+  // @ts-expect-error: a prop of the notebook layout, on the docs layout
+  const wrong: PropsOf<typeof DocsLayout> = { page, layoutProps: { tabMode: "navbar" } };
+  const ofGlass: PropsOf<typeof GlassLayout> = {
+    page,
+    // @ts-expect-error: the page of the glass layout has no breadcrumb
+    pageProps: { breadcrumb: {} },
+  };
+  // components and functions, which the config can't hold
+  const slots: PropsOf<typeof DocsLayout> = {
+    page,
+    layoutProps: { nav: { title: defineComponent(() => () => h("b", "Press")) } },
+  };
+  void [ofDocs, ofNotebook, wrong, ofGlass, slots];
+
+  // the base theme with another layout for content pages
+  defineTheme<typeof app>({
+    extends: baseTheme,
+    views: {
+      default: NotebookLayout,
+      "blog.index": viewOf<"blog.index">(),
+      releases: viewOf<"releases">(),
+    },
+  });
+});
+
+test("`usePage()` narrows by the type of the page", () => {
+  function read() {
+    const page = usePage<typeof app>().value;
+    if (page?.type === "blog") {
+      expectTypeOf(page.data.tags).toEqualTypeOf<string[]>();
+      expectTypeOf(page.Content).toEqualTypeOf<Component>();
+    } else if (page?.type === "blog.index") {
+      expectTypeOf(page.props.posts).toEqualTypeOf<({ url: string; date: string } | null)[]>();
+    }
+    // the page of any site
+    expectTypeOf(usePage().value?.pageData).toEqualTypeOf<PageData | undefined>();
+  }
+  void read;
 });

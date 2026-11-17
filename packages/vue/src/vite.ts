@@ -18,9 +18,9 @@ export type { MarkdownOptions } from "./vite/compile";
 
 export interface PressOptions {
   /**
-   * A module that default-exports the theme of the site, merged over the default theme: its `Layout`, the
-   * `components` of Markdown, the `views` of plugin pages and the `icons` of the page tree. It runs on the server and
-   * in the browser.
+   * A module that default-exports the theme of the site: the components of its pages and of Markdown, and the icons
+   * of the page tree. It is used as written, and builds on the default theme when it names it in `extends`. It runs
+   * on the server and in the browser. A site without one uses the default theme.
    *
    * The stylesheet of the site is `src/theme.css` (or `src/theme/style.css`) when the file exists, in place of the
    * default one, wherever this option points.
@@ -28,13 +28,6 @@ export interface PressOptions {
    * @defaultValue "src/theme.ts" or "src/theme/index.ts", when the file exists
    */
   theme?: string;
-  /**
-   * Build on the default theme: `false` leaves its layout, root provider and Markdown components out of the site, whose
-   * theme module then gives its `Layout`.
-   *
-   * @defaultValue true
-   */
-  defaultTheme?: boolean;
   /** custom pages, a `.vue` file is a route by its path @defaultValue "src/pages" */
   pagesDir?: string;
   /** how every Markdown file of the site compiles: the collections share them */
@@ -73,7 +66,6 @@ function core(options: PressOptions, site: Site): Plugin {
   let pagesDir = "";
 
   const str = (value: unknown) => JSON.stringify(value);
-  const fromRoot = (file: string) => normalizePath(path.relative(root, file));
   const find = (names: string[]) =>
     names.map((name) => path.join(root, name)).find((name) => existsSync(name));
 
@@ -102,45 +94,13 @@ function core(options: PressOptions, site: Site): Plugin {
     );
   }
 
-  /** the theme module of the site, none without one: required without the default theme, which has the layout */
-  function ownTheme(): string | undefined {
-    const own = options.theme ? path.resolve(root, options.theme) : find(themeFiles);
-    if (!own && options.defaultTheme === false) {
-      throw new Error(
-        "[Fumapress] `defaultTheme: false` needs a theme module with a `Layout`: create `src/theme.ts`, or set the `theme` option.",
-      );
-    }
-    return own;
-  }
-
   function loadTheme() {
     // one stylesheet: the one of the site in place of the default one, never both
     const style = find(styleFiles);
     const css = `import ${str(style ? normalizePath(style) : "@fumapress/vue/theme/style.css")};\n`;
-    // without the default theme, nothing of it is imported: its code is not in the site
-    const base =
-      options.defaultTheme === false
-        ? "const base = {};\n"
-        : 'import base from "@fumapress/vue/theme";\n';
-
-    const own = ownTheme();
-    if (!own) return `${css}export { default } from "@fumapress/vue/theme";\n`;
-    // maps and lists add to the default ones, the rest replaces them
-    return `${css}${base}import user from ${str(normalizePath(own))};
-const maps = (key) => ({ ...base[key], ...user[key] });
-const theme = {
-  ...base,
-  ...user,
-  components: maps("components"),
-  views: maps("views"),
-  icons: maps("icons"),
-  head: [...(base.head ?? []), ...(user.head ?? [])],
-};
-if (!theme.Layout) {
-  throw new Error(${str(`[Fumapress] The theme module ${fromRoot(own)} has no \`Layout\`, which renders the pages of the content.`)});
-}
-export default theme;
-`;
+    // the theme module as written, which names what it builds on in `extends`; the default theme without one
+    const own = options.theme ? path.resolve(root, options.theme) : find(themeFiles);
+    return `${css}export { default } from ${str(own ? normalizePath(own) : "@fumapress/vue/theme/default")};\n`;
   }
 
   return {
@@ -201,7 +161,6 @@ export default theme;
     configResolved(config) {
       isDev = config.command === "serve";
       pagesDir = path.resolve(root, pagesPath);
-      ownTheme();
     },
     configureServer(server) {
       /** loads virtual modules again, on the server and in the browser */

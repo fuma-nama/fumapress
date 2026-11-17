@@ -109,13 +109,13 @@ createPress(docs.toFumadocsSource()).config({
 
 An `href` or `src` that is a path of your site, like `/favicon.svg` above, gets the [base path](/deploy#base-path).
 
-For tags that depend on the page, pass a function. It receives the `pathname` and `lang` of the page, and on content pages and views, the `page` and its `data`.
+For tags that depend on the page, pass a function. It receives the `pathname` and `lang` of the page, its `pageData` (the title and description of a content page, a view or a custom page), and the `page` of a content page.
 
 ```ts title="press.config.ts"
 createPress(docs.toFumadocsSource()).config({
-  head({ data }) {
-    if (!data?.title) return;
-    return [{ tag: "meta", attrs: { property: "og:title", content: data.title } }];
+  head({ pageData }) {
+    if (!pageData?.title) return;
+    return [{ tag: "meta", attrs: { property: "og:title", content: pageData.title } }];
   },
 });
 ```
@@ -124,11 +124,13 @@ A tag with a key replaces the tag of the same key from plugins and defaults. The
 
 ## Layout Props
 
-`ui.layoutProps` sets the navbar of every layout:
+`ui.layoutProps` sets the props that every layout shares, like the links of the navbar. The [theme](/ui#choosing-a-layout) picks the layout.
 
 - `nav`: the `title` of the navbar and the `url` it links to. They default to `site.name` and the home page.
 - `links`: links in the navbar, each with `text`, `url` and an optional `external`. A link with `type: "menu"` has `items`, the links of its menu.
 - `githubUrl`: the GitHub link of the navbar, set by `site.git`.
+- `themeSwitch` and `searchToggle`: the light and dark switch and the search button.
+- `tabs`: the tabs of the sidebar, or `false` for none. They default to the root folders of the page tree.
 
 ```ts title="press.config.ts"
 createPress(docs.toFumadocsSource()).config({
@@ -158,7 +160,7 @@ createPress(docs.toFumadocsSource(), { i18n }).config({
 ```
 
 :::note
-Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. Their types have no components, which belong in the [theme](/theme).
+Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. The props of one layout, the props of its page, and values like components go in the [`layoutProps` and `pageProps`](/ui#layout-and-page-props) of the layout in your theme.
 :::
 
 ## Default Plugins
@@ -209,3 +211,4 @@ Plugins return head tags and layout props too. Your own options win, then plugin
 
 - Head tags merge by key, as described in [Head](#head).
 - In layout props, the first value set wins, while lists like `links` concatenate: your links come first.
+- The [`layoutProps`](/ui#layout-and-page-props) of a layout in the theme win over `ui.layoutProps`, with the same merge.

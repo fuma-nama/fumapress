@@ -1,11 +1,12 @@
 export { createPress } from "./core/press";
 export type {
+  AnySiteView,
   ContentInput,
   ContentOptions,
+  ContentPage,
   ContentPageOf,
   InferAppShape,
   InferI18nConfig,
-  LayoutOptions,
   PageOf,
   Press,
   PressApp,
@@ -19,6 +20,7 @@ export type {
   SiteView,
   SourcePage,
   UIOptions,
+  ViewPage,
   ViewPageOf,
 } from "./core/press";
 export { recommendedPreset, type RecommendedPresetOptions } from "./core/preset";
@@ -48,15 +50,7 @@ export type {
   ViewRoute,
   ViewRouteOptions,
 } from "./core/plugin";
-export type {
-  DefaultLayouts,
-  LayoutData,
-  LayoutName,
-  LayoutProps,
-  LayoutTab,
-  LinkItem,
-  NavOptions,
-} from "./core/layouts";
+export type { LayoutProps, LayoutTab, LinkItem, NavOptions } from "./core/layouts";
 export type {
   HeadTag,
   Jsonify,

@@ -19,7 +19,7 @@ export function pagesPlugin(translations?: TranslationsAPI | SingularTranslation
           render: this.getContentRender(),
           shared: true,
           data: async (): Promise<SiteData> => ({
-            ...(await this.getLayout({ lang })),
+            layoutProps: await this.getLayoutProps({ lang }),
             site: { name: this.site.name, description: this.site.description },
             tree: this.getPageTree(lang),
             i18n: siteI18n(this.i18n, translations, lang),

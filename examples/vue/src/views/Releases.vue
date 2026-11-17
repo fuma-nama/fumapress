@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { Link } from "@fumapress/vue/client";
-import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+import { Link, type PageOf } from "@fumapress/vue/client";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import type app from "../../press.config";
 
-// the props of the `releases` view, from the plugin in `press.config.ts`
-defineProps<{ releases: { title: string; url: string }[] }>();
+// a page of the `releases` view of `press.config.ts`
+defineProps<{ page: PageOf<typeof app, "releases"> }>();
 </script>
 
 <template>
   <HomeLayout>
     <div class="page">
-      <h1>Releases</h1>
+      <h1>{{ page.pageData.title }}</h1>
       <ul>
-        <li v-for="release in releases" :key="release.url">
+        <li v-for="release in page.props.releases" :key="release.url">
           <Link :href="release.url" class="release">{{ release.title }}</Link>
         </li>
       </ul>

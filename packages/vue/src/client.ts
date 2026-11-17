@@ -5,14 +5,15 @@ import {
   inject,
   mergeProps,
   shallowRef,
-  type App,
   type Component,
   type InjectionKey,
+  type Ref,
   type ShallowRef,
 } from "vue";
 import type { Router } from "./router";
 import { pageTitle } from "./core/head";
 import { localeOf } from "./core/i18n";
+import type { ContentPage, PageOf, Press, PressPageType, ViewPage } from "./core/press";
 import {
   encodePath,
   normalizePath,
@@ -22,9 +23,10 @@ import {
   siteDataPath,
 } from "./core/routes";
 import type { LayoutProps } from "./core/layouts";
+import type { Theme } from "./core/theme";
 import type {
-  HeadTag,
   Load,
+  PageBody,
   PageContent,
   PageData,
   PageModule,
@@ -34,6 +36,7 @@ import type {
 } from "./core/types";
 
 export { pageTitle, safeHref, searchIndexPath };
+export { mergeOptions } from "./core/merge";
 
 declare module "vue" {
   interface ComponentCustomOptions {
@@ -64,41 +67,61 @@ export type {
   SiteI18n,
   TOCItem,
 } from "./core/types";
+export type { LayoutProps, LayoutTab, LinkItem, NavOptions } from "./core/layouts";
 export type {
-  LayoutData,
-  LayoutName,
-  LayoutProps,
-  LayoutTab,
-  LinkItem,
-  NavOptions,
-} from "./core/layouts";
-export type { PageOf, PressContext, PressLang, PressPageType } from "./core/press";
-
-/** the page on screen: what the server sent, with its body as a component */
-export interface LoadedPage extends Omit<PageContent, "body"> {
-  /** the content: compiled Markdown renders with the `components` of the theme, which a `components` prop adds to */
-  Content: Component;
-  /** on the page of a plugin, the type of its view: `Content` is the component of `views`, with its own layout */
-  view?: string;
-}
+  ContentPage,
+  ContentPageOf,
+  PageOf,
+  PressContext,
+  PressLang,
+  PressPageType,
+  ViewPage,
+  ViewPageOf,
+} from "./core/press";
+export type { Theme, ThemeOptions, ThemeViews, ViewComponent } from "./core/theme";
 
 /**
- * The UI of a site: `Layout` renders every content page and view, `components` are available in Markdown by name. A
- * theme module is loaded on the server and in the browser.
+ * A page of any site as the browser receives it: a content page, a content page a plugin renders as a view (with
+ * its `props` in place of `Content`), or a view.
  */
-export interface Theme {
-  /** around every page of the app, custom pages too: its default slot is the page. For providers. */
-  Root?: Component;
-  Layout: Component;
-  components?: Record<string, Component>;
-  /** the components rendering the pages of plugins, by the `type` of their view: each renders its own layout */
-  views?: Record<string, Component>;
-  /** the icons of the page tree by name: an `icon` of a page or a folder without one here stays text, like an emoji */
-  icons?: Record<string, Component>;
-  /** tags of every page, like a script that runs before the first paint */
-  head?: HeadTag[];
-  /** register Vue plugins and the hooks of the router, before the app loads its first page */
-  enhanceApp?: (ctx: { app: App; router: Router }) => void;
+export type LoadedPage =
+  | ContentPage
+  | (Omit<ContentPage, "Content"> & { props: object })
+  | ViewPage;
+
+/** a page ready to render: the component of `views` for its type receives it as `page` */
+export interface ShownPage {
+  page: LoadedPage;
+  component: Component;
+  /** the title and description of its `<head>`, which the browser applies when it navigates to the page */
+  head: PageContent["head"];
+}
+
+/** a theme with the themes it extends merged into it */
+export type ResolvedTheme = Omit<Theme, "extends" | "views" | "components" | "icons" | "head"> &
+  Required<Pick<Theme, "views" | "components" | "icons" | "head">>;
+
+/**
+ * Merges a theme with the themes it extends: maps merge with the entries of the theme winning, lists are joined,
+ * every `enhanceApp` runs, and the theme's `Root` and `NotFound` replace theirs. A later theme of a list wins.
+ */
+export function resolveTheme(theme: Theme): ResolvedTheme {
+  const themes = [...[theme.extends ?? []].flat().map(resolveTheme), theme];
+  const last = <K extends "Root" | "NotFound">(key: K) =>
+    themes.findLast((each) => each[key])?.[key];
+  const map = <K extends "views" | "components" | "icons">(key: K): ResolvedTheme[K] =>
+    Object.assign({}, ...themes.map((each) => each[key]));
+  const hooks = themes.flatMap((each) => each.enhanceApp ?? []);
+
+  return {
+    Root: last("Root"),
+    NotFound: last("NotFound"),
+    views: map("views"),
+    components: map("components"),
+    icons: map("icons"),
+    head: themes.flatMap((each) => each.head ?? []),
+    enhanceApp: hooks.length > 0 ? (ctx) => hooks.forEach((hook) => hook(ctx)) : undefined,
+  };
 }
 
 export interface PressState {
@@ -106,9 +129,9 @@ export interface PressState {
   lang: string;
   /** the data every page of the language needs: the site's info, the layout props and the page tree */
   site: SiteData;
-  page: ShallowRef<LoadedPage | undefined>;
-  components: Record<string, Component>;
-  views: Record<string, Component>;
+  theme: ResolvedTheme;
+  /** the page on screen, none on custom pages and URLs without a page */
+  shown: ShallowRef<ShownPage | undefined>;
   /** the value of a data route of the server, by its path */
   load: Load;
 }
@@ -172,13 +195,13 @@ export async function createPressState(
 ): Promise<PressState> {
   const site = await load<SiteData>(siteDataPath(lang));
   if (!site) throw new Error("[Fumapress] The data of the site failed to load.");
+  const resolved = resolveTheme(theme);
 
   return {
     lang,
-    site: theme.icons ? { ...site, tree: withIcons(site.tree, theme.icons) } : site,
-    page: shallowRef(),
-    components: theme.components ?? {},
-    views: theme.views ?? {},
+    site: { ...site, tree: withIcons(site.tree, resolved.icons) },
+    theme: resolved,
+    shown: shallowRef(),
     load,
   };
 }
@@ -187,47 +210,75 @@ function contentOf(state: PressState, url: string): Promise<PageContent | undefi
   return state.load<PageContent>(pageDataPath(url));
 }
 
-/** the component of a body: the server has the module, the browser imports it by its URL */
-async function bodyOf(state: PressState, { body }: PageContent): Promise<Component> {
+/** the content of a page as a component: the server has the module, the browser imports it by its URL */
+async function contentComponent(body: Exclude<PageBody, { view: unknown }>): Promise<Component> {
   if ("html" in body) return () => h("div", { innerHTML: body.html });
-  if ("view" in body) {
-    const { type, props } = body.view;
-    const View = state.views[type];
-    if (!View) {
-      throw new Error(
-        `[Fumapress] No component renders the view "${type}": add it to \`views\` of the theme.`,
-      );
-    }
-    return () => h(View, props);
-  }
   const mod: PageModule = await (body.load?.() ?? import(/* @vite-ignore */ body.module));
   return mod.default as Component;
 }
 
-/** the page of a URL, ready to render: a content page or the view of a plugin, none when the URL has neither */
+/** a component, not a function importing one: a functional component declares its props, as in Vue Router */
+function isComponent(value: object): value is Component {
+  return typeof value === "object" || "props" in value || "displayName" in value;
+}
+
+/** the component of `views` for a page type, imported when it is a function: content types fall back to `default` */
+async function viewOf(state: PressState, type: string | undefined, content: boolean) {
+  const { views } = state.theme;
+  const own = type !== undefined && Object.hasOwn(views, type) ? views[type] : undefined;
+  const view = own ?? (content ? views.default : undefined);
+  if (!view) {
+    const key = content ? "default" : type;
+    throw new Error(
+      `[Fumapress] The theme has no \`views["${key}"]\` for the pages of ${type ?? "the content"}.`,
+    );
+  }
+  if (isComponent(view)) return view;
+  const loaded = await (view as () => Promise<Component | { default: Component }>)();
+  return "default" in loaded ? loaded.default : loaded;
+}
+
+/** a page with the component that renders it, and its content when it has one */
+async function showPage(state: PressState, url: string, content: PageContent): Promise<ShownPage> {
+  const { pageData, head } = content;
+  if (!("body" in content)) {
+    const { type, props } = content;
+    return {
+      page: { type, url, props, pageData },
+      component: await viewOf(state, type, false),
+      head,
+    };
+  }
+
+  const { type, data, toc, body } = content;
+  // a plugin renders the pages of its source as views: their component receives the props, not a content
+  if ("view" in body) {
+    const page = { type, url, data, pageData, toc, props: body.view.props };
+    return { page, component: await viewOf(state, type, false), head };
+  }
+  const [component, Content] = await Promise.all([
+    viewOf(state, type, true),
+    contentComponent(body),
+  ]);
+  return { page: { type, url, data, pageData, toc, Content }, component, head };
+}
+
+/** the page of a URL, ready to render: a content page or a view, none when the URL has neither */
 export async function loadPage(
   state: PressState,
   pathname: string,
-): Promise<LoadedPage | undefined> {
+): Promise<ShownPage | undefined> {
   const url = normalizePath(pathname);
   const content = await contentOf(state, url);
-  return (
-    content && {
-      url,
-      data: content.data,
-      toc: content.toc,
-      head: content.head,
-      Content: await bodyOf(state, content),
-      view: "view" in content.body ? content.body.view.type : undefined,
-    }
-  );
+  return content && showPage(state, url, content);
 }
 
-/** requests the content of a page ahead of a navigation, like when a link to it is hovered */
+/** loads a page ahead of a navigation, like when a link to it is hovered: its content and its component */
 export function prefetchPage(state: PressState, pathname: string): void {
   // a failed request is made again by the navigation, which reports it
-  contentOf(state, normalizePath(pathname))
-    .then((content) => content && bodyOf(state, content))
+  const url = normalizePath(pathname);
+  contentOf(state, url)
+    .then((content) => content && showPage(state, url, content))
     .catch(() => {});
 }
 
@@ -256,7 +307,7 @@ export function usePress(): PressState {
  * renders, so a file that a page imports has them too.
  */
 export function useMDXComponents(): Record<string, Component> {
-  return inject(pressKey, undefined)?.components ?? {};
+  return inject(pressKey, undefined)?.theme.components ?? {};
 }
 
 /** loads the value of a data route of a plugin: with the page on the first render, by request afterwards */
@@ -268,9 +319,16 @@ export function useSite(): Pick<SiteConfig, "name" | "description"> {
   return usePress().site.site;
 }
 
-/** the content page on screen, undefined on custom pages and the not found page */
-export function usePage(): ShallowRef<LoadedPage | undefined> {
-  return usePress().page;
+/**
+ * The page on screen: a content page or a view, none on custom pages and URLs without a page. `usePage<typeof app>()`
+ * types it as one of the pages of the site, which narrow by their `type`.
+ */
+export function usePage<A extends Press<any, any> = never>(): Readonly<
+  Ref<([A] extends [never] ? LoadedPage : PageOf<A, PressPageType<A>>) | undefined>
+> {
+  const { shown } = usePress();
+  // the page is one of the site of `press.config`, which `A` names
+  return computed(() => shown.value?.page as never);
 }
 
 export function usePageTree(): PageTree.Root {
@@ -360,6 +418,26 @@ export const Link = defineComponent({
 export function useRouter(): Router {
   return injectRouter();
 }
+
+/**
+ * Renders a URL outside the custom pages: its page with the component of `views` for its type, or the `NotFound` of
+ * the theme. The fallback of the router.
+ */
+export const PageView = defineComponent({
+  name: "PageView",
+  setup() {
+    const { shown, theme } = usePress();
+    return () => {
+      if (shown.value) return h(shown.value.component, { page: shown.value.page });
+      if (!theme.NotFound) {
+        throw new Error(
+          "[Fumapress] The theme has no `NotFound`, which renders a URL without a page: add one, or extend the default theme.",
+        );
+      }
+      return h(theme.NotFound);
+    };
+  },
+});
 
 /** renders the page the app is at */
 export const RouterView = defineComponent({

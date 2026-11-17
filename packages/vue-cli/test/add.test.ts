@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, expect, test } from "vitest";
 import { add, listUnits, type Project } from "../src/add";
 
+const toPosix = (file: string) => file.split(path.sep).join("/");
+
 const packageDir = fileURLToPath(new URL("../../vue", import.meta.url));
 const dirs: string[] = [];
 
@@ -92,10 +94,53 @@ test("a copy imports the rest of the UI from the package", () => {
   expect(body).toContain('from "../slots/container"');
 });
 
+test("a copy of the theme is the theme module of the site: the default theme with the layouts it uses", () => {
+  const target = project();
+  const { written } = add(target, ["theme"]);
+  const copied = written.map((file) => toPosix(path.relative(target.themeDir, file)));
+  expect(readFileSync(path.join(target.themeDir, "index.ts"), "utf8")).toBe(
+    readFileSync(path.join(packageDir, "theme/default.ts"), "utf8"),
+  );
+  // the base theme, the docs layout of `views.default`, and the home layout of the not found page
+  expect(copied).toEqual(
+    expect.arrayContaining([
+      "base.ts",
+      "components.ts",
+      "layouts/Docs.vue",
+      "layouts/Home.vue",
+      "layouts/index.ts",
+    ]),
+  );
+  // the API stays in the package, and the other layouts out of the site, like the flux layout and its `motion-v`
+  for (const file of ["default.ts", "layouts/Notebook.vue", "layouts/Flux.vue"]) {
+    expect(copied).not.toContain(file);
+  }
+});
+
+test("a copy of the theme has the layouts the project imports, and the project imports the copies", () => {
+  const target = project();
+  mkdirSync(target.themeDir, { recursive: true });
+  const own = path.join(target.themeDir, "own.ts");
+  writeFileSync(own, 'import NotebookLayout from "@fumapress/vue/theme/layouts/notebook";\n');
+
+  // the theme of the package imports the notebook layout of the UI only in a layout the project imports
+  expect(add(target, ["layouts/notebook"]).unused["layouts/notebook"]).toContain("theme");
+  const { written } = add(target, ["theme"]);
+  const layout = path.join(target.themeDir, "layouts/Notebook.vue");
+  expect(written).toContain(layout);
+  expect(readFileSync(own, "utf8")).toContain('from "./layouts/Notebook.vue"');
+  expect(readFileSync(layout, "utf8")).toContain('from "../../ui/layouts/notebook"');
+});
+
+test("the theme isn't named for a layout its copy wouldn't have", () => {
+  const target = project();
+  expect(add(target, ["layouts/glass"]).unused["layouts/glass"]).not.toContain("theme");
+});
+
 test("copies use each other: files copied before import the new copy", () => {
   const target = project();
   add(target, ["theme"]);
-  const layout = path.join(target.themeDir, "Layout.vue");
+  const layout = path.join(target.themeDir, "layouts/Docs.vue");
   expect(readFileSync(layout, "utf8")).toContain('from "@fumapress/vue/ui/layouts/docs"');
   expect(readFileSync(path.join(target.themeDir, "style.css"), "utf8")).toContain(
     '@import "@fumapress/vue/style/neutral.css"',
@@ -104,8 +149,8 @@ test("copies use each other: files copied before import the new copy", () => {
   const { relinked } = add(target, ["layouts/docs"]);
   expect(relinked).toContain(layout);
   const code = readFileSync(layout, "utf8");
-  expect(code).toContain('from "../ui/layouts/docs"');
-  expect(code).toContain('from "../ui/layouts/docs/page"');
+  expect(code).toContain('from "../../ui/layouts/docs"');
+  expect(code).toContain('from "../../ui/layouts/docs/page"');
   // a module the project has no copy of stays the one of the package
   expect(readFileSync(path.join(target.themeDir, "Root.vue"), "utf8")).toContain(
     'from "@fumapress/vue/ui/provider/base"',

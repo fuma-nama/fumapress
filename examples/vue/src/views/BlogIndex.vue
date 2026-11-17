@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { Link } from "@fumapress/vue/client";
-import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+import { Link, type PageOf } from "@fumapress/vue/client";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import type app from "../../press.config";
 
-// the props of the `blog.index` view, from `press.config.ts`
-defineProps<{ posts: { title: string; url: string; date: string; tags: string[] }[] }>();
+// a page of the `blog.index` view of `press.config.ts`: `page.props` is what its `view` returned
+defineProps<{ page: PageOf<typeof app, "blog.index"> }>();
 </script>
 
 <template>
   <HomeLayout>
     <div class="page">
-      <h1>Blog</h1>
+      <h1>{{ page.pageData.title }}</h1>
       <ul>
-        <li v-for="post in posts" :key="post.url">
+        <li v-for="post in page.props.posts" :key="post.url">
           <Link :href="post.url" class="post">
             <span class="title">{{ post.title }}</span>
             <span class="info">{{ post.date }} · {{ post.tags.join(", ") }}</span>

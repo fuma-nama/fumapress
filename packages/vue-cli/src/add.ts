@@ -6,6 +6,35 @@ const PACKAGE = "@fumapress/vue";
 /** the default theme: a unit like the modules of the UI, copied to its own folder */
 const THEME = "theme";
 
+/**
+ * The files of a copy of the default theme, by their path in the copy. The folder of the theme has the API of
+ * `@fumapress/vue/theme` (`index.ts`), which the copy imports from the package, the default theme (`default.ts`), which
+ * is the `index.ts` of the copy, and the layouts: a copy has the ones its files or the project import, so the code of
+ * the others, like the flux layout and its `motion-v`, stays out of the site.
+ */
+function themeCopy(project: Project): Map<string, string> {
+  const source = sourceOf(project, THEME);
+  const layouts = path.join(source, "layouts");
+  const isLayout = (file: string) => path.dirname(file) === layouts && file.endsWith(".vue");
+  const files = new Set(
+    walk(source).filter((file) => file !== path.join(source, "index.ts") && !isLayout(file)),
+  );
+  // the layouts the project imports from the package, like `@fumapress/vue/theme/layouts/notebook`
+  for (const file of projectFiles(project.root)) {
+    for (const target of packageImportsOf(project, file)) if (isLayout(target)) files.add(target);
+  }
+  // a set iterates over what is added while it iterates: the layouts a layout imports come too
+  for (const file of files) {
+    for (const target of importsOf(file)) if (isLayout(target)) files.add(target);
+  }
+  return new Map(
+    [...files].map((file) => {
+      const relative = toPosix(path.relative(source, file));
+      return [file, relative === "default.ts" ? "index.ts" : relative];
+    }),
+  );
+}
+
 export interface Project {
   /** the folder of the project, with its `package.json` */
   root: string;
@@ -119,6 +148,31 @@ function importsOf(file: string): string[] {
   return out;
 }
 
+/** the file of the package a specifier like `@fumapress/vue/theme/layouts/docs` resolves to, by its `exports` */
+function packageFile(project: Project, specifier: string): string | undefined {
+  if (!specifier.startsWith(`${PACKAGE}/`)) return;
+  const exports = readManifest(project.packageDir).exports ?? {};
+  const key = `.${specifier.slice(PACKAGE.length)}`;
+  for (const [pattern, target] of Object.entries(exports)) {
+    const [prefix = "", suffix] = pattern.split("*");
+    if (suffix === undefined ? key !== pattern : !key.startsWith(prefix) || !key.endsWith(suffix)) {
+      continue;
+    }
+    const match = suffix === undefined ? "" : key.slice(prefix.length, key.length - suffix.length);
+    return path.join(project.packageDir, target.replace("*", match));
+  }
+}
+
+/** the files of the package a file imports by package name */
+function packageImportsOf(project: Project, file: string): string[] {
+  const out: string[] = [];
+  for (const [, , , specifier = ""] of readFileSync(file, "utf8").matchAll(IMPORT)) {
+    const target = packageFile(project, specifier);
+    if (target) out.push(target);
+  }
+  return out;
+}
+
 /** the package specifier of a file of the package: the folder of a module, or a file of `css/` or `theme/` */
 function specifierOf(project: Project, file: string): string | undefined {
   const relative = toPosix(path.relative(project.packageDir, file));
@@ -152,20 +206,27 @@ function detach(project: Project, unit: string, file: string, code: string): str
 }
 
 /**
- * The path of a module of the UI in the project, when the project has a copy of it. Only modules of the UI: a
- * project's own theme folder is not a copy of the default theme.
+ * The path of a module of the UI or a layout of the theme in the project, when the project has a copy of it. Not
+ * the other files of the theme: a project's own theme folder is not a copy of the default theme.
  */
-function localCopy(project: Project, name: string): string | undefined {
-  if (!name.startsWith("ui/")) return;
-  const dir = path.join(project.uiDir, name.slice(3));
-  return existsSync(path.join(dir, "index.ts")) ? dir : undefined;
+function localCopy(project: Project, specifier: string): string | undefined {
+  const name = specifier.slice(PACKAGE.length + 1);
+  if (name.startsWith("ui/")) {
+    const dir = path.join(project.uiDir, name.slice(3));
+    return existsSync(path.join(dir, "index.ts")) ? dir : undefined;
+  }
+  const layouts = path.join(sourceOf(project, THEME), "layouts");
+  const file = packageFile(project, specifier);
+  if (!file || path.dirname(file) !== layouts || !file.endsWith(".vue")) return;
+  const copy = path.join(project.themeDir, "layouts", path.basename(file));
+  return existsSync(copy) ? copy : undefined;
 }
 
 /** a file of the project: an import of the package goes to the copy of the project, when it has one */
 function relink(project: Project, file: string, code: string): string {
   return code.replace(IMPORT, (match, before: string, quote: string, specifier: string) => {
     if (!specifier.startsWith(`${PACKAGE}/`)) return match;
-    const copy = localCopy(project, specifier.slice(PACKAGE.length + 1));
+    const copy = localCopy(project, specifier);
     if (!copy) return match;
 
     const relative = toPosix(path.relative(path.dirname(file), copy));
@@ -207,8 +268,12 @@ export function add(
   const result: AddResult = { written: [], skipped: [], relinked: [], missing: {}, unused: {} };
   for (const unit of units) {
     const source = sourceOf(project, unit);
-    for (const file of walk(source)) {
-      const target = path.join(targetOf(project, unit), path.relative(source, file));
+    const files =
+      unit === THEME
+        ? themeCopy(project)
+        : new Map(walk(source).map((file) => [file, path.relative(source, file)]));
+    for (const [file, copy] of files) {
+      const target = path.join(targetOf(project, unit), copy);
       if (existsSync(target) && !options.overwrite) {
         result.skipped.push(target);
         continue;
@@ -255,8 +320,8 @@ function unusedCopies(project: Project, units: string[]): Record<string, string[
   if (unused.length === 0) return {};
 
   const all = listUnits(project.packageDir);
-  const ofPackage = [path.join(project.packageDir, "ui"), sourceOf(project, THEME)]
-    .flatMap((dir) => walk(dir))
+  // of the theme, the files its copy has: copying it makes them import the copy
+  const ofPackage = [...walk(path.join(project.packageDir, "ui")), ...themeCopy(project).keys()]
     .filter((file) => CODE.test(file))
     .map((file) => [file, importsOf(file)] as const);
 

@@ -1,35 +1,30 @@
-// The app of a site with one of the layouts of the UI, built like `createPressApp()` of `runtime/app.ts`, which can't
-// be imported as it is: it reads the theme and the routes from the virtual modules of the Vite plugin. The same module
-// runs on the server (`render-layouts.ts`) and in the browser (`ui-layouts.test.ts`), so both render the same data.
-import { createSSRApp, defineComponent, h, type Component } from "vue";
+// The app of a site with one of the layouts of the UI for its content pages, built like `createPressApp()` of
+// `runtime/app.ts`, which can't be imported as it is: it reads the theme and the routes from the virtual modules of
+// the Vite plugin. The same module runs on the server (`render-layouts.ts`) and in the browser
+// (`ui-layouts.test.ts`), so both render the same data.
+import { createSSRApp, defineComponent, h } from "vue";
 import {
+  PageView,
   RouterView,
   createPressState,
   createRouter,
   loadPage,
   pressKey,
   routerKey,
-  useLayoutProps,
-  usePage,
-  usePageTree,
+  type ContentPage,
   type Load,
   type Theme,
 } from "@fumapress/vue/client";
 import { pageDataPath, siteDataPath } from "../../src/core/routes";
 import type { PageContent, SiteData } from "../../src/core/types";
-import Root from "../../theme/Root.vue";
+import { baseTheme } from "../../theme";
+import defaultTheme from "../../theme/default";
+import FluxLayout from "../../theme/layouts/Flux.vue";
+import GlassLayout from "../../theme/layouts/Glass.vue";
+import NotebookLayout from "../../theme/layouts/Notebook.vue";
+import SpaciousLayout from "../../theme/layouts/Spacious.vue";
 import { Languages } from "../../ui/icons";
-import * as docs from "../../ui/layouts/docs";
-import * as docsPage from "../../ui/layouts/docs/page";
-import * as flux from "../../ui/layouts/flux";
-import * as fluxPage from "../../ui/layouts/flux/page";
-import * as glass from "../../ui/layouts/glass";
-import * as glassPage from "../../ui/layouts/glass/page";
-import { HomeLayout } from "../../ui/layouts/home";
-import * as notebook from "../../ui/layouts/notebook";
-import * as notebookPage from "../../ui/layouts/notebook/page";
-import * as spacious from "../../ui/layouts/spacious";
-import * as spaciousPage from "../../ui/layouts/spacious/page";
+import HomeLayout from "../../theme/layouts/Home.vue";
 
 /** a nested page, so the sidebar opens folders and the breadcrumb has items */
 export const PAGE_URL = "/docs/configure/theme";
@@ -37,8 +32,6 @@ export const PAGE_URL = "/docs/configure/theme";
 export const site: SiteData = {
   site: { name: "Press", description: "Docs of Press" },
   dir: "ltr",
-  layout: "docs",
-  pageProps: {},
   layoutProps: {
     nav: { title: "Press", url: "/" },
     links: [
@@ -113,7 +106,8 @@ export const site: SiteData = {
 
 export const page: PageContent = {
   url: PAGE_URL,
-  data: {
+  data: { title: "Theme", description: "Change the colors of the site." },
+  pageData: {
     title: "Theme",
     description: "Change the colors of the site.",
     githubUrl: "https://github.com/fuma-nama/fumapress/blob/dev/content/theme.mdx",
@@ -129,77 +123,76 @@ export const page: PageContent = {
   head: { title: "Theme" },
 };
 
-/** the data routes the app reads: the server answers them, the browser receives them with the document */
-const load: Load = async <T>(path: string) => {
-  if (path === siteDataPath("en")) return site as T;
-  if (path === pageDataPath(PAGE_URL)) return page as T;
+/** the URL of a view of the site, in the home layout */
+export const VIEW_URL = "/blog";
+
+const view: PageContent = {
+  url: VIEW_URL,
+  type: "blog.index",
+  props: { posts: ["Hello"] },
+  pageData: { title: "Blog" },
+  head: { title: "Blog" },
 };
 
-interface PageModule {
-  DocsPage: Component;
-  DocsTitle: Component;
-  DocsDescription: Component;
-  DocsBody: Component;
-  EditOnGitHub: Component;
-  PageLastUpdate: Component;
-}
-
-/** a docs layout with a page in it, like `theme/Layout.vue` */
-function docsLayout(DocsLayout: Component, parts: PageModule): Component {
-  return defineComponent({
-    setup() {
-      const page = usePage();
-      const tree = usePageTree();
-      const { nav, links, githubUrl } = useLayoutProps();
-
-      return () => {
-        const { data, toc, Content } = page.value!;
-        return h(DocsLayout, { tree, nav, links, githubUrl }, () =>
-          h(parts.DocsPage, { toc }, () => [
-            h(parts.DocsTitle, null, () => data.title),
-            h(parts.DocsDescription, null, () => data.description),
-            h(parts.DocsBody, null, () => h(Content)),
-            h(parts.EditOnGitHub, { href: data.githubUrl }),
-            h(parts.PageLastUpdate, { date: new Date(data.lastModified!) }),
-          ]),
-        );
-      };
-    },
-  });
-}
-
 const Home = defineComponent({
+  props: { page: Object },
   setup() {
-    const { nav, links, githubUrl } = useLayoutProps();
-    return () => h(HomeLayout, { nav, links, githubUrl }, () => h("h1", "Press"));
+    return () => h(HomeLayout, null, () => h("h1", "Press"));
   },
 });
 
-export const layouts = {
-  docs: docsLayout(docs.DocsLayout, docsPage),
-  notebook: docsLayout(notebook.DocsLayout, notebookPage),
-  glass: docsLayout(glass.DocsLayout, glassPage),
-  spacious: docsLayout(spacious.DocsLayout, spaciousPage),
-  flux: docsLayout(flux.DocsLayout, fluxPage),
-  home: Home,
-} satisfies Record<string, Component>;
+/** a component of `views` that wraps the notebook layout with options of the theme, over the config's */
+const ThemeNotebook = defineComponent({
+  props: { page: { type: Object as () => ContentPage, required: true } },
+  setup(props) {
+    return () =>
+      h(NotebookLayout, {
+        page: props.page,
+        layoutProps: { tabMode: "navbar", nav: { title: "From the theme" } },
+      });
+  },
+});
 
-export type LayoutName = keyof typeof layouts;
+const icons = { Languages };
+const views = { "blog.index": Home };
 
-export async function createTestApp(layout: LayoutName) {
-  const theme: Theme = { Root, Layout: layouts[layout], icons: { Languages } };
+/**
+ * The sites to render: the base theme with each layout for content pages, a component of `views` wrapping a layout
+ * with options over the config's, and a view in the home layout.
+ */
+export const cases = {
+  docs: { extends: defaultTheme, icons, views },
+  notebook: { extends: baseTheme, icons, views: { ...views, default: NotebookLayout } },
+  glass: { extends: baseTheme, icons, views: { ...views, default: GlassLayout } },
+  spacious: { extends: baseTheme, icons, views: { ...views, default: SpaciousLayout } },
+  flux: { extends: baseTheme, icons, views: { ...views, default: FluxLayout } },
+  theme: { extends: baseTheme, icons, views: { default: ThemeNotebook } },
+  home: { extends: baseTheme, icons, views: { default: Home } },
+} satisfies Record<string, Theme>;
+
+export type CaseName = keyof typeof cases;
+
+export async function createTestApp(name: CaseName, url = PAGE_URL) {
+  const theme = cases[name];
+  // the data routes the app reads: the server answers them, the browser receives them with the document
+  const load: Load = async <T>(path: string) => {
+    if (path === siteDataPath("en")) return site as T;
+    if (path === pageDataPath(PAGE_URL)) return page as T;
+    if (path === pageDataPath(VIEW_URL)) return view as T;
+  };
   const state = await createPressState("en", load, theme);
-  const router = createRouter({ base: "/", url: PAGE_URL, routes: [], fallback: theme.Layout });
+  const router = createRouter({ base: "/", url, routes: [], fallback: PageView });
   router.beforeEach(async (to) => {
-    const page = to.record ? undefined : await loadPage(state, to.path);
+    const shown = to.record ? undefined : await loadPage(state, to.path);
     return () => {
-      state.page.value = page;
+      state.shown.value = shown;
     };
   });
   await router.start();
 
+  const { Root } = state.theme;
   const app = createSSRApp({
-    render: () => h(Root, null, { default: () => h(RouterView) }),
+    render: () => h(Root!, null, { default: () => h(RouterView) }),
   });
   app.provide(pressKey, state);
   app.provide(routerKey, router);

@@ -1,13 +1,17 @@
-import { defineAsyncComponent } from "vue";
-import type { Theme } from "@fumapress/vue/client";
 import { BookOpen, Rocket } from "@lucide/vue";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import type app from "../press.config";
 
-// over the default theme: the components of the pages of plugins, and the icons of the page tree by name
-export default {
-  // loaded by the pages that show it
+// the default theme, with a component for the posts of the blog and for each view of the site
+export default defineTheme<typeof app>({
+  extends: defaultTheme,
+  // each is loaded by the pages that render it
   views: {
-    releases: defineAsyncComponent(() => import("./views/Releases.vue")),
-    "blog.index": defineAsyncComponent(() => import("./views/Blog.vue")),
+    blog: () => import("./views/BlogPost.vue"),
+    "blog.index": () => import("./views/BlogIndex.vue"),
+    releases: () => import("./views/Releases.vue"),
   },
+  // the icons of the page tree, by name
   icons: { BookOpen, Rocket },
-} satisfies Partial<Theme>;
+});

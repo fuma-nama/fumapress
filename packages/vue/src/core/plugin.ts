@@ -40,9 +40,9 @@ export interface PageEnv<C extends AppShape = AppShape> extends LangEnv<C> {
   page?: C["page"];
 }
 
-/** the page a `<head>` is for, with the data of a content page or a view */
+/** the page a `<head>` is for, with the page data of a content page, a view or a custom page */
 export interface HeadEnv<C extends AppShape = AppShape> extends PageEnv<C> {
-  data?: PageData;
+  pageData?: PageData;
 }
 
 /**

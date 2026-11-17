@@ -1,5 +1,6 @@
 import { createSSRApp, h, type ComponentOptions } from "vue";
 import {
+  PageView,
   RouterView,
   createPressState,
   createRouter,
@@ -43,8 +44,8 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     base,
     url,
     routes,
-    // content pages, the views of plugins, and the not found page
-    fallback: theme.Layout,
+    // content pages, views, and the not found page
+    fallback: PageView,
     hasPage: (path) => hasPage(state, path),
   });
   router.beforeEach(async (to, { first }) => {
@@ -54,18 +55,18 @@ export async function createPressApp(url: string, base: string, lang: string, lo
       window.location.assign(to.href);
       return false;
     }
-    // the page is loaded before it renders, so the server and the first paint have its content
-    const page = to.record ? undefined : await loadPage(state, to.path);
+    // the page and its component are loaded before it renders, so the server and the first paint have them
+    const shown = to.record ? undefined : await loadPage(state, to.path);
     // applied when this navigation wins: a slower one never replaces the page of a later one
     return () => {
-      state.page.value = page;
+      state.shown.value = shown;
     };
   });
   // the server renders the tags of `<head>`: after a navigation, the browser updates the ones a reader sees
   router.afterEach((to) => {
-    // a content page comes with the head the server made; a custom page has its data in its options
+    // a content page or a view comes with the head the server made; a custom page has its data in its options
     const own = to.record ? (to.component as ComponentOptions).page : undefined;
-    const { head } = state.page.value ?? {};
+    const { head } = state.shown.value ?? {};
     document.title = head?.title ?? pageTitle(own?.title, site.name);
     const description = head?.description ?? own?.description ?? site.description;
     if (description) {
@@ -76,14 +77,14 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     announced = to.path;
   });
 
-  const { Root } = theme;
+  const { Root, enhanceApp } = state.theme;
   const app = createSSRApp({
     render: () => (Root ? h(Root, null, { default: () => h(RouterView) }) : h(RouterView)),
   });
   app.provide(pressKey, state);
   app.provide(routerKey, router);
   // the hooks of the site run after those of the app, for the first page too
-  theme.enhanceApp?.({ app, router });
+  enhanceApp?.({ app, router });
   await router.start();
   announced = router.route.value.path;
   return { app, router, state };

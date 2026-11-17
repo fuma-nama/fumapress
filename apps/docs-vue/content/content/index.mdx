@@ -135,12 +135,14 @@ A folder with `"root": true` is a tab of the sidebar, for separate parts of the 
 The `icon` of a page or a folder is a name. Map the names to components in the `icons` of the [theme](/theme):
 
 ```ts title="src/theme.ts"
-import type { Theme } from "@fumapress/vue/client";
 import { BookOpen, Rocket } from "@lucide/vue";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
 
-export default {
+export default defineTheme({
+  extends: defaultTheme,
   icons: { BookOpen, Rocket },
-} satisfies Partial<Theme>;
+});
 ```
 
 `src/theme.ts` is found by default, and `@lucide/vue` is a package to install. A name without a component is shown as text, so an emoji works as an icon too:

@@ -55,8 +55,8 @@ With sources by key, `page.type` is the key of the source of a page. A plugin ch
 
 `getPageBody` is the only hook a page needs. It returns one of:
 
-- `{ html }`: HTML rendered as it is, in the docs layout.
-- `{ view: { type, props } }`: a component of the `views` of your theme renders the page, in place of the docs layout. `type` is the key of the source of the page, and the component of `views` with that name receives `props`, like the component of a [view](/plugins/views).
+- `{ html }`: HTML rendered as it is, as the content of the page.
+- `{ view: { type, props } }`: the page has `props` in place of its content. `type` is the key of the source of the page, and the component of [`views`](/theme#page-components) for that key renders it with its own layout, like the component of a [view](/plugins/views).
 - `{ module, load }`: the URL of a module that the browser imports, whose default export is the content component, and `load()` to import the same module on the server. This is what `core:markdown` returns for a compiled Markdown file.
 
 ```ts
@@ -94,7 +94,7 @@ getPageStructuredData(page) {
 
 ## Page Data
 
-The browser receives the data of each page: `title`, `description` and `full` from `page.data`, `lastModified` from the `getPageLastModified` hook, then what the `transformPage` hook of each plugin adds. A field that the page or an earlier plugin has set stays as it is.
+The browser receives the page data of each page, `pageData`: `title`, `description` and `full` from `page.data`, `lastModified` from the `getPageLastModified` hook, then what the `transformPage` hook of each plugin adds. A field that the page or an earlier plugin has set stays as it is.
 
 The docs layout shows `lastModified` as the last update of the page, and `githubUrl` as a link to edit it:
 

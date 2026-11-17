@@ -7,7 +7,7 @@ import type {
 } from "fumadocs-core/source";
 import type { Component } from "vue";
 import type { Context } from "./context";
-import type { DefaultLayouts, LayoutName } from "./layouts";
+import type { LayoutProps } from "./layouts";
 import type {
   AnyPlugin,
   AppShape,
@@ -67,30 +67,31 @@ export type ContentOptions<I extends ContentInput, Lang extends string | undefin
  * A view of the site, `.views()`: a page outside the content, which the component of `views` of the theme named after
  * its key renders with the props `view` returns.
  */
-export interface SiteView<C extends AppShape, Props> extends ViewRouteOptions {
+export interface SiteView<C extends AppShape, Props> extends Omit<ViewRouteOptions, "data"> {
   /** the props of the page at `params` in `lang`, none for a 404 */
   view(this: Context<C>, env: ViewEnv<C["lang"]>): Awaitable<Props | undefined | void>;
+  /** the data of its pages, like their title: or of each page, from the props `view` returned */
+  data?:
+    | Partial<PageData>
+    | ((
+        this: Context<C>,
+        // the props are inferred from `view` only
+        env: ViewEnv<C["lang"]> & { props: NoInfer<Props> },
+      ) => Awaitable<Partial<PageData> | undefined>);
 }
 
-/** the props of the layout and of its page: data, or a function of the language */
-export type LayoutOption<C extends AppShape, Props> =
-  | Props
-  | ((this: Context<C>, env: LangEnv<C>) => Awaitable<Props | undefined>);
+/** a view of any site, as the runtime holds it: its props are both what `view` returns and what `data` receives */
+export type AnySiteView = SiteView<AppShape, any>;
 
-/**
- * The layout of the content pages and its props. They are sent to the browser, so every value is serializable:
- * components belong in the theme.
- */
-export type LayoutOptions<C extends AppShape> = {
-  [K in LayoutName]: (K extends "docs" ? { layout?: K } : { layout: K }) & {
-    /** the props of the layout; links are written as served, `this.localizePath()` localizes them */
-    layoutProps?: LayoutOption<C, DefaultLayouts[K]["layout"]>;
-    /** the props of the page of the layout */
-    pageProps?: LayoutOption<C, DefaultLayouts[K]["page"]>;
-  };
-}[LayoutName];
-
-export type UIOptions<C extends AppShape> = LayoutOptions<C> & {
+export interface UIOptions<C extends AppShape> {
+  /**
+   * The props every layout shares, like the links of the navbar: data, or a function of the language. Links are
+   * written as served, `this.localizePath()` localizes them. They are sent to the browser, so every value is
+   * serializable: the layout and its other props are in the theme.
+   */
+  layoutProps?:
+    | LayoutProps
+    | ((this: Context<C>, env: LangEnv<C>) => Awaitable<LayoutProps | undefined>);
   /**
    * The texts of the UI: `i18n.translations()` of `@fumapress/vue/i18n` on a site with languages, checked against
    * them, `defineTranslations()` otherwise. A key is the English text with its note, and `displayName` names a
@@ -99,7 +100,7 @@ export type UIOptions<C extends AppShape> = LayoutOptions<C> & {
   translations?:
     | ([string] extends [C["lang"]] ? never : TranslationsAPI<C["lang"], any>)
     | SingularTranslationsAPI<any>;
-};
+}
 
 /** the options of `.config()` */
 export interface PressConfig<C extends AppShape = AppShape> {
@@ -116,7 +117,7 @@ export interface PressInput {
   readonly content: ContentInput;
   readonly options: ContentOptions<ContentInput, string | undefined>;
   readonly plugins: readonly PluginOption<AnyPlugin>[];
-  readonly views: Readonly<Record<string, SiteView<AppShape, object>>>;
+  readonly views: Readonly<Record<string, AnySiteView>>;
   readonly config: PressConfig<AppShape>;
 }
 
@@ -187,37 +188,68 @@ export type PressLang<A extends Press<any, any>> = ContentOf<A>["lang"];
 /** `this` of callbacks in their own files: `PressContext<typeof app>` */
 export type PressContext<A extends Press<any, any>> = Context<ContentOf<A>>;
 
-/** a content page of the source key `K` as the browser receives it */
-export interface ContentPageOf<C extends AppShape, K extends C["source"]> {
-  type: K;
+/** a content page of any site as the browser receives it, what a docs layout renders */
+export interface ContentPage {
+  /** its source key, none with one source */
+  type?: string;
   url: string;
-  /** the data of its file, as JSON: the frontmatter of a collection */
-  data: Jsonify<SourcePage<C, K>["data"]>;
+  /** the data of its file, as JSON: the validated frontmatter of a collection */
+  data: object;
+  /** `getPageData()`: its title, description and what plugins add */
+  pageData: PageData;
   toc: TOCItem[];
-  /** its content */
+  /** its content: compiled Markdown renders with the `components` of the theme */
   Content: Component;
+}
+
+/** a view of any site as the browser receives it */
+export interface ViewPage {
+  /** the name of the view */
+  type: string;
+  url: string;
+  /** what `view` returned, as JSON */
+  props: object;
+  /** the `data` of the view: its title, description and what plugins add */
+  pageData: PageData;
+}
+
+/** a content page of the source key `K` as the browser receives it */
+export interface ContentPageOf<C extends AppShape, K extends C["source"]> extends ContentPage {
+  type: K;
+  data: Jsonify<SourcePage<C, K>["data"]>;
 }
 
 /** a view of type `K` as the browser receives it */
 export interface ViewPageOf<V, K extends keyof V> {
   type: K;
+  url: string;
   /** what `view` returned, as JSON */
   props: Jsonify<V[K]>;
-  data: PageData;
+  /** the `data` of the view: its title, description and what plugins add */
+  pageData: PageData;
 }
 
+/** the source keys whose pages a plugin renders as views, by their `pages` */
+export type ViewSourceOf<A extends Press<any, any>> = keyof Declared<PluginsOf<A>, "pages"> &
+  ContentOf<A>["source"];
+
 /**
- * What the browser receives for a page of the type `K` of a site: `PageOf<typeof app, "docs">`. A content page of a
- * source a plugin renders as a view (its `pages`) has its `props` too.
+ * What the browser receives for a page of the type `K` of a site: `PageOf<typeof app, "docs">`. The pages of a
+ * source a plugin renders as views (its `pages`) have its `props` in place of `Content`.
  */
 export type PageOf<
   A extends Press<any, any>,
   K extends PressPageType<A>,
 > = K extends ContentOf<A>["source"]
-  ? ContentPageOf<ContentOf<A>, K> &
-      (K extends keyof Declared<PluginsOf<A>, "pages">
-        ? { props: Jsonify<Declared<PluginsOf<A>, "pages">[K]> }
-        : {})
+  ? K extends ViewSourceOf<A>
+    ? Omit<ContentPageOf<ContentOf<A>, K>, "Content"> & {
+        props: Jsonify<Declared<PluginsOf<A>, "pages">[K]>;
+      }
+    : ContentPageOf<ContentOf<A>, K>
   : K extends keyof Declared<PluginsOf<A>, "views">
     ? ViewPageOf<Declared<PluginsOf<A>, "views">, K>
     : never;
+
+/** the names of the views of a site, of `.views()` and of its plugins */
+export type PressViewName<A extends Press<any, any>> = keyof Declared<PluginsOf<A>, "views"> &
+  string;

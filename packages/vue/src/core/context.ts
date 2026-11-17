@@ -5,7 +5,7 @@ import { pagesPlugin } from "../plugins/pages";
 import { sitePlugin } from "../plugins/site";
 import { mergeHead, withBase } from "./head";
 import { localeOf, localizePath } from "./i18n";
-import type { DefaultLayouts, LayoutData, LayoutName, LayoutProps } from "./layouts";
+import type { LayoutProps } from "./layouts";
 import { mergeOptions } from "./merge";
 import {
   flatten,
@@ -20,7 +20,7 @@ import {
   type RouteFns,
   type ViewRoute,
 } from "./plugin";
-import type { LayoutOption, Press, PressContext } from "./press";
+import type { Press, PressContext } from "./press";
 import { recommendedPreset } from "./preset";
 import {
   decodePath,
@@ -101,11 +101,8 @@ export interface Context<out C extends AppShape = AppShape> {
   withBase(path: string): string;
   /** the full URL of a path, relative without `site.baseUrl` */
   absoluteUrl(path: string): string;
-  /**
-   * The layout of the content pages in a language, `ui.layout`: its props (`ui.layoutProps` over the `layoutProps`
-   * of plugins) and the props of its page (`ui.pageProps`).
-   */
-  getLayout(env: LangEnv<C>): Promise<LayoutData>;
+  /** the props every layout shares in a language: `ui.layoutProps` over the `layoutProps` of plugins */
+  getLayoutProps(env: LangEnv<C>): Promise<LayoutProps>;
   getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
 }
 
@@ -119,6 +116,11 @@ export interface ServedView {
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+/** a value as the browser receives it: the server renders the same JSON, so both render the same page */
+function toJson(value: object): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value));
 }
 
 /** serializable nodes for the browser: names are text, and the references of the loader to files stay behind */
@@ -165,13 +167,6 @@ export interface ContextEnv {
 }
 
 type Page = AppShape["page"];
-
-/** `ui` of any layout */
-interface LayoutInput {
-  layout?: LayoutName;
-  layoutProps?: LayoutOption<AppShape, DefaultLayouts[LayoutName]["layout"]>;
-  pageProps?: LayoutOption<AppShape, DefaultLayouts[LayoutName]["page"]>;
-}
 
 export async function createContext(
   press: Press<any, any>,
@@ -221,6 +216,15 @@ export async function createContext(
   const dynamic = new Set(
     sources.filter(([, source]) => typeof source.files === "function").map(([key]) => key),
   );
+
+  // the theme picks the component of a page by its type: a name of a view is never the key of a source
+  for (const [key] of sources) {
+    if (key !== undefined && Object.hasOwn(ownViews, key)) {
+      throw new Error(
+        `[Fumapress] The view "${key}" of \`.views()\` has the name of the source "${key}": the theme renders both with \`views["${key}"]\`. Rename the view.`,
+      );
+    }
+  }
 
   const i18n = options.i18n;
   if (i18n?.hideLocale === "always") {
@@ -359,7 +363,7 @@ export async function createContext(
       );
     },
     async getPageContent(page) {
-      const [body, data, toc] = await Promise.all([
+      const [body, pageData, toc] = await Promise.all([
         ctx.getPageBody(page),
         ctx.getPageData(page),
         ctx.getPageToc(page),
@@ -369,8 +373,17 @@ export async function createContext(
           `[Fumapress] No plugin renders "${page.path}": add a plugin with a \`getPageBody\` hook for its source.`,
         );
       }
-      const env = { page, pathname: page.url, lang: page.locale ?? defaultLanguage, data };
-      return { url: page.url, data, toc: toc ?? [], body, head: await documentHead(env) };
+      const env = { page, pathname: page.url, lang: page.locale ?? defaultLanguage, pageData };
+      return {
+        url: page.url,
+        type: page.type,
+        // the frontmatter only: the module of a collection is a symbol key, which JSON leaves out
+        data: toJson(page.data),
+        pageData,
+        toc: toc ?? [],
+        body: "view" in body ? { view: { ...body.view, props: toJson(body.view.props) } } : body,
+        head: await documentHead(env),
+      };
     },
     async getContent(pathname) {
       const url = normalizePath(pathname);
@@ -381,11 +394,10 @@ export async function createContext(
         const params = matchRoute(path, url);
         const result = params && (await route.view({ params, lang }));
         if (!result) continue;
-        // the data of the page goes to `data`, the rest is what the theme renders
-        const { data: own, ...view } = result;
-        const data = await transformPage({ ...route.data, ...own }, { pathname: url, lang });
-        const head = await documentHead({ pathname: url, lang, data });
-        return { url, data, toc: [], body: { view }, head };
+        const { type, props, data } = result;
+        const pageData = await transformPage({ ...route.data, ...data }, { pathname: url, lang });
+        const head = await documentHead({ pathname: url, lang, pageData });
+        return { url, type, props: toJson(props), pageData, head };
       }
     },
     async getStaticPages() {
@@ -423,20 +435,13 @@ export async function createContext(
       const url = base + encodePath(normalizePath(path)).slice(1);
       return site.baseUrl ? new URL(url, site.baseUrl).href : url;
     },
-    async getLayout(env) {
-      // one shape for every layout, where `ui` has one per layout
-      const { layout = "docs", layoutProps, pageProps }: LayoutInput = ui;
-      const [own, page, ...ofPlugins] = await Promise.all([
+    async getLayoutProps(env) {
+      const { layoutProps } = ui;
+      const [own, ...ofPlugins] = await Promise.all([
         typeof layoutProps === "function" ? layoutProps.call(ctx, env) : layoutProps,
-        typeof pageProps === "function" ? pageProps.call(ctx, env) : pageProps,
         ...plugins.map((plugin) => plugin.layoutProps?.call(ctx, env)),
       ]);
-      // `ui` is checked by its type: the props of the layout it names, which plugins add to
-      return {
-        layout,
-        layoutProps: mergeOptions<LayoutProps>([own, ...ofPlugins]),
-        pageProps: page ?? {},
-      } as LayoutData;
+      return mergeOptions<LayoutProps>([own, ...ofPlugins]);
     },
     async getHead(env) {
       const ofPlugins = await Promise.all(plugins.map((plugin) => plugin.head?.call(ctx, env)));
@@ -457,7 +462,7 @@ export async function createContext(
   await load();
   for (const plugin of plugins) await plugin.configure?.call(ctx);
 
-  const fns: RouteFns = {
+  const fns = (plugin?: AnyPlugin): RouteFns => ({
     createApi(route) {
       if (route.data && (route.GET ?? route.ALL)) {
         throw new Error(
@@ -471,22 +476,42 @@ export async function createContext(
     },
     createView({ lang, ...route }) {
       validateRoute(route.path, route.render !== "dynamic");
+      // the type of a view of a plugin is known when it renders
+      const view: ViewRoute["view"] = !plugin
+        ? route.view
+        : async (env) => {
+            const result = await route.view(env);
+            if (result && Object.hasOwn(ownViews, result.type)) {
+              throw new Error(
+                `[Fumapress] The view "${result.type}" of \`.views()\` has the name of a view of the plugin "${plugin.name}": the theme renders both with \`views["${result.type}"]\`. Rename the view of the site.`,
+              );
+            }
+            return result;
+          };
       for (const each of lang === undefined ? languages : [lang]) {
-        views.push({ route, lang: each, path: ctx.localizePath(each, route.path) });
+        views.push({
+          route: { ...route, view },
+          lang: each,
+          path: ctx.localizePath(each, route.path),
+        });
       }
     },
-  };
+  });
   // the views of the site first: the first view matching a URL renders it
-  for (const [type, { view, ...route }] of Object.entries(ownViews)) {
-    fns.createView({
+  const ofSite = fns();
+  for (const [type, { view, data, ...route }] of Object.entries(ownViews)) {
+    ofSite.createView({
       ...route,
       async view(env) {
         const props = await view.call(ctx, env);
-        return props === undefined ? undefined : { type, props };
+        if (props === undefined) return;
+        const pageData =
+          typeof data === "function" ? await data.call(ctx, { ...env, props }) : data;
+        return { type, props, data: pageData };
       },
     });
   }
-  for (const plugin of plugins) await plugin.routes?.call(ctx, fns);
+  for (const plugin of plugins) await plugin.routes?.call(ctx, fns(plugin));
 
   return ctx;
 }

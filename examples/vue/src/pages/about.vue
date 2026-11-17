@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
 
 // the title and description of the page, for its head tags
 defineOptions({ page: { title: "About", description: "A custom page of the example." } });

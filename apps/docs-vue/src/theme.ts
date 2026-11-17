@@ -1,4 +1,3 @@
-import type { Theme } from "@fumapress/vue/client";
 import {
   Blocks,
   BookOpen,
@@ -13,9 +12,13 @@ import {
   Settings,
   Terminal,
 } from "@lucide/vue";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import type app from "../press.config";
 
-// the icons of the sidebar, by the `icon` of a page or a folder
-export default {
+// the default theme, with the icons of the sidebar by the `icon` of a page or a folder
+export default defineTheme<typeof app>({
+  extends: defaultTheme,
   icons: {
     Blocks,
     BookOpen,
@@ -30,4 +33,4 @@ export default {
     Settings,
     Terminal,
   },
-} satisfies Partial<Theme>;
+});

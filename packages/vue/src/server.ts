@@ -35,8 +35,8 @@ export interface RenderOutput {
   status?: number;
   /** the assets of the page, with those of its route @defaultValue the client entry's */
   assets?: ClientAssets;
-  /** the data of a page outside the content, like its title: what the head tags are made from */
-  data?: PageData;
+  /** the page data of a custom page, like its title: what the head tags are made from */
+  pageData?: PageData;
   /**
    * A path of the site, with an optional query, that the response redirects to: where a hook of the app sent the page.
    * `html` is not sent.
@@ -147,7 +147,7 @@ async function renderDocument(
   // the path is encoded here, where it goes out to the app as a URL
   const url = ctx.base + encodePath(shown).slice(1) + search;
   const output = await options.render({ ctx, url, pathname: shown, lang, load: load as Load });
-  const { html, status = 200, assets = options.assets, data: ownData } = output;
+  const { html, status = 200, assets = options.assets, pageData: ownData } = output;
 
   // Where the response sends the browser instead: where a hook of the app sent the page, or for a URL that names its
   // language another way, the one a page has. Without a prefix, like `/`, that is the default language when no
@@ -192,11 +192,13 @@ async function renderDocument(
     pathname,
     lang,
     page: ctx.getPage(pathname),
-    data: content?.data ?? ownData,
+    pageData: content?.pageData ?? ownData,
   });
   // the module of the page is fetched with the app, not after it runs
   const modules =
-    content && "module" in content.body ? [...assets.js, { href: content.body.module }] : assets.js;
+    content && "body" in content && "module" in content.body
+      ? [...assets.js, { href: content.body.module }]
+      : assets.js;
 
   const tags = mergeHead(
     [

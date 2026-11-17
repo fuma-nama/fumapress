@@ -26,7 +26,7 @@ The JavaScript of a page is 21 kB larger. The UI is a port of Fumadocs UI, with 
 
 The first request of a page gets its HTML with the content already rendered. The browser then loads:
 
-- The JavaScript of the layout, shared by every page and cached after the first one.
+- The JavaScript of the app and of the layout its theme imports, which the HTML links. The other layouts aren't in the build, and the files are cached for the next pages.
 - The module of the page, 3 kB gzip on the measured site.
 - The data of the site: its page tree, navbar and links. It is one file per language, fetched once: 21.2 kB gzip for the 1,001 pages.
 - The search dialog, 19.4 kB gzip, once the page is interactive and the browser is idle, so the first search opens at once.
@@ -49,13 +49,15 @@ The default theme loads what only some pages use with those pages: the not found
 
 ```ts title="src/theme.ts"
 import { defineAsyncComponent } from "vue";
-import type { Theme } from "@fumapress/vue/client";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
 
-export default {
-  // loaded by the pages that show it
-  views: { releases: defineAsyncComponent(() => import("./views/Releases.vue")) },
+export default defineTheme({
+  extends: defaultTheme,
+  // loaded by the pages that render them
+  views: { releases: () => import("./views/Releases.vue") },
   components: { Chart: defineAsyncComponent(() => import("./components/Chart.vue")) },
-} satisfies Partial<Theme>;
+});
 ```
 
 A component imported directly in the theme module is part of the JavaScript of every page.

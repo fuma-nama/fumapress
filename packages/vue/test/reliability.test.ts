@@ -25,7 +25,7 @@ function serve(press: Press, prerender = false) {
     async render({ pathname, load }) {
       const content = await load<PageContent>(pageDataPath(pathname));
       return {
-        html: content ? `<h1>${content.data.title}</h1>` : "missing",
+        html: content ? `<h1>${content.pageData.title}</h1>` : "missing",
         status: content ? 200 : 404,
       };
     },
@@ -116,7 +116,7 @@ test("lists and serves paths with spaces encoded once", async () => {
 
   const get = serve(press);
   const view: PageContent = await (await get("/_press/pages/blog/hello%20world.json")).json();
-  expect(view.body).toEqual({ view: { type: "post", props: { slug: "hello world" } } });
+  expect(view).toMatchObject({ type: "post", props: { slug: "hello world" } });
 });
 
 test("a route answers the methods it handles, and leaves the others to the next one", async () => {

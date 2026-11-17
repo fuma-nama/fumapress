@@ -1,19 +1,16 @@
-import type { Theme } from "@fumapress/vue/client";
-import { components } from "./components";
-import Layout from "./Layout.vue";
-import Root from "./Root.vue";
+import type { Theme, ThemeOptions } from "@fumapress/vue/client";
+import type { Press } from "@fumapress/vue/config";
 
-export { default as Layout } from "./Layout.vue";
+export { default as baseTheme } from "./base";
 export { default as Root } from "./Root.vue";
 export { components } from "./components";
 
-// before the first paint, so the page never flashes the other color theme: what the theme provider applies afterwards
-const themeScript = `(()=>{try{var e=localStorage.getItem("theme")||"system",t=e==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):e,d=document.documentElement;d.classList.remove("light","dark");d.classList.add(t);if(t==="light"||t==="dark")d.style.colorScheme=t}catch(e){}})()`;
-
-/** the default theme: Fumadocs UI, with the docs layout for content pages */
-export default {
-  Root,
-  Layout,
-  components,
-  head: [{ tag: "script", content: themeScript }],
-} satisfies Theme;
+/**
+ * A theme, typed by the site of `press.config` with a type-only import: `defineTheme<typeof app>({ ... })`. The keys
+ * of `views` are the page types of the site, each component receives the pages of its type, and every view has a
+ * component, here or in the theme `extends` names.
+ */
+export function defineTheme<A extends Press<any, any> = never>(theme: ThemeOptions<A>): Theme {
+  // a theme, whose views the type checked against the site `A`
+  return theme as Theme;
+}

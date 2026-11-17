@@ -24,6 +24,15 @@ For more, a site adds `press.config.ts` (site name, links, languages, content so
 
 The UI is a port of [Fumadocs UI](https://fumadocs.dev) to Vue, with the same markup and Tailwind classes. The package bundles the parts of Fumadocs it uses, so a site installs neither Fumadocs nor React.
 
+### Differences
+
+- The component of each page type is in [`views`](/theme#page-components) of the theme, not in `ui.renderPage` of the config, since it also runs in the browser.
+- A view returns props, and the theme names its component: a component can't be sent from the server.
+- A theme names the default theme in `extends` to build on it.
+- The compile options of Markdown are global, in the Vite plugin, and the frontmatter of a collection is validated when the server starts.
+- The [layout](/ui#choosing-a-layout) is an import in the theme, where Fumapress passes `layout` to `renderDefault`.
+- `.views()` exists, so a site adds pages of its own without a plugin.
+
 ## Next Steps
 
 <Cards>

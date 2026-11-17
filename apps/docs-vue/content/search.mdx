@@ -147,10 +147,11 @@ import SearchDialog from "./SearchDialog.vue";
 ```
 
 ```ts title="src/theme.ts"
-import type { Theme } from "@fumapress/vue/client";
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
 import Root from "./Root.vue";
 
-export default { Root } satisfies Partial<Theme>;
+export default defineTheme({ extends: defaultTheme, Root });
 ```
 
 </Step>

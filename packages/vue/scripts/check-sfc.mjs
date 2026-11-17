@@ -1,7 +1,8 @@
-// Compiles the script of every `.vue` file of `ui/` and `theme/` the way a site without TypeScript does: the types of
-// props are read from the file system, and a type that needs TypeScript to be found or read fails.
+// Compiles the script of every `.vue` file of `ui/` and `theme/`, or of the folders given, the way a site without
+// TypeScript does: the types of props are read from the file system, and a type that needs TypeScript to be found or
+// read fails.
 //
-//   node scripts/check-sfc.mjs
+//   node scripts/check-sfc.mjs [folder...]
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +28,10 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = [...walk(path.join(root, "ui")), ...walk(path.join(root, "theme"))];
+const folders = process.argv.slice(2);
+const files = (folders.length > 0 ? folders : [path.join(root, "ui"), path.join(root, "theme")])
+  .map((folder) => path.resolve(folder))
+  .flatMap((folder) => walk(folder));
 let failed = 0;
 for (const file of files) {
   const { descriptor } = parse(readFileSync(file, "utf8"), { filename: file });
