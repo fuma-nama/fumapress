@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { HomeIcon } from "lucide-vue-next";
+import { HomeIcon } from "../../../icons";
 import { buttonVariants } from "../../../components/ui/button";
 import { Link } from "../../../core/link";
 import { useTranslations } from "../../../core/translate";

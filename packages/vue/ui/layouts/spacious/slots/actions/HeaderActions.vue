@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { ChevronDownIcon, LanguagesIcon, MessageCircleIcon } from "lucide-vue-next";
+import { ChevronDownIcon, LanguagesIcon, MessageCircleIcon } from "../../../../icons";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useTranslations } from "../../../../core/translate";
 import { cn } from "../../../../utils/cn";

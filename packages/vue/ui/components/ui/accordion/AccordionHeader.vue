@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { AccordionHeader as Header } from "reka-ui";
+import { AccordionHeader as Header } from "@fumapress/vue/reka/accordion";
 import { cn } from "../../../utils/cn";
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>();

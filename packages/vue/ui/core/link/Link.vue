@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Link as Base } from "@fumapress/vue/client";
+import { Link as Base, safeHref } from "@fumapress/vue/client";
 import type { LinkProps } from "./index";
 
 const props = withDefaults(defineProps<LinkProps>(), { href: "#", external: undefined });
@@ -13,6 +13,6 @@ const isExternal = computed(
 </script>
 
 <template>
-  <a v-if="isExternal" :href="href" rel="noreferrer noopener" target="_blank"><slot /></a>
+  <a v-if="isExternal" :href="safeHref(href)" rel="noreferrer noopener" target="_blank"><slot /></a>
   <Base v-else :href="href"><slot /></Base>
 </template>

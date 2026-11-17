@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { CircleCheck, CircleX, Info, Lightbulb, TriangleAlert } from "lucide-vue-next";
+import { CircleCheck, CircleX, Info, Lightbulb, TriangleAlert } from "../../icons";
 import { cn } from "../../utils/cn";
 import type { CalloutContainerProps, CalloutType } from "./index";
 

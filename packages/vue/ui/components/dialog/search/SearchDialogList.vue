@@ -10,7 +10,7 @@ import {
   type HTMLAttributes,
   type VNodeChild,
 } from "vue";
-import { CircleAlert } from "lucide-vue-next";
+import { CircleAlert } from "../../../icons";
 import type { SearchResultItem, SearchResultTable } from "../../../core/search/client";
 import { T, useTranslations } from "../../../core/translate";
 import { cn } from "../../../utils/cn";

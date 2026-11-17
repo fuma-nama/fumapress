@@ -16,6 +16,11 @@ declare module "virtual:press/theme" {
 }
 
 declare module "virtual:press/routes" {
-  import type { RouteRecordRaw } from "vue-router";
-  export const routes: RouteRecordRaw[];
+  import type { RouteRecord } from "./router";
+  export const routes: RouteRecord[];
+}
+
+interface ImportMeta {
+  /** set by Nitro: whether the server is the one a build prerenders with */
+  readonly prerender?: boolean;
 }

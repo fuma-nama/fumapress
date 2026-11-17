@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
-import { Check, ChevronsUpDown } from "lucide-vue-next";
+import { Check, ChevronsUpDown } from "../../../../icons";
 import { AnimatePresence, motion } from "motion-v";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../../components/ui/popover";
 import { useTabsGroups, useTreePath } from "../../../../contexts/tree";

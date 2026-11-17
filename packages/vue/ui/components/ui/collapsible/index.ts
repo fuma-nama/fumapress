@@ -1,8 +1,11 @@
-export { CollapsibleRoot as Collapsible, CollapsibleTrigger } from "reka-ui";
+export {
+  CollapsibleRoot as Collapsible,
+  CollapsibleTrigger,
+} from "@fumapress/vue/reka/collapsible";
 export { default as CollapsibleContent } from "./CollapsibleContent.vue";
 
 export type {
   CollapsibleRootProps as CollapsibleProps,
   CollapsibleContentProps,
   CollapsibleTriggerProps,
-} from "reka-ui";
+} from "@fumapress/vue/reka/collapsible";

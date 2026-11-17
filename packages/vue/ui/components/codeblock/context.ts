@@ -5,4 +5,4 @@ export interface TabsContextType {
   nested: boolean;
 }
 
-export const TabsKey: InjectionKey<TabsContextType> = Symbol("fd-codeblock-tabs");
+export const TabsKey: InjectionKey<TabsContextType> = Symbol.for("fd-codeblock-tabs");

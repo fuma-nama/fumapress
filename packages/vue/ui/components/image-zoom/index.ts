@@ -1,7 +1,6 @@
 import type { ImgHTMLAttributes, VNode } from "vue";
 import type { ImageProps } from "../../core/framework";
 import type { UncontrolledProps } from "./zoom";
-import "./image-zoom.css";
 
 export { default as ImageZoom } from "./ImageZoom.vue";
 /**

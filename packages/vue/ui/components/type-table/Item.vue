@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, type FunctionalComponent, type VNode } from "vue";
 import { cva } from "class-variance-authority";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../icons";
 import Link from "../../core/link";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";

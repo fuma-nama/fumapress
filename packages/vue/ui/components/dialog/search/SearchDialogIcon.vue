@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { SearchIcon } from "lucide-vue-next";
+import { SearchIcon } from "../../../icons";
 import { cn } from "../../../utils/cn";
 import { useSearch } from "./context";
 

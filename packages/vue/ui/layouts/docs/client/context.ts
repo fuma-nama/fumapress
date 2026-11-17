@@ -17,7 +17,7 @@ export interface LayoutContext {
   slots: Readonly<Ref<DocsSlots>>;
 }
 
-export const LayoutKey: InjectionKey<LayoutContext> = Symbol("fd-docs-layout");
+export const LayoutKey: InjectionKey<LayoutContext> = Symbol.for("fd-docs-layout");
 
 export function useIsDocsLayout() {
   return inject(LayoutKey, null) !== null;

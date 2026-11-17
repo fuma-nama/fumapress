@@ -8,4 +8,4 @@ export const variants = { normal: TocDefault, clerk: TocClerk, block: TocBlock }
 export const TocPopoverKey: InjectionKey<{
   open: Readonly<Ref<boolean>>;
   setOpen: (open: boolean) => void;
-}> = Symbol("fd-toc-popover");
+}> = Symbol.for("fd-docs-toc-popover");

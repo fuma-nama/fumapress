@@ -17,7 +17,7 @@ export interface LayoutContext {
   slots: Readonly<Ref<DocsSlots>>;
 }
 
-export const LayoutKey: InjectionKey<LayoutContext> = Symbol("fd-flux-layout");
+export const LayoutKey: InjectionKey<LayoutContext> = Symbol.for("fd-flux-layout");
 
 export function useFluxLayout() {
   const context = inject(LayoutKey, null);

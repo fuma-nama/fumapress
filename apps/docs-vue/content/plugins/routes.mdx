@@ -17,13 +17,13 @@ createPress(content).plugins({
 });
 ```
 
-A handler takes a standard `Request` and returns a `Response`. Routes match before pages, and the first route that matches a URL handles it.
+A handler takes a standard `Request` and returns a `Response`. Routes match before pages. The first route that matches the URL and handles the method answers, so a route for `POST` only doesn't hide a page or a later route at the same path.
 
 ## API Routes
 
 ### Path Params
 
-`[name]` in a path matches one segment, and `[...name]` matches the rest of the path. The handler receives their decoded values in `params`:
+`[name]` in a path matches one segment, and `[...name]` matches the rest of the path. A param is a whole segment, so write `/data/[id]/info.json`, not `/data/[id].json`. The handler receives their decoded values in `params`:
 
 ```ts
 createApi({
@@ -134,6 +134,10 @@ How the value reaches the component:
 
 The browser fetches data routes, so a site on a static host needs `render: "static"` on them. A data route with params needs `staticPaths` too.
 
+:::warning
+The value of a data route is public: it is written into the HTML of the pages that load it, and the server reads it without a request, so middleware doesn't run for it. For data that depends on who asks, write an API route with a `GET` handler and `fetch` it in the browser.
+:::
+
 ### Shared Data
 
 A data route with `shared: true` has the same value on every page. Its value isn't sent with each page: the page preloads the route, and the browser fetches it once for every page.
@@ -163,7 +167,7 @@ createPress(content).plugins({
 });
 ```
 
-`next(path)` serves another path instead, without a redirect. The path has no base path:
+`next(path)` serves another path instead, without a redirect. The path has no base path, and can have a query:
 
 ```ts
 async middleware(request, next) {
@@ -173,6 +177,8 @@ async middleware(request, next) {
 ```
 
 Middleware of several plugins runs in plugin order, and each `next()` calls the next plugin.
+
+A page served at another URL with `next(path)` renders when the server receives the request for that URL. A link to it inside the site loads the content of the URL itself, so rewrite pages that readers enter the site by, like `/latest`, and link to their real path.
 
 :::warning
 Requests that the host serves from the files of the build, like pages generated at build time, never reach middleware. A middleware that must see every request needs the pages to render on demand, on a [server deployment](/deploy).

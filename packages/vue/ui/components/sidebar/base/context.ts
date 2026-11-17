@@ -37,8 +37,8 @@ export interface FolderContext {
   collapsible: Readonly<Ref<boolean>>;
 }
 
-export const SidebarKey: InjectionKey<SidebarContext> = Symbol("fd-sidebar");
-export const FolderKey: InjectionKey<FolderContext> = Symbol("fd-sidebar-folder");
+export const SidebarKey: InjectionKey<SidebarContext> = Symbol.for("fd-sidebar");
+export const FolderKey: InjectionKey<FolderContext> = Symbol.for("fd-sidebar-folder");
 
 export function useSidebar(): SidebarContext {
   const ctx = inject(SidebarKey, null);

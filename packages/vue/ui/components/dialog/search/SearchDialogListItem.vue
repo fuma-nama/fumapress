@@ -8,7 +8,7 @@ import {
   type VNodeChild,
 } from "vue";
 import scrollIntoView from "scroll-into-view-if-needed";
-import { ChevronRight, Hash } from "lucide-vue-next";
+import { ChevronRight, Hash } from "../../../icons";
 import { useHighlightQuery, type SearchResultTable } from "../../../core/search/client";
 import { cn } from "../../../utils/cn";
 import { useSearch } from "./context";

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { CheckIcon, ChevronsUpDownIcon } from "lucide-vue-next";
+import { CheckIcon, ChevronsUpDownIcon } from "../../../../icons";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuRoot,
   DropdownMenuTrigger,
-} from "reka-ui";
+} from "@fumapress/vue/reka/dropdown-menu";
 import { useTreePath } from "../../../../contexts/tree";
 import { usePathname } from "../../../../core/framework";
 import { Link } from "../../../../core/link";

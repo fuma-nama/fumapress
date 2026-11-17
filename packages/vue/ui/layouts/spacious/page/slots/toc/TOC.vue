@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { TextIcon } from "lucide-vue-next";
+import { TextIcon } from "../../../../../icons";
 import * as Base from "../../../../../components/toc";
 import { useTranslations } from "../../../../../core/translate";
 import { cn } from "../../../../../utils/cn";

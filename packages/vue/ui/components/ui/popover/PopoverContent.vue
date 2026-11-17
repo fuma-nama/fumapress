@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { PopoverContent as Content, PopoverPortal as Portal } from "reka-ui";
+import { PopoverContent as Content, PopoverPortal as Portal } from "@fumapress/vue/reka/popover";
 import { cn } from "../../../utils/cn";
 
 defineOptions({ inheritAttrs: false });

@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@fumapress/vue": "workspace:*",
-    "lucide-vue-next": "^1.0.0",
+    "@lucide/vue": "^1.74.0",
     "vue": "^3.5.45"
   },
   "devDependencies": {

@@ -10,7 +10,7 @@ import { RootProvider, type RootProviderProps } from "../ui/provider/base";
 const props = defineProps<{ search?: RootProviderProps["search"] }>();
 
 const state = usePress();
-const { path } = useRouter();
+const { path, resolve } = useRouter();
 // search is on when a plugin provides it, or with a dialog of your own
 const search = computed(() => {
   const ofSite = state.site.layout.search ?? { enabled: false };
@@ -20,8 +20,8 @@ const search = computed(() => {
 const i18n = state.site.i18n && {
   ...state.site.i18n,
   onLocaleChange(lang: string) {
-    const target = translatePath(state, lang, path.value);
-    window.location.assign(state.base + target.slice(1) + window.location.hash);
+    const target = resolve(translatePath(state, lang, path.value));
+    if (target) window.location.assign(target + window.location.hash);
   },
 };
 </script>

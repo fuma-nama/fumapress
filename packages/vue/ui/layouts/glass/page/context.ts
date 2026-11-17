@@ -4,7 +4,7 @@ export interface PageContext {
   full: Readonly<Ref<boolean>>;
 }
 
-export const PageKey: InjectionKey<PageContext> = Symbol("fd-glass-page");
+export const PageKey: InjectionKey<PageContext> = Symbol.for("fd-glass-page");
 
 export function useDocsPage(): PageContext {
   const context = inject(PageKey, null);

@@ -49,6 +49,8 @@ The layout lands in `src/ui/layouts/docs`, and `src/theme/Layout.vue` now import
 
 Change the files under `src/ui/layouts/docs`. The pages of your site render with them.
 
+The UI is styled with Tailwind CSS classes. The compiled stylesheet of the site has the classes the UI uses, so a class you add in a copy needs [Tailwind CSS](/theme#tailwind-css) in your site.
+
 </Step>
 </Steps>
 
@@ -87,11 +89,25 @@ A copy imports the rest of the UI from the package, like `@fumapress/vue/ui/cont
 
 Modules you don't copy stay in the package and keep receiving its updates. Copy only what you change.
 
-A copy imports the packages the UI uses, like `reka-ui` or `class-variance-authority`. When your project doesn't depend on one, the CLI prints the command to add it:
+A copy imports the packages the UI uses, like `class-variance-authority`. When your project doesn't depend on one, the CLI prints the command to add it:
 
 ```
 Your copies import packages your project doesn't depend on yet. Add them:
-  npm install reka-ui@^2.11.0
+  npm install class-variance-authority@^0.7.1
 ```
+
+### Primitives
+
+The UI is built on [Reka UI](https://reka-ui.com), and the package includes the primitives it uses, so there is nothing to install. A copy imports them by family, with every part of the family available:
+
+```ts
+import { DialogClose, DialogContent, DialogRoot } from "@fumapress/vue/reka/dialog";
+```
+
+The families are `accordion`, `collapsible`, `config-provider`, `dialog`, `dropdown-menu`, `focus-scope`, `navigation-menu`, `popover`, `primitive`, `scroll-area` and `tabs`.
+
+:::warning
+For another primitive, like a tooltip, install `reka-ui`. Don't mix the two inside one family: a `DialogClose` of `reka-ui` doesn't find a `DialogRoot` of `@fumapress/vue/reka/dialog`.
+:::
 
 A module copied without the theme isn't used until something imports it: the default theme imports the UI of the package. Copy the theme too, or import the module from your own theme.

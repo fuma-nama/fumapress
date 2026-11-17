@@ -23,4 +23,4 @@ export const navItemVariants = cva("[&_svg]:size-4", {
 
 export const MobileNavigationMenuKey: InjectionKey<{
   setOpen: (v: boolean) => void;
-}> = Symbol("fd-home-mobile-navigation-menu");
+}> = Symbol.for("fd-home-mobile-navigation-menu");

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-vue-next";
+import { ArrowLeftIcon, ArrowRightIcon } from "../../../../../icons";
 import type * as PageTree from "@fumapress/vue/page-tree";
 import { Link } from "../../../../../core/link";
 import { useTranslations } from "../../../../../core/translate";

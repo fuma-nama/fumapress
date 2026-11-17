@@ -1,13 +1,18 @@
 import { expect, test } from "vitest";
 import { parseFrontmatter } from "../src/build/frontmatter";
-import { toRoutePath } from "../src/build/scan";
+import { compareRoutes, toRoutePath } from "../src/build/scan";
 
 test("maps page files to route paths", () => {
   expect(toRoutePath("index.vue")).toBe("/");
   expect(toRoutePath("about.vue")).toBe("/about");
   expect(toRoutePath("blog/index.vue")).toBe("/blog");
-  expect(toRoutePath("blog/[slug].vue")).toBe("/blog/:slug");
-  expect(toRoutePath("files/[...path].vue")).toBe("/files/:path(.*)*");
+  expect(toRoutePath("blog/[slug].vue")).toBe("/blog/[slug]");
+  expect(toRoutePath("files/[...path].vue")).toBe("/files/[...path]");
+
+  // a page with a fixed path is matched before one with a param, and a rest param last
+  expect(
+    ["/[...path]", "/[slug]", "/about", "/blog/[slug]", "/blog/new", "/"].sort(compareRoutes),
+  ).toEqual(["/", "/about", "/blog/new", "/blog/[slug]", "/[slug]", "/[...path]"]);
 });
 
 test("parses frontmatter", () => {

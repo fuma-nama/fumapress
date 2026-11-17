@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, shallowRef } from "vue";
-import { Text } from "lucide-vue-next";
+import { Text } from "../../../../../icons";
 import * as Base from "../../../../../components/toc";
 import { useTranslations } from "../../../../../core/translate";
 import { useOnChange } from "../../../../../core/utils/use-on-change";

@@ -6,8 +6,8 @@ import {
   ScrollAreaScrollbar,
   ScrollAreaThumb,
   ScrollAreaViewport,
-} from "reka-ui";
-import { SidebarIcon } from "lucide-vue-next";
+} from "@fumapress/vue/reka/scroll-area";
+import { SidebarIcon } from "../../../../icons";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useTreeContext } from "../../../../contexts/tree";
 import { useTranslations } from "../../../../core/translate";

@@ -58,7 +58,7 @@ test("copies use each other: files copied before import the new copy", () => {
   const layout = path.join(target.themeDir, "Layout.vue");
   expect(readFileSync(layout, "utf8")).toContain('from "@fumapress/vue/ui/layouts/docs"');
   expect(readFileSync(path.join(target.themeDir, "style.css"), "utf8")).toContain(
-    '@import "@fumapress/vue/css/default.css"',
+    '@import "@fumapress/vue/style/neutral.css"',
   );
 
   const { relinked } = add(target, ["layouts/docs"]);
@@ -70,6 +70,19 @@ test("copies use each other: files copied before import the new copy", () => {
   expect(readFileSync(path.join(target.themeDir, "Root.vue"), "utf8")).toContain(
     'from "@fumapress/vue/ui/provider/base"',
   );
+});
+
+test("leaves the theme of the project alone: it is not a copy of the default one", () => {
+  const target = project();
+  mkdirSync(target.themeDir, { recursive: true });
+  const root = path.join(target.themeDir, "Root.vue");
+  const code = '<script setup>\nimport { Root } from "@fumapress/vue/theme";\n</script>\n';
+  writeFileSync(root, code);
+  writeFileSync(path.join(target.themeDir, "index.ts"), "export default {};\n");
+
+  const { relinked } = add(target, ["components/card"]);
+  expect(relinked).toEqual([]);
+  expect(readFileSync(root, "utf8")).toBe(code);
 });
 
 test("keeps the files of the project, unless told to overwrite", () => {
@@ -87,12 +100,13 @@ test("names the packages the copies import that the project lacks", () => {
   const target = project();
   writeFileSync(
     path.join(target.root, "package.json"),
-    JSON.stringify({ dependencies: { vue: "^3.5.0", "lucide-vue-next": "^1.0.0" } }),
+    JSON.stringify({ dependencies: { vue: "^3.5.0", "@lucide/vue": "^1.0.0" } }),
   );
   const { missing } = add(target, ["components/ui/button", "components/ui/collapsible"]);
   // with the version the UI is written for, and without what the project has
-  expect(Object.keys(missing).toSorted()).toEqual(["class-variance-authority", "reka-ui"]);
-  expect(missing["reka-ui"]).toMatch(/^\^?\d/);
+  // the primitives of Reka UI come from the package, so they are nothing to install
+  expect(Object.keys(missing)).toEqual(["class-variance-authority"]);
+  expect(missing["class-variance-authority"]).toMatch(/^\^?\d/);
 });
 
 test("refuses to copy the theme next to a theme module that would hide it", () => {

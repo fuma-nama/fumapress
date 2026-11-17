@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, type HTMLAttributes } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../../../icons";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../../components/ui/popover";
 import { cn } from "../../../../utils/cn";
 import { LinkItem, RenderNode, type MenuItemType } from "../../../shared";

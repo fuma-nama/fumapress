@@ -8,8 +8,12 @@ import {
   useTemplateRef,
   type HTMLAttributes,
 } from "vue";
-import { ChevronDown, Languages } from "lucide-vue-next";
-import { NavigationMenuList, NavigationMenuRoot, NavigationMenuViewport } from "reka-ui";
+import { ChevronDown, Languages } from "../../../../icons";
+import {
+  NavigationMenuList,
+  NavigationMenuRoot,
+  NavigationMenuViewport,
+} from "@fumapress/vue/reka/navigation-menu";
 import { buttonVariants } from "../../../../components/ui/button";
 import {
   Collapsible,

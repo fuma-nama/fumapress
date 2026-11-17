@@ -3,7 +3,7 @@ import type { InjectionKey, Ref } from "vue";
 export type TranslationValues = Partial<Record<string, string>>;
 
 export const TranslationsKey: InjectionKey<Readonly<Ref<TranslationValues>>> =
-  Symbol("fd-translations");
+  Symbol.for("fd-translations");
 
 export const REGEX_VAR = /\\?\{([^}]+)\}/g;
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { LanguagesIcon, MessageCircleIcon, SidebarIcon } from "lucide-vue-next";
+import { LanguagesIcon, MessageCircleIcon, SidebarIcon } from "../../../../icons";
 import * as Base from "../../../../components/sidebar/base";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useTranslations } from "../../../../core/translate";

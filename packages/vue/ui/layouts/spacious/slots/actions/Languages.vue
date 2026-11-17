@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { CheckIcon, ChevronsUpDownIcon, LanguagesIcon } from "lucide-vue-next";
+import { CheckIcon, ChevronsUpDownIcon, LanguagesIcon } from "../../../../icons";
 import {
   DropdownMenuItemIndicator,
   DropdownMenuPortal,
@@ -9,7 +9,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from "reka-ui";
+} from "@fumapress/vue/reka/dropdown-menu";
 import { useI18n } from "../../../../contexts/i18n";
 import { useTranslations } from "../../../../core/translate";
 import { cn } from "../../../../utils/cn";

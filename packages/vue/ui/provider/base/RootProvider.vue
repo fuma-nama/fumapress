@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, useSlots, type VNodeChild } from "vue";
-import { ConfigProvider } from "reka-ui";
+import { ConfigProvider } from "@fumapress/vue/reka/config-provider";
 import { I18nProvider } from "../../contexts/i18n";
 import { SearchProvider } from "../../contexts/search";
 import { ThemeProvider } from "../../core/theme";

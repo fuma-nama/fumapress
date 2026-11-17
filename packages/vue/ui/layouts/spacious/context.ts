@@ -14,7 +14,7 @@ export interface LayoutContext {
   slots: Readonly<Ref<DocsSlots>>;
 }
 
-export const LayoutKey: InjectionKey<LayoutContext> = Symbol("fd-spacious-layout");
+export const LayoutKey: InjectionKey<LayoutContext> = Symbol.for("fd-spacious-layout");
 
 export function useSpaciousLayout(): LayoutContext {
   const context = inject(LayoutKey, null);

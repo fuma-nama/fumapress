@@ -17,7 +17,14 @@ import {
 } from "./plugin";
 import type { Press } from "./press";
 import { recommendedPreset } from "./preset";
-import { matchRoute, normalizePath, staticPathsOf } from "./routes";
+import {
+  decodePath,
+  encodePath,
+  matchRoute,
+  normalizePath,
+  staticPathsOf,
+  validateRoute,
+} from "./routes";
 import type {
   HeadTag,
   LayoutProps,
@@ -101,13 +108,13 @@ function text(value: unknown): string | undefined {
   return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
 }
 
-/** serializable nodes for the browser: names are text */
+/** serializable nodes for the browser: names are text, and the references of the loader to files stay behind */
 function toTree(root: any): PageTree.Root {
   const node = (item: any): PageTree.Node => {
     const icon = typeof item.icon === "string" ? item.icon : undefined;
     const $id: string | undefined = item.$id;
     if (item.type === "separator") return { $id, type: "separator", name: text(item.name), icon };
-    const base = { $id, $ref: item.$ref, name: text(item.name) ?? "", icon };
+    const base = { $id, name: text(item.name) ?? "", icon };
     if (item.type === "folder") {
       return {
         type: "folder",
@@ -131,7 +138,6 @@ function toTree(root: any): PageTree.Root {
 
   return {
     $id: root.$id,
-    $ref: root.$ref,
     name: text(root.name) ?? "",
     children: root.children.map(node),
     fallback: root.fallback ? toTree(root.fallback) : undefined,
@@ -141,6 +147,16 @@ function toTree(root: any): PageTree.Root {
 export async function createContext(press: Press, env: { base?: string } = {}): Promise<Context> {
   const { content, options, plugins: listed, config } = press["~press"];
   const site = config.site ?? {};
+  if (site.baseUrl !== undefined && !URL.canParse(site.baseUrl)) {
+    throw new Error(
+      `[Fumapress] \`site.baseUrl\` is "${site.baseUrl}", which is not a URL: write it with its protocol, like "https://docs.example.com".`,
+    );
+  }
+  if ("plugins" in options) {
+    throw new Error(
+      "[Fumapress] `plugins` of the content options is not read: the plugins of the content loader are `loaderPlugins`, and the plugins of the site go in `.plugins()`.",
+    );
+  }
   const base = `/${(env.base ?? "/").replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");
   const preset = await Promise.all((config.preset ?? recommendedPreset()).map((entry) => entry()));
   const plugins = [
@@ -199,6 +215,16 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
     return data;
   }
 
+  /** what the browser shows of the `<head>` of a page after it navigated to it */
+  async function documentHead(env: HeadEnv): Promise<PageContent["head"]> {
+    const tags = await ctx.getHead(env);
+    return {
+      title: tags.find((tag) => tag.tag === "title")?.content,
+      description: tags.find((tag) => tag.tag === "meta" && tag.attrs?.name === "description")
+        ?.attrs?.content as string | undefined,
+    };
+  }
+
   /** the first result of a content hook, in plugin order */
   async function first<K extends keyof ContentHooks>(
     name: K,
@@ -219,6 +245,19 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
       }),
     );
 
+    // sources share one tree of files: the same path in two of them would silently be one page
+    const owners = new Map<string, string | undefined>();
+    for (const [key, { files }] of resolved) {
+      for (const file of files) {
+        if (owners.has(file.path)) {
+          throw new Error(
+            `[Fumapress] The sources "${owners.get(file.path)}" and "${key}" both have a file at "${file.path}". Give the files of a source their own folder, like \`toSource({ baseDir: "blog" })\`.`,
+          );
+        }
+        owners.set(file.path, key);
+      }
+    }
+
     const output = loader({
       baseUrl: "/",
       ...loaderOptions,
@@ -229,7 +268,8 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
       source: single ? undefined : (page.type as string),
       path: page.path,
       slugs: page.slugs,
-      url: normalizePath(page.url),
+      // the loader gives the URL of a link: inside the site, a path is decoded
+      url: decodePath(page.url) ?? normalizePath(page.url),
       locale: page.locale,
       data: page.data,
     }));
@@ -281,7 +321,8 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
           `[Fumapress] No plugin renders "${page.path}": add a plugin with a \`getPageBody\` hook for its source.`,
         );
       }
-      return { url: page.url, data, toc: toc ?? [], body };
+      const env = { page, pathname: page.url, lang: page.locale ?? defaultLanguage, data };
+      return { url: page.url, data, toc: toc ?? [], body, head: await documentHead(env) };
     },
     async getContent(pathname) {
       const url = normalizePath(pathname);
@@ -293,7 +334,8 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
         const view = params && (await route.view(params, { lang }));
         if (!view) continue;
         const data = await transformPage({ ...route.data }, { pathname: url, lang });
-        return { url, data, toc: [], body: { view } };
+        const head = await documentHead({ pathname: url, lang, data });
+        return { url, data, toc: [], body: { view }, head };
       }
     },
     async getStaticPages() {
@@ -325,7 +367,8 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
     invalidateLoader: load,
     withBase: (path) => base + path.replace(/^\/+/, ""),
     absoluteUrl(path) {
-      const url = ctx.withBase(path);
+      // encoded, so a path is never read as the start of another URL
+      const url = base + encodePath(normalizePath(path)).slice(1);
       return site.baseUrl ? new URL(url, site.baseUrl).href : url;
     },
     async getLayoutProps(env) {
@@ -357,8 +400,17 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
   for (const plugin of plugins) await plugin.configure?.call(ctx);
   for (const plugin of plugins) {
     await plugin.routes?.call(ctx, {
-      createApi: (route) => void routes.push(route),
+      createApi(route) {
+        validateRoute(route.path, route.render === "static");
+        if (route.data && (route.GET ?? route.ALL)) {
+          throw new Error(
+            `[Fumapress] The route "${route.path}" has \`data\` and a \`GET\` handler: a data route answers \`GET\` with the JSON of its data.`,
+          );
+        }
+        routes.push(route);
+      },
       createView({ lang, ...route }) {
+        validateRoute(route.path, route.render !== "dynamic");
         for (const each of lang === undefined ? languages : [lang]) {
           views.push({ route, lang: each, path: ctx.localizePath(each, route.path) });
         }
@@ -378,6 +430,8 @@ export function getContext(press: Press, env?: { base?: string }): Promise<Conte
   if (!ctx) {
     ctx = createContext(press, env);
     contexts.set(press, ctx);
+    // a start that failed, like a source that was unreachable, is tried again by the next request
+    ctx.catch(() => contexts.delete(press));
   }
   // the site serving the request is the running one
   return ctx.then((resolved) => (current = resolved));

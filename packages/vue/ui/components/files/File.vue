@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { FileIcon } from "lucide-vue-next";
+import { FileIcon } from "../../icons";
 import { cn } from "../../utils/cn";
 import { itemVariants } from "./context";
 import type { FileProps } from "./index";

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, provide, shallowRef, toRef } from "vue";
+import { computed, defineAsyncComponent, onMounted, provide, shallowRef, toRef } from "vue";
 import { useHotKey } from "../../utils/hotkey";
 import { DEFAULT_HOT_KEYS, SearchKey } from "./context";
 import type { SearchProviderProps } from "./index";
@@ -14,7 +14,16 @@ const props = withDefaults(defineProps<SearchProviderProps>(), {
 });
 // a default in `withDefaults()` can't refer to a variable of the setup
 const Dialog = computed(() => props.SearchDialog ?? DefaultSearchDialog);
-const isOpen = shallowRef(props.preload ? false : undefined);
+// the dialog is not part of the page the server sends: it is preloaded once the browser is idle, after the page
+// is interactive
+const isOpen = shallowRef<boolean>();
+onMounted(() => {
+  if (!props.preload) return;
+  const whenIdle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200));
+  whenIdle(() => {
+    isOpen.value ??= false;
+  });
+});
 const setIsOpen = (value: boolean) => {
   isOpen.value = value;
 };

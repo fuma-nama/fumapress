@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, type HTMLAttributes } from "vue";
-import { X } from "lucide-vue-next";
+import { X } from "../../icons";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";
 import { buttonVariants } from "../ui/button";

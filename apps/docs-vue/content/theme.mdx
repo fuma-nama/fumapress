@@ -8,7 +8,7 @@ The theme module is the UI of your site. Create `src/theme.ts` and export the pa
 
 ```ts title="src/theme.ts"
 import type { Theme } from "@fumapress/vue/client";
-import { BookOpen, Rocket } from "lucide-vue-next";
+import { BookOpen, Rocket } from "@lucide/vue";
 import Badge from "./components/Badge.vue";
 
 export default {
@@ -64,7 +64,7 @@ export default {
 }
 ```
 
-An icon is any Vue component, like the icons of `lucide-vue-next`, which you install yourself. An `icon` with no component of that name stays text, so an emoji works too.
+An icon is any Vue component, like the icons of `@lucide/vue`, which you install yourself. An `icon` with no component of that name stays text, so an emoji works too.
 
 ## Views
 
@@ -121,7 +121,7 @@ Your `Layout` handles three cases, like the default one:
 - `useLayoutProps()`: the [layout props](/config#layout-props) of the site.
 - `useSite()`: the `name` and `description` of the site.
 - `usePress()`: the state of the app, with the `components` and `views` of the theme.
-- `useRouter()`: the path, query and hash of the page, and `push()` to navigate.
+- `useRouter()`: the `path`, `query`, `hash` and `params` of the page, `push()` and `replace()` to navigate, and `resolve()` for the URL of a page with the [base path](/deploy#base-path).
 
 `Link` from `@fumapress/vue/client` links to a page of the site with client-side navigation, and opens other URLs in a new tab.
 
@@ -169,7 +169,7 @@ A `.vue` file under `src/pages` is a page of your site, at the path of the file:
 
 Files and folders starting with `_` aren't pages, so they can hold the components of your pages. A custom page wins over a content page at the same URL.
 
-Pages without params are generated at build time, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRoute()` of Vue Router.
+Pages without params are generated at build time, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().params.value.slug`.
 
 To give a custom page the navbar of your site, wrap it in `HomeLayout`:
 
@@ -192,30 +192,48 @@ To use another folder, set the `pagesDir` option of the Vite plugin, like `press
 
 ## Colors
 
-The UI is styled with Tailwind CSS, and its colors are CSS variables like `--color-fd-primary`. The stylesheet of the default theme is `@fumapress/vue/css/default.css`, made of three parts:
-
-```css
-@import "tailwindcss";
-@import "@fumapress/vue/css/neutral.css"; /* the color theme */
-@import "@fumapress/vue/css/preset.css"; /* the styles of the UI */
-```
-
-To pick another color theme, create `src/theme.css` with the same parts and another color file. Fumapress loads it in place of the default stylesheet:
+The colors of the UI are CSS variables like `--color-fd-primary`, and each color theme is a stylesheet of the package. To pick another one, create `src/theme.css`. Fumapress loads it in place of the default stylesheet:
 
 ```css title="src/theme.css"
-@import "tailwindcss";
-@import "@fumapress/vue/css/ocean.css";
-@import "@fumapress/vue/css/preset.css";
+@import "@fumapress/vue/style/ocean.css";
 ```
 
-The color themes are `neutral`, `black`, `vitepress`, `dusk`, `catppuccin`, `ocean`, `purple`, `solar`, `emerald`, `ruby`, `aspen` and `shadcn`. To change single colors, set their variables after the imports:
+The color themes are `neutral`, `black`, `vitepress`, `dusk`, `catppuccin`, `ocean`, `purple`, `solar`, `emerald`, `ruby`, `aspen` and `shadcn`. To change single colors, set their variables after the import:
 
 ```css title="src/theme.css"
-@theme {
+@import "@fumapress/vue/style/neutral.css";
+
+:root {
   --color-fd-primary: hsl(160, 84%, 39%);
 }
 
 .dark {
   --color-fd-primary: hsl(158, 64%, 52%);
 }
+```
+
+## Tailwind CSS
+
+The stylesheets above are compiled, so a site needs no Tailwind CSS. The UI is written with Tailwind CSS classes though, and you can use them in your pages and components, or change them in a [copy of the UI](/cli). Install Tailwind CSS and add its Vite plugin:
+
+```npm
+npm install -D tailwindcss @tailwindcss/vite
+```
+
+```ts title="vite.config.ts"
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press(), tailwindcss()],
+});
+```
+
+Then write the stylesheet from its sources: Tailwind CSS, a color theme, and the styles of the UI. Tailwind CSS now generates the classes of the UI together with yours:
+
+```css title="src/theme.css"
+@import "tailwindcss";
+@import "@fumapress/vue/css/ocean.css";
+@import "@fumapress/vue/css/preset.css";
 ```

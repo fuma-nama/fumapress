@@ -96,12 +96,18 @@ export default createPress(content, { i18n }).config({
 });
 ```
 
+With `parser: "dir"`, the folder of a language is the first one. To also put a collection under a URL prefix, give `toSource` the languages, so the prefix comes after that folder:
+
+```ts
+collections.docs!.toSource({ baseDir: "docs", i18n });
+```
+
 ## Plugins
 
 The default plugins and your views follow the languages of the site:
 
 - Search has an index per language, and the dialog searches the language of the page.
-- `llms.txt` and `llms-full.txt` exist per language, at its prefix, like `/cn/llms.txt`.
+- `llms.txt` and `llms-full.txt` exist per language: at the root of the site for the default language, and at the prefix of the others, like `/cn/llms.txt`.
 - The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links.
 - A [view](/plugins/views) of a plugin exists in every language, at its prefix, and receives the language as `lang`.
 

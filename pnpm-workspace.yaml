@@ -13,3 +13,4 @@ minimumReleaseAgeExclude:
   - "@fuma-translate/*"
   - "@next/*"
   - tegami@1.2.5
+  - "@lucide/vue@1.74.0"

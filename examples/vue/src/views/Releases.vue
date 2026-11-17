@@ -8,18 +8,48 @@ defineProps<{ releases: { title: string; url: string }[] }>();
 
 <template>
   <HomeLayout>
-    <div class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
-      <h1 class="mb-6 text-3xl font-semibold">Releases</h1>
-      <ul class="flex flex-col gap-2">
+    <div class="page">
+      <h1>Releases</h1>
+      <ul>
         <li v-for="release in releases" :key="release.url">
-          <Link
-            :href="release.url"
-            class="block rounded-lg border bg-fd-card p-4 font-medium text-fd-card-foreground hover:bg-fd-accent"
-          >
-            {{ release.title }}
-          </Link>
+          <Link :href="release.url" class="release">{{ release.title }}</Link>
         </li>
       </ul>
     </div>
   </HomeLayout>
 </template>
+
+<style scoped>
+.page {
+  width: 100%;
+  max-width: var(--fd-layout-width);
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+h1 {
+  margin-bottom: 1.5rem;
+  font-size: 1.875rem;
+  font-weight: 600;
+}
+
+ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.release {
+  display: block;
+  padding: 1rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.5rem;
+  background: var(--color-fd-card);
+  color: var(--color-fd-card-foreground);
+  font-weight: 500;
+}
+
+.release:hover {
+  background: var(--color-fd-accent);
+}
+</style>

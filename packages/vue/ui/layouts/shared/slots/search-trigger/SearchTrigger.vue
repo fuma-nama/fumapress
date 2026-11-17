@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { Search } from "../../../../icons";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useSearchContext } from "../../../../contexts/search";
 import { useTranslations } from "../../../../core/translate";

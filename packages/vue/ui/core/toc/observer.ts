@@ -10,9 +10,9 @@ import {
 } from "vue";
 import type { TOCItemInfo, TOCItemType } from "./index";
 
-export const ObserverKey: InjectionKey<ComputedRef<Observer>> = Symbol("fd-toc-observer");
+export const ObserverKey: InjectionKey<ComputedRef<Observer>> = Symbol.for("fd-toc-observer");
 export const ScrollKey: InjectionKey<Readonly<Ref<HTMLElement | null | undefined>>> =
-  Symbol("fd-toc-scroll");
+  Symbol.for("fd-toc-scroll");
 
 export function useObserver(): ComputedRef<Observer> {
   const observer = inject(ObserverKey, null);

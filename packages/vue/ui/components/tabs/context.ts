@@ -7,7 +7,7 @@ export interface TabsContextType {
   collection: CollectionKey[];
 }
 
-export const TabsKey: InjectionKey<TabsContextType> = Symbol("fd-tabs-items");
+export const TabsKey: InjectionKey<TabsContextType> = Symbol.for("fd-tabs-items");
 
 export function useTabContext() {
   const ctx = inject(TabsKey, null);

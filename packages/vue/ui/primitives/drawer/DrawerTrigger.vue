@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, useId } from "vue";
-import { Primitive } from "reka-ui";
+import { Primitive } from "@fumapress/vue/reka/primitive";
 import { DrawerRootKey, type DrawerTriggerProps } from "./context";
 
 /** A button that opens the drawer, its slot receives `{ open }`. */

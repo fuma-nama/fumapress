@@ -20,7 +20,7 @@ export interface DocsPageSlots {
 export const PageKey: InjectionKey<{
   full: Readonly<Ref<boolean>>;
   slots: Readonly<Ref<DocsPageSlots>>;
-}> = Symbol("fd-notebook-page");
+}> = Symbol.for("fd-notebook-page");
 
 export function useDocsPage() {
   const context = inject(PageKey, null);

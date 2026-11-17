@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { Languages, SidebarIcon } from "lucide-vue-next";
+import { Languages, SidebarIcon } from "../../../../icons";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useTabsGroups } from "../../../../contexts/tree";
 import { cn } from "../../../../utils/cn";

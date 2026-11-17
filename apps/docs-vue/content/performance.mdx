@@ -4,20 +4,23 @@ description: What a page costs to build and to load, measured against VitePress.
 icon: Gauge
 ---
 
-These numbers come from one site of 1,001 Markdown pages, built with `@fumapress/vue` and with VitePress 1.6.4 on the same machine, each with its default theme.
+These numbers come from one site of 1,001 Markdown pages, built with `@fumapress/vue` and with VitePress 2.0.0-alpha.21 on the same machine, each with its default theme.
 
 ## Results
 
-| Measure                    | Fumapress Vue  | VitePress      |
-| -------------------------- | -------------- | -------------- |
-| Build time                 | 11.4 to 12.0 s | 22.2 to 22.3 s |
-| HTML of a page, gzip       | 9.8 kB         | 28.7 kB        |
-| JavaScript of a page, gzip | 122.4 kB       | 58.6 kB        |
-| CSS of a page, gzip        | 19.3 kB        | 19.4 kB        |
-| Size of the output         | 180 MB         | 463 MB         |
-| Installed size             | 160 MB         | 100 MB         |
+| Measure                    | Fumapress Vue      | VitePress           |
+| -------------------------- | ------------------ | ------------------- |
+| Build time                 | 10.5 to 11.9 s     | 20.7 to 22.1 s      |
+| HTML of a page, gzip       | 9.6 kB             | 11.9 kB             |
+| JavaScript of a page, gzip | 98.5 kB            | 77.0 kB             |
+| CSS of a page, gzip        | 19.2 kB            | 17.6 kB             |
+| Navigation to another page | 26 to 30 ms        | 90 to 128 ms        |
+| Size of the output         | 178 MB             | 408 MB              |
+| Installed size             | 69 MB, 56 packages | 95 MB, 105 packages |
 
-The build is about twice as fast and the output is less than half the size. The JavaScript of a page is about twice the size: the UI is a port of Fumadocs UI, with its search dialog, sidebar, table of contents and popovers, on top of Vue and Vue Router.
+The build takes half the time, and the output and the install are smaller. A navigation, measured from the click to the next page on screen, is faster because the sidebar only renders the folders that are open: the page has 830 elements, against 6,660 with VitePress.
+
+The JavaScript of a page is 21 kB larger. The UI is a port of Fumadocs UI, with its sidebar, table of contents, popovers and class merging, on top of Vue. Neither site has a task longer than 50 ms while a page loads.
 
 ## What a Page Loads
 
@@ -25,7 +28,8 @@ The first request of a page gets its HTML with the content already rendered. The
 
 - The JavaScript of the layout, shared by every page and cached after the first one.
 - The module of the page, 3 kB gzip on the measured site.
-- The data of the site: its page tree, navbar and links. It is one file per language, fetched once: 23.6 kB gzip for the 1,001 pages.
+- The data of the site: its page tree, navbar and links. It is one file per language, fetched once: 21.2 kB gzip for the 1,001 pages.
+- The search dialog, 19.4 kB gzip, once the page is interactive and the browser is idle, so the first search opens at once.
 
 The HTML doesn't contain the page tree, which is why it stays small on a large site.
 
@@ -35,7 +39,7 @@ The search index is loaded on the first search. It holds the text of every page 
 
 ## Development
 
-`vite dev` starts in about 2 seconds on the measured site, most of it reading the 1,001 files. A page opened after that renders on the server in 0.15 s.
+`vite dev` answers its first page 1.4 seconds after it is started on the measured site, most of it reading the 1,001 files. A page opened after that renders on the server in 0.1 s.
 
 The two frameworks differ here. VitePress answers the first request in 0.4 s after its start, with an empty document that the browser renders once it has loaded the app. Fumapress sends the rendered page, as it does in production, so what you see while writing is what a reader gets.
 

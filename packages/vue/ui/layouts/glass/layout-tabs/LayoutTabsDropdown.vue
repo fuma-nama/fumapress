@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, type HTMLAttributes } from "vue";
-import { ChevronsUpDown } from "lucide-vue-next";
+import { ChevronsUpDown } from "../../../icons";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
 import { useTabsGroups, useTreePath } from "../../../contexts/tree";
 import { usePathname } from "../../../core/framework";

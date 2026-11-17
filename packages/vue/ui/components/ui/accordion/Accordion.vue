@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { AccordionRoot as Root } from "reka-ui";
+import { AccordionRoot as Root } from "@fumapress/vue/reka/accordion";
 import { cn } from "../../../utils/cn";
 
 // `collapsible`: an open item of Base UI can always be closed

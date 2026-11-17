@@ -7,7 +7,7 @@ import {
   type CSSProperties,
   type FunctionalComponent,
 } from "vue";
-import { ChevronLeft, ChevronRight, X } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, X } from "../../icons";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";
 import { buttonVariants } from "../ui/button";

@@ -3,6 +3,7 @@ import {
   defineComponent,
   h,
   inject,
+  mergeProps,
   shallowRef,
   type App,
   type Component,
@@ -10,9 +11,16 @@ import {
   type InjectionKey,
   type ShallowRef,
 } from "vue";
-import { RouterLink, useRoute, useRouter as useVueRouter, type Router } from "vue-router";
+import type { Router } from "./router";
 import { localeOf, localizePath, type LocaleRules } from "./core/i18n";
-import { normalizePath, pageDataPath, searchIndexPath, siteDataPath } from "./core/routes";
+import {
+  encodePath,
+  normalizePath,
+  safeHref,
+  pageDataPath,
+  searchIndexPath,
+  siteDataPath,
+} from "./core/routes";
 import type {
   HeadTag,
   LayoutProps,
@@ -25,7 +33,14 @@ import type {
   SiteI18n,
 } from "./core/types";
 
-export { normalizePath, searchIndexPath };
+export { normalizePath, safeHref, searchIndexPath };
+export {
+  createRouter,
+  type Route,
+  type RouteRecord,
+  type Router,
+  type RouterOptions,
+} from "./router";
 export { searchIndex, type SearchEntry, type SearchResult } from "./core/search";
 export type {
   HeadTag,
@@ -96,7 +111,7 @@ export function createLoad(base: string, loaded: Record<string, unknown>): Load 
     if (!value) {
       // a path without a value is a 404, which is kept; a request that failed is made again the next time
       const retry = () => void cache.delete(path);
-      value = fetch(base + path.slice(1)).then(
+      value = fetch(base + encodePath(path).slice(1)).then(
         (response) => {
           if (response.ok) return response.json();
           if (response.status !== 404) retry();
@@ -113,7 +128,7 @@ export function createLoad(base: string, loaded: Record<string, unknown>): Load 
 function withIcons(root: PageTree.Root, icons: Record<string, Component>): PageTree.Root {
   const node = <T extends PageTree.Node>(item: T): T => {
     const out = { ...item };
-    if (typeof out.icon === "string" && icons[out.icon]) out.icon = icons[out.icon];
+    if (typeof out.icon === "string" && Object.hasOwn(icons, out.icon)) out.icon = icons[out.icon];
     if (out.type === "folder") {
       out.children = out.children.map(node);
       if (out.index) out.index = node(out.index);
@@ -173,17 +188,23 @@ async function bodyOf(state: PressState, { body }: PageContent): Promise<Compone
   return mod.default as Component;
 }
 
-/** loads the page of a URL into the state: a content page or the view of a plugin, none when the URL has neither */
-export async function loadPage(state: PressState, pathname: string): Promise<void> {
+/** the page of a URL, ready to render: a content page or the view of a plugin, none when the URL has neither */
+export async function loadPage(
+  state: PressState,
+  pathname: string,
+): Promise<LoadedPage | undefined> {
   const url = normalizePath(pathname);
   const content = await contentOf(state, url);
-  state.page.value = content && {
-    url,
-    data: content.data,
-    toc: content.toc,
-    Content: await bodyOf(state, content),
-    view: "view" in content.body ? content.body.view.type : undefined,
-  };
+  return (
+    content && {
+      url,
+      data: content.data,
+      toc: content.toc,
+      head: content.head,
+      Content: await bodyOf(state, content),
+      view: "view" in content.body ? content.body.view.type : undefined,
+    }
+  );
 }
 
 /** requests the content of a page ahead of a navigation, like when a link to it is hovered */
@@ -244,39 +265,68 @@ function isExternal(href: string): boolean {
   return /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(href);
 }
 
+export const routerKey: InjectionKey<Router> = Symbol.for("fumapress:router");
+
+function injectRouter(): Router {
+  const router = inject(routerKey);
+  if (!router) throw new Error("[Fumapress] The router is read outside of a Fumapress app.");
+  return router;
+}
+
+/** whether a click on a link is the reader asking for the page in this tab */
+function isPlainClick(event: MouseEvent): boolean {
+  if (event.defaultPrevented || event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+  const anchor = event.currentTarget as HTMLAnchorElement;
+  return !anchor.hasAttribute("download") && (!anchor.target || anchor.target === "_self");
+}
+
 /** a link of the site: client-side navigation for its pages, a plain anchor for other URLs and hashes */
 export const Link = defineComponent({
   name: "Link",
+  inheritAttrs: false,
   props: {
+    /** a path of the site without the base path, a hash, or the URL of another site */
     href: { type: String, default: "" },
     external: Boolean,
   },
   setup(props, { slots, attrs }) {
     const state = usePress();
-    const prefetch = () => prefetchPage(state, props.href.split(/[?#]/)[0]!);
+    const router = injectRouter();
+    const target = computed(() =>
+      props.href.startsWith("/") ? router.resolve(props.href) : undefined,
+    );
+    // the page is requested when the reader shows intent, so the navigation doesn't wait for it
+    const prefetch = () => target.value && prefetchPage(state, target.value.path);
 
     return () => {
+      // a URL that would run a script has no `href`
+      const href = safeHref(props.href);
       if (props.external || isExternal(props.href)) {
         return h(
           "a",
-          { ...attrs, href: props.href, target: "_blank", rel: "noreferrer noopener" },
+          { ...attrs, href, target: "_blank", rel: "noreferrer noopener" },
           slots.default?.(),
         );
       }
-      if (!props.href.startsWith("/")) {
-        return h("a", { ...attrs, href: props.href }, slots.default?.());
-      }
-      // the page is requested when the reader shows intent, so the navigation doesn't wait for it
+      const to = target.value;
+      if (!to) return h("a", { ...attrs, href }, slots.default?.());
+
       return h(
-        RouterLink,
-        {
-          ...attrs,
-          to: props.href,
+        "a",
+        mergeProps(attrs, {
+          href: to.href,
+          "aria-current": to.path === router.route.value.path ? "page" : undefined,
           onMouseenter: prefetch,
           onFocus: prefetch,
           onTouchstart: prefetch,
-        },
-        slots,
+          onClick(event: MouseEvent) {
+            if (!isPlainClick(event)) return;
+            event.preventDefault();
+            void router.push(props.href);
+          },
+        }),
+        slots.default?.(),
       );
     };
   },
@@ -285,8 +335,13 @@ export const Link = defineComponent({
 export interface PressRouter {
   /** the path of the page, without the base path */
   path: ComputedRef<string>;
-  query: ComputedRef<Record<string, unknown>>;
+  query: ComputedRef<Record<string, string>>;
   hash: ComputedRef<string>;
+  /** the values of the params of a custom page, like `slug` of `src/pages/blog/[slug].vue` */
+  params: ComputedRef<Record<string, string>>;
+  /** the URL of a page for the address bar, with the base path: none for a URL that leaves the site */
+  resolve: (href: string) => string | undefined;
+  /** go to a page: a path of the site without the base path */
   push: (href: string) => Promise<void>;
   replace: (href: string) => Promise<void>;
   back: () => void;
@@ -294,15 +349,25 @@ export interface PressRouter {
 }
 
 export function useRouter(): PressRouter {
-  const router = useVueRouter();
-  const route = useRoute();
+  const { route, resolve, push, replace, back, forward } = injectRouter();
   return {
-    path: computed(() => normalizePath(route.path)),
-    query: computed(() => route.query),
-    hash: computed(() => route.hash),
-    push: async (href) => void (await router.push(href)),
-    replace: async (href) => void (await router.replace(href)),
-    back: () => router.back(),
-    forward: () => router.forward(),
+    path: computed(() => route.value.path),
+    query: computed(() => route.value.query),
+    hash: computed(() => route.value.hash),
+    params: computed(() => route.value.params),
+    resolve: (href) => resolve(href)?.href,
+    push,
+    replace,
+    back,
+    forward,
   };
 }
+
+/** renders the page the app is at */
+export const RouterView = defineComponent({
+  name: "RouterView",
+  setup() {
+    const { route } = injectRouter();
+    return () => h(route.value.component);
+  },
+});

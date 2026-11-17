@@ -20,7 +20,7 @@ export interface PageContext {
   slots: Readonly<Ref<DocsPageSlots>>;
 }
 
-export const PageKey: InjectionKey<PageContext> = Symbol("fd-flux-page");
+export const PageKey: InjectionKey<PageContext> = Symbol.for("fd-flux-page");
 
 export function useDocsPage() {
   const context = inject(PageKey, null);

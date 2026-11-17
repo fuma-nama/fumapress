@@ -5,7 +5,7 @@ import {
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuTrigger,
-} from "reka-ui";
+} from "@fumapress/vue/reka/navigation-menu";
 import { usePathname } from "../../../../core/framework";
 import { Link } from "../../../../core/link";
 import { cn } from "../../../../utils/cn";

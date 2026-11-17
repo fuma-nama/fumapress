@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, LinkIcon } from "lucide-vue-next";
+import { Check, LinkIcon } from "../../icons";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";
 import { useCopyButton } from "../../utils/use-copy-button";

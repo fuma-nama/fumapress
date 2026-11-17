@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, type HTMLAttributes } from "vue";
-import { ChevronDown, ExternalLinkIcon, TextIcon } from "lucide-vue-next";
+import { ChevronDown, ExternalLinkIcon, TextIcon } from "../../../icons";
 import { buttonVariants } from "../../../components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../components/ui/popover";
 import { usePathname } from "../../../core/framework";

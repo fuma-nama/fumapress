@@ -31,7 +31,7 @@ const RendererKey: InjectionKey<{
   Folder: Readonly<Ref<Component | undefined>>;
   Separator: Readonly<Ref<Component | undefined>>;
   pathname: Readonly<Ref<string>>;
-}> = Symbol("fd-sidebar-page-tree");
+}> = Symbol.for("fd-sidebar-page-tree");
 
 type InternalComponents = Record<
   keyof Pick<

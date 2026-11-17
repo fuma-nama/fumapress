@@ -18,7 +18,7 @@ export interface TabsContextType {
   triggers: Set<string>;
 }
 
-export const TabsKey: InjectionKey<TabsContextType> = Symbol("fd-tabs");
+export const TabsKey: InjectionKey<TabsContextType> = Symbol.for("fd-tabs");
 
 export function useTabContext() {
   const ctx = inject(TabsKey, null);

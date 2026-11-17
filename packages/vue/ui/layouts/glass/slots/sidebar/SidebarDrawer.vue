@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ChevronsUpDown, LanguagesIcon, MessageCircleIcon, XIcon } from "lucide-vue-next";
+import { ChevronsUpDown, LanguagesIcon, MessageCircleIcon, XIcon } from "../../../../icons";
 import * as Drawer from "../../../../primitives/drawer";
 import { buttonVariants } from "../../../../components/ui/button";
 import { useTreeContext } from "../../../../contexts/tree";

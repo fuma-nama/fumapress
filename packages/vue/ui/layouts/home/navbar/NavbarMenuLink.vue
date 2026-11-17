@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { NavigationMenuLink } from "reka-ui";
+import { NavigationMenuLink } from "@fumapress/vue/reka/navigation-menu";
 import { Link, type LinkProps } from "../../../core/link";
 import { cn } from "../../../utils/cn";
 

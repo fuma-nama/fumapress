@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { GitFork, Star } from "lucide-vue-next";
+import { GitFork, Star } from "../../icons";
 import { cn } from "../../utils/cn";
 import { defaultFormatter, fetchRepositoryInfo, formatterOptions, promises } from "./context";
 import type { FetchRepositoryInfoOptions, GithubInfoProps } from "./index";

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ChevronRight } from "lucide-vue-next";
+import { ChevronRight } from "../../../../../icons";
 import { useTreeContext, useTreePath } from "../../../../../contexts/tree";
 import { getBreadcrumbItemsFromPath } from "../../../../../core/breadcrumb";
 import { Link } from "../../../../../core/link";

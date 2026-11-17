@@ -23,7 +23,7 @@ export interface SidebarContext {
   setCollapsed: (v: boolean) => void;
 }
 
-export const SidebarKey: InjectionKey<SidebarContext> = Symbol("fd-glass-sidebar");
+export const SidebarKey: InjectionKey<SidebarContext> = Symbol.for("fd-glass-sidebar");
 
 export function useSidebar(): SidebarContext {
   const v = inject(SidebarKey, null);

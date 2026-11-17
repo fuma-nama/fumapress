@@ -14,7 +14,7 @@ export interface LayoutContext {
   slots: Readonly<Ref<DocsSlots>>;
 }
 
-export const LayoutKey: InjectionKey<LayoutContext> = Symbol("fd-glass-layout");
+export const LayoutKey: InjectionKey<LayoutContext> = Symbol.for("fd-glass-layout");
 
 export function useGlassLayout(): LayoutContext {
   const context = inject(LayoutKey, null);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, type Component, type FunctionalComponent, type HTMLAttributes } from "vue";
-import { Languages, SidebarIcon, X } from "lucide-vue-next";
+import { Languages, SidebarIcon, X } from "../../../../icons";
 import * as Base from "../../../../components/sidebar/base";
 import { SidebarTabsDropdown } from "../../../../components/sidebar/tabs/dropdown";
 import { buttonVariants } from "../../../../components/ui/button";

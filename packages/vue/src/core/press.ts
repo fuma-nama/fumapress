@@ -11,6 +11,8 @@ export interface ContentOptions {
   i18n?: I18nConfig;
   /** the `plugins` of the Fumadocs content loader */
   loaderPlugins?: unknown[];
+  /** not an option: the plugins of the content loader are `loaderPlugins`, the plugins of the site go in `.plugins()` */
+  plugins?: never;
   /** other options of the Fumadocs content loader, like `slugs`, `url` and `pageTree` */
   [key: string]: unknown;
 }

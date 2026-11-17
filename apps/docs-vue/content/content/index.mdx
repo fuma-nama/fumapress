@@ -89,14 +89,14 @@ The `icon` of a page or a folder is a name. Map the names to components in the `
 
 ```ts title="src/theme.ts"
 import type { Theme } from "@fumapress/vue/client";
-import { BookOpen, Rocket } from "lucide-vue-next";
+import { BookOpen, Rocket } from "@lucide/vue";
 
 export default {
   icons: { BookOpen, Rocket },
 } satisfies Partial<Theme>;
 ```
 
-`src/theme.ts` is found by default, and `lucide-vue-next` is a package to install. A name without a component is shown as text, so an emoji works as an icon too:
+`src/theme.ts` is found by default, and `@lucide/vue` is a package to install. A name without a component is shown as text, so an emoji works as an icon too:
 
 ```mdx title="content/index.mdx"
 ---

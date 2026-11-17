@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, shallowRef } from "vue";
 import { cva } from "class-variance-authority";
-import { Airplay, Moon, Sun } from "lucide-vue-next";
+import { Airplay, Moon, Sun } from "../../../../icons";
 import { useTheme } from "../../../../core/theme";
 import { useTranslations } from "../../../../core/translate";
 import { cn } from "../../../../utils/cn";

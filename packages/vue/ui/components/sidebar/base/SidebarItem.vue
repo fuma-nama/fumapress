@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useTemplateRef, type ComponentPublicInstance } from "vue";
-import { ExternalLink } from "lucide-vue-next";
+import { ExternalLink } from "../../../icons";
 import { Link } from "../../../core/link";
 import { useAutoScroll, useSidebar } from "./context";
 

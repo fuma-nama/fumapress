@@ -32,8 +32,8 @@ export interface TagsListContext {
   allowClear: Readonly<Ref<boolean>>;
 }
 
-export const RootKey: InjectionKey<SearchContext> = Symbol("fd-search-dialog");
-export const TagsListKey: InjectionKey<TagsListContext> = Symbol("fd-search-tags-list");
+export const RootKey: InjectionKey<SearchContext> = Symbol.for("fd-search-dialog");
+export const TagsListKey: InjectionKey<TagsListContext> = Symbol.for("fd-search-tags-list");
 
 export function useSearch(): SearchContext {
   const ctx = inject(RootKey, null);

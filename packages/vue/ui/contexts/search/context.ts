@@ -2,7 +2,7 @@ import { shallowRef, type InjectionKey } from "vue";
 import MetaOrControl from "./MetaOrControl.vue";
 import type { HotKey, SearchContextType } from "./index";
 
-export const SearchKey: InjectionKey<SearchContextType> = Symbol("fd-search");
+export const SearchKey: InjectionKey<SearchContextType> = Symbol.for("fd-search");
 
 export const defaultContext: SearchContextType = {
   enabled: false,

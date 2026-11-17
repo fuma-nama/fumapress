@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, shallowRef, toRef } from "vue";
-import { DialogRoot } from "reka-ui";
+import { DialogRoot } from "@fumapress/vue/reka/dialog";
+import { safeHref } from "@fumapress/vue/client";
 import { useRouter } from "../../../core/framework";
 import { RootKey } from "./context";
 import type { SearchDialogProps, SearchItemType } from "./index";
@@ -18,7 +19,8 @@ const onSelect = (item: SearchItemType) => {
   if (item.type === "action") {
     item.onSelect();
   } else if (item.external) {
-    window.open(item.url, "_blank")?.focus();
+    const url = safeHref(item.url);
+    if (url !== undefined) window.open(url, "_blank")?.focus();
   } else {
     void router.push(item.url);
   }

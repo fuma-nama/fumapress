@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { NavigationMenuContent } from "reka-ui";
+import { NavigationMenuContent } from "@fumapress/vue/reka/navigation-menu";
 import { cn } from "../../../utils/cn";
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>();

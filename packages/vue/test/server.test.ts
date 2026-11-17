@@ -7,6 +7,8 @@ import { createPress, type Press } from "../src/core/press";
 import {
   searchIndexPath,
   siteDataPath,
+  decodePath,
+  encodePath,
   matchRoute,
   pageDataPath,
   prerenderListPath,
@@ -39,9 +41,17 @@ const collection = createCollection("docs", [
   { type: "meta", path: "guide/meta.json", data: { title: "Guide" } },
 ]);
 
-function serve(press: Press) {
+type Get = (path: string, init?: RequestInit) => Promise<Response>;
+
+/** the server of a site, and `prerenderer`: the same site as the server a build prerenders with */
+function serve(press: Press): Get & { prerenderer: Get } {
+  return Object.assign(handlerOf(press, false), { prerenderer: handlerOf(press, true) });
+}
+
+function handlerOf(press: Press, prerender: boolean): Get {
   const handler = createFetchHandler({
     press,
+    prerender,
     assets: { entry: "/assets/entry.js", css: [{ href: "/assets/style.css" }], js: [] },
     head: [{ tag: "script", content: "theme()" }],
     staticPaths: ["/about"],
@@ -59,7 +69,7 @@ function serve(press: Press) {
     handler(new Request(`http://localhost${path}`, init));
 }
 
-/** the list of a build, part by part: only the prerenderer of Nitro gets one */
+/** the list of a build, part by part, from the server a build prerenders with */
 async function prerendered(
   get: ReturnType<typeof serve>,
 ): Promise<{ paths: string[]; parts: number }> {
@@ -67,7 +77,7 @@ async function prerendered(
   let next: string | undefined = prerenderListPath(0);
   let parts = 0;
   while (next) {
-    const response: Response = await get(next, { headers: { "x-nitro-prerender": next } });
+    const response: Response = await get.prerenderer(next);
     const header = response.headers.get("x-nitro-prerender")!;
     expect(header.length).toBeLessThan(8000);
     const listed = header.split(", ").filter(Boolean);
@@ -133,11 +143,22 @@ const install: PageContent = {
   data: { title: "Install", description: "How to install", words: 17 },
   toc: [{ title: "Intro", url: "#intro", depth: 2 }],
   body: { module: "/assets/guide/install.mdx.js" },
+  // what the browser shows of the head when it navigates here: the same tags as the document
+  head: { title: "Install | Docs", description: "from the plugin" },
 };
 
 test("matches route patterns", async () => {
   expect(matchRoute("/sitemap.xml", "/sitemap.xml")).toEqual({});
-  expect(matchRoute("/api/[name]", "/api/hello%20there")).toEqual({ name: "hello there" });
+  // paths are decoded once, where a request comes in: a param is the segment as it is
+  expect(matchRoute("/api/[name]", "/api/hello there")).toEqual({ name: "hello there" });
+  expect(decodePath("/api/hello%20there/")).toBe("/api/hello there");
+  expect(decodePath("//api///x")).toBe("/api/x");
+  expect(decodePath("/100%25")).toBe("/100%");
+  // not paths of a page: a malformed escape, and an encoded separator, which would give a page a second path
+  expect(decodePath("/a%")).toBeUndefined();
+  expect(decodePath("/private%2Fsecret")).toBeUndefined();
+  expect(decodePath("/%5Cevil.example")).toBeUndefined();
+  expect(encodePath("/guide/my page/100%")).toBe("/guide/my%20page/100%25");
   expect(matchRoute("/files/[...path]", "/files/a/b")).toEqual({ path: "a/b" });
   expect(matchRoute("/api/[name]", "/api")).toBeUndefined();
   expect(matchRoute("/api", "/api/more")).toBeUndefined();
@@ -275,7 +296,9 @@ test("serves the default plugins", async () => {
 });
 
 test("lists the paths to generate, only for the prerenderer", async () => {
-  expect((await get(prerenderListPath(0))).status).toBe(404);
+  // a running server has no list, whatever a request claims to be
+  const claim = { headers: { "x-nitro-prerender": prerenderListPath(0) } };
+  expect((await get(prerenderListPath(0), claim)).status).toBe(404);
   expect((await prerendered(get)).paths).toEqual([
     "/",
     "/guide/install",
@@ -345,6 +368,7 @@ test("renders the pages of a custom source through content hooks", async () => {
     data: { title: "First", lastModified: "2026-01-02T00:00:00.000Z" },
     toc: [{ title: "Top", url: "#top", depth: 2 }],
     body: { html: "<p>The <b>first</b> note</p>" },
+    head: { title: "First" },
   };
 
   // the same as a Markdown page: with the first response, then by request
@@ -417,11 +441,12 @@ test("runs build hooks once, and a file they emit is a static route", async () =
     }),
   );
 
-  expect((await built("/report.json")).status).toBe(404);
   expect((await prerendered(built)).paths).toContain("/report.json");
   await prerendered(built);
   expect(runs).toBe(1);
-  expect(await (await built("/report.json")).json()).toEqual({ paths: 12, home: 200 });
+  expect(await (await built.prerenderer("/report.json")).json()).toEqual({ paths: 12, home: 200 });
+  // a running server never runs the hooks: it has no such file
+  expect((await built("/report.json")).status).toBe(404);
 });
 
 test("adds the loader options of plugins", async () => {
@@ -441,10 +466,11 @@ test("adds the loader options of plugins", async () => {
 });
 
 test("generates the not found page for static hosts", async () => {
-  // on a server the path has no page, like any other
-  expect((await get("/404.html")).status).toBe(404);
+  // on a server the path has no page, like any other, whatever a request claims to be
+  const claim = { headers: { "x-nitro-prerender": "/404.html" } };
+  expect((await get("/404.html", claim)).status).toBe(404);
   // the prerenderer gets the page, to write the file a static host serves
-  const response = await get("/404.html", { headers: { "x-nitro-prerender": "/404.html" } });
+  const response = await get.prerenderer("/404.html");
   expect(response.status).toBe(200);
   expect(await response.text()).toContain('<div id="app">missing</div>');
 });
@@ -496,6 +522,7 @@ test("serves the pages of plugins as views", async () => {
     data: { title: "Hello" },
     toc: [],
     body: { view: { type: "post", props: { title: "Hello" } } },
+    head: { title: "Hello | Docs" },
   };
   const html = await (await blog("/blog/hello")).text();
   expect(html).toContain("<title>Hello | Docs</title>");

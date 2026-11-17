@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from "vue";
-import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from "reka-ui";
+import {
+  ScrollAreaRoot,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from "@fumapress/vue/reka/scroll-area";
 import { cn } from "../../../../utils/cn";
 import { useSpaciousLayout } from "../../context";
 import { SidebarLinkItem, SidebarPageTree } from "./renderer";

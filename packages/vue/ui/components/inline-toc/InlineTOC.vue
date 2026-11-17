@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../icons";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";

@@ -141,20 +141,16 @@ export interface PageContent {
   data: PageData;
   toc: TOCItem[];
   body: PageBody;
+  /** the title and description of its `<head>`, which the browser applies when it navigates to the page */
+  head: { title?: string; description?: string };
 }
 
 /** the page tree of Fumadocs with text names, so the browser can receive it */
 export namespace PageTree {
   /** a name from the content; in the browser, the component of `icons` of the theme with that name */
   export type Icon = string | Component;
-  /** the files a folder is made from, for projecting a page from one root folder to another */
-  export interface FolderRef {
-    meta?: string;
-    folder: string;
-  }
   export interface Root {
     $id?: string;
-    $ref?: FolderRef;
     name: string;
     children: Node[];
     fallback?: Root;
@@ -162,8 +158,6 @@ export namespace PageTree {
   export type Node = Item | Separator | Folder;
   export interface Item {
     $id?: string;
-    /** the file of the page */
-    $ref?: string;
     type: "page";
     name: string;
     url: string;
@@ -179,7 +173,6 @@ export namespace PageTree {
   }
   export interface Folder {
     $id?: string;
-    $ref?: FolderRef;
     type: "folder";
     name: string;
     description?: string;

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ArrowUpRightIcon, EllipsisIcon, MessageCircleIcon, SunMoonIcon } from "lucide-vue-next";
+import { ArrowUpRightIcon, EllipsisIcon, MessageCircleIcon, SunMoonIcon } from "../../../../icons";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuRoot,
   DropdownMenuTrigger,
-} from "reka-ui";
+} from "@fumapress/vue/reka/dropdown-menu";
 import { buttonVariants } from "../../../../components/ui/button";
 import { Link } from "../../../../core/link";
 import { useTranslations } from "../../../../core/translate";

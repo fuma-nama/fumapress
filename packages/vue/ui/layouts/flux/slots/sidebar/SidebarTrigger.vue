@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { SidebarIcon, XIcon } from "lucide-vue-next";
+import { SidebarIcon, XIcon } from "../../../../icons";
 import { AnimatePresence, motion } from "motion-v";
 import * as Base from "../../../../components/sidebar/base";
 import { useTranslations } from "../../../../core/translate";

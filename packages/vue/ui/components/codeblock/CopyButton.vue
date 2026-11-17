@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes, type Ref } from "vue";
-import { Check, Clipboard } from "lucide-vue-next";
+import { Check, Clipboard } from "../../icons";
 import { useTranslations } from "../../core/translate";
 import { cn } from "../../utils/cn";
 import { useCopyButton } from "../../utils/use-copy-button";

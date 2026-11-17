@@ -9,7 +9,7 @@ import {
   watch,
   type ComponentPublicInstance,
 } from "vue";
-import { TabsRoot as Root } from "reka-ui";
+import { TabsRoot as Root } from "@fumapress/vue/reka/tabs";
 import { getHash } from "../../../utils/urls";
 import { listeners, TabsKey, type TabsContextType } from "./context";
 import type { TabsProps } from "./index";

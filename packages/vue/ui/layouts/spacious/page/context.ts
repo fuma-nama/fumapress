@@ -22,7 +22,7 @@ export interface PageContext {
   slots: Readonly<Ref<DocsPageSlots>>;
 }
 
-export const PageKey: InjectionKey<PageContext> = Symbol("fd-spacious-page");
+export const PageKey: InjectionKey<PageContext> = Symbol.for("fd-spacious-page");
 
 export function useDocsPage(): PageContext {
   const context = inject(PageKey, null);

@@ -18,7 +18,7 @@ export interface LightboxContextType {
   open: (element: HTMLElement) => void;
 }
 
-export const LightboxKey: InjectionKey<LightboxContextType> = Symbol("fd-lightbox");
+export const LightboxKey: InjectionKey<LightboxContextType> = Symbol.for("fd-lightbox");
 
 export function getImageSrc(src: unknown): string {
   if (typeof src === "string") return src;

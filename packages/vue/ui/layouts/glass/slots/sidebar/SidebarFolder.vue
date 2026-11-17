@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../../../icons";
 import type * as PageTree from "@fumapress/vue/page-tree";
 import {
   Collapsible,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, type HTMLAttributes } from "vue";
-import { Check, ChevronsUpDown } from "lucide-vue-next";
+import { Check, ChevronsUpDown } from "../../../../icons";
 import { useTreePath } from "../../../../contexts/tree";
 import { usePathname } from "../../../../core/framework";
 import { Link } from "../../../../core/link";

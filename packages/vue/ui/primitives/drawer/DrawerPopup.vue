@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, useAttrs, useTemplateRef } from "vue";
-import { FocusScope } from "reka-ui";
+import { FocusScope } from "@fumapress/vue/reka/focus-scope";
 import {
   DrawerCssVars,
   popupStateAttributes,

@@ -19,7 +19,7 @@ export interface LayoutContext {
   slots: Readonly<Ref<DocsSlots>>;
 }
 
-export const LayoutKey: InjectionKey<LayoutContext> = Symbol("fd-notebook-layout");
+export const LayoutKey: InjectionKey<LayoutContext> = Symbol.for("fd-notebook-layout");
 
 export function useNotebookLayout() {
   const context = inject(LayoutKey, null);

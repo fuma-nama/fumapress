@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, type HTMLAttributes } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../../../../icons";
 import { AnimatePresence, motion } from "motion-v";
 import * as Base from "../../../../../components/toc";
 import { CollapsibleTrigger } from "../../../../../components/ui/collapsible";

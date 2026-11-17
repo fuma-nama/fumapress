@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SidebarIcon } from "lucide-vue-next";
+import { SidebarIcon } from "../../../icons";
 import { SidebarCollapseTrigger, useSidebar } from "../../../components/sidebar/base";
 import { buttonVariants } from "../../../components/ui/button";
 import { cn } from "../../../utils/cn";

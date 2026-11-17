@@ -6,7 +6,7 @@ import {
   watch,
   type ComponentPublicInstance,
 } from "vue";
-import { TabsContent as Content } from "reka-ui";
+import { TabsContent as Content } from "@fumapress/vue/reka/tabs";
 import { useTabContext } from "./context";
 
 // `id` is the tab's URL hash, the panel keeps the primitive's id that triggers point `aria-controls` at

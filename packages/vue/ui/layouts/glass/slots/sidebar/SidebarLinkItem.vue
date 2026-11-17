@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, type HTMLAttributes } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../../../icons";
 import {
   Collapsible,
   CollapsibleContent,

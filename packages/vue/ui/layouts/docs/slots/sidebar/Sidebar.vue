@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, h } from "vue";
-import { ChevronDown, Languages, SidebarIcon } from "lucide-vue-next";
+import { computed, defineAsyncComponent, h } from "vue";
+import { ChevronDown, Languages, SidebarIcon } from "../../../../icons";
 import * as Base from "../../../../components/sidebar/base";
-import { SidebarTabsDropdown } from "../../../../components/sidebar/tabs/dropdown";
 import { buttonVariants } from "../../../../components/ui/button";
 import { cn } from "../../../../utils/cn";
 import { LinkItem, RenderNode, type IconItemType } from "../../../shared";
@@ -13,6 +12,11 @@ import SidebarCollapseTrigger from "./SidebarCollapseTrigger.vue";
 import SidebarContent from "./SidebarContent.vue";
 import SidebarDrawer from "./SidebarDrawer.vue";
 import SidebarTrigger from "./SidebarTrigger.vue";
+
+// only a site with tabs shows the dropdown: its code, with the popover, is loaded when it renders
+const SidebarTabsDropdown = defineAsyncComponent(() =>
+  import("../../../../components/sidebar/tabs/dropdown").then((mod) => mod.SidebarTabsDropdown),
+);
 
 defineOptions({ inheritAttrs: false });
 

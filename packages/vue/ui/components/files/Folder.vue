@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { FolderIcon, FolderOpen } from "lucide-vue-next";
+import { FolderIcon, FolderOpen } from "../../icons";
 import { cn } from "../../utils/cn";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { itemVariants } from "./context";

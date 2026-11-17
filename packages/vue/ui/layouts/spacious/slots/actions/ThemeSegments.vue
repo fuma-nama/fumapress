@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick } from "vue";
-import { MonitorIcon, MoonIcon, SunIcon } from "lucide-vue-next";
-import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from "reka-ui";
+import { MonitorIcon, MoonIcon, SunIcon } from "../../../../icons";
+import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@fumapress/vue/reka/dropdown-menu";
 import { useTheme } from "../../../../core/theme";
 import { useTranslations } from "../../../../core/translate";
 import { cn } from "../../../../utils/cn";

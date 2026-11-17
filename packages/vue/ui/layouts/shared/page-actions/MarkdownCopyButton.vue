@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, type HTMLAttributes } from "vue";
-import { Check, Copy } from "lucide-vue-next";
+import { Check, Copy } from "../../../icons";
 import { buttonVariants } from "../../../components/ui/button";
 import { useTranslations } from "../../../core/translate";
 import { cn } from "../../../utils/cn";

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, shallowRef } from "vue";
-import { ChevronDownIcon } from "lucide-vue-next";
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from "reka-ui";
+import { ChevronDownIcon } from "../../../../../icons";
+import {
+  PopoverContent,
+  PopoverPortal,
+  PopoverRoot,
+  PopoverTrigger,
+} from "@fumapress/vue/reka/popover";
 import { useTranslations } from "../../../../../core/translate";
 import { cn } from "../../../../../utils/cn";
 import ActiveHeading from "./ActiveHeading.vue";

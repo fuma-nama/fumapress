@@ -9,7 +9,8 @@ export function mergeOptions<T extends object>(
   sources: readonly (Partial<T> | undefined)[],
 ): Partial<T>;
 export function mergeOptions(sources: readonly unknown[]): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+  // without a prototype: a key like `constructor` is a key like any other
+  const out: Record<string, unknown> = Object.create(null);
   for (const source of sources) {
     if (!isPlainObject(source)) continue;
     for (const [key, value] of Object.entries(source)) {
@@ -21,5 +22,5 @@ export function mergeOptions(sources: readonly unknown[]): Record<string, unknow
         out[key] = mergeOptions([current, value]);
     }
   }
-  return out;
+  return { ...out };
 }

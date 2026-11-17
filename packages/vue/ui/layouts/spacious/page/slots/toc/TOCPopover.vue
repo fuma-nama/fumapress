@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef, watch } from "vue";
-import { ChevronDownIcon } from "lucide-vue-next";
+import { ChevronDownIcon } from "../../../../../icons";
 import {
   Collapsible,
   CollapsibleContent,

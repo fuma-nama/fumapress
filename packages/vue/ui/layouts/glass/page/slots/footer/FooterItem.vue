@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ChevronLeft, ChevronRight } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight } from "../../../../../icons";
 import type * as PageTree from "@fumapress/vue/page-tree";
 import { Link } from "../../../../../core/link";
 import { useTranslations } from "../../../../../core/translate";

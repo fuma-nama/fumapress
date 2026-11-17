@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { MessageCircleIcon } from "lucide-vue-next";
+import { MessageCircleIcon } from "../../../icons";
 import { buttonVariants } from "../../../components/ui/button";
 import { useTranslations } from "../../../core/translate";
 import { cn } from "../../../utils/cn";

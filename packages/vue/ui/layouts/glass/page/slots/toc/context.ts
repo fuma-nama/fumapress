@@ -6,7 +6,7 @@ export interface TOCContext {
   setMobileOpen: (v: boolean) => void;
 }
 
-export const TOCContextKey: InjectionKey<TOCContext> = Symbol("fd-glass-toc");
+export const TOCContextKey: InjectionKey<TOCContext> = Symbol.for("fd-glass-toc");
 
 export function useContext(): TOCContext {
   return inject(TOCContextKey)!;

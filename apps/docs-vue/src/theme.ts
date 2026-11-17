@@ -12,7 +12,7 @@ import {
   Server,
   Settings,
   Terminal,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 
 // the icons of the sidebar, by the `icon` of a page or a folder
 export default {

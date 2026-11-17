@@ -94,8 +94,11 @@ function specifierOf(project: Project, file: string): string | undefined {
     return;
   }
   if (relative === THEME) return `${PACKAGE}/${THEME}`;
-  if (relative.startsWith("css/") || relative.startsWith(`${THEME}/`))
+  if (relative.startsWith("css/") || relative.startsWith(`${THEME}/`)) {
     return `${PACKAGE}/${relative}`;
+  }
+  // the compiled stylesheets are exported without `dist`
+  if (relative.startsWith("dist/style/")) return `${PACKAGE}/${relative.slice("dist/".length)}`;
 }
 
 /** a file of a unit for the project: an import leaving the unit goes to the package, by name */
@@ -117,12 +120,11 @@ function detach(project: Project, unit: string, file: string, code: string): str
   });
 }
 
-/** the path of a module of the UI in the project, when the project has a copy of it */
+/**
+ * The path of a module of the UI in the project, when the project has a copy of it. Only modules of the UI: a
+ * project's own theme folder is not a copy of the default theme.
+ */
 function localCopy(project: Project, name: string): string | undefined {
-  if (name === THEME || name.startsWith(`${THEME}/`)) {
-    const file = path.join(project.themeDir, name.slice(THEME.length + 1));
-    return existsSync(file) ? file : undefined;
-  }
   if (!name.startsWith("ui/")) return;
   const dir = path.join(project.uiDir, name.slice(3));
   return existsSync(path.join(dir, "index.ts")) ? dir : undefined;

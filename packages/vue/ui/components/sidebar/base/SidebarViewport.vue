@@ -6,7 +6,7 @@ import {
   ScrollAreaScrollbar,
   ScrollAreaThumb,
   ScrollAreaViewport,
-} from "reka-ui";
+} from "@fumapress/vue/reka/scroll-area";
 import { cn } from "../../../utils/cn";
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>();

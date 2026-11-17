@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { SidebarIcon } from "lucide-vue-next";
+import { SidebarIcon } from "../../../../icons";
 import { buttonVariants } from "../../../../components/ui/button";
 import { cn } from "../../../../utils/cn";
 import { RenderNode } from "../../../shared";

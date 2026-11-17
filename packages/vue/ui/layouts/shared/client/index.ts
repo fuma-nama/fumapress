@@ -1,5 +1,6 @@
 import {
   computed,
+  defineAsyncComponent,
   defineComponent,
   h,
   toValue,
@@ -11,7 +12,15 @@ import { useI18n } from "../../../contexts/i18n";
 import { Link } from "../../../core/link";
 import type { BaseLayoutProps } from "../index";
 import RenderNode from "../RenderNode.vue";
-import { LanguageSelect, LanguageSelectText } from "../slots/language-select";
+
+// only a site with languages shows the language switch: its code, with the popover, is loaded when it renders
+const languageSelect = () => import("../slots/language-select");
+const LanguageSelect = defineAsyncComponent(() =>
+  languageSelect().then((mod) => mod.LanguageSelect),
+);
+const LanguageSelectText = defineAsyncComponent(() =>
+  languageSelect().then((mod) => mod.LanguageSelectText),
+);
 import { FullSearchTrigger, SearchTrigger } from "../slots/search-trigger";
 import { ThemeSwitch } from "../slots/theme-switch";
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { AccordionTrigger as Trigger } from "reka-ui";
-import { ChevronRight } from "lucide-vue-next";
+import { AccordionTrigger as Trigger } from "@fumapress/vue/reka/accordion";
+import { ChevronRight } from "../../../icons";
 import { cn } from "../../../utils/cn";
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>();

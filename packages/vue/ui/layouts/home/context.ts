@@ -9,7 +9,7 @@ export interface HomeLayoutContext {
   slots: ComputedRef<HomeSlots>;
 }
 
-export const LayoutKey: InjectionKey<HomeLayoutContext> = Symbol("fd-home-layout");
+export const LayoutKey: InjectionKey<HomeLayoutContext> = Symbol.for("fd-home-layout");
 
 export function useHomeLayout(): HomeLayoutContext {
   const context = inject(LayoutKey, null);

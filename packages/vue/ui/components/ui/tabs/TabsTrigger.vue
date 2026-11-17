@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watch } from "vue";
-import { TabsTrigger as Trigger } from "reka-ui";
+import { TabsTrigger as Trigger } from "@fumapress/vue/reka/tabs";
 import { useTabContext } from "./context";
 
 const props = defineProps<{ value: string }>();

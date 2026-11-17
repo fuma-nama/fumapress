@@ -5,13 +5,16 @@ import type { ApiHandler, ApiRoute, BuildOutput, HttpMethod } from "./core/plugi
 import type { Press } from "./core/press";
 import {
   PRERENDER_ROUTE,
+  decodePath,
+  encodePath,
   matchRoute,
-  normalizePath,
   pageDataPath,
   prerenderListPath,
   staticPathsOf,
 } from "./core/routes";
 import type { HeadTag, Load, PageContent } from "./core/types";
+
+export { encodePath } from "./core/routes";
 
 export interface ClientAssets {
   entry: string;
@@ -21,10 +24,10 @@ export interface ClientAssets {
 
 export interface RenderEnv {
   ctx: Context;
-  /** the URL of the page, without the base path */
+  /** the path of the URL in the address bar, without the base path */
   pathname: string;
   search: string;
-  /** the language of the URL: the app loads the data of the site in it */
+  /** the language of the page: the app loads the data of the site in it */
   lang: string;
   /** the data routes of the site, called without a request: what the app loads comes with the page */
   load: Load;
@@ -47,6 +50,11 @@ export interface HandlerOptions {
   head?: HeadTag[];
   /** paths of pages outside the content to generate at build time, like custom pages without params */
   staticPaths?: string[];
+  /**
+   * Whether this server is the prerenderer of a build. Only then does it list the paths to generate, run the `build`
+   * hooks of plugins and serve the not found page as a file. It is a fact of the build, never read from a request.
+   */
+  prerender?: boolean;
   /** render the app at a URL to HTML */
   render: (env: RenderEnv) => Promise<RenderOutput>;
 }
@@ -65,11 +73,13 @@ const contentTypes: Record<string, string> = {
   xml: "application/xml; charset=utf-8",
 };
 
-function stripBase(pathname: string, base: string): string | undefined {
-  if (base === "/") return pathname;
+const notFound = () => new Response("Not Found", { status: 404 });
+
+/** the path of a request in the site: decoded and without the base path, none outside of it */
+function sitePath(pathname: string, base: string): string | undefined {
   const prefix = base.slice(0, -1);
   if (pathname === prefix) return "/";
-  if (pathname.startsWith(base)) return pathname.slice(prefix.length);
+  if (pathname.startsWith(base)) return decodePath(pathname.slice(prefix.length));
 }
 
 /** the handler of a route for a method: its own, then `ALL`, then the JSON of its data */
@@ -81,28 +91,49 @@ function handlerOf(route: ApiRoute, method: string): ApiHandler | undefined {
   const { data } = route;
   return async (_request, env) => {
     const value = await data(env);
-    return value === undefined ? new Response("Not Found", { status: 404 }) : Response.json(value);
+    return value === undefined ? notFound() : Response.json(value);
   };
+}
+
+/** the route answering a method at a path: the first one matching the path that handles the method */
+function findRoute(routes: readonly ApiRoute[], path: string, method: string) {
+  let matched = false;
+  for (const route of routes) {
+    const params = matchRoute(route.path, path);
+    if (!params) continue;
+    matched = true;
+    const handler = handlerOf(route, method);
+    if (handler) return { route, params, handler, matched };
+  }
+  return { matched };
+}
+
+interface Target {
+  /** the path of the page to render, without the base path */
+  pathname: string;
+  /** the path of the URL in the address bar: another one when a middleware serves `pathname` in its place */
+  shown: string;
+  search: string;
 }
 
 async function renderDocument(
   options: HandlerOptions,
   ctx: Context,
-  pathname: string,
-  search: string,
+  { pathname, shown, search }: Target,
 ): Promise<Response> {
   const loaded = new Map<string, Promise<{ value: unknown; shared: boolean }>>();
   const load = (path: string) => {
     let entry = loaded.get(path);
     if (!entry) {
+      // the app is at the URL of the address bar: its content is the one of the page served there
+      const actual = path === pageDataPath(shown) ? pageDataPath(pathname) : path;
       entry = (async () => {
-        // the route a request for the path reaches: the first one matching it
-        for (const route of ctx.routes) {
-          const params = matchRoute(route.path, path);
-          if (!params) continue;
-          return { value: await route.data?.({ params }), shared: route.shared === true };
-        }
-        return { value: undefined, shared: false };
+        // the route a request for the path reaches: only a data route has a value without a request
+        const { route, params } = findRoute(ctx.routes, actual, "GET");
+        return {
+          value: route?.data ? await route.data({ params }) : undefined,
+          shared: route?.shared === true,
+        };
       })();
       loaded.set(path, entry);
     }
@@ -110,7 +141,7 @@ async function renderDocument(
   };
 
   const lang = ctx.getLanguage(pathname);
-  const output = await options.render({ ctx, pathname, search, lang, load: load as Load });
+  const output = await options.render({ ctx, pathname: shown, search, lang, load: load as Load });
   const { html, status = 200, assets = options.assets } = output;
 
   // a URL without the prefix of its language, like `/` when no language is hidden, goes to the default language
@@ -119,7 +150,7 @@ async function renderDocument(
     if (await ctx.getContent(target)) {
       return new Response(null, {
         status: 302,
-        headers: { Location: encodeURI(ctx.withBase(target)) + search },
+        headers: { Location: ctx.base + encodePath(target).slice(1) + search },
       });
     }
   }
@@ -136,7 +167,7 @@ async function renderDocument(
   }
 
   // the content the app loaded for the URL: none on a custom page
-  const content = payload[pageDataPath(pathname)] as PageContent | undefined;
+  const content = payload[pageDataPath(shown)] as PageContent | undefined;
   const head = await ctx.getHead({
     pathname,
     lang,
@@ -171,9 +202,8 @@ async function renderDocument(
 }
 
 /**
- * The routes of a build. The first lists the paths to generate, for the prerenderer of Nitro only: it marks its
- * requests with a header, so a running server has no list and never runs `build` hooks. The others are the files
- * those hooks emit.
+ * The routes of the prerenderer of a build: the list of the paths to generate, which Nitro reads from a response
+ * header, the not found page as a file, and the files the `build` hooks of plugins emit.
  */
 function buildRoutes(
   options: HandlerOptions,
@@ -210,8 +240,8 @@ function buildRoutes(
       },
     };
     for (const plugin of ctx.plugins) await plugin.build?.call(ctx, output);
-    // again: the emitted files are static routes
-    const urls = (await staticPaths()).map((path) => encodeURI(ctx.withBase(path)));
+    // again: the emitted files are static routes. Paths are encoded here, once, for the URLs Nitro requests
+    const urls = (await staticPaths()).map((path) => ctx.base + encodePath(path).slice(1));
 
     const out: string[][] = [[]];
     let size = 0;
@@ -226,41 +256,35 @@ function buildRoutes(
     return out;
   }
 
-  const listRoute: ApiRoute = {
-    path: PRERENDER_ROUTE,
-    async GET(request, { params }) {
-      if (!request.headers.has("x-nitro-prerender")) {
-        return new Response("Not Found", { status: 404 });
-      }
-      const all = await (parts ??= list());
-      const index = Number.parseInt(params.part ?? "", 10);
-      const part = all[index];
-      if (!part) return new Response("Not Found", { status: 404 });
+  routes.push(
+    {
+      path: PRERENDER_ROUTE,
+      async GET(_request, { params }) {
+        const all = await (parts ??= list());
+        const index = Number.parseInt(params.part ?? "", 10);
+        const part = all[index];
+        if (!part) return notFound();
 
-      const next = index + 1 < all.length ? [ctx.withBase(prerenderListPath(index + 1))] : [];
-      return new Response(`${part.join("\n")}\n`, {
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "x-nitro-prerender": [...part, ...next].join(", "),
-        },
-      });
+        const next = index + 1 < all.length ? [ctx.withBase(prerenderListPath(index + 1))] : [];
+        return new Response(`${part.join("\n")}\n`, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "x-nitro-prerender": [...part, ...next].join(", "),
+          },
+        });
+      },
     },
-  };
-
-  // what a static host serves for a URL without a file: the not found page of the site, generated like a page.
-  // On a running server the path has no page, like any other without one.
-  const notFoundRoute: ApiRoute = {
-    path: NOT_FOUND_PATH,
-    render: "static",
-    async GET(request) {
-      const response = await renderDocument(options, ctx, NOT_FOUND_PATH, "");
-      return request.headers.has("x-nitro-prerender")
-        ? new Response(response.body, { headers: response.headers })
-        : response;
+    {
+      // what a static host serves for a URL without a file: the not found page of the site, written like a page
+      path: NOT_FOUND_PATH,
+      render: "static",
+      async GET() {
+        const target = { pathname: NOT_FOUND_PATH, shown: NOT_FOUND_PATH, search: "" };
+        const response = await renderDocument(options, ctx, target);
+        return new Response(response.body, { headers: response.headers });
+      },
     },
-  };
-
-  routes.push(listRoute, notFoundRoute);
+  );
   return routes;
 }
 
@@ -269,24 +293,23 @@ async function handle(
   ctx: Context,
   routes: readonly ApiRoute[],
   request: Request,
+  shown: string,
 ): Promise<Response> {
   const url = new URL(request.url);
-  const stripped = stripBase(url.pathname, ctx.base);
-  if (stripped === undefined) return new Response("Not Found", { status: 404 });
-  const pathname = normalizePath(stripped);
+  const pathname = sitePath(url.pathname, ctx.base);
+  if (pathname === undefined) return notFound();
 
-  for (const route of routes) {
-    const params = matchRoute(route.path, pathname);
-    if (!params) continue;
-    const handler = handlerOf(route, request.method);
-    if (!handler) return new Response("Method Not Allowed", { status: 405 });
-    return handler(request, { params });
-  }
+  const found = findRoute(routes, pathname, request.method);
+  if (found.handler) return found.handler(request, { params: found.params });
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return found.matched ? new Response("Method Not Allowed", { status: 405 }) : notFound();
   }
-  return renderDocument(options, ctx, pathname, url.search);
+  const response = await renderDocument(options, ctx, { pathname, shown, search: url.search });
+  // a route is at the path, for other methods only, and no page is
+  return response.status === 404 && found.matched
+    ? new Response("Method Not Allowed", { status: 405 })
+    : response;
 }
 
 /** the server of a site: the middleware of its plugins, then their routes, then its pages */
@@ -297,18 +320,36 @@ export function createFetchHandler(
 
   const fetch = async (request: Request): Promise<Response> => {
     const ctx = await getContext(options.press, { base: options.base });
-    ofBuild ??= buildRoutes(options, ctx, fetch);
+    if (options.prerender) ofBuild ??= buildRoutes(options, ctx, fetch);
     // read on each request: a build adds the files it emits
-    const routes = [...ofBuild, ...ctx.routes];
+    const routes = [...(ofBuild ?? []), ...ctx.routes];
     const middlewares = ctx.plugins.filter((plugin) => plugin.middleware);
+
+    const url = new URL(request.url);
+    const shown = sitePath(url.pathname, ctx.base);
+    if (shown === undefined) return notFound();
+    // middleware and routes see a path in one form, whatever the request spells it like
+    const canonical = ctx.base + encodePath(shown).slice(1);
+    if (canonical !== url.pathname) {
+      url.pathname = canonical;
+      request = new Request(url, request);
+    }
 
     const run = (index: number, current: Request): Promise<Response> => {
       const plugin = middlewares[index];
-      if (!plugin) return handle(options, ctx, routes, current);
+      if (!plugin) return handle(options, ctx, routes, current, shown);
       return plugin.middleware!.call(ctx, current, (rewrite) => {
         if (rewrite === undefined) return run(index + 1, current);
+
+        // another path of the site, with an optional query
+        const [path = "", query] = rewrite.split("?", 2);
+        const decoded = decodePath(path);
+        if (decoded === undefined) {
+          throw new Error(`[Fumapress] \`next("${rewrite}")\` is not a path of the site.`);
+        }
         const target = new URL(current.url);
-        target.pathname = ctx.withBase(rewrite);
+        target.pathname = ctx.base + encodePath(decoded).slice(1);
+        if (query !== undefined) target.search = query;
         return run(index + 1, new Request(target, current));
       });
     };

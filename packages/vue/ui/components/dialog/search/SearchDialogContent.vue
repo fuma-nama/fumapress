@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { DialogContent, DialogPortal, DialogTitle } from "reka-ui";
+import { DialogContent, DialogPortal, DialogTitle } from "@fumapress/vue/reka/dialog";
 import { useTranslations } from "../../../core/translate";
 import { cn } from "../../../utils/cn";
 

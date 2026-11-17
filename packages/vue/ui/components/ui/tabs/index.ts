@@ -1,4 +1,4 @@
-export { TabsList } from "reka-ui";
+export { TabsList } from "@fumapress/vue/reka/tabs";
 export { default as Tabs } from "./Tabs.vue";
 export { default as TabsTrigger } from "./TabsTrigger.vue";
 export { default as TabsContent } from "./TabsContent.vue";

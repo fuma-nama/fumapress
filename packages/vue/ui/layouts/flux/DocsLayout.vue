@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h, provide, type VNodeChild } from "vue";
-import { Languages } from "lucide-vue-next";
+import { Languages } from "../../icons";
 import { buttonVariants } from "../../components/ui/button";
 import { TreeContextProvider } from "../../contexts/tree";
 import { cn } from "../../utils/cn";

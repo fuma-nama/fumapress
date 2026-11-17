@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from "vue";
-import { CollapsibleContent as Content } from "reka-ui";
+import { CollapsibleContent as Content } from "@fumapress/vue/reka/collapsible";
 import { cn } from "../../../utils/cn";
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>();

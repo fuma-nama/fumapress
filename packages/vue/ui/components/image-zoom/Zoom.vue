@@ -31,6 +31,7 @@ import {
   type SupportedImage,
 } from "./zoom";
 import type { ZoomProps } from "./zoom";
+import "./image-zoom.css";
 
 const props = withDefaults(defineProps<ZoomProps>(), {
   a11yNameButtonUnzoom: "Minimize image",

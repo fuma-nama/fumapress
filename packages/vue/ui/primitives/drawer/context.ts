@@ -73,7 +73,7 @@ export interface DrawerTitleProps {
   as?: string | Component;
 }
 
-export const DrawerRootKey: InjectionKey<DrawerStore> = Symbol("drawer-root");
+export const DrawerRootKey: InjectionKey<DrawerStore> = Symbol.for("drawer-root");
 
 export function useDrawerRootContext(): DrawerStore {
   const store = inject(DrawerRootKey, null);

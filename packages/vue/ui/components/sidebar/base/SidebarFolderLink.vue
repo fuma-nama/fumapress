@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useTemplateRef, type ComponentPublicInstance } from "vue";
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown } from "../../../icons";
 import { Link } from "../../../core/link";
 import { cn } from "../../../utils/cn";
 import { useAutoScroll, useFolder, useSidebar } from "./context";

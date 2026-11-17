@@ -2,12 +2,12 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { nitro } from "nitro/vite";
 import { normalizePath, type Plugin, type PluginOption } from "vite";
 import * as compiler from "vue/compiler-sfc";
 import { compileMarkdown, type MarkdownOptions } from "./build/compile";
+import { parseFrontmatter } from "./build/frontmatter";
 import { isMeta, scanCollection, scanPages } from "./build/scan";
 import { prerenderListPath } from "./core/routes";
 
@@ -56,6 +56,9 @@ function core(options: PressOptions, site: Site): Plugin {
   let collections: [name: string, dir: string][] = [];
   let pagesDir = "";
 
+  /** the frontmatter of each page as the collections have it */
+  const frontmatters = new Map<string, string>();
+
   const str = (value: unknown) => JSON.stringify(value);
   const fromRoot = (file: string) => normalizePath(path.relative(root, file));
 
@@ -63,8 +66,9 @@ function core(options: PressOptions, site: Site): Plugin {
     const entries: string[] = [];
     for (const [name, dir] of collections) {
       const files = (await scanCollection(dir)).map((file) => {
-        // frontmatter is part of this module, so a change of the file reloads it
+        // frontmatter is part of this module: the dev server loads it again when the one of a file changes
         addWatchFile(file.absolutePath);
+        if (file.type === "page") frontmatters.set(file.absolutePath, JSON.stringify(file.data));
         const shared = `type: ${str(file.type)}, path: ${str(file.path)}`;
         if (file.type === "meta") return `{ ${shared}, data: ${str(file.data)} }`;
         const id = normalizePath(file.absolutePath);
@@ -82,7 +86,7 @@ function core(options: PressOptions, site: Site): Plugin {
     const routes = (await scanPages(pagesDir)).map(({ path: routePath, absolutePath }) => {
       const file = normalizePath(absolutePath);
       // `?assets` is the styles of the page, linked from the HTML the server renders
-      return `{ path: ${str(routePath)}, component: () => import(${str(file)}), meta: { assets: () => import(${str(`${file}?assets`)}) } }`;
+      return `{ path: ${str(routePath)}, component: () => import(${str(file)}), assets: () => import(${str(`${file}?assets`)}) }`;
     });
     return `export const routes = [\n${routes.join(",\n")}\n];\n`;
   }
@@ -152,7 +156,21 @@ export default {
         },
         // the package imports the virtual modules of this plugin, so Vite has to process it
         ssr: { noExternal: ["@fumapress/vue"] },
-        optimizeDeps: { exclude: ["@fumapress/vue"] },
+        optimizeDeps: {
+          exclude: ["@fumapress/vue"],
+          // dependencies are pre-bundled from the start: one found while a page loads would reload the page. Vite
+          // looks for those of the site in its theme and its custom pages, and is told the ones of the UI.
+          entries: [
+            options.theme ?? themeFiles,
+            `${options.pagesDir ?? "src/pages"}/**/*.vue`,
+          ].flat(),
+          include: [
+            "vue",
+            "@fumapress/vue > cn",
+            "@fumapress/vue > class-variance-authority",
+            "@fumapress/vue > scroll-into-view-if-needed",
+          ],
+        },
         define: {
           __VUE_OPTIONS_API__: "true",
           __VUE_PROD_DEVTOOLS__: "false",
@@ -165,24 +183,44 @@ export default {
       pagesDir = path.resolve(root, options.pagesDir ?? "src/pages");
     },
     configureServer(server) {
-      // a file added or removed changes the list of pages; its content is watched by the modules importing it
-      const onChange = (file: string) => {
-        const isContent = collections.some(([, dir]) => file.startsWith(dir + path.sep));
-        if (!isContent && !file.startsWith(pagesDir + path.sep)) return;
-
+      /** loads virtual modules again, on the server and in the browser */
+      const reload = (...names: string[]) => {
         for (const environment of Object.values(server.environments)) {
-          for (const name of ["collections", "routes"]) {
+          for (const name of names) {
             const mod = environment.moduleGraph.getModuleById(RESOLVED + name);
             if (mod) environment.moduleGraph.invalidateModule(mod);
           }
           environment.hot.send({ type: "full-reload" });
         }
       };
-      server.watcher.on("add", onChange);
-      server.watcher.on("unlink", onChange);
-      // only the server reads a `meta.json`, so the browser is told to reload
+      const inContent = (file: string) =>
+        collections.some(([, dir]) => file.startsWith(dir + path.sep));
+      const under = (names: string[]) => new Set(names.map((name) => path.join(root, name)));
+      const ofTheme = under([...themeFiles, ...styleFiles]);
+      const ofConfig = under(configFiles);
+
+      // a file added or removed changes what a virtual module lists: the pages, or which file is the theme
+      const onListChange = (file: string) => {
+        if (inContent(file) || file.startsWith(pagesDir + path.sep))
+          reload("collections", "routes");
+        else if (ofTheme.has(file)) reload("theme");
+        else if (ofConfig.has(file)) reload("config");
+      };
+      server.watcher.on("add", onListChange);
+      server.watcher.on("unlink", onListChange);
+
+      // The body of a page is its own module, which Vite reloads. Its frontmatter and the `meta.json` files are
+      // part of the collections, which only the server reads: so the browser is told to reload.
       server.watcher.on("change", (file) => {
-        if (isMeta(file)) onChange(file);
+        if (!inContent(file)) return;
+        if (isMeta(file)) return reload("collections");
+        if (!/\.mdx?$/.test(file)) return;
+        try {
+          const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+          if (JSON.stringify(data) !== frontmatters.get(file)) reload("collections");
+        } catch {
+          // being written, or invalid: the next change is read
+        }
       });
     },
     resolveId(id) {
@@ -272,7 +310,6 @@ export default function press(options: PressOptions = {}): PluginOption[] {
 
   return [
     vuePlugin(site),
-    tailwindcss(),
     core(options, site),
     nitro({
       ...options.nitro,
