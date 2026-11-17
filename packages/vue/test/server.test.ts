@@ -3,7 +3,6 @@ import { createSSRApp, defineComponent, h } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { injectConfigProviderContext } from "../src/reka/config-provider";
 import { pressKey, type PressState } from "../src/client";
-import { createCollection, type CollectionConfig } from "../src/collection";
 import { getPressContext } from "../src/core/context";
 import { directionOf } from "../src/core/i18n";
 import { defineI18n, uiTranslations } from "../src/i18n";
@@ -21,33 +20,15 @@ import {
   staticPathsOf,
 } from "../src/core/routes";
 import type { Page, PageContent, SiteData, SourceFile } from "../src/core/types";
-import type { ModuleRef } from "../src/plugins/markdown";
 import { createFetchHandler } from "../src/server";
 import Root from "../theme/Root.vue";
+import { collectionOf, compiledDefineDocs, filesOf } from "./collection";
 
-/** a page as the Vite plugin lists it: with its compiled module */
-function page(path: string, data: CollectionConfig["pageData"]): SourceFile<CollectionConfig> {
-  const ref: ModuleRef = {
-    file: `content/${path}`,
-    assets: async () => ({ entry: `/assets/${path}.js` }),
-    load: async () => ({
-      default: () => null,
-      toc: [{ title: "Intro", url: "#intro", depth: 2 }],
-      structuredData: {
-        headings: [{ id: "intro", content: "Intro" }],
-        contents: [{ heading: "intro", content: `Text of ${path}` }],
-      },
-      markdown: `## Intro\n\nText of ${path}\n`,
-    }),
-  };
-  return { type: "page", path, data: { ...data, _module: ref } };
-}
-
-const collection = createCollection("docs", [
-  page("index.mdx", { title: "Home" }),
-  page("guide/install.mdx", { title: "Install", description: "How to install" }),
-  { type: "meta", path: "guide/meta.json", data: { title: "Guide" } },
-]);
+const collection = await collectionOf({
+  "index.mdx": { title: "Home" },
+  "guide/install.mdx": { title: "Install", description: "How to install" },
+  "guide/meta.json": { title: "Guide" },
+});
 
 type Get = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -102,7 +83,7 @@ function payloadOf(html: string): Record<string, unknown> {
   );
 }
 
-const press = createPress(collection.toSource())
+const press = createPress(collection.toFumadocsSource())
   .plugins({
     name: "test",
     routes({ createApi }) {
@@ -213,7 +194,7 @@ test("serves the data of the site", async () => {
 test("gives the app the data routes of plugins", async () => {
   const seen: unknown[] = [];
   const handler = createFetchHandler({
-    press: createPress(collection.toSource()).plugins({
+    press: createPress(collection.toFumadocsSource()).plugins({
       name: "data",
       routes({ createApi }) {
         createApi({ path: "/api/stars", data: () => ({ stars: 42 }) });
@@ -245,7 +226,7 @@ test("gives the app the data routes of plugins", async () => {
 
 test("generates a data route at build time, unless it renders on demand", async () => {
   const site = serve(
-    createPress(collection.toSource()).plugins({
+    createPress(collection.toFumadocsSource()).plugins({
       name: "data",
       routes({ createApi }) {
         createApi({ path: "/api/stars.json", data: () => ({ stars: 42 }) });
@@ -263,7 +244,7 @@ test("generates a data route at build time, unless it renders on demand", async 
 test("redirects where the app sent the page, like a hook of its router", async () => {
   const handler = (prerender: boolean) =>
     createFetchHandler({
-      press: createPress(collection.toSource()),
+      press: createPress(collection.toFumadocsSource()),
       base: "/docs/",
       prerender,
       assets: { entry: "", css: [], js: [] },
@@ -345,7 +326,7 @@ test("serves the default plugins", async () => {
 test("the default plugins leave out the pages their filter rejects", async () => {
   const filter = (current: Page) => current.path !== "guide/install.mdx";
   const filtered = serve(
-    createPress(collection.toSource()).config({
+    createPress(collection.toFumadocsSource()).config({
       site: { baseUrl: "https://example.com" },
       preset: recommendedPreset({ sitemap: { filter }, llms: { filter }, search: { filter } }),
     }),
@@ -385,10 +366,13 @@ test("lists the paths to generate, only for the prerenderer", async () => {
 });
 
 test("lists a large site in parts", async () => {
-  const files = Array.from({ length: 400 }, (_, i) =>
-    page(`a-long-folder-name/a-page-with-a-long-name-${i}.mdx`, { title: `Page ${i}` }),
+  const files = Array.from({ length: 400 }, (_, i) => [
+    `a-long-folder-name/a-page-with-a-long-name-${i}.mdx`,
+    { title: `Page ${i}` },
+  ]);
+  const large = serve(
+    createPress((await collectionOf(Object.fromEntries(files))).toFumadocsSource()),
   );
-  const large = serve(createPress(createCollection("docs", files).toSource()));
   const { paths, parts } = await prerendered(large);
 
   expect(parts).toBeGreaterThan(1);
@@ -403,7 +387,9 @@ test("gives server code the context of the site", async () => {
 });
 
 test("refuses a plugin listed twice", async () => {
-  const twice = serve(createPress(collection.toSource()).plugins({ name: "a" }, { name: "a" }));
+  const twice = serve(
+    createPress(collection.toFumadocsSource()).plugins({ name: "a" }, { name: "a" }),
+  );
   await expect(twice("/")).rejects.toThrow('"a" is added twice');
 });
 
@@ -461,18 +447,29 @@ test("renders the pages of a custom source through content hooks", async () => {
   );
 });
 
-test("dates a Markdown page by the `lastModified` of its frontmatter", async () => {
-  const site = (lastModified: string) =>
-    serve(createPress(createCollection("docs", [page("index.mdx", { lastModified })]).toSource()));
-  const dated = site("2026-03-04");
+test("dates a Markdown page by the last commit of its file, with `lastModified: true`", async () => {
+  const files = filesOf(
+    { "index.mdx": { title: "Home" }, "draft.mdx": { title: "Draft" } },
+    // the dates the Vite plugin read from git: a file without a commit has none
+    { "./index.mdx": "2026-03-04T00:00:00.000Z" },
+  );
+  const docs = await compiledDefineDocs({ docs: { lastModified: true } }, files);
+  // the frontmatter and the date: the compiled module is under a symbol, which JSON leaves out
+  const [index, draft] = docs.toFumadocsSource().files.map((file) => ({ ...file.data }));
+  expect(JSON.parse(JSON.stringify(index))).toEqual({
+    title: "Home",
+    lastModified: "2026-03-04T00:00:00.000Z",
+  });
+  expect(Object.keys(draft!)).toEqual(["title", "lastModified"]);
+
+  const dated = serve(createPress(docs.toFumadocsSource()));
   const content: PageContent = await (await dated("/_press/pages/index.json")).json();
   expect(content.data.lastModified).toBe("2026-03-04T00:00:00.000Z");
   expect(await (await dated("/sitemap.xml")).text()).toContain(
     "<lastmod>2026-03-04T00:00:00.000Z</lastmod>",
   );
-  await expect(site("yesterday")("/")).rejects.toThrow(
-    'The `lastModified` of "index.mdx" is "yesterday"',
-  );
+  const undated: PageContent = await (await dated("/_press/pages/draft.json")).json();
+  expect(undated.data.lastModified).toBeUndefined();
 });
 
 test("fails for a page no plugin renders", async () => {
@@ -500,8 +497,9 @@ test("reads a dynamic source on the server, and again when invalidated", async (
 test("keeps sources apart by key", async () => {
   const mixed = serve(
     createPress({
-      docs: collection.toSource({ baseDir: "docs" }),
-      notes: { files: () => noteFiles().map((file) => ({ ...file, path: `notes/${file.path}` })) },
+      docs: collection.toFumadocsSource({ baseDir: "docs" }),
+      // `baseDir` of a source of its own, dynamic here
+      notes: { baseDir: "notes", files: () => noteFiles() },
     }).plugins(notesPlugin),
   );
   await mixed("/");
@@ -520,7 +518,7 @@ test("keeps sources apart by key", async () => {
 test("runs build hooks once, and a file they emit is a static route", async () => {
   let runs = 0;
   const built = serve(
-    createPress(collection.toSource()).plugins({
+    createPress(collection.toFumadocsSource()).plugins({
       name: "build",
       async build({ paths, emitFile, fetch }) {
         runs++;
@@ -541,7 +539,7 @@ test("runs build hooks once, and a file they emit is a static route", async () =
 test("adds the loader options of plugins", async () => {
   const seen: string[] = [];
   const configured = serve(
-    createPress(collection.toSource(), {
+    createPress(collection.toFumadocsSource(), {
       loaderPlugins: [{ name: "own", config: (config) => (seen.push("own"), config) }],
     }).plugins({
       name: "loader",
@@ -569,7 +567,7 @@ test("generates the not found page for static hosts", async () => {
 
 test("keeps the data a page or an earlier plugin has set", async () => {
   const merged = serve(
-    createPress(collection.toSource()).plugins(
+    createPress(collection.toFumadocsSource()).plugins(
       { name: "first", transformPage: () => ({ title: "From the plugin", author: "first" }) },
       { name: "second", transformPage: () => ({ author: "second", reviewer: "second" }) },
     ),
@@ -586,7 +584,7 @@ test("keeps the data a page or an earlier plugin has set", async () => {
 test("serves the pages of plugins as views", async () => {
   const posts: Record<string, string> = { hello: "Hello", bye: "Bye" };
   const blog = serve(
-    createPress(collection.toSource())
+    createPress(collection.toFumadocsSource())
       .plugins({
         name: "blog",
         routes({ createView }) {
@@ -653,13 +651,13 @@ test("renders a content page as a view when its plugin says so", async () => {
   expect(content.body).toEqual({ view: { type: "card", props: { title: "First" } } });
 });
 
-const languages = createCollection("docs", [
-  page("index.mdx", { title: "Home" }),
-  page("index.cn.mdx", { title: "主页" }),
-  page("guide/install.mdx", { title: "Install" }),
-  page("guide/install.cn.mdx", { title: "安装" }),
-  page("guide/english-only.mdx", { title: "English only" }),
-]);
+const languages = await collectionOf({
+  "index.mdx": { title: "Home" },
+  "index.cn.mdx": { title: "主页" },
+  "guide/install.mdx": { title: "Install" },
+  "guide/install.cn.mdx": { title: "安装" },
+  "guide/english-only.mdx": { title: "English only" },
+});
 
 function i18nSite(hideLocale: "never" | "default-locale", fallbackLanguage?: null) {
   const i18n = defineI18n({
@@ -669,7 +667,7 @@ function i18nSite(hideLocale: "never" | "default-locale", fallbackLanguage?: nul
     fallbackLanguage,
   });
   return serve(
-    createPress(languages.toSource(), { i18n })
+    createPress(languages.toFumadocsSource(), { i18n })
       .plugins({
         name: "blog",
         routes({ createView }) {
@@ -738,13 +736,31 @@ test("serves each language at its prefix, with its own site data", async () => {
   );
 });
 
+test('puts `baseDir` after the folder of a language, with `parser: "dir"`', async () => {
+  const i18n = defineI18n({ languages: ["en", "cn"], defaultLanguage: "en", parser: "dir" });
+  const docs = await collectionOf({
+    "en/guide.mdx": { title: "Guide" },
+    "cn/guide.mdx": { title: "指南" },
+  });
+  const site = serve(createPress(docs.toFumadocsSource({ baseDir: "docs" }), { i18n }));
+  await site("/");
+  expect(
+    getPressContext()
+      .getPages()
+      .map((page) => [page.url, page.locale]),
+  ).toEqual([
+    ["/en/docs/guide", "en"],
+    ["/cn/docs/guide", "cn"],
+  ]);
+});
+
 test("links the translations of a page by its URL, across sources", async () => {
   const i18n = defineI18n({ languages: ["en", "cn"], defaultLanguage: "en", parser: "dir" });
   const site = serve(
     createPress(
       {
-        en: createCollection("en", [page("en/guide.mdx", { title: "Guide" })]).toSource(),
-        cn: createCollection("cn", [page("cn/guide.mdx", { title: "指南" })]).toSource(),
+        en: (await collectionOf({ "en/guide.mdx": { title: "Guide" } })).toFumadocsSource(),
+        cn: (await collectionOf({ "cn/guide.mdx": { title: "指南" } })).toFumadocsSource(),
       },
       { i18n },
     ).config({ site: { baseUrl: "https://example.com" } }),
@@ -793,7 +809,7 @@ test("sends a URL with the prefix of the hidden language to the one without it",
 
 test("refuses to hide every language", async () => {
   const hidden = serve(
-    createPress(languages.toSource(), {
+    createPress(languages.toFumadocsSource(), {
       i18n: { languages: ["en"], defaultLanguage: "en", hideLocale: "always" },
     }),
   );
@@ -806,7 +822,7 @@ test("the language decides the direction of the text, for the document and the U
   expect(directionOf("cn")).toBe("ltr");
   expect(directionOf("not a language")).toBe("ltr");
 
-  const arabic = serve(createPress(collection.toSource()).config({ site: { lang: "ar" } }));
+  const arabic = serve(createPress(collection.toFumadocsSource()).config({ site: { lang: "ar" } }));
   expect(await (await arabic("/")).text()).toContain('<html lang="ar" dir="rtl">');
   const site: SiteData = await (await arabic(siteDataPath("ar"))).json();
   expect(site.dir).toBe("rtl");

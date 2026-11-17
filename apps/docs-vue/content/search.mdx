@@ -20,9 +20,11 @@ With a [dynamic source](/content/sources), the server builds the index on reques
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).config({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
     search: { filter: (page) => !page.url.startsWith("/changelog") },
   }),
@@ -35,9 +37,11 @@ Search is a default plugin. Leave it out with `recommendedPreset()`, and the sea
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).config({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({ search: false }),
 });
 ```

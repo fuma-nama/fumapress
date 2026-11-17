@@ -71,7 +71,7 @@ A view path takes params like an [API route](/plugins/routes#path-params). `view
 ```ts
 const posts: Record<string, string> = { hello: "Hello", bye: "Bye" };
 
-createPress(content).views({
+createPress(docs.toFumadocsSource()).views({
   post: {
     path: "/blog/[slug]",
     staticPaths: Object.keys(posts),

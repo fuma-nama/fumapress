@@ -9,11 +9,13 @@ import { remarkNpm } from "@fumadocs/satteri/remark-npm";
 import { remarkSteps } from "@fumadocs/satteri/remark-steps";
 import { remarkStructure } from "@fumadocs/satteri/remark-structure";
 import { createHighlights } from "fumadocs-core/highlight/highlights";
-import type { HastPluginInput, MdastPluginInput } from "satteri";
+import type { Features, HastPluginInput, MdastPluginInput } from "satteri";
 import type { HighlightsOptions } from "../highlight";
 import { parseFrontmatter } from "./frontmatter";
 
 export interface MarkdownOptions {
+  /** syntax of the Markdown parser, like `math`, over the defaults: GFM and directives */
+  features?: Features;
   /** plugins on the Markdown tree, after the built-in ones */
   mdastPlugins?: MdastPluginInput[];
   /** plugins on the HTML tree, after the built-in ones */
@@ -128,6 +130,7 @@ export async function compileMarkdown({
     filePath,
     isDevelopment,
     options: {
+      features: options.features,
       jsxImportSource: "@fumapress/vue",
       // the components of the theme, from the app: a file that a page imports has them too
       providerImportSource: "@fumapress/vue/client",

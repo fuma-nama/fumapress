@@ -1,31 +1,21 @@
 // What the reviews of the server found, kept from coming back: one path per page, routes that answer by method,
 // rewrites, and setups that fail at the start with a message.
 import { expect, test } from "vitest";
-import { createCollection, type CollectionConfig } from "../src/collection";
 import type { Plugin } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
 import { pageDataPath, prerenderListPath } from "../src/core/routes";
-import type { PageContent, SourceFile } from "../src/core/types";
-import type { ModuleRef } from "../src/plugins/markdown";
+import type { PageContent } from "../src/core/types";
 import { createFetchHandler } from "../src/server";
+import { collectionOf } from "./collection";
 
-function page(path: string, data: CollectionConfig["pageData"]): SourceFile<CollectionConfig> {
-  const ref: ModuleRef = {
-    file: `content/${path}`,
-    assets: async () => ({ entry: `/assets/${path}.js` }),
-    load: async () => ({ default: () => null }),
-  };
-  return { type: "page", path, data: { ...data, _module: ref } };
-}
-
-const docs = () =>
-  createCollection("docs", [
-    page("index.mdx", { title: "Home" }),
-    page("guide/install.mdx", { title: "Install" }),
-    page("guide/my page.mdx", { title: "My page" }),
-    page("guide/100%.mdx", { title: "Percent" }),
-    page("private/secret.mdx", { title: "Secret" }),
-  ]).toSource();
+const collection = await collectionOf({
+  "index.mdx": { title: "Home" },
+  "guide/install.mdx": { title: "Install" },
+  "guide/my page.mdx": { title: "My page" },
+  "guide/100%.mdx": { title: "Percent" },
+  "private/secret.mdx": { title: "Secret" },
+});
+const docs = () => collection.toFumadocsSource();
 
 function serve(press: Press, prerender = false) {
   const handler = createFetchHandler({
@@ -183,9 +173,19 @@ test("refuses at the start what would fail or be ignored later", async () => {
   await expect(start(createPress(docs(), { plugins: [] } as never))).rejects.toThrow(
     "the plugins of the content loader are `loaderPlugins`",
   );
+  const x = await collectionOf({ "x.mdx": { title: "X" } });
   await expect(
-    start(createPress({ a: { files: [page("x.mdx", {})] }, b: { files: [page("x.mdx", {})] } })),
+    start(createPress({ a: x.toFumadocsSource(), b: x.toFumadocsSource() })),
   ).rejects.toThrow('The sources "a" and "b" both have a file at "x.mdx"');
+  // in the folder of `baseDir`, of any source
+  await expect(
+    start(
+      createPress({
+        a: x.toFumadocsSource({ baseDir: "docs" }),
+        b: { baseDir: "/docs/", files: () => x.toFumadocsSource().files },
+      }),
+    ),
+  ).rejects.toThrow('The sources "a" and "b" both have a file at "docs/x.mdx"');
 
   const withRoute = (
     route: Parameters<Parameters<NonNullable<Plugin["routes"]>>[0]["createApi"]>[0],

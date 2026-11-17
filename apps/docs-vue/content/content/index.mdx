@@ -19,53 +19,68 @@ The URL of a page comes from its file path:
 
 Files and folders starting with `_` aren't pages, so they can hold [partials](/markdown#partials) next to your pages.
 
-In the dev server, adding or removing a file updates the sidebar without a restart.
+In the dev server, adding, renaming or removing a file updates the sidebar without a restart, and so does a change of frontmatter or of a `meta.json`.
 
 ## Collections
 
-A collection is a folder of pages. The site has one by default, `docs` in `content/`. Set `collections` in the Vite plugin to read another folder, or several:
+A collection is a folder of pages and `meta.json` files. `defineDocs()` in `press.config.ts` defines one, and `toFumadocsSource()` gives its pages to the site. A site without `press.config.ts` has this config:
 
-```ts title="vite.config.ts"
-import { defineConfig } from "vite";
-import press from "@fumapress/vue/vite";
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default defineConfig({
-  plugins: [
-    press({
-      collections: {
-        docs: { dir: "content/docs" },
-        blog: { dir: "content/blog" },
-      },
-    }),
-  ],
-});
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource());
 ```
 
-Without `press.config.ts`, the site shows the first collection only. To show several, with a URL prefix for each, see [Multiple Sources](/content/sources#multiple-sources).
+`dir` is the folder from the root of the project, `content/docs` by default. For a second folder, like a blog, see [Multiple Sources](/content/sources#multiple-sources).
+
+`defineDocs()` and `defineCollections()` are macros, like those of [Fumadocs MDX](https://fumadocs.dev/docs/mdx/macro). The Vite plugin reads their calls without running `press.config.ts`, and compiles each call to imports of the files of its folder. So a call follows two rules:
+
+- It is the value of a top-level `const`, like `const docs = defineDocs({ ... })`.
+- `dir`, `files`, `type` and `lastModified` are literals, not variables or expressions.
+
+A call that breaks a rule fails with its file, line and column.
 
 ### Leaving Files Out
 
-`filter` of a collection leaves out the files it returns `false` for: they aren't pages, and the build doesn't include them. It receives the `path` of each Markdown file and `meta.json` in the collection, and its `data`: the frontmatter of a page, or the content of a `meta.json`.
+`files` lists the pages of a collection with glob patterns, from `dir`. A pattern starting with `!` leaves files out, so they aren't pages and the build doesn't include them:
 
-To keep the pages with `draft: true` in their frontmatter out of the build, while the dev server still shows them, read the command of Vite:
-
-```ts title="vite.config.ts"
-import { defineConfig } from "vite";
-import press from "@fumapress/vue/vite";
-
-export default defineConfig(({ command }) => ({
-  plugins: [
-    press({
-      collections: {
-        docs: {
-          dir: "content",
-          filter: (file) => command === "serve" || !file.data.draft,
-        },
-      },
-    }),
-  ],
-}));
+```ts title="press.config.ts"
+const docs = defineDocs({
+  dir: "content",
+  docs: { files: ["**/*.{md,mdx}", "!drafts/**"] },
+});
 ```
+
+`meta.files` does the same for the `meta.json` files. Files and folders starting with `_` are in no collection, whatever the patterns.
+
+### Frontmatter Schema
+
+Without a schema, the frontmatter of a page has the fields of [Markdown](/markdown#frontmatter), with `title` required, and `page.data` leaves out other fields. `docs.schema` takes any validator of [Standard Schema](https://standardschema.dev), like Zod or Valibot. `@fumapress/vue/schema` exports `pageSchema` and `metaSchema` of Fumadocs as Zod objects, which need `zod` installed:
+
+```npm
+npm i zod
+```
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { defineDocs } from "@fumapress/vue/content";
+import { pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
+
+const docs = defineDocs({
+  dir: "content",
+  docs: { schema: pageSchema.extend({ author: z.string() }) },
+});
+
+export default createPress(docs.toFumadocsSource());
+```
+
+`page.data.author` is a `string` in plugins and views, without a type annotation. `meta.schema` validates the `meta.json` files the same way.
+
+The server validates every page and `meta.json` when it starts. A file that doesn't match its schema fails the build, and the dev server shows the error, with the file and each of its issues.
 
 ## Sidebar
 

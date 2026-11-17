@@ -1,7 +1,7 @@
 import type { AppShape, Plugin } from "../core/plugin";
 import type { PageModule } from "../core/types";
 
-/** the compiled module of a Markdown file, in `data._module` of a page of a collection */
+/** the compiled module of a Markdown file, on the data of a page of a collection */
 export interface ModuleRef {
   /** the path of the file from the project root */
   file: string;
@@ -11,15 +11,20 @@ export interface ModuleRef {
   assets: () => Promise<{ entry: string }>;
 }
 
+/**
+ * The key of the `ModuleRef` on `page.data`: a symbol, so the data of a page stays its frontmatter, and JSON leaves it
+ * out. `Symbol.for`, so each entry of the build that has a copy of this module reads the same key.
+ */
+export const moduleKey: unique symbol = Symbol.for("fumapress:module");
+
 function moduleOf(page: AppShape["page"]): ModuleRef | undefined {
   // a page of any source: only those of collections have it
-  const ref: unknown = Reflect.get(page.data, "_module");
-  return typeof ref === "object" && ref !== null ? (ref as ModuleRef) : undefined;
+  return (page.data as { [moduleKey]?: ModuleRef })[moduleKey];
 }
 
 /**
- * Renders the pages of collections: the Markdown files the Vite plugin compiled to modules. A page's date is the
- * `lastModified` of its frontmatter, which the Vite plugin can fill from git.
+ * Renders the pages of collections: the Markdown files the Vite plugin compiled to modules. A page's date is its
+ * `lastModified`, which a collection with `lastModified: true` reads from git.
  */
 export function markdownPlugin(): Plugin {
   return {
@@ -45,14 +50,7 @@ export function markdownPlugin(): Plugin {
     },
     getPageLastModified(page) {
       const value: unknown = Reflect.get(page.data, "lastModified");
-      if (!moduleOf(page) || value === undefined) return;
-      const date = new Date(value as string);
-      if (Number.isNaN(date.getTime())) {
-        throw new Error(
-          `[Fumapress] The \`lastModified\` of "${page.path}" is "${String(value)}", which is not a date: write it like \`2026-01-02\`.`,
-        );
-      }
-      return date;
+      if (moduleOf(page) && value instanceof Date) return value;
     },
     async getPageText(page) {
       const markdown = (await moduleOf(page)?.load())?.markdown;

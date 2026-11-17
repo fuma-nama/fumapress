@@ -10,7 +10,8 @@
   "dependencies": {
     "@fumapress/vue": "workspace:*",
     "@lucide/vue": "^1.74.0",
-    "vue": "^3.5.45"
+    "vue": "^3.5.45",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

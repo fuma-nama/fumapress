@@ -6,7 +6,7 @@ description: Add routes, middleware and head tags.
 A plugin is an object with hooks. `this` in a hook is the context of your site.
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:pages",
   routes({ createApi }) {
     createApi({

@@ -84,7 +84,9 @@ export type { Meta, Page } from "fumadocs-core/source";
  * A value as JSON gives it back: a `Date` is a string, functions and `undefined` are left out, and in a list they are
  * `null`. What the server sends to the browser has this type.
  */
-export type Jsonify<T> = unknown extends T ? T : JsonValue<T>;
+export type Jsonify<T> = unknown extends T ? T : [T] extends [Json] ? T : JsonValue<T>;
+/** a value JSON gives back as it is: a recursive type of JSON, like the `_openapi` of a page, stays one */
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 type JsonValue<T> = T extends { toJSON(): infer J }
   ? Jsonify<J>
   : T extends string | number | boolean | null

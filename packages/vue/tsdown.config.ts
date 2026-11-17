@@ -65,7 +65,9 @@ export default defineConfig([
   {
     ...shared,
     // the runtime, in the app: on the server and in the browser
-    entry: ["src/{config,content,i18n,client,server,jsx-runtime,page-tree,highlight,markdown}.ts"],
+    entry: [
+      "src/{config,content,schema,i18n,client,server,jsx-runtime,page-tree,highlight,markdown}.ts",
+    ],
     platform: "neutral",
     clean: false,
     // `hast` stays a type import, so a highlighter typed with it fits `Highlighter`

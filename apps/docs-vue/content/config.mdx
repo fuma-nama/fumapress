@@ -4,13 +4,15 @@ description: Configure your site, its head tags, navbar and default plugins in p
 icon: Settings
 ---
 
-`press.config.ts` at the project root configures your site. The file is optional: without it, the site renders the content of your first collection with the defaults.
+`press.config.ts` at the project root configures your site. The file is optional: without it, the site renders the pages of `content/` with the defaults.
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).config({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).config({
   site: {
     name: "Acme Docs",
     description: "Guides and reference for Acme.",
@@ -23,7 +25,7 @@ The file can also be `press.config.mts`, `press.config.js` or `press.config.mjs`
 
 ## Content, Plugins and Views
 
-`createPress(content, options)` takes your [content sources](/content/sources) and these options:
+`createPress(source, options)` takes your [content sources](/content/sources), like the [collection](/content#collections) of `defineDocs()`, and these options:
 
 - `i18n`: your [languages](/i18n).
 - `loaderPlugins`, `slugs`, `url`, `pageTree` and the other options of the Fumadocs content loader.
@@ -31,7 +33,7 @@ The file can also be `press.config.mts`, `press.config.js` or `press.config.mjs`
 `.plugins()` adds [plugins](/plugins), `.views()` adds the [views](/plugins/views) of your site, then `.config()` sets the options of the site. Each call is optional, in this order.
 
 ```ts title="press.config.ts"
-export default createPress(content, { i18n })
+export default createPress(docs.toFumadocsSource(), { i18n })
   .plugins(myPlugin)
   .views({ releases })
   .config({ site, head, ui });
@@ -46,7 +48,7 @@ The site takes its types from the content: `page.data` has the fields of its sou
 `site.name` shows in the navbar and after the title of every page, like `Installation | Acme Docs`. `site.description` is the meta description of pages without a `description` of their own.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   site: {
     name: "Acme Docs",
     description: "Guides and reference for Acme.",
@@ -59,7 +61,7 @@ createPress(content).config({
 `site.baseUrl` is the full URL of your deployed site. It adds a canonical link to every page, and makes the URLs in the sitemap, `llms.txt` and the alternate links of translated pages absolute. Without it, pages have no canonical link and those URLs are relative.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   site: {
     baseUrl: "https://docs.acme.dev",
   },
@@ -75,7 +77,7 @@ createPress(content).config({
 `site.git` adds a GitHub link to the navbar, and an "Edit on GitHub" link to each Markdown page.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   site: {
     git: {
       user: "acme",
@@ -97,7 +99,7 @@ With the options above, the edit link of `content/guide.mdx` is `https://github.
 `head` adds tags to the `<head>` of every page. `attrs` take HTML attribute names.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   head: [
     { tag: "link", attrs: { rel: "icon", href: "/favicon.svg" } },
     { tag: "meta", attrs: { name: "theme-color", content: "#0a0a0a" } },
@@ -110,7 +112,7 @@ An `href` or `src` that is a path of your site, like `/favicon.svg` above, gets 
 For tags that depend on the page, pass a function. It receives the `pathname` and `lang` of the page, and on content pages and views, the `page` and its `data`.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   head({ data }) {
     if (!data?.title) return;
     return [{ tag: "meta", attrs: { property: "og:title", content: data.title } }];
@@ -129,7 +131,7 @@ A tag with a key replaces the tag of the same key from plugins and defaults. The
 - `githubUrl`: the GitHub link of the navbar, set by `site.git`.
 
 ```ts title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   ui: {
     layoutProps: {
       links: [
@@ -144,7 +146,7 @@ createPress(content).config({
 On a site with languages, pass a function of `{ lang }` to return links per language. `this` is the context of the site, so `this.localizePath()` gives a path in that language.
 
 ```ts title="press.config.ts"
-createPress(content, { i18n }).config({
+createPress(docs.toFumadocsSource(), { i18n }).config({
   ui: {
     layoutProps({ lang }) {
       return {
@@ -166,7 +168,7 @@ Your site comes with a sitemap, `robots.txt`, `llms.txt` and [search](/search). 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
 
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
     sitemap: { path: "/sitemap-docs.xml" },
     robots: false,
@@ -192,7 +194,7 @@ import { createPress, recommendedPreset } from "@fumapress/vue/config";
 
 const listed = (page: { data: Record<string, unknown> }) => page.data.unlisted !== true;
 
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
     sitemap: { filter: listed },
     llms: { filter: listed },

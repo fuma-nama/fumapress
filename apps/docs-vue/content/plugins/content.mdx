@@ -9,7 +9,9 @@ This site has a `changelog` source next to its docs. Its pages come from a list 
 
 ```ts title="press.config.ts"
 import { createPress, type Source } from "@fumapress/vue/config";
-import { collections } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
+
+const docs = defineDocs({ dir: "content" });
 
 interface Release {
   title: string;
@@ -31,7 +33,7 @@ const changelog: Source<{ pageData: Release; metaData: {} }> = {
   })),
 };
 
-export default createPress({ docs: collections.docs!.toSource(), changelog }).plugins({
+export default createPress({ docs: docs.toFumadocsSource(), changelog }).plugins({
   name: "site:changelog",
   getPageBody(page) {
     if (page.type === "changelog") return { html: page.data.html };

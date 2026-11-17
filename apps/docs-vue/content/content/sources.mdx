@@ -7,32 +7,45 @@ A content source is the list of files the site builds its pages from. `createPre
 
 ## One Source
 
-`content` is the source of the first collection:
+`toFumadocsSource()` of a [collection](/content#collections) is a source:
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content);
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource());
 ```
 
 This is the default when the site has no `press.config.ts`.
 
 ## Multiple Sources
 
-Pass an object to combine sources. `collections` has each collection of the Vite plugin by name, and `toSource({ baseDir })` puts its pages under a URL prefix:
+Pass an object to combine sources. `defineCollections()` defines a collection of pages only, with `type: "doc"`, and `toFumadocsSource({ baseDir })` puts the pages of a collection under a URL prefix:
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { collections } from "@fumapress/vue/content";
+import { defineCollections, defineDocs } from "@fumapress/vue/content";
+import { pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
+
+const docs = defineDocs({ dir: "content/docs" });
+const blog = defineCollections({
+  type: "doc",
+  dir: "content/blog",
+  schema: pageSchema.extend({ date: z.string() }),
+});
 
 export default createPress({
-  docs: collections.docs!.toSource({ baseDir: "docs" }),
-  blog: collections.blog!.toSource({ baseDir: "blog" }),
+  docs: docs.toFumadocsSource({ baseDir: "docs" }),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
 });
 ```
 
-`content/docs/install.mdx` is now at `/docs/install`, and `content/blog/hello.mdx` at `/blog/hello`. The key of a source is the `type` of its pages, so a plugin tells them apart with `page.type === "blog"`. With one source, `page.type` is `undefined`.
+`content/docs/install.mdx` is now at `/docs/install`, and `content/blog/hello.mdx` at `/blog/hello`. The key of a source is the `type` of its pages, so a plugin tells them apart with `page.type === "blog"`, and `page.data.date` of a blog page is a `string`. With one source, `page.type` is `undefined`.
+
+A [view](/plugins/views) lists the posts of the blog at `/blog`, with the `.views()` of `createPress()`.
 
 ## Content Options
 
@@ -40,10 +53,12 @@ The second argument of `createPress()` configures the content loader:
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 import { defineI18n } from "@fumapress/vue/i18n";
 
-export default createPress(content, {
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource(), {
   i18n: defineI18n({ languages: ["en", "cn"], defaultLanguage: "en" }),
 });
 ```
@@ -56,11 +71,13 @@ An option that the loader doesn't have is a type error.
 
 ## Custom Sources
 
-A custom source lists pages from anywhere, and a [plugin](/plugins/content) renders them. Each file has a `path`, which sets its URL, and `data`, which is `page.data` of its page. The type `Source` gives `page.data` its fields:
+A custom source lists pages from anywhere, and a [plugin](/plugins/content) renders them. Each file has a `path`, which sets its URL, and `data`, which is `page.data` of its page. `baseDir` puts the pages under a URL prefix, like the one of a collection, and the type `Source` gives `page.data` its fields:
 
 ```ts title="press.config.ts"
 import { createPress, type Source } from "@fumapress/vue/config";
-import { collections } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
+
+const docs = defineDocs({ dir: "content" });
 
 const releases = [
   { version: "0.2.0", notes: "<p>Custom content sources.</p>" },
@@ -68,14 +85,15 @@ const releases = [
 ];
 
 const changelog: Source<{ pageData: { title: string; html: string }; metaData: {} }> = {
+  baseDir: "changelog",
   files: releases.map(({ version, notes }) => ({
     type: "page",
-    path: `changelog/${version}.md`,
+    path: `${version}.md`,
     data: { title: `v${version}`, html: notes },
   })),
 };
 
-export default createPress({ docs: collections.docs!.toSource(), changelog }).plugins({
+export default createPress({ docs: docs.toFumadocsSource(), changelog }).plugins({
   name: "site:changelog",
   getPageBody(page) {
     // `page.data` of the changelog has `html`

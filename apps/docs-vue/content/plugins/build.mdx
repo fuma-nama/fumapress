@@ -6,7 +6,7 @@ description: Run code when your site is built, and add files to the output.
 The `build` hook of a plugin runs once when you build the site with `vite build`. This one writes a file next to the pages:
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:report",
   build({ paths, emitFile }) {
     emitFile("build.json", JSON.stringify({ pages: paths.length }));
@@ -31,7 +31,7 @@ An emitted file is generated like a [static route](/plugins/routes#static-routes
 Throw to fail the build. This plugin requests every page, and fails when one has an error:
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:check-pages",
   async build({ paths, fetch }) {
     for (const path of paths) {

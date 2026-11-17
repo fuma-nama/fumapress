@@ -8,8 +8,10 @@ Define your languages with `defineI18n()`, and pass them to `createPress()` with
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 import { defineI18n } from "@fumapress/vue/i18n";
+
+const docs = defineDocs({ dir: "content" });
 
 const i18n = defineI18n({
   languages: ["en", "cn"],
@@ -17,7 +19,7 @@ const i18n = defineI18n({
   hideLocale: "default-locale",
 });
 
-export default createPress(content, { i18n });
+export default createPress(docs.toFumadocsSource(), { i18n });
 ```
 
 Each language has its own pages, page tree, URLs and search index. The layouts show a language switch. The languages are in the types of the site, so `this.localizePath("fr", "/")` is a type error.
@@ -69,7 +71,7 @@ A link in a page leads to the URL as it is written: the language of the page isn
 ```ts title="press.config.ts"
 import { uiTranslations } from "@fumapress/vue/i18n";
 
-export default createPress(content, { i18n }).config({
+export default createPress(docs.toFumadocsSource(), { i18n }).config({
   ui: {
     translations: i18n
       .translations()
@@ -97,7 +99,7 @@ A site without languages translates its UI with `defineTranslations()`, whose `.
 ```ts title="press.config.ts"
 import { defineTranslations, uiTranslations } from "@fumapress/vue/i18n";
 
-export default createPress(content).config({
+export default createPress(docs.toFumadocsSource()).config({
   ui: {
     translations: defineTranslations()
       .extend(uiTranslations())
@@ -111,7 +113,7 @@ export default createPress(content).config({
 `ui.layoutProps` can be a function of the language, to translate the links of the navbar. `this.localizePath()` gives a path in a language, with its prefix:
 
 ```ts title="press.config.ts"
-export default createPress(content, { i18n }).config({
+export default createPress(docs.toFumadocsSource(), { i18n }).config({
   ui: {
     layoutProps({ lang }) {
       return {
@@ -124,11 +126,7 @@ export default createPress(content, { i18n }).config({
 });
 ```
 
-With `parser: "dir"`, the folder of a language is the first one. To also put a collection under a URL prefix, give `toSource` the languages, so the prefix comes after that folder:
-
-```ts
-collections.docs!.toSource({ baseDir: "docs", i18n });
-```
+With `parser: "dir"`, the folder of a language stays the first one of the URL. The `baseDir` of a source comes after it, so `docs.toFumadocsSource({ baseDir: "docs" })` puts `content/cn/guide.mdx` at `/cn/docs/guide`.
 
 ## Plugins
 

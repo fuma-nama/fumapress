@@ -1,6 +1,18 @@
 import { createPress, type Source } from "@fumapress/vue/config";
-import { collections } from "@fumapress/vue/content";
+import { defineCollections, defineDocs } from "@fumapress/vue/content";
 import { defineI18n, uiTranslations } from "@fumapress/vue/i18n";
+import { pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
+
+// the pages of `content/`, dated by the last commit of their file
+const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
+
+// the posts of `blog/`: the schema checks their frontmatter, and types `page.data`
+const blog = defineCollections({
+  type: "doc",
+  dir: "blog",
+  schema: pageSchema.extend({ date: z.string(), tags: z.array(z.string()).default([]) }),
+});
 
 const releases = [
   { version: "0.2.0", notes: "<p>Custom content sources, and the <code>build</code> hook.</p>" },
@@ -26,7 +38,10 @@ const i18n = defineI18n({
   hideLocale: "default-locale",
 });
 
-export default createPress({ docs: collections.docs!.toSource(), changelog }, { i18n })
+export default createPress(
+  { docs: docs.toFumadocsSource(), blog: blog.toFumadocsSource({ baseDir: "blog" }), changelog },
+  { i18n },
+)
   .plugins({
     name: "site:changelog",
     // renders the pages of the `changelog` source through content hooks
@@ -67,6 +82,26 @@ export default createPress({ docs: collections.docs!.toSource(), changelog }, { 
         return { releases: pages };
       },
     },
+    // the posts of the blog, newest first, with the fields of their schema
+    "blog.index": {
+      path: "/blog",
+      data: { title: "Blog" },
+      view({ lang }) {
+        const posts = this.getPages(lang).flatMap((page) =>
+          page.type === "blog"
+            ? [
+                {
+                  title: page.data.title,
+                  url: page.url,
+                  date: page.data.date,
+                  tags: page.data.tags,
+                },
+              ]
+            : [],
+        );
+        return { posts: posts.sort((a, b) => b.date.localeCompare(a.date)) };
+      },
+    },
   })
   .config({
     site: {
@@ -84,6 +119,7 @@ export default createPress({ docs: collections.docs!.toSource(), changelog }, { 
               text: lang === "cn" ? "版本" : "Releases",
               url: this.localizePath(lang, "/releases"),
             },
+            { text: lang === "cn" ? "博客" : "Blog", url: this.localizePath(lang, "/blog") },
             { text: "About", url: "/about" },
           ],
         };

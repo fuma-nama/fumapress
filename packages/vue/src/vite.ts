@@ -8,31 +8,15 @@ import { normalizePath, type Plugin, type PluginOption } from "vite";
 import * as compiler from "vue/compiler-sfc";
 import { compileMarkdown, type MarkdownOptions } from "./vite/compile";
 import { parseFrontmatter } from "./vite/frontmatter";
-import { lastCommitDates } from "./vite/git";
-import { isHidden, isMeta, scanCollection, scanPages } from "./vite/scan";
+import { listPages, readMacros, transformMacros } from "./vite/macro";
+import { scanPages } from "./vite/scan";
 import { typeResolver } from "./vite/type-resolver";
 import { mergeOptions } from "./core/merge";
 import { prerenderListPath } from "./core/routes";
 
 export type { MarkdownOptions } from "./vite/compile";
 
-export interface CollectionOptions {
-  /** the folder of the collection, from the project root */
-  dir: string;
-  /**
-   * The files of the collection: a page or `meta.json` it returns `false` for is left out of the site and of the build.
-   * It receives the path of the file in the collection, and the frontmatter of a page or the content of a `meta.json`.
-   */
-  filter?: (file: { path: string; data: Record<string, unknown> }) => boolean;
-}
-
 export interface PressOptions {
-  /**
-   * The content of the site: Markdown and MDX files with `meta.json`, by collection name.
-   *
-   * @defaultValue { docs: { dir: "content" } }
-   */
-  collections?: Record<string, CollectionOptions>;
   /**
    * A module that default-exports the theme of the site, merged over the default theme: its `Layout`, the
    * `components` of Markdown, the `views` of plugin pages and the `icons` of the page tree. It runs on the server and
@@ -53,14 +37,10 @@ export interface PressOptions {
   defaultTheme?: boolean;
   /** custom pages, a `.vue` file is a route by its path @defaultValue "src/pages" */
   pagesDir?: string;
+  /** how every Markdown file of the site compiles: the collections share them */
   markdown?: MarkdownOptions;
   /** options of `@vitejs/plugin-vue`, added to the ones Fumapress sets, like `template.compilerOptions` */
   vue?: VueOptions;
-  /**
-   * The `lastModified` of a Markdown page without one in its frontmatter: `"git"` reads the date of the last commit
-   * that changed its file.
-   */
-  lastModified?: "git";
   /** options of Nitro, like the `preset` to deploy with */
   nitro?: Parameters<typeof nitro>[0];
 }
@@ -77,41 +57,25 @@ interface Site {
   root: string;
 }
 
+/** the config of a site without `press.config`, compiled like one */
+const defaultConfig = `import { createPress } from "@fumapress/vue/config";
+import { defineDocs } from "@fumapress/vue/content";
+
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource());
+`;
+
 function core(options: PressOptions, site: Site): Plugin {
   const pagesPath = options.pagesDir ?? "src/pages";
   let root = site.root;
   let isDev = false;
-  let collections: [name: string, dir: string, filter: CollectionOptions["filter"]][] = [];
   let pagesDir = "";
-
-  /** the frontmatter of each page as the collections have it */
-  const frontmatters = new Map<string, string>();
 
   const str = (value: unknown) => JSON.stringify(value);
   const fromRoot = (file: string) => normalizePath(path.relative(root, file));
-
-  async function loadCollections(addWatchFile: (file: string) => void) {
-    const entries: string[] = [];
-    for (const [name, dir, filter] of collections) {
-      const dates = options.lastModified === "git" ? await lastCommitDates(dir) : undefined;
-      const files = (await scanCollection(dir, filter)).map((file) => {
-        // frontmatter is part of this module: the dev server loads it again when the one of a file changes
-        addWatchFile(file.absolutePath);
-        if (file.type === "page") frontmatters.set(file.absolutePath, JSON.stringify(file.data));
-        const shared = `type: ${str(file.type)}, path: ${str(file.path)}`;
-        if (file.type === "meta") return `{ ${shared}, data: ${str(file.data)} }`;
-        const id = normalizePath(file.absolutePath);
-        // the compiled module of the page, which the `core:markdown` plugin renders: the server loads it, and
-        // `?assets=client` is its file in the browser build, which the browser imports
-        const ref = `{ file: ${str(fromRoot(file.absolutePath))}, load: () => import(${str(id)}), assets: () => import(${str(`${id}?assets=client`)}).then((mod) => mod.default) }`;
-        // the date of a page is its own, or the one of git
-        const lastModified = file.data.lastModified ?? dates?.get(file.absolutePath);
-        return `{ ${shared}, data: { ...${str({ ...file.data, lastModified })}, _module: ${ref} } }`;
-      });
-      entries.push(`${str(name)}: [\n${files.join(",\n")}\n]`);
-    }
-    return `export const collections = {\n${entries.join(",\n")}\n};\n`;
-  }
+  const find = (names: string[]) =>
+    names.map((name) => path.join(root, name)).find((name) => existsSync(name));
 
   async function loadRoutes() {
     const routes = (await scanPages(pagesDir)).map(({ path: routePath, absolutePath }) => {
@@ -126,14 +90,17 @@ function core(options: PressOptions, site: Site): Plugin {
   }
 
   function loadConfig() {
-    const file = configFiles.map((name) => path.join(root, name)).find((name) => existsSync(name));
-    if (file) return `export { default } from ${str(normalizePath(file))};\n`;
-    // a site without `press.config`: its content with the defaults
-    return `import { createPress } from "@fumapress/vue/config";\nimport { content } from "@fumapress/vue/content";\nexport default createPress(content);\n`;
+    const file = find(configFiles);
+    return file ? `export { default } from ${str(normalizePath(file))};\n` : defaultConfig;
   }
 
-  const find = (names: string[]) =>
-    names.map((name) => path.join(root, name)).find((name) => existsSync(name));
+  /** a module whose macro calls are compiled: `press.config`, or the default one */
+  function isConfig(id: string) {
+    return (
+      id === `${RESOLVED}config` ||
+      configFiles.some((name) => id === normalizePath(path.join(root, name)))
+    );
+  }
 
   /** the theme module of the site, none without one: required without the default theme, which has the layout */
   function ownTheme(): string | undefined {
@@ -181,17 +148,15 @@ export default theme;
     enforce: "pre",
     async config(config, { command }) {
       root = site.root = path.resolve(config.root ?? process.cwd());
-      collections = Object.entries(options.collections ?? { docs: { dir: "content" } }).map(
-        ([name, { dir, filter }]) => [name, path.resolve(root, dir), filter],
-      );
 
-      // each page is an entry of the browser build, so the browser imports it by its URL: no list of pages to ship
+      // Each page is an entry of the browser build, so the browser imports it by its URL: no list of pages to ship.
+      // The folders of the collections are in the macro calls of `press.config`, whose options are literals.
       const pages: string[] = [];
       if (command === "build") {
-        for (const [, dir, filter] of collections) {
-          for (const file of await scanCollection(dir, filter)) {
-            if (file.type === "page") pages.push(normalizePath(file.absolutePath));
-          }
+        const file = find(configFiles);
+        const code = file ? readFileSync(file, "utf8") : defaultConfig;
+        for (const collection of readMacros(code, file ?? `${PREFIX}config`)) {
+          pages.push(...(await listPages(collection, root)));
         }
       }
 
@@ -249,48 +214,41 @@ export default theme;
           environment.hot.send({ type: "full-reload" });
         }
       };
-      // a file a collection can list: in its folder, and not under a name starting with `_`
-      const inContent = (file: string) =>
-        collections.some(
-          ([, dir]) => file.startsWith(dir + path.sep) && !isHidden(path.relative(dir, file)),
-        );
       const under = (names: string[]) => new Set(names.map((name) => path.join(root, name)));
       const ofTheme = under([...themeFiles, ...styleFiles]);
       const ofConfig = under(configFiles);
 
-      // A file added or removed changes what a virtual module lists: the pages, or which file is the theme. The
-      // server also lists the custom pages it generates, so it starts again with the collections.
+      // A file added or removed changes what a virtual module lists: the custom pages, or which file is the theme
+      // or the config. The files of collections are `import.meta.glob` imports of the config, which Vite follows.
       const onListChange = (file: string) => {
-        if (inContent(file) || file.startsWith(pagesDir + path.sep))
-          reload("collections", "routes");
+        if (file.startsWith(pagesDir + path.sep)) reload("routes");
         else if (ofTheme.has(file)) reload("theme");
         else if (ofConfig.has(file)) reload("config");
       };
       server.watcher.on("add", onListChange);
       server.watcher.on("unlink", onListChange);
-
-      // The body of a page is its own module, which Vite reloads. Its frontmatter and the `meta.json` files are
-      // part of the collections, which only the server reads: so the browser is told to reload.
-      server.watcher.on("change", (file) => {
-        if (!inContent(file)) return;
-        if (isMeta(file)) return reload("collections");
-        if (!/\.mdx?$/.test(file)) return;
-        try {
-          const { data } = parseFrontmatter(readFileSync(file, "utf8"));
-          if (JSON.stringify(data) !== frontmatters.get(file)) reload("collections");
-        } catch {
-          // being written, or invalid: the next change is read
-        }
-      });
+    },
+    hotUpdate({ file, modules, server }) {
+      // A module only the server has changed, like `press.config`, the frontmatter of a page or a `meta.json`: the
+      // server renders what the browser shows, so the browser reloads. Vite reloads the server's modules.
+      const client = server.environments.client;
+      if (this.environment === client || modules.length === 0) return;
+      if (!client.moduleGraph.getModulesByFile(file)?.size)
+        client.hot.send({ type: "full-reload" });
     },
     resolveId(id) {
       if (id.startsWith(PREFIX)) return RESOLVED + id.slice(PREFIX.length);
     },
     load(id) {
+      // the frontmatter of a page, which its collection imports
+      const [file, query] = id.split("?");
+      if (query && file && /\.mdx?$/.test(file) && new URLSearchParams(query).has("frontmatter")) {
+        const { data } = parseFrontmatter(readFileSync(file, "utf8"));
+        return `export default ${str(data)};\n`;
+      }
+
       if (!id.startsWith(RESOLVED)) return;
       switch (id.slice(RESOLVED.length)) {
-        case "collections":
-          return loadCollections((file) => this.addWatchFile(file));
         case "routes":
           return loadRoutes();
         case "config":
@@ -300,6 +258,8 @@ export default theme;
       }
     },
     async transform(source, id) {
+      if (isConfig(id)) return transformMacros(source, id.replace(RESOLVED, PREFIX), root);
+
       const [file, query] = id.split("?");
       if (query || !file || !/\.mdx?$/.test(file)) return;
 

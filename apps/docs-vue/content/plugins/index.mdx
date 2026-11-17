@@ -8,9 +8,11 @@ A plugin is an object with a `name` and hooks. Add it to your site with `.plugin
 
 ```ts title="press.config.ts"
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).plugins({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).plugins({
   name: "site:status",
   routes({ createApi }) {
     createApi({
@@ -62,7 +64,7 @@ Each plugin needs a unique `name`. A site with two plugins of the same name fail
 `head` and `layoutProps` take the same values as the `head` and `ui.layoutProps` options of your [config](/config):
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:extras",
   head: () => [{ tag: "meta", attrs: { name: "theme-color", content: "#0ea5e9" } }],
   layoutProps({ lang }) {
@@ -97,7 +99,7 @@ When several plugins return a value for the same hook, the results combine by ho
 `.plugins()` skips `false`, `null` and `undefined`, and flattens lists:
 
 ```ts title="press.config.ts"
-createPress(content).plugins(process.env.ANALYTICS === "1" && analyticsPlugin(), [
+createPress(docs.toFumadocsSource()).plugins(process.env.ANALYTICS === "1" && analyticsPlugin(), [
   statusPlugin(),
   changelogPlugin,
 ]);
@@ -120,9 +122,11 @@ Pass the options of a default plugin to `recommendedPreset()`, in the `preset` o
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).config({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
     sitemap: { path: "/sitemap-docs.xml" },
     llms: { full: false },
@@ -138,10 +142,12 @@ Set the default plugin to `false`, then list your own:
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 import { mySearchPlugin } from "./search-plugin";
 
-export default createPress(content)
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource())
   .plugins(mySearchPlugin())
   .config({ preset: recommendedPreset({ search: false }) });
 ```
@@ -153,13 +159,13 @@ The default plugins are exported too, as `sitemapPlugin`, `robotsPlugin`, `llmsP
 Set a default plugin to `false` to remove it, or pass an empty list to remove them all:
 
 ```ts tab="One plugin" title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({ llms: false }),
 });
 ```
 
 ```ts tab="All plugins" title="press.config.ts"
-createPress(content).config({
+createPress(docs.toFumadocsSource()).config({
   preset: [],
 });
 ```
@@ -195,4 +201,4 @@ test("answers the status route", async () => {
 });
 ```
 
-`@fumapress/vue/content` needs the Vite plugin, so a test lists its files instead of importing `content`.
+The macros of `@fumapress/vue/content` are compiled by the Vite plugin, so a test lists its files instead of calling `defineDocs()`.

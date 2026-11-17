@@ -603,6 +603,9 @@ importers:
       vue:
         specifier: ^3.5.45
         version: 3.5.45(typescript@7.0.2)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       typescript:
         specifier: ^7.0.2
@@ -1287,6 +1290,9 @@ importers:
       yaml:
         specifier: ^2.8.1
         version: 2.9.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
 
   packages/vue-cli:
     devDependencies:

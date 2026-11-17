@@ -273,10 +273,24 @@ export async function createContext(
     return undefined as never;
   }
 
+  /**
+   * The path of a file in the folder `baseDir`, the URL prefix of its source. When files name their language by
+   * folder (`parser: "dir"`), the folder of the language stays the first one.
+   */
+  function inBaseDir(path: string, baseDir: string) {
+    const [first = "", ...rest] = path.split("/");
+    return i18n?.parser === "dir" && languages.includes(first) && rest.length > 0
+      ? `${first}/${baseDir}/${rest.join("/")}`
+      : `${baseDir}/${path}`;
+  }
+
   async function load() {
     const resolved = await Promise.all(
       sources.map(async ([key, source]) => {
-        const files = typeof source.files === "function" ? await source.files() : source.files;
+        let files = typeof source.files === "function" ? await source.files() : source.files;
+        const baseDir = source.baseDir?.replace(/^\/+|\/+$/g, "");
+        if (baseDir)
+          files = files.map((file) => ({ ...file, path: inBaseDir(file.path, baseDir) }));
         return [key, { files }] as const;
       }),
     );
@@ -284,13 +298,13 @@ export async function createContext(
     // sources share one tree of files: the same path in two of them would silently be one page
     const owners = new Map<string, string | undefined>();
     for (const [key, { files }] of resolved) {
-      for (const file of files) {
-        if (owners.has(file.path)) {
+      for (const { path } of files) {
+        if (owners.has(path)) {
           throw new Error(
-            `[Fumapress] The sources "${owners.get(file.path)}" and "${key}" both have a file at "${file.path}". Give the files of a source their own folder, like \`toSource({ baseDir: "blog" })\`.`,
+            `[Fumapress] The sources "${owners.get(path)}" and "${key}" both have a file at "${path}". Give the files of a source their own folder, like \`toFumadocsSource({ baseDir: "blog" })\`.`,
           );
         }
-        owners.set(file.path, key);
+        owners.set(path, key);
       }
     }
 

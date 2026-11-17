@@ -6,7 +6,7 @@ description: Reference of `this` in the hooks of a plugin.
 `this` in a hook, and in the `head` and `ui.layoutProps` options of your config, is the context of the site. It has the type `Context` of `@fumapress/vue/config`:
 
 ```ts
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:example",
   configure() {
     console.log(`${this.getPages().length} pages in ${this.languages.join(", ")}`);

@@ -14,7 +14,15 @@ import {
   type Source,
   type SourcePage,
 } from "@fumapress/vue/config";
+import {
+  defineCollections,
+  defineDocs,
+  type DefaultMetaData,
+  type DefaultPageData,
+} from "@fumapress/vue/content";
 import { defineI18n, defineTranslations, uiTranslations } from "@fumapress/vue/i18n";
+import { metaSchema, pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
 
 // The guarantees of the types of the builder, read from the declarations of the build like a site reads them: a
 // `@ts-expect-error` without an error fails `types:check`.
@@ -201,4 +209,79 @@ test("the context of the site", () => {
     ctx.getContentRender("notes");
   }
   void render;
+});
+
+// The macros run compiled, in `press.config`: these sites are only read for their types.
+function collections() {
+  const docs = defineDocs({ dir: "content/docs" });
+  const posts = defineCollections({
+    type: "doc",
+    dir: "content/blog",
+    schema: pageSchema.extend({ date: z.string(), tags: z.array(z.string()) }),
+    lastModified: true,
+  });
+  const app = createPress({
+    docs: docs.toFumadocsSource(),
+    blog: posts.toFumadocsSource({ baseDir: "blog" }),
+  }).config({});
+  return { docs, posts, app };
+}
+
+test("the schemas of collections type `page.data`, with no annotation", () => {
+  type App = ReturnType<typeof collections>["app"];
+  type Page = NonNullable<App["~types"]>["content"]["page"];
+  function read(page: Page) {
+    if (page.type === "blog") {
+      expectTypeOf(page.data.date).toEqualTypeOf<string>();
+      expectTypeOf(page.data.tags).toEqualTypeOf<string[]>();
+      // with `lastModified: true`
+      expectTypeOf(page.data.lastModified).toEqualTypeOf<Date | undefined>();
+    } else {
+      // the built-in schema has the fields of `pageSchema`
+      expectTypeOf(page.data).toEqualTypeOf<DefaultPageData>();
+      // @ts-expect-error: a collection without `lastModified: true` has no date
+      void page.data.lastModified;
+    }
+  }
+  void read;
+
+  // the built-in schemas give the types of the ones of Fumadocs
+  expectTypeOf<DefaultPageData>().toEqualTypeOf<z.output<typeof pageSchema>>();
+  expectTypeOf<DefaultMetaData>().toEqualTypeOf<z.output<typeof metaSchema>>();
+  type Meta = NonNullable<App["~types"]>["content"]["meta"];
+  expectTypeOf<Extract<Meta, { type: "docs" }>["data"]>().toEqualTypeOf<DefaultMetaData>();
+
+  // as JSON in the browser: a `Date` is a string
+  expectTypeOf<PageOf<App, "blog">["data"]["lastModified"]>().toEqualTypeOf<string | undefined>();
+});
+
+test("a collection takes the options of its macro only", () => {
+  function options() {
+    // @ts-expect-error: an option of `fumadocs-mdx` that doesn't exist here
+    defineDocs({ docs: { async: true } });
+    // @ts-expect-error: compile options are those of the Vite plugin, for every file
+    defineDocs({ docs: { mdxOptions: {} } });
+    // @ts-expect-error: a dynamic collection is a source of its own
+    defineDocs({ docs: { dynamic: true } });
+    // @ts-expect-error: not an option of a collection
+    defineCollections({ type: "doc", dir: "blog", postprocess: {} });
+    // @ts-expect-error: a collection has a folder
+    defineCollections({ type: "doc" });
+    // @ts-expect-error: the frontmatter of a page must fit `PageData`, like a title that is text
+    defineDocs({ docs: { schema: z.object({ title: z.number() }) } });
+  }
+  void options;
+});
+
+test("the content of a site is sources: a collection is one through `toFumadocsSource()`", () => {
+  function content() {
+    const { docs } = collections();
+    // @ts-expect-error: a collection, not its source
+    createPress(docs);
+    // @ts-expect-error: not a source
+    createPress({ docs: { pages: [] } });
+    // a source of its own, in a folder
+    createPress({ notes: { baseDir: "notes", files: [] } });
+  }
+  void content;
 });

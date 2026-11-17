@@ -1,7 +1,9 @@
 import { createPress } from "@fumapress/vue/config";
-import { content } from "@fumapress/vue/content";
+import { defineDocs } from "@fumapress/vue/content";
 
-export default createPress(content).config({
+const docs = defineDocs({ dir: "content" });
+
+export default createPress(docs.toFumadocsSource()).config({
   site: {
     name: "Fumapress Vue",
     description: "A docs framework for Vue: your Markdown as a fast docs site, on Vite.",

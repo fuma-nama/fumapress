@@ -19,27 +19,21 @@ full: true
 ---
 ```
 
-| Field          | Use                                                                  |
-| -------------- | -------------------------------------------------------------------- |
-| `title`        | The main heading of the page, its name in the sidebar, and `<title>` |
-| `description`  | Below the title, and the meta description of the page                |
-| `icon`         | The icon of the page in the sidebar, see [Icons](/content#icons)     |
-| `full`         | Use the full width of the page, without the table of contents        |
-| `lastModified` | The date of the last change, shown below the page and in the sitemap |
+| Field         | Use                                                                  |
+| ------------- | -------------------------------------------------------------------- |
+| `title`       | The main heading of the page, its name in the sidebar, and `<title>` |
+| `description` | Below the title, and the meta description of the page                |
+| `icon`        | The icon of the page in the sidebar, see [Icons](/content#icons)     |
+| `full`        | Use the full width of the page, without the table of contents        |
 
-Since `title` is the main heading, start the body at `##`. Other fields are kept in `page.data`, where plugins can read them.
+`title` is required. Since it is the main heading, start the body at `##`. Other fields need a [schema](/content#frontmatter-schema), which adds them to `page.data`, where plugins and views read them.
 
 ### Dates From Git
 
-With `lastModified: "git"` in the Vite plugin, a page without `lastModified` in its frontmatter gets the date of the last commit that changed its file. A file that git doesn't track has no date.
+With `lastModified: true`, each page of a collection gets the date of the last commit that changed its file, as `page.data.lastModified`. The docs layout shows it below the page, and the sitemap lists it. A file that git doesn't track has no date.
 
-```ts title="vite.config.ts"
-import { defineConfig } from "vite";
-import press from "@fumapress/vue/vite";
-
-export default defineConfig({
-  plugins: [press({ lastModified: "git" })],
-});
+```ts title="press.config.ts"
+const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
 ```
 
 :::warning
@@ -320,7 +314,27 @@ import Install from "../_install.mdx";
 
 A partial uses the components of the [theme](/theme#markdown-components) like a page. Its headings and text aren't in the table of contents or the search index of the page that imports it.
 
-## Plugins
+## Compile Options
+
+The `markdown` option of the Vite plugin sets how every Markdown file of the site compiles. Unlike in Fumadocs MDX, a collection has no compile options of its own.
+
+### Syntax
+
+`markdown.features` turns on syntax of the Markdown parser, over the default GFM and `:::` blocks. With `math: true`, `$x^2$` and `$$` blocks are math:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+import { rehypeKatex } from "@fumadocs/satteri/rehype-katex";
+
+export default defineConfig({
+  plugins: [press({ markdown: { features: { math: true }, hastPlugins: [rehypeKatex()] } })],
+});
+```
+
+`rehypeKatex` renders the math with KaTeX. It needs `@fumadocs/satteri` and `katex` installed, and the stylesheet of KaTeX, `katex/dist/katex.css`, imported in your [theme](/theme) module.
+
+### Plugins
 
 `markdown.mdastPlugins` and `markdown.hastPlugins` of the Vite plugin add plugins of [Sätteri](https://github.com/bruits/satteri), the Markdown compiler, after the built-in ones. `mdastPlugins` run on the Markdown tree, and `hastPlugins` on the HTML tree.
 

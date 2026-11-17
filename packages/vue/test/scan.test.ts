@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import press, { type PressOptions } from "../src/vite";
 import { parseFrontmatter } from "../src/vite/frontmatter";
 import { lastCommitDates } from "../src/vite/git";
-import { compareRoutes, scanCollection, toRoutePath } from "../src/vite/scan";
+import { compareRoutes, toRoutePath } from "../src/vite/scan";
 
 const run = promisify(execFile);
 
@@ -22,28 +22,6 @@ test("maps page files to route paths", () => {
   expect(
     ["/[...path]", "/[slug]", "/about", "/blog/[slug]", "/blog/new", "/"].sort(compareRoutes),
   ).toEqual(["/", "/about", "/blog/new", "/blog/[slug]", "/[slug]", "/[...path]"]);
-});
-
-test("a collection lists its pages and meta files, without `_` files and the ones its filter rejects", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "press-scan-"));
-  const files: Record<string, string> = {
-    "index.mdx": "---\ntitle: Home\n---\n",
-    "draft.mdx": "---\ntitle: Draft\ndraft: true\n---\n",
-    "_note.mdx": "A partial",
-    "_shared/usage.mdx": "A partial in a folder",
-    "_shared/meta.json": "{}",
-    "guide/meta.json": '{ "title": "Guide" }',
-  };
-  for (const [file, content] of Object.entries(files)) {
-    await mkdir(path.dirname(path.join(dir, file)), { recursive: true });
-    await writeFile(path.join(dir, file), content);
-  }
-
-  const paths = async (filter?: Parameters<typeof scanCollection>[1]) =>
-    (await scanCollection(dir, filter)).map((file) => file.path);
-  expect(await paths()).toEqual(["draft.mdx", "guide/meta.json", "index.mdx"]);
-  expect(await paths((file) => !file.data.draft)).toEqual(["guide/meta.json", "index.mdx"]);
-  await rm(dir, { recursive: true });
 });
 
 test("reads when each file last changed from one git log", async () => {

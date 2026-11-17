@@ -6,7 +6,7 @@ description: Add API routes, data for your components, and middleware.
 The `routes` hook of a plugin adds routes with `createApi()`. It runs once, when the site starts:
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:api",
   routes({ createApi }) {
     createApi({
@@ -154,7 +154,7 @@ createApi({
 The `middleware` hook runs first on every request the server receives, before routes and pages. Call `next()` to continue, and change the response it returns:
 
 ```ts title="press.config.ts"
-createPress(content).plugins({
+createPress(docs.toFumadocsSource()).plugins({
   name: "site:headers",
   async middleware(_request, next) {
     const response = await next();

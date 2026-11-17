@@ -63,6 +63,21 @@ test("highlights code with the themes of the options, as variables the color mod
   expect(await code()).toContain("shiki-themes github-light github-dark");
 });
 
+test("parses the syntax that `features` turns on, like math", async () => {
+  const code = async (options?: MarkdownOptions) =>
+    (
+      await compileMarkdown({
+        source: "Inline $x^2$.",
+        filePath: "/content/math.md",
+        browser: true,
+        options,
+      })
+    ).code;
+
+  expect(await code()).not.toContain("language-math");
+  expect(await code({ features: { math: true } })).toContain("language-math math-inline");
+});
+
 test("Markdown reads the components of the theme from the app, so a partial has them too", async () => {
   const { code } = await compileMarkdown({
     source: "<Callout>Hi</Callout>",
