@@ -1,4 +1,11 @@
+import type {
+  MetaData,
+  PageData as SourcePageData,
+  SourceUnion,
+  VirtualFile,
+} from "fumadocs-core/source";
 import type { Component } from "vue";
+import type { LayoutData } from "./layouts";
 
 export type Awaitable<T> = T | Promise<T>;
 
@@ -31,24 +38,6 @@ export interface SiteConfig {
   };
 }
 
-export interface NavLink {
-  text: string;
-  url: string;
-  external?: boolean;
-}
-
-/**
- * What plugins and the site give the UI of every page. It is sent to the browser, so every value is serializable:
- * components come from the theme.
- */
-export interface LayoutProps {
-  nav?: { title?: string; url?: string };
-  links?: NavLink[];
-  githubUrl?: string;
-  /** set by a search plugin: `options` are the props of the search dialog of the theme */
-  search?: { enabled?: boolean; options?: Record<string, unknown> };
-}
-
 export interface TOCItem {
   title: string;
   url: string;
@@ -69,36 +58,44 @@ export interface PageModule {
   markdown?: string;
 }
 
-/** a file of a content source */
-export interface SourceFile {
-  type: "page" | "meta";
-  /** path in the source, like `guide/install.mdx`: it sets the URL of a page */
-  path: string;
-  /** `page.data` of a page, or the content of a `meta.json` */
-  data: Record<string, unknown>;
+/** the data of the files of a source: of its pages and of its `meta.json` files */
+export interface SourceConfig {
+  pageData: SourcePageData;
+  metaData: MetaData;
 }
 
 /**
- * The input of the content loader: a list of files, rendered by the plugin that owns them through content hooks like
- * `getPageBody`. With a function, the source is dynamic: its pages are read on the server and render on demand.
+ * A content source of Fumadocs: a list of files, rendered by the plugin that owns them through content hooks like
+ * `getPageBody`. With a function, the source is dynamic: its pages are read on the server and render on demand. The
+ * types of `page.data` follow `Config`.
  */
-export interface Source {
-  files: SourceFile[] | (() => Awaitable<SourceFile[]>);
-}
+export type Source<Config extends SourceConfig = SourceConfig> = SourceUnion<Config>;
 
-/** a content page of the site */
-export interface Page {
-  /** the key of its source, undefined with a single source */
-  source?: string;
-  /** file path in the content, like `guide/install.mdx` */
-  path: string;
-  slugs: string[];
-  url: string;
-  /** its language, on a site with languages */
-  locale?: string;
-  /** the `data` of its file: frontmatter in a collection, anything in a custom source */
-  data: Record<string, unknown>;
-}
+/** a file of a content source: `path` in the source, like `guide/install.mdx`, sets the URL of a page */
+export type SourceFile<Config extends SourceConfig = SourceConfig> = VirtualFile<Config>;
+
+/**
+ * A content page of the site: `type` is the key of its source with sources by key, `url` is a path of the site, and
+ * `data` is the data of its file, frontmatter in a collection.
+ */
+export type { Meta, Page } from "fumadocs-core/source";
+
+/**
+ * A value as JSON gives it back: a `Date` is a string, functions and `undefined` are left out, and in a list they are
+ * `null`. What the server sends to the browser has this type.
+ */
+export type Jsonify<T> = unknown extends T ? T : JsonValue<T>;
+type JsonValue<T> = T extends { toJSON(): infer J }
+  ? Jsonify<J>
+  : T extends string | number | boolean | null
+    ? T
+    : T extends readonly (infer E)[]
+      ? (E extends undefined | ((...args: never[]) => unknown) ? null : Jsonify<E>)[]
+      : T extends object
+        ? T extends (...args: never[]) => unknown
+          ? never
+          : { [K in keyof T as [Jsonify<T[K]>] extends [never] ? never : K]: Jsonify<T[K]> }
+        : never;
 
 /**
  * The data of a rendered page, sent to the browser: from the `title`, `description` and `full` of `page.data` or the
@@ -116,12 +113,13 @@ export interface PageData {
   [key: string]: unknown;
 }
 
-/** a page of a plugin: the theme renders it with the component of `views` named `type`, which receives `props` */
-export interface View {
-  type: string;
-  /** sent to the browser, so every value is serializable */
-  props?: Record<string, unknown>;
-}
+/**
+ * A page rendered by the theme with the component of `views` named `type`, which receives `props`: one of the views
+ * `V`, the props by type. `props` are sent to the browser, so every value is serializable.
+ */
+export type View<V = any> = V extends unknown
+  ? { [K in keyof V & string]: { type: K; props: V[K] } }[keyof V & string]
+  : never;
 
 /**
  * The content of a page, from the `getPageBody` hook of the plugin rendering its source:
@@ -129,12 +127,12 @@ export interface View {
  * - `module`: the URL of a module whose default export is the content, which the browser imports. `load` is the
  *   same module on the server; a function, so it never reaches the browser.
  * - `html`: HTML rendered as it is, for content that comes from elsewhere.
- * - `view`: a component of the theme renders the page, in place of the docs layout.
+ * - `view`: a component of the theme renders the page, in place of the docs layout: one of the views `V`.
  */
-export type PageBody =
+export type PageBody<V = any> =
   | { module: string; load?: () => Promise<PageModule> }
   | { html: string }
-  | { view: View };
+  | { view: View<V> };
 
 /** a page as the browser receives it: with the first response, then one request per navigation */
 export interface PageContent {
@@ -187,27 +185,33 @@ export namespace PageTree {
   }
 }
 
-/** the languages of a site as the browser needs them: the props of the i18n provider of Fumadocs UI */
-export interface SiteI18n {
-  locale: string;
-  defaultLanguage: string;
-  hideLocale: "default-locale" | "never";
-  /** the language switch lists them */
-  locales: { locale: string; name: string }[];
-  /** the texts of the UI in `locale` */
-  translations?: Record<string, string>;
-}
+/**
+ * The texts of the UI and the languages of a site as the browser needs them: the props of the i18n provider of
+ * Fumadocs UI. A site without languages has the texts only.
+ */
+export type SiteI18n = {
+  /** the texts of the UI in the language of the page */
+  translations?: Partial<Record<string, string>>;
+} & (
+  | {
+      locale: string;
+      defaultLanguage: string;
+      hideLocale: "default-locale" | "never";
+      /** the language switch lists them */
+      locales: { locale: string; name: string }[];
+    }
+  | { locale?: undefined; defaultLanguage?: undefined; hideLocale?: undefined; locales?: undefined }
+);
 
 /** the data every page of a language needs, the same on each: the value of a shared data route */
-export interface SiteData {
+export type SiteData = LayoutData & {
   site: Pick<SiteConfig, "name" | "description">;
-  layout: LayoutProps;
   tree: PageTree.Root;
-  /** on a site with languages */
+  /** on a site with languages or `ui.translations` */
   i18n?: SiteI18n;
   /** the direction of the text of the language, which `<html dir>` has too */
   dir: "ltr" | "rtl";
-}
+};
 
 /** the value of a data route by its path, none without a route or a value; on the server, without a request */
 export type Load = <T = unknown>(path: string) => Promise<T | undefined>;

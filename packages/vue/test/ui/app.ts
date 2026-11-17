@@ -37,7 +37,9 @@ export const PAGE_URL = "/docs/configure/theme";
 export const site: SiteData = {
   site: { name: "Press", description: "Docs of Press" },
   dir: "ltr",
-  layout: {
+  layout: "docs",
+  pageProps: {},
+  layoutProps: {
     nav: { title: "Press", url: "/" },
     links: [
       { text: "Blog", url: "/blog" },

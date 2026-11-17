@@ -1,7 +1,7 @@
 // What the reviews of the server found, kept from coming back: one path per page, routes that answer by method,
 // rewrites, and setups that fail at the start with a message.
 import { expect, test } from "vitest";
-import { createCollection } from "../src/collection";
+import { createCollection, type CollectionConfig } from "../src/collection";
 import type { Plugin } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
 import { pageDataPath, prerenderListPath } from "../src/core/routes";
@@ -9,7 +9,7 @@ import type { PageContent, SourceFile } from "../src/core/types";
 import type { ModuleRef } from "../src/plugins/markdown";
 import { createFetchHandler } from "../src/server";
 
-function page(path: string, data: Record<string, unknown>): SourceFile {
+function page(path: string, data: CollectionConfig["pageData"]): SourceFile<CollectionConfig> {
   const ref: ModuleRef = {
     file: `content/${path}`,
     assets: async () => ({ entry: `/assets/${path}.js` }),

@@ -13,6 +13,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@fumapress/vue/client": src("client.ts"),
+      "@fumapress/vue/i18n": src("i18n.ts"),
       "@fumapress/vue/page-tree": src("page-tree.ts"),
       "@fumapress/vue/highlight": src("highlight.ts"),
       "@fumapress/vue/markdown": src("markdown.ts"),

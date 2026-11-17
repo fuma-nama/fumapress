@@ -32,15 +32,16 @@ export default createPress({
 });
 ```
 
-`content/docs/install.mdx` is now at `/docs/install`, and `content/blog/hello.mdx` at `/blog/hello`. The key of a source is the `source` of its pages, so a plugin can tell them apart with `page.source === "blog"`.
+`content/docs/install.mdx` is now at `/docs/install`, and `content/blog/hello.mdx` at `/blog/hello`. The key of a source is the `type` of its pages, so a plugin tells them apart with `page.type === "blog"`. With one source, `page.type` is `undefined`.
 
 ## Content Options
 
 The second argument of `createPress()` configures the content loader:
 
 ```ts title="press.config.ts"
-import { createPress, defineI18n } from "@fumapress/vue/config";
+import { createPress } from "@fumapress/vue/config";
 import { content } from "@fumapress/vue/content";
+import { defineI18n } from "@fumapress/vue/i18n";
 
 export default createPress(content, {
   i18n: defineI18n({ languages: ["en", "cn"], defaultLanguage: "en" }),
@@ -51,12 +52,14 @@ export default createPress(content, {
 - `loaderPlugins` are plugins of the Fumadocs content loader.
 - Other options, like `slugs`, `url` and `pageTree`, are passed to the Fumadocs content loader as they are.
 
+An option that the loader doesn't have is a type error.
+
 ## Custom Sources
 
-A custom source lists pages from anywhere, and a [plugin](/plugins/content) renders them. Each file has a `path`, which sets its URL, and `data`, which is `page.data` of its page:
+A custom source lists pages from anywhere, and a [plugin](/plugins/content) renders them. Each file has a `path`, which sets its URL, and `data`, which is `page.data` of its page. The type `Source` gives `page.data` its fields:
 
 ```ts title="press.config.ts"
-import { createPress, type Plugin } from "@fumapress/vue/config";
+import { createPress, type Source } from "@fumapress/vue/config";
 import { collections } from "@fumapress/vue/content";
 
 const releases = [
@@ -64,23 +67,21 @@ const releases = [
   { version: "0.1.0", notes: "<p>The first release.</p>" },
 ];
 
-const changelogPlugin: Plugin = {
-  name: "site:changelog",
-  getPageBody(page) {
-    if (page.source === "changelog") return { html: String(page.data.html) };
-  },
+const changelog: Source<{ pageData: { title: string; html: string }; metaData: {} }> = {
+  files: releases.map(({ version, notes }) => ({
+    type: "page",
+    path: `changelog/${version}.md`,
+    data: { title: `v${version}`, html: notes },
+  })),
 };
 
-export default createPress({
-  docs: collections.docs!.toSource(),
-  changelog: {
-    files: releases.map(({ version, notes }) => ({
-      type: "page",
-      path: `changelog/${version}.md`,
-      data: { title: `v${version}`, html: notes },
-    })),
+export default createPress({ docs: collections.docs!.toSource(), changelog }).plugins({
+  name: "site:changelog",
+  getPageBody(page) {
+    // `page.data` of the changelog has `html`
+    if (page.type === "changelog") return { html: page.data.html };
   },
-}).plugins(changelogPlugin);
+});
 ```
 
 `/changelog/0.2.0` shows the HTML of its release. The pages of collections render without a plugin, while a page of a custom source fails to render when no plugin returns its body.
@@ -90,8 +91,7 @@ export default createPress({
 `import.meta.glob()` of Vite puts files into the build of `press.config.ts`. With `eager: true`, a source lists its pages from JSON files, like the releases of the example above:
 
 ```ts title="press.config.ts"
-import { createPress } from "@fumapress/vue/config";
-import { collections } from "@fumapress/vue/content";
+import type { Source } from "@fumapress/vue/config";
 
 interface Release {
   version: string;
@@ -100,16 +100,13 @@ interface Release {
 
 const releases = import.meta.glob<Release>("./releases/*.json", { eager: true, import: "default" });
 
-export default createPress({
-  docs: collections.docs!.toSource(),
-  changelog: {
-    files: Object.values(releases).map(({ version, notes }) => ({
-      type: "page",
-      path: `changelog/${version}.md`,
-      data: { title: `v${version}`, html: notes },
-    })),
-  },
-}).plugins(changelogPlugin);
+const changelog: Source<{ pageData: { title: string; html: string }; metaData: {} }> = {
+  files: Object.values(releases).map(({ version, notes }) => ({
+    type: "page",
+    path: `changelog/${version}.md`,
+    data: { title: `v${version}`, html: notes },
+  })),
+};
 ```
 
 To read YAML files, import them as text with `query: "?raw"` and parse each with a YAML parser, like the `yaml` package.
@@ -130,7 +127,7 @@ const posts: { slug: string; title: string; html: string }[] = await response.js
 
 export default createPress({
   files: posts.map((post) => ({
-    type: "page",
+    type: "page" as const,
     path: `${post.slug}.md`,
     data: { title: post.title, html: post.html },
   })),
@@ -166,7 +163,8 @@ async function listPosts(): Promise<SourceFile[]> {
 const postsPlugin: Plugin = {
   name: "site:posts",
   getPageBody(page) {
-    if (typeof page.data.html === "string") return { html: page.data.html };
+    // a plugin typed `Plugin` fits any site, so it checks the fields of `page.data`
+    if ("html" in page.data && typeof page.data.html === "string") return { html: page.data.html };
   },
   routes({ createApi }) {
     // read the posts again, after a change in the CMS

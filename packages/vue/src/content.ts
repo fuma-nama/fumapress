@@ -1,9 +1,9 @@
 import { collections as files } from "virtual:press/collections";
-import { createCollection, type Collection } from "./collection";
+import { createCollection, type Collection, type CollectionConfig } from "./collection";
 import type { Source } from "./core/types";
 
-export type { Collection } from "./collection";
-export type { Source, SourceFile } from "./core/types";
+export type { Collection, CollectionConfig, ToSourceOptions } from "./collection";
+export type { Source, SourceConfig, SourceFile } from "./core/types";
 
 /** the collections of the Vite plugin, by name */
 export const collections: Record<string, Collection> = Object.fromEntries(
@@ -11,4 +11,6 @@ export const collections: Record<string, Collection> = Object.fromEntries(
 );
 
 /** the source of the first collection, for a site with one: `createPress(content)` */
-export const content: Source = Object.values(collections)[0]?.toSource() ?? { files: [] };
+export const content: Source<CollectionConfig> = Object.values(collections)[0]?.toSource() ?? {
+  files: [],
+};

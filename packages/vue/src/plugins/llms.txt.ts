@@ -1,13 +1,12 @@
-import type { Plugin } from "../core/plugin";
-import type { Page } from "../core/types";
+import type { AppShape, Plugin } from "../core/plugin";
 
-export interface LLMsOptions {
+export interface LLMsOptions<C extends AppShape = AppShape> {
   /** the index of the pages @defaultValue "/llms.txt" */
   path?: string;
   /** the text of every page in one file, `false` for none @defaultValue "/llms-full.txt" */
   full?: string | false;
   /** the content pages to list, in both files: a page it returns `false` for is left out */
-  filter?: (page: Page) => boolean;
+  filter?: (page: C["page"]) => boolean;
 }
 
 const markdown = { headers: { "Content-Type": "text/markdown; charset=utf-8" } };
@@ -19,20 +18,20 @@ const inline = (text: string) => text.replace(/\s+/g, " ").replace(/[[\]()]/g, "
  * `/llms.txt` and `/llms-full.txt` for LLMs, per language at its prefix: generated at build time, or on demand with a
  * dynamic source.
  */
-export function llmsPlugin({
+export function llmsPlugin<C extends AppShape = AppShape>({
   path = "/llms.txt",
   full = "/llms-full.txt",
   filter,
-}: LLMsOptions = {}): Plugin {
+}: LLMsOptions<NoInfer<C>> = {}): Plugin<C> {
   return {
     name: "core:llms",
     routes({ createApi }) {
       const render = this.getContentRender();
-      const pagesOf = (lang: string) =>
+      const pagesOf = (lang: C["lang"]) =>
         this.getPages(lang).filter((page) => filter?.(page) ?? true);
 
       // the default language is at the root of the site, where the files are looked for
-      const at = (lang: string, file: string) =>
+      const at = (lang: C["lang"], file: string) =>
         lang === this.defaultLanguage ? file : this.localizePath(lang, file);
 
       for (const lang of this.languages) {

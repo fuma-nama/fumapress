@@ -12,7 +12,7 @@ import {
 } from "vue";
 import type { Router } from "./router";
 import { pageTitle } from "./core/head";
-import { localeOf, type LocaleRules } from "./core/i18n";
+import { localeOf } from "./core/i18n";
 import {
   encodePath,
   normalizePath,
@@ -21,9 +21,9 @@ import {
   searchIndexPath,
   siteDataPath,
 } from "./core/routes";
+import type { LayoutProps } from "./core/layouts";
 import type {
   HeadTag,
-  LayoutProps,
   Load,
   PageContent,
   PageData,
@@ -31,7 +31,6 @@ import type {
   PageTree,
   SiteConfig,
   SiteData,
-  SiteI18n,
 } from "./core/types";
 
 export { pageTitle, safeHref, searchIndexPath };
@@ -57,15 +56,23 @@ export {
 export { searchIndex, type SearchEntry, type SearchResult } from "./core/search";
 export type {
   HeadTag,
-  LayoutProps,
+  Jsonify,
   Load,
-  NavLink,
   PageData,
   PageTree,
   SiteData,
   SiteI18n,
   TOCItem,
 } from "./core/types";
+export type {
+  LayoutData,
+  LayoutName,
+  LayoutProps,
+  LayoutTab,
+  LinkItem,
+  NavOptions,
+} from "./core/layouts";
+export type { PageOf, PressContext, PressLang, PressPageType } from "./core/press";
 
 /** the page on screen: what the server sent, with its body as a component */
 export interface LoadedPage extends Omit<PageContent, "body"> {
@@ -224,15 +231,13 @@ export function prefetchPage(state: PressState, pathname: string): void {
     .catch(() => {});
 }
 
-function rulesOf({ defaultLanguage, hideLocale, locales }: SiteI18n): LocaleRules {
-  return { defaultLanguage, hideLocale, languages: locales.map((item) => item.locale) };
-}
-
 /** the language of a URL of the site: the one of the document without languages */
 export function languageOf(state: PressState, pathname: string): string {
   const { i18n } = state.site;
-  if (!i18n) return state.lang;
-  return localeOf(rulesOf(i18n), normalizePath(pathname)).lang ?? i18n.defaultLanguage;
+  if (!i18n?.locales) return state.lang;
+  const { defaultLanguage, hideLocale, locales } = i18n;
+  const rules = { defaultLanguage, hideLocale, languages: locales.map((item) => item.locale) };
+  return localeOf(rules, normalizePath(pathname)).lang ?? defaultLanguage;
 }
 
 /** whether the content has a page at a URL: a content page or the view of a plugin */
@@ -272,8 +277,9 @@ export function usePageTree(): PageTree.Root {
   return usePress().site.tree;
 }
 
+/** the props of the layout of the content pages: `ui.layoutProps` of the site over those of plugins */
 export function useLayoutProps(): LayoutProps {
-  return usePress().site.layout;
+  return usePress().site.layoutProps;
 }
 
 function isExternal(href: string): boolean {

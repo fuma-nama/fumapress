@@ -1,30 +1,4 @@
-/** the languages of a site: the `I18nConfig` of Fumadocs, which its content loader reads */
-export interface I18nConfig<Languages extends string = string> {
-  /** language codes: each has its pages and its page tree, and is the first segment of their URLs */
-  languages: Languages[];
-  defaultLanguage: NoInfer<Languages>;
-  /**
-   * Whether the URLs of a language have no prefix: `default-locale` for the default language only. Languages are told
-   * apart by their URL, so every language can't be hidden.
-   *
-   * @defaultValue "never"
-   */
-  hideLocale?: "default-locale" | "never";
-  /**
-   * How files name their language: `page.cn.mdx` with `dot`, `cn/page.mdx` with `dir`.
-   *
-   * @defaultValue "dot"
-   */
-  parser?: "dot" | "dir" | "none";
-  /** the language shown for a page without a translation, `null` for none @defaultValue `defaultLanguage` */
-  fallbackLanguage?: NoInfer<Languages> | null;
-}
-
-export function defineI18n<Languages extends string>(
-  config: I18nConfig<Languages>,
-): I18nConfig<Languages> {
-  return config;
-}
+import type { I18nConfig } from "fumadocs-core/i18n";
 
 /** the direction of the text of a language, `ltr` when it is unknown */
 export function directionOf(lang: string): "ltr" | "rtl" {

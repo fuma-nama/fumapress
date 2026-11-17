@@ -1,21 +1,26 @@
+import type { I18nConfig, SingularTranslationsAPI, TranslationsAPI } from "fumadocs-core/i18n";
 import { loader } from "fumadocs-core/source";
 import { markdownPlugin } from "../plugins/markdown";
 import { pagesPlugin } from "../plugins/pages";
 import { sitePlugin } from "../plugins/site";
 import { mergeHead, withBase } from "./head";
-import { localeOf, localizePath, type I18nConfig } from "./i18n";
+import { localeOf, localizePath } from "./i18n";
+import type { DefaultLayouts, LayoutData, LayoutName, LayoutProps } from "./layouts";
 import { mergeOptions } from "./merge";
 import {
   flatten,
+  type AnyPlugin,
   type ApiRoute,
+  type AppShape,
   type ContentHooks,
   type HeadEnv,
+  type LangEnv,
   type LoaderOptions,
   type PageEnv,
-  type Plugin,
+  type RouteFns,
   type ViewRoute,
 } from "./plugin";
-import type { Press } from "./press";
+import type { LayoutOption, Press, PressContext } from "./press";
 import { recommendedPreset } from "./preset";
 import {
   decodePath,
@@ -27,8 +32,6 @@ import {
 } from "./routes";
 import type {
   HeadTag,
-  LayoutProps,
-  Page,
   PageBody,
   PageContent,
   PageData,
@@ -39,66 +42,74 @@ import type {
   TOCItem,
 } from "./types";
 
-/** the site at runtime: `this` in hooks and options, and the result of `getPressContext()` */
-export interface Context {
+/**
+ * The site at runtime: `this` in hooks and options, and the result of `getPressContext()`. Typed by the site: its
+ * pages, languages and source keys. Its functions taking a page are methods, so the context of a site fits the
+ * context of any site.
+ */
+export interface Context<out C extends AppShape = AppShape> {
   readonly site: SiteConfig;
   /** the base path of the site, with a trailing slash */
   readonly base: string;
   /** in order: your plugins, the preset, then the built-in ones */
-  readonly plugins: readonly Plugin[];
+  readonly plugins: readonly AnyPlugin[];
   /** the API routes of plugins */
   readonly routes: readonly ApiRoute[];
-  /** the pages of plugins outside the content, one per language */
+  /** the views of the site and of plugins, one per language */
   readonly views: readonly ServedView[];
   /** set with the `i18n` option of the content */
-  readonly i18n?: I18nConfig;
+  readonly i18n?: I18nConfig<C["lang"]>;
   /** the languages of the site: those of `i18n`, or `site.lang` alone */
-  readonly languages: readonly string[];
-  readonly defaultLanguage: string;
+  readonly languages: readonly C["lang"][];
+  readonly defaultLanguage: C["lang"];
   /** the content pages, of every language or of one */
-  getPages: (lang?: string) => Page[];
+  getPages(lang?: C["lang"]): C["page"][];
   /** a content page by its URL, without the base path */
-  getPage: (pathname: string) => Page | undefined;
+  getPage(pathname: string): C["page"] | undefined;
   /** the page tree of a language @defaultValue the default language */
-  getPageTree: (lang?: string) => PageTree.Root;
+  getPageTree(lang?: C["lang"]): PageTree.Root;
   /** the content hooks of plugins: the first result, in plugin order */
-  getPageBody: (page: Page) => Promise<PageBody | undefined>;
-  getPageToc: (page: Page) => Promise<TOCItem[] | undefined>;
-  getPageText: (page: Page) => Promise<string | undefined>;
-  getPageStructuredData: (page: Page) => Promise<StructuredData | undefined>;
-  getPageLastModified: (page: Page) => Promise<Date | undefined>;
+  getPageBody(page: C["page"]): Promise<PageBody | undefined>;
+  getPageToc(page: C["page"]): Promise<TOCItem[] | undefined>;
+  getPageText(page: C["page"]): Promise<string | undefined>;
+  getPageStructuredData(page: C["page"]): Promise<StructuredData | undefined>;
+  getPageLastModified(page: C["page"]): Promise<Date | undefined>;
   /** the data of a page for the browser, with the `transformPage` hook of plugins */
-  getPageData: (page: Page) => Promise<PageData>;
+  getPageData(page: C["page"]): Promise<PageData>;
   /** a content page as the browser receives it; fails when no plugin renders it */
-  getPageContent: (page: Page) => Promise<PageContent>;
-  /** what the browser receives for a URL: its content page, or the view of a plugin; none for a 404 */
-  getContent: (pathname: string) => Promise<PageContent | undefined>;
+  getPageContent(page: C["page"]): Promise<PageContent>;
+  /** what the browser receives for a URL: its content page, or a view; none for a 404 */
+  getContent(pathname: string): Promise<PageContent | undefined>;
   /** the URLs of the custom pages generated at build time: the ones without params */
-  customPages: string[];
+  readonly customPages: string[];
   /** the URLs of the content pages and views generated at build time; custom pages are `customPages` */
-  getStaticPages: () => Promise<string[]>;
+  getStaticPages(): Promise<string[]>;
   /** the language of a URL */
-  getLanguage: (pathname: string) => string;
+  getLanguage(pathname: string): C["lang"];
   /** a path in a language: with its prefix, unless `i18n.hideLocale` hides it */
-  localizePath: (lang: string, pathname: string) => string;
+  localizePath(lang: C["lang"], pathname: string): string;
   /** a page in every language it exists in, itself included; empty without another one */
-  getPageAlternates: (page: Page) => { lang: string; url: string }[];
+  getPageAlternates(page: C["page"]): { lang: C["lang"]; url: string }[];
   /**
-   * How the content, or one source by its key, renders: `static` pages are generated at build time, the pages of a
-   * dynamic source (`files` as a function) render on demand.
+   * How the content renders, or the sources of the keys `source`: `static` pages are generated at build time, the
+   * pages of a dynamic source (`files` as a function) render on demand. A route reading the content follows it.
    */
-  getContentRender: (source?: string) => "static" | "dynamic";
+  getContentRender(source?: C["source"] | readonly C["source"][]): "static" | "dynamic";
   /** read the dynamic sources again */
-  invalidateLoader: () => Promise<void>;
+  invalidateLoader(): Promise<void>;
   /** adds the base path */
-  withBase: (path: string) => string;
+  withBase(path: string): string;
   /** the full URL of a path, relative without `site.baseUrl` */
-  absoluteUrl: (path: string) => string;
-  getLayoutProps: (env: { lang: string }) => Promise<LayoutProps>;
-  getHead: (env: HeadEnv) => Promise<HeadTag[]>;
+  absoluteUrl(path: string): string;
+  /**
+   * The layout of the content pages in a language, `ui.layout`: its props (`ui.layoutProps` over the `layoutProps`
+   * of plugins) and the props of its page (`ui.pageProps`).
+   */
+  getLayout(env: LangEnv<C>): Promise<LayoutData>;
+  getHead(env: HeadEnv<C>): Promise<HeadTag[]>;
 }
 
-/** a view of a plugin in a language */
+/** a view of the site or of a plugin in a language */
 export interface ServedView {
   route: ViewRoute;
   lang: string;
@@ -153,8 +164,20 @@ export interface ContextEnv {
   customPages?: string[];
 }
 
-export async function createContext(press: Press, env: ContextEnv = {}): Promise<Context> {
-  const { content, options, plugins: listed, config } = press["~press"];
+type Page = AppShape["page"];
+
+/** `ui` of any layout */
+interface LayoutInput {
+  layout?: LayoutName;
+  layoutProps?: LayoutOption<AppShape, DefaultLayouts[LayoutName]["layout"]>;
+  pageProps?: LayoutOption<AppShape, DefaultLayouts[LayoutName]["page"]>;
+}
+
+export async function createContext(
+  press: Press<any, any>,
+  env: ContextEnv = {},
+): Promise<Context> {
+  const { content, options, plugins: listed, views: ownViews, config } = press["~press"];
   const site = config.site ?? {};
   if (site.baseUrl !== undefined && !URL.canParse(site.baseUrl)) {
     throw new Error(
@@ -167,12 +190,15 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
     );
   }
   const base = `/${(env.base ?? "/").replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");
+  const ui = config.ui ?? {};
+  // the API of the languages of the site, or the singular one: a site without languages takes that one only
+  const translations: TranslationsAPI | SingularTranslationsAPI | undefined = ui.translations;
   const preset = await Promise.all((config.preset ?? recommendedPreset()).map((entry) => entry()));
-  const plugins = [
+  const plugins: AnyPlugin[] = [
     ...flatten(listed),
     ...preset,
     markdownPlugin(),
-    pagesPlugin(config.ui?.translations),
+    pagesPlugin(translations),
     sitePlugin(),
   ];
 
@@ -184,6 +210,7 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
       );
     }
     names.add(plugin.name);
+    if (plugin.translations) translations?.extend(plugin.translations);
   }
 
   // one source has no key, like its pages
@@ -196,7 +223,7 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
   );
 
   const i18n = options.i18n;
-  if ((i18n?.hideLocale as string | undefined) === "always") {
+  if (i18n?.hideLocale === "always") {
     throw new Error(
       '[Fumapress] `hideLocale: "always"` is not supported, languages are told apart by their URL prefix. Use `hideLocale: "default-locale"` to drop the prefix of the default language only.',
     );
@@ -270,18 +297,14 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
     const output = loader({
       baseUrl: "/",
       ...loaderOptions,
+      i18n,
       source: single ? resolved[0]![1] : Object.fromEntries(resolved),
-    } as never) as any;
+    });
 
-    pages = (output.getPages() as any[]).map((page) => ({
-      source: single ? undefined : (page.type as string),
-      path: page.path,
-      slugs: page.slugs,
-      // the loader gives the URL of a link: inside the site, a path is decoded
-      url: decodePath(page.url) ?? normalizePath(page.url),
-      locale: page.locale,
-      data: page.data,
-    }));
+    // the loader gives the URL of a link: inside the site, a path is decoded
+    pages = output
+      .getPages()
+      .map((page) => ({ ...page, url: decodePath(page.url) ?? normalizePath(page.url) }));
     byUrl = new Map(pages.map((page) => [page.url, page]));
     trees = new Map(languages.map((lang) => [lang, toTree(output.getPageTree(lang))]));
   }
@@ -308,7 +331,8 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
     getPageStructuredData: (page) => first("getPageStructuredData", page),
     getPageLastModified: (page) => first("getPageLastModified", page),
     async getPageData(page) {
-      const { title, description, full } = page.data;
+      const { title, description } = page.data;
+      const full = Reflect.get(page.data, "full");
       const modified = await ctx.getPageLastModified(page);
       return transformPage(
         {
@@ -357,7 +381,7 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
           .map(({ route, path }) => staticPathsOf({ path, staticPaths: route.staticPaths })),
       );
       const ofContent = pages
-        .filter((page) => ctx.getContentRender(page.source) === "static")
+        .filter((page) => ctx.getContentRender(page.type) === "static")
         .map((page) => page.url);
       return [...ofContent, ...ofViews.flat()];
     },
@@ -375,8 +399,8 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
       return out.length > 1 ? out : [];
     },
     getContentRender(source) {
-      const isDynamic = source === undefined ? dynamic.size > 0 : dynamic.has(source);
-      return isDynamic ? "dynamic" : "static";
+      const keys = source === undefined ? sources.map(([key]) => key) : [source].flat();
+      return keys.some((key) => dynamic.has(key)) ? "dynamic" : "static";
     },
     invalidateLoader: load,
     withBase: (path) => base + path.replace(/^\/+/, ""),
@@ -385,15 +409,20 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
       const url = base + encodePath(normalizePath(path)).slice(1);
       return site.baseUrl ? new URL(url, site.baseUrl).href : url;
     },
-    async getLayoutProps(env) {
-      const own =
-        typeof config.ui?.layoutProps === "function"
-          ? await config.ui.layoutProps.call(ctx, env)
-          : config.ui?.layoutProps;
-      const ofPlugins = await Promise.all(
-        plugins.map((plugin) => plugin.layoutProps?.call(ctx, env)),
-      );
-      return mergeOptions<LayoutProps>([own, ...ofPlugins]);
+    async getLayout(env) {
+      // one shape for every layout, where `ui` has one per layout
+      const { layout = "docs", layoutProps, pageProps }: LayoutInput = ui;
+      const [own, page, ...ofPlugins] = await Promise.all([
+        typeof layoutProps === "function" ? layoutProps.call(ctx, env) : layoutProps,
+        typeof pageProps === "function" ? pageProps.call(ctx, env) : pageProps,
+        ...plugins.map((plugin) => plugin.layoutProps?.call(ctx, env)),
+      ]);
+      // `ui` is checked by its type: the props of the layout it names, which plugins add to
+      return {
+        layout,
+        layoutProps: mergeOptions<LayoutProps>([own, ...ofPlugins]),
+        pageProps: page ?? {},
+      } as LayoutData;
     },
     async getHead(env) {
       const ofPlugins = await Promise.all(plugins.map((plugin) => plugin.head?.call(ctx, env)));
@@ -406,42 +435,53 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
 
   for (const plugin of plugins) await plugin.init?.call(ctx);
 
-  const { loaderPlugins = [], ...own } = options;
+  // `i18n` is the site's, given to the loader with the source
+  const { loaderPlugins = [], i18n: _, ...own } = options;
   const ofPlugins = await Promise.all(plugins.map((plugin) => plugin.configureLoader?.call(ctx)));
   loaderOptions = mergeOptions<LoaderOptions>([{ ...own, plugins: loaderPlugins }, ...ofPlugins]);
 
   await load();
   for (const plugin of plugins) await plugin.configure?.call(ctx);
-  for (const plugin of plugins) {
-    await plugin.routes?.call(ctx, {
-      createApi(route) {
-        if (route.data && (route.GET ?? route.ALL)) {
-          throw new Error(
-            `[Fumapress] The route "${route.path}" has \`data\` and a \`GET\` handler: a data route answers \`GET\` with the JSON of its data.`,
-          );
-        }
-        // the browser fetches a data route, so it is generated like a view: a static host has its file
-        const render = route.render ?? (route.data ? "static" : "dynamic");
-        validateRoute(route.path, render === "static");
-        routes.push({ ...route, render });
-      },
-      createView({ lang, ...route }) {
-        validateRoute(route.path, route.render !== "dynamic");
-        for (const each of lang === undefined ? languages : [lang]) {
-          views.push({ route, lang: each, path: ctx.localizePath(each, route.path) });
-        }
+
+  const fns: RouteFns = {
+    createApi(route) {
+      if (route.data && (route.GET ?? route.ALL)) {
+        throw new Error(
+          `[Fumapress] The route "${route.path}" has \`data\` and a \`GET\` handler: a data route answers \`GET\` with the JSON of its data.`,
+        );
+      }
+      // the browser fetches a data route, so it is generated like a view: a static host has its file
+      const render = route.render ?? (route.data ? "static" : "dynamic");
+      validateRoute(route.path, render === "static");
+      routes.push({ ...route, render });
+    },
+    createView({ lang, ...route }) {
+      validateRoute(route.path, route.render !== "dynamic");
+      for (const each of lang === undefined ? languages : [lang]) {
+        views.push({ route, lang: each, path: ctx.localizePath(each, route.path) });
+      }
+    },
+  };
+  // the views of the site first: the first view matching a URL renders it
+  for (const [type, { view, ...route }] of Object.entries(ownViews)) {
+    fns.createView({
+      ...route,
+      async view(env) {
+        const props = await view.call(ctx, env);
+        return props === undefined ? undefined : { type, props };
       },
     });
   }
+  for (const plugin of plugins) await plugin.routes?.call(ctx, fns);
 
   return ctx;
 }
 
-const contexts = new WeakMap<Press, Promise<Context>>();
+const contexts = new WeakMap<Press<any, any>, Promise<Context>>();
 let current: Context | undefined;
 
 /** one context per site: a reloaded `press.config` is another site */
-export function getContext(press: Press, env?: ContextEnv): Promise<Context> {
+export function getContext(press: Press<any, any>, env?: ContextEnv): Promise<Context> {
   let ctx = contexts.get(press);
   if (!ctx) {
     ctx = createContext(press, env);
@@ -453,8 +493,12 @@ export function getContext(press: Press, env?: ContextEnv): Promise<Context> {
   return ctx.then((resolved) => (current = resolved));
 }
 
-/** the context of the running site, for server code outside of hooks, like custom API handlers */
-export function getPressContext(): Context {
+/**
+ * The context of the running site, for server code outside of hooks, like custom API handlers:
+ * `getPressContext<typeof app>()`.
+ */
+export function getPressContext<A extends Press<any, any> = Press>(): PressContext<A> {
   if (!current) throw new Error("[Fumapress] `getPressContext()` is read before the site started.");
-  return current;
+  // the running site is the one of `press.config`, which `A` names
+  return current as PressContext<A>;
 }

@@ -23,12 +23,12 @@ export default createPress(content).plugins({
 
 `this` in a hook is the [context](/plugins/context) of the site: its config, its pages and helpers for URLs. Hooks run on the server only, so a plugin can read files, call APIs and use secrets.
 
-To share a plugin, export a function that returns it, and type it with `Plugin`:
+To share a plugin, export a function that returns it, and type it with `Plugin<C>`. `C` is the site the plugin is added to, so its hooks receive the pages and languages of that site:
 
 ```ts title="status-plugin.ts"
-import type { Plugin } from "@fumapress/vue/config";
+import type { AppShape, Plugin } from "@fumapress/vue/config";
 
-export function statusPlugin(options: { path?: string } = {}): Plugin {
+export function statusPlugin<C extends AppShape>(options: { path?: string } = {}): Plugin<C> {
   return {
     name: "acme:status",
     routes({ createApi }) {
@@ -38,7 +38,7 @@ export function statusPlugin(options: { path?: string } = {}): Plugin {
 }
 ```
 
-Each plugin needs a unique `name`. A site with two plugins of the same name fails to start.
+Each plugin needs a unique `name`. A site with two plugins of the same name fails to start. A key of a plugin that isn't a hook, like a misspelled one, is a type error in `.plugins()`.
 
 ## Hooks
 

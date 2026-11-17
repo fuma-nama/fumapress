@@ -21,18 +21,23 @@ export default createPress(content).config({
 
 The file can also be `press.config.mts`, `press.config.js` or `press.config.mjs`.
 
-## Content and Plugins
+## Content, Plugins and Views
 
 `createPress(content, options)` takes your [content sources](/content/sources) and these options:
 
 - `i18n`: your [languages](/i18n).
 - `loaderPlugins`, `slugs`, `url`, `pageTree` and the other options of the Fumadocs content loader.
 
-`.plugins()` adds [plugins](/plugins), then `.config()` sets the options of the site. Both calls are optional, in this order.
+`.plugins()` adds [plugins](/plugins), `.views()` adds the [views](/plugins/views) of your site, then `.config()` sets the options of the site. Each call is optional, in this order.
 
 ```ts title="press.config.ts"
-export default createPress(content, { i18n }).plugins(myPlugin).config({ site, head, ui });
+export default createPress(content, { i18n })
+  .plugins(myPlugin)
+  .views({ releases })
+  .config({ site, head, ui });
 ```
+
+The site takes its types from the content: `page.data` has the fields of its source, and plugins, views and options receive the pages and languages of the site. Other files read these types with a type-only import, like `PressContext<typeof app>` for the [context](/plugins/context) of the site.
 
 ## Site
 
@@ -120,7 +125,7 @@ A tag with a key replaces the tag of the same key from plugins and defaults. The
 `ui.layoutProps` sets the navbar of every layout:
 
 - `nav`: the `title` of the navbar and the `url` it links to. They default to `site.name` and the home page.
-- `links`: links in the navbar, each with `text`, `url` and an optional `external`.
+- `links`: links in the navbar, each with `text`, `url` and an optional `external`. A link with `type: "menu"` has `items`, the links of its menu.
 - `githubUrl`: the GitHub link of the navbar, set by `site.git`.
 
 ```ts title="press.config.ts"
@@ -151,7 +156,7 @@ createPress(content, { i18n }).config({
 ```
 
 :::note
-Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. Components belong in the [theme](/theme).
+Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. Their types have no components, which belong in the [theme](/theme).
 :::
 
 ## Default Plugins
@@ -180,12 +185,12 @@ To replace a default plugin with your own instance, set it to `false` in `recomm
 
 ### Leaving Pages Out
 
-`sitemap`, `llms` and `search` take a `filter`. A content page that `filter` returns `false` for isn't listed by that plugin, while the page itself still renders. This config leaves out the pages with `unlisted: true` in their frontmatter:
+`sitemap`, `llms` and `search` take a `filter`. A content page that `filter` returns `false` for isn't listed by that plugin, while the page itself still renders. `filter` receives the pages of your site. This config leaves out the pages with `unlisted: true` in their frontmatter:
 
 ```ts title="press.config.ts"
-import { createPress, recommendedPreset, type Page } from "@fumapress/vue/config";
+import { createPress, recommendedPreset } from "@fumapress/vue/config";
 
-const listed = (page: Page) => page.data.unlisted !== true;
+const listed = (page: { data: Record<string, unknown> }) => page.data.unlisted !== true;
 
 createPress(content).config({
   preset: recommendedPreset({

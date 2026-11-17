@@ -1,19 +1,21 @@
 import { escapeHtml } from "../core/head";
-import type { Plugin } from "../core/plugin";
-import type { Page } from "../core/types";
+import type { AppShape, Plugin } from "../core/plugin";
 
-export interface SitemapOptions {
+export interface SitemapOptions<C extends AppShape = AppShape> {
   /** @defaultValue "/sitemap.xml" */
   path?: string;
   /** the content pages to list: a page it returns `false` for is left out */
-  filter?: (page: Page) => boolean;
+  filter?: (page: C["page"]) => boolean;
 }
 
 /**
  * `/sitemap.xml` with every page generated ahead: the content pages of each language with their translations, the
  * pages of plugins and the custom pages without params. Generated at build time, or on demand with a dynamic source.
  */
-export function sitemapPlugin({ path = "/sitemap.xml", filter }: SitemapOptions = {}): Plugin {
+export function sitemapPlugin<C extends AppShape = AppShape>({
+  path = "/sitemap.xml",
+  filter,
+}: SitemapOptions<NoInfer<C>> = {}): Plugin<C> {
   return {
     name: "core:sitemap",
     routes({ createApi }) {

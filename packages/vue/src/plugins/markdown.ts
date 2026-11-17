@@ -1,5 +1,5 @@
-import type { Plugin } from "../core/plugin";
-import type { Page, PageModule } from "../core/types";
+import type { AppShape, Plugin } from "../core/plugin";
+import type { PageModule } from "../core/types";
 
 /** the compiled module of a Markdown file, in `data._module` of a page of a collection */
 export interface ModuleRef {
@@ -11,8 +11,9 @@ export interface ModuleRef {
   assets: () => Promise<{ entry: string }>;
 }
 
-function moduleOf(page: Page): ModuleRef | undefined {
-  const ref = page.data._module;
+function moduleOf(page: AppShape["page"]): ModuleRef | undefined {
+  // a page of any source: only those of collections have it
+  const ref: unknown = Reflect.get(page.data, "_module");
   return typeof ref === "object" && ref !== null ? (ref as ModuleRef) : undefined;
 }
 
@@ -43,7 +44,7 @@ export function markdownPlugin(): Plugin {
       return (await moduleOf(page)?.load())?.structuredData;
     },
     getPageLastModified(page) {
-      const value = page.data.lastModified;
+      const value: unknown = Reflect.get(page.data, "lastModified");
       if (!moduleOf(page) || value === undefined) return;
       const date = new Date(value as string);
       if (Number.isNaN(date.getTime())) {

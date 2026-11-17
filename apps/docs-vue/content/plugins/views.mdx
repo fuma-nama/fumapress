@@ -1,33 +1,29 @@
 ---
 title: Views
-description: Add pages to your site from a plugin, rendered by a Vue component of your theme.
+description: Add pages outside your content, rendered by a Vue component of your theme.
 ---
 
-A view is a page of a plugin, outside your content. The plugin gives its data on the server, and a component of your theme renders it. This plugin adds a `/releases` page that lists the pages of a `changelog` source:
+A view is a page outside your content. The server gives its props, and a component of your theme renders it. `.views()` of `press.config.ts` adds the views of your site, by name. This one adds a `/releases` page that lists the pages of a `changelog` source:
 
 ```ts title="press.config.ts"
-import type { Plugin } from "@fumapress/vue/config";
-
-const changelogPlugin: Plugin = {
-  name: "site:changelog",
-  routes({ createView }) {
-    createView({
+export default createPress({ docs, changelog })
+  .plugins(changelogPlugin)
+  .views({
+    releases: {
       path: "/releases",
       data: { title: "Releases" },
-      view: ({ lang }) => ({
-        type: "releases",
-        props: {
-          releases: this.getPages(lang)
-            .filter((page) => page.source === "changelog")
-            .map((page) => ({ title: page.data.title, url: page.url })),
-        },
-      }),
-    });
-  },
-};
+      view({ lang }) {
+        const releases = this.getPages(lang).flatMap((page) =>
+          page.type === "changelog" ? [{ title: page.data.title, url: page.url }] : [],
+        );
+        return { releases };
+      },
+    },
+  })
+  .config({ site: { name: "Acme" } });
 ```
 
-`view` receives the `params` of the URL and its `lang`, and returns the `type` of the view and its `props`. The theme renders it with the component of `views` named after `type`:
+`.views()` comes after `.plugins()` and before `.config()`, and each call is optional. `view` receives the `params` of the URL and its `lang`, and returns the props of the page. `this` is the [context](/plugins/context) of the site. The theme renders the page with the component of `views` named after the view:
 
 ```ts title="src/theme.ts"
 import { defineAsyncComponent } from "vue";
@@ -38,7 +34,7 @@ export default {
 } satisfies Partial<Theme>;
 ```
 
-The component receives `props` as its props, and renders the whole page with its own layout. `HomeLayout.vue` of the default theme has the navbar of your site:
+The component receives the props, and renders the whole page with its own layout. `HomeLayout.vue` of the default theme has the navbar of your site:
 
 ```vue title="src/views/Releases.vue"
 <script setup lang="ts">
@@ -64,9 +60,9 @@ defineProps<{ releases: { title: string; url: string }[] }>();
 </template>
 ```
 
-`defineAsyncComponent` keeps the code of the component out of other pages: the browser loads it on the pages that show the view. A view without a component in `views` fails to render, with an error that names its `type`.
+`defineAsyncComponent` keeps the code of the component out of other pages: the browser loads it on the pages that show the view. A view without a component in `views` fails to render, with an error that names it.
 
-`props` are sent to the browser, so every value must be serializable, like strings, numbers, lists and plain objects.
+The props are sent to the browser, so every value must be serializable, like strings, numbers, lists and plain objects. `PageOf<typeof app, "releases">` of `@fumapress/vue/client` is the type of the page as the browser receives it, with its props as JSON: a `Date` is a string there.
 
 ## Params
 
@@ -75,11 +71,12 @@ A view path takes params like an [API route](/plugins/routes#path-params). `view
 ```ts
 const posts: Record<string, string> = { hello: "Hello", bye: "Bye" };
 
-createView({
-  path: "/blog/[slug]",
-  staticPaths: Object.keys(posts),
-  view: ({ params: { slug } }) =>
-    slug && posts[slug] ? { type: "post", props: { title: posts[slug] } } : undefined,
+createPress(content).views({
+  post: {
+    path: "/blog/[slug]",
+    staticPaths: Object.keys(posts),
+    view: ({ params: { slug } }) => (slug && posts[slug] ? { title: posts[slug] } : undefined),
+  },
 });
 ```
 
@@ -87,19 +84,52 @@ createView({
 
 Views are generated at build time by default, like the pages of a static source, and the sitemap lists them. A view with params generates one page per entry of `staticPaths`.
 
-With `render: "dynamic"`, a view renders on demand, and needs a [server deployment](/deploy). A view that reads your content follows its render mode with `this.getContentRender()`, so it renders on demand when a source is dynamic:
-
-```ts
-createView({
-  path: "/stats",
-  render: this.getContentRender(),
-  view: () => ({ type: "stats", props: { pages: this.getPages().length } }),
-});
-```
+With `render: "dynamic"`, a view renders on demand, and needs a [server deployment](/deploy). A view that reads your content follows its render mode with `this.getContentRender()`, so it renders on demand when a source is dynamic.
 
 ## Page Data
 
-`data` of `createView()` sets the data of every page of a view, like the `title` and `description` of their `<head>`. For data that differs per page, like the title of each post, `view` returns `data` with the `type` and `props`. It wins over the `data` of `createView()`:
+`data` of a view sets the data of its pages, like the `title` and `description` of their `<head>`. The data is in `usePage()` of `@fumapress/vue/client`, so the component of a view can read it too.
+
+## Languages
+
+On a site with [languages](/i18n), a view exists in every language, with the language prefix before its path: `/releases` is also `/cn/releases`. `view` receives the language in `lang`, to list the pages of that language with `this.getPages(lang)`.
+
+## Views of Plugins
+
+A plugin adds views with `createView()` in its `routes` hook. Its `view` returns the `type` of the view with its `props`. A plugin declares the props of its views in its types, so `createView()` takes only those types with their props, and the site has them in its types:
+
+```ts title="releases-plugin.ts"
+import type { AppShape, Plugin } from "@fumapress/vue/config";
+
+interface ReleasesProps {
+  releases: { title: string; url: string }[];
+}
+
+export function releasesPlugin<C extends AppShape>(): Plugin<
+  C,
+  { views: { releases: ReleasesProps } }
+> {
+  return {
+    name: "acme:releases",
+    routes({ createView }) {
+      createView({
+        path: "/releases",
+        data: { title: "Releases" },
+        view: ({ lang }) => ({
+          type: "releases",
+          props: {
+            releases: this.getPages(lang).map((page) => ({ title: page.url, url: page.url })),
+          },
+        }),
+      });
+    },
+  };
+}
+```
+
+`C` is the site the plugin is added to, so the hooks receive its pages and languages.
+
+A view of a plugin can return `data` with its `type` and `props`, for data that differs per page, like the title of each post. It wins over the `data` of `createView()`:
 
 ```ts
 createView({
@@ -113,18 +143,12 @@ createView({
 });
 ```
 
-The data is in `usePage()` of `@fumapress/vue/client`, so the component of a view can read it too.
-
-## Languages
-
-On a site with [languages](/i18n), `createView()` adds the view in every language, with the language prefix before its path: `/releases` is also `/cn/releases`. `view` receives the language in `lang`, to list the pages of that language with `this.getPages(lang)`.
-
-To add a view in one language only, pass `lang`:
+To add a view in one language only, pass `lang` to `createView()`:
 
 ```ts
 createView({
   path: "/newsletter",
   lang: "en",
-  view: () => ({ type: "newsletter" }),
+  view: () => ({ type: "newsletter", props: {} }),
 });
 ```

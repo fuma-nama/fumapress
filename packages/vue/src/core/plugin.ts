@@ -1,9 +1,15 @@
+import type { TranslationExtension } from "fumadocs-core/i18n";
+import type {
+  LoaderOptions as FumadocsLoaderOptions,
+  LoaderPluginOption,
+  Meta,
+  Page,
+} from "fumadocs-core/source";
 import type { Context } from "./context";
+import type { LayoutProps } from "./layouts";
 import type {
   Awaitable,
   HeadTag,
-  LayoutProps,
-  Page,
   PageBody,
   PageData,
   StructuredData,
@@ -11,19 +17,70 @@ import type {
   View,
 } from "./types";
 
-/** a page of the site: a content page with `page`, otherwise a view of a plugin or a custom page */
-export interface PageEnv {
+/** the types of a site, inferred from its content */
+export interface AppShape {
+  page: Page;
+  meta: Meta;
+  /** the languages of the site: those of `i18n`, or `site.lang` alone, a `string` */
+  lang: string;
+  /** the source keys of a site with sources by key, `undefined` with one source */
+  source: string | undefined;
+  runtime: "vue";
+}
+
+/** the env of per-language options and hooks */
+export interface LangEnv<C extends AppShape = AppShape> {
+  lang: C["lang"];
+}
+
+/** a page of the site: a content page with `page`, otherwise a view or a custom page */
+export interface PageEnv<C extends AppShape = AppShape> extends LangEnv<C> {
   /** its URL, without the base path */
   pathname: string;
-  /** the language of the URL */
-  lang: string;
-  page?: Page;
+  page?: C["page"];
 }
 
 /** the page a `<head>` is for, with the data of a content page or a view */
-export interface HeadEnv extends PageEnv {
+export interface HeadEnv<C extends AppShape = AppShape> extends PageEnv<C> {
   data?: PageData;
 }
+
+/**
+ * What a plugin declares for types: the props of its views by type, and the props of the content pages it renders
+ * as views, by source key (its `getPageBody` returns `{ view: { type: key, props } }`).
+ */
+export type PluginTypes = { views?: object; pages?: object };
+
+/** the declarations `K` of plugin types: on a union, their union; on `any`, `any`; on the merged types of a site, its own */
+export type Declared<T, K extends keyof PluginTypes> = T extends unknown
+  ? K extends keyof T
+    ? Exclude<T[K], undefined>
+    : never
+  : never;
+
+type Intersect<U> = [U] extends [never]
+  ? {}
+  : (U extends unknown ? (u: U) => void : never) extends (u: infer I extends object) => void
+    ? I
+    : {};
+type TypesOf<P> = P extends { readonly "~types"?: infer X } ? (P extends object ? X : {}) : {};
+
+/** the plugin types of a site, `U` is the union of each plugin's; an interface, so it is cached and printed by name */
+export interface MergedTypes<U> {
+  views: Intersect<Declared<U, "views">>;
+  pages: Intersect<Declared<U, "pages">>;
+}
+
+/** keys outside the plugin contract, like a removed or misspelled hook: `const P` skips the excess property check of literals */
+export type UnknownKeys<E> = E extends readonly unknown[]
+  ? never
+  : E extends object
+    ? Exclude<keyof E, keyof Plugin>
+    : never;
+
+/** no recursion over the list: `FlatArray` flattens nested lists by depth */
+export type CollectTypes<P extends readonly unknown[]> =
+  TypesOf<FlatArray<P, 20>> extends infer U ? MergedTypes<U> : never;
 
 export type ApiHandler = (
   request: Request,
@@ -61,11 +118,8 @@ export type ApiRoute = {
   ALL?: ApiHandler;
 } & Partial<Record<HttpMethod, ApiHandler>>;
 
-/**
- * A page of a plugin, outside the content: `view` gives what the theme renders, with the component of its `views`
- * named `type`. Its `path` has no language prefix: the site adds it.
- */
-export interface ViewRoute extends Pick<ApiRoute, "path" | "staticPaths"> {
+/** the route of a view: its pages, outside the content. Its `path` has no language prefix: the site adds it. */
+export interface ViewRouteOptions extends Pick<ApiRoute, "path" | "staticPaths"> {
   /**
    * `static` pages are generated at build time. A view that reads content sets `this.getContentRender()`, so it
    * renders on demand when the content does.
@@ -75,17 +129,28 @@ export interface ViewRoute extends Pick<ApiRoute, "path" | "staticPaths"> {
   render?: "static" | "dynamic";
   /** the data of its pages, like their title */
   data?: Partial<PageData>;
-  /** the page at `params` in `lang`, none for a 404. Its `data` wins over the `data` of the route. */
-  view: (env: {
-    params: Record<string, string>;
-    lang: string;
-  }) => Awaitable<(View & { data?: Partial<PageData> }) | undefined>;
 }
 
-export interface RouteFns {
-  createApi: (route: ApiRoute) => void;
+/** the env of the pages of a view: the params of its path, and its language */
+export interface ViewEnv<Lang extends string = string> {
+  params: Record<string, string>;
+  lang: Lang;
+}
+
+/**
+ * A view of a plugin: `view` gives what the theme renders, with the component of its `views` named `type`, one of the
+ * views `V` the plugin declares.
+ */
+export interface ViewRoute<V = any, Lang extends string = string> extends ViewRouteOptions {
+  /** the page at `params` in `lang`, none for a 404. Its `data` wins over the `data` of the route. */
+  view(env: ViewEnv<Lang>): Awaitable<(View<V> & { data?: Partial<PageData> }) | undefined>;
+}
+
+/** what plugins create in `routes`, with the views `V` they declare */
+export interface RouteFns<C extends AppShape = AppShape, V = any> {
+  createApi(route: ApiRoute): void;
   /** a page of the plugin, in every language of the site, or in `lang` only */
-  createView: (route: ViewRoute & { lang?: string }) => void;
+  createView(route: ViewRoute<V, C["lang"]> & { lang?: C["lang"] }): void;
 }
 
 /** the output of a build */
@@ -102,23 +167,29 @@ export interface BuildOutput {
  * The hooks that render the pages of a content source. A plugin returns `undefined` for a page it doesn't own, and the
  * first result wins. Only `getPageBody` is required to show a page.
  */
-export interface ContentHooks {
-  getPageBody?: (this: Context, page: Page) => Awaitable<PageBody | undefined>;
+export interface ContentHooks<C extends AppShape = AppShape, T extends PluginTypes = {}> {
+  /** the content of a page; a view is one of the `pages` the plugin declares, by the source key of the page */
+  getPageBody?: (
+    this: Context<C>,
+    page: C["page"],
+  ) => Awaitable<PageBody<Declared<T, "pages">> | undefined>;
   /** the table of contents */
-  getPageToc?: (this: Context, page: Page) => Awaitable<TOCItem[] | undefined>;
+  getPageToc?: (this: Context<C>, page: C["page"]) => Awaitable<TOCItem[] | undefined>;
   /** the page as Markdown, for `llms-full.txt` */
-  getPageText?: (this: Context, page: Page) => Awaitable<string | undefined>;
+  getPageText?: (this: Context<C>, page: C["page"]) => Awaitable<string | undefined>;
   /** the headings and the text under each, for full text search */
-  getPageStructuredData?: (this: Context, page: Page) => Awaitable<StructuredData | undefined>;
+  getPageStructuredData?: (
+    this: Context<C>,
+    page: C["page"],
+  ) => Awaitable<StructuredData | undefined>;
   /** when the page last changed: for the sitemap, and `lastModified` of the page data, which the layout shows */
-  getPageLastModified?: (this: Context, page: Page) => Awaitable<Date | undefined>;
+  getPageLastModified?: (this: Context<C>, page: C["page"]) => Awaitable<Date | undefined>;
 }
 
 /** options of the Fumadocs content loader a plugin adds, like its `plugins` */
-export interface LoaderOptions {
-  plugins?: unknown[];
-  [key: string]: unknown;
-}
+export type LoaderOptions = Partial<Omit<FumadocsLoaderOptions, "baseUrl" | "i18n" | "plugins">> & {
+  plugins?: LoaderPluginOption[];
+};
 
 /**
  * A plugin of Fumapress: an object with hooks, `this` is the {@link Context} of the site. Everything the site does
@@ -126,54 +197,72 @@ export interface LoaderOptions {
  *
  * The hooks have the names and signatures of `@fumapress/core`, so server-side plugins port across runtimes. Where
  * plugins return options (`head`, `layoutProps`, `configureLoader`), the site's own win, then plugins in order.
+ *
+ * Hooks are properties, so `this` and pages are checked contravariantly: a plugin for any site fits every site. A plugin
+ * is a generic factory typed by the site (`myPlugin<C extends AppShape>(options: MyOptions<NoInfer<C>>): Plugin<C, MyTypes>`).
  */
-export interface Plugin extends ContentHooks {
+export interface Plugin<
+  in C extends AppShape = AppShape,
+  T extends PluginTypes = {},
+> extends ContentHooks<C, T> {
+  readonly "~types"?: T;
   name: string;
+  /** the keys of the texts of its UI, which `ui.translations` of the site translates */
+  translations?: TranslationExtension;
   /** runs before the content loader is created */
-  init?: (this: Context) => Awaitable<void>;
+  init?: (this: Context<C>) => Awaitable<void>;
   /** adds options to the content loader, `plugins` of every plugin are combined */
-  configureLoader?: (this: Context) => Awaitable<LoaderOptions | undefined>;
+  configureLoader?: (this: Context<C>) => Awaitable<LoaderOptions | undefined>;
   /** runs after the content loader is created */
-  configure?: (this: Context) => Awaitable<void>;
+  configure?: (this: Context<C>) => Awaitable<void>;
   /** the API routes and the pages of the plugin, called once */
-  routes?: (this: Context, fns: RouteFns) => Awaitable<void>;
+  routes?: (this: Context<C>, fns: RouteFns<C, Declared<T, "views">>) => Awaitable<void>;
   /**
    * Adds to the data of a page sent to the browser: a content page with `env.page`, otherwise a view. A field the
    * page or an earlier plugin has set stays.
    */
   transformPage?: (
-    this: Context,
+    this: Context<C>,
     data: Readonly<PageData>,
-    env: PageEnv,
+    env: PageEnv<C>,
   ) => Awaitable<Partial<PageData> | undefined>;
-  head?: (this: Context, env: HeadEnv) => Awaitable<HeadTag[] | undefined>;
+  head?: (this: Context<C>, env: HeadEnv<C>) => Awaitable<HeadTag[] | undefined>;
   /** the navbar and links of the layouts: the same on every page of a language, so the browser fetches them once */
-  layoutProps?: (
-    this: Context,
-    env: { lang: string },
-  ) => Awaitable<Partial<LayoutProps> | undefined>;
+  layoutProps?: (this: Context<C>, env: LangEnv<C>) => Awaitable<Partial<LayoutProps> | undefined>;
   /**
    * Runs first on every request the server receives. Call `next()` to continue, or `next(path)` to serve another path
    * instead. Requests a host serves from the files of the build never reach it.
    */
   middleware?: (
-    this: Context,
+    this: Context<C>,
     request: Request,
     next: (rewrite?: string) => Promise<Response>,
   ) => Promise<Response>;
   /** runs once when the site is built, not on dev or production servers; throw to fail the build */
-  build?: (this: Context, output: BuildOutput) => Awaitable<void>;
+  build?: (this: Context<C>, output: BuildOutput) => Awaitable<void>;
 }
 
-export type PluginOption = Plugin | false | undefined | null | readonly PluginOption[];
+/** a plugin `P` of `.plugins()`, lists are flattened and falsy values left out */
+export type PluginOption<P extends Pick<Plugin, "name"> = Plugin> =
+  | P
+  | false
+  | undefined
+  | null
+  | readonly PluginOption<P>[];
 
 /** a plugin of the preset, loaded when the site starts */
-export type PresetEntry = () => Awaitable<Plugin>;
+export type PresetEntry<P extends Pick<Plugin, "name"> = AnyPlugin> = () => Awaitable<P>;
 
-export function flatten(options: readonly PluginOption[], out: Plugin[] = []): Plugin[] {
+/** a plugin of any site, as the runtime holds it */
+export type AnyPlugin = Plugin<AppShape, any>;
+
+export function flatten(
+  options: readonly PluginOption<AnyPlugin>[],
+  out: AnyPlugin[] = [],
+): AnyPlugin[] {
   for (const option of options) {
     if (Array.isArray(option)) flatten(option, out);
-    else if (option) out.push(option as Plugin);
+    else if (option) out.push(option as AnyPlugin);
   }
   return out;
 }

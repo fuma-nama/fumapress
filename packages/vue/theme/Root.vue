@@ -12,7 +12,7 @@ const props = defineProps<{ search?: RootProviderProps["search"] }>();
 const state = usePress();
 // search is on when a plugin provides it, or with a dialog of your own
 const search = computed(() => {
-  const ofSite = state.site.layout.search ?? { enabled: false };
+  const ofSite = state.site.layoutProps.search ?? { enabled: false };
   return props.search ? { ...ofSite, enabled: true, ...props.search } : ofSite;
 });
 </script>

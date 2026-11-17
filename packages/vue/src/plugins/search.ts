@@ -1,18 +1,19 @@
-import type { Plugin } from "../core/plugin";
+import type { AppShape, Plugin } from "../core/plugin";
 import { searchIndexPath } from "../core/routes";
 import type { SearchEntry } from "../core/search";
-import type { Page } from "../core/types";
 
-export interface SearchOptions {
+export interface SearchOptions<C extends AppShape = AppShape> {
   /** the content pages to index: a page it returns `false` for is left out */
-  filter?: (page: Page) => boolean;
+  filter?: (page: C["page"]) => boolean;
 }
 
 /**
  * The search index of each language as a data route: the browser loads it on the first search and searches it itself,
  * so search works on static hosting. It is a file with static content, a response on demand with a dynamic source.
  */
-export function searchPlugin({ filter }: SearchOptions = {}): Plugin {
+export function searchPlugin<C extends AppShape = AppShape>({
+  filter,
+}: SearchOptions<NoInfer<C>> = {}): Plugin<C> {
   return {
     name: "core:search",
     layoutProps: ({ lang }) => ({

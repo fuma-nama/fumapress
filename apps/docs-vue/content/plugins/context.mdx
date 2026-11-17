@@ -16,6 +16,17 @@ createPress(content).plugins({
 
 Use a regular function or a method for a hook, not an arrow function, so that `this` is the context.
 
+The context has the types of the site: `getPages()` returns its pages, typed by their source, and `localizePath()` takes its languages. In a function of another file, type `this` with `PressContext<typeof app>`, from a type-only import of `press.config.ts`:
+
+```ts title="src/server/links.ts"
+import type { PressContext, PressLang } from "@fumapress/vue/config";
+import type app from "../../press.config";
+
+export function blogLink(this: PressContext<typeof app>, lang: PressLang<typeof app>) {
+  return { text: "Blog", url: this.localizePath(lang, "/blog") };
+}
+```
+
 ## Site
 
 - `site`: the `site` option of your config.
@@ -31,7 +42,7 @@ Use a regular function or a method for a hook, not an arrow function, so that `t
 - `getPageData(page)`: the data of a page that the browser receives, after the `transformPage` hook of plugins.
 - `getPageContent(page)`: a content page as the browser receives it, with its data, table of contents and body. It fails when no plugin renders the page.
 - `getContent(pathname)`: what the browser receives for a URL, a content page or the view of a plugin, or `undefined` for a `404`.
-- `getContentRender(source?)`: `"dynamic"` when a source is [dynamic](/content/sources), `"static"` otherwise. Pass the key of a source to check that source only.
+- `getContentRender(source?)`: `"dynamic"` when a source is [dynamic](/content/sources), `"static"` otherwise. Pass the key of a source, or a list of keys, to check those sources only.
 - `invalidateLoader()`: reads every source again, so a dynamic source shows its new pages.
 
 ## Languages
@@ -46,10 +57,10 @@ Use a regular function or a method for a hook, not an arrow function, so that `t
 ## Routes and Pages
 
 - `routes`: the API routes of plugins.
-- `views`: the [views](/plugins/views) of plugins, one per language, with the path of each including its language prefix.
+- `views`: the [views](/plugins/views) of the site and of plugins, one per language, with the path of each including its language prefix.
 - `getStaticPages()`: the URLs of the pages generated at build time, the pages of static sources and the static views.
 - `customPages`: the URLs of the [custom pages](/theme#custom-pages) generated at build time, the ones without params.
-- `getLayoutProps({ lang })`: the props of the layouts in a language, from your config and the `layoutProps` hook of plugins.
+- `getLayout({ lang })`: the layout of the content pages in a language, with its props from your config and the `layoutProps` hook of plugins.
 - `getHead(env)`: the tags of the `<head>` of a page, from your config and the `head` hook of plugins.
 
 ## URLs
@@ -63,9 +74,10 @@ Use a regular function or a method for a hook, not an arrow function, so that `t
 
 ```ts title="src/server/pages.ts"
 import { getPressContext } from "@fumapress/vue/config";
+import type app from "../../press.config";
 
 export function pageUrls(): string[] {
-  return getPressContext()
+  return getPressContext<typeof app>()
     .getPages()
     .map((page) => page.url);
 }

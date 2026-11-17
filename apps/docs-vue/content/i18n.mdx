@@ -4,22 +4,23 @@ description: Serve your docs in several languages, each with its own pages, URLs
 icon: Languages
 ---
 
-Pass your languages to `createPress()` with the `i18n` option:
+Define your languages with `defineI18n()`, and pass them to `createPress()` with the `i18n` option:
 
 ```ts title="press.config.ts"
-import { createPress, defineI18n } from "@fumapress/vue/config";
+import { createPress } from "@fumapress/vue/config";
 import { content } from "@fumapress/vue/content";
+import { defineI18n } from "@fumapress/vue/i18n";
 
-export default createPress(content, {
-  i18n: defineI18n({
-    languages: ["en", "cn"],
-    defaultLanguage: "en",
-    hideLocale: "default-locale",
-  }),
+const i18n = defineI18n({
+  languages: ["en", "cn"],
+  defaultLanguage: "en",
+  hideLocale: "default-locale",
 });
+
+export default createPress(content, { i18n });
 ```
 
-Each language has its own pages, page tree, URLs and search index. The layouts show a language switch.
+Each language has its own pages, page tree, URLs and search index. The layouts show a language switch. The languages are in the types of the site, so `this.localizePath("fr", "/")` is a type error.
 
 ## Translating Pages
 
@@ -63,28 +64,47 @@ A link in a page leads to the URL as it is written: the language of the page isn
 
 ## UI Texts
 
-`ui.translations` translates the texts of the UI, by language. A key is the English text followed by its note in parentheses, which tells apart uses of the same text:
+`ui.translations` translates the texts of the UI. `i18n.translations()` creates the translations of your languages, `.extend(uiTranslations())` adds the keys of the UI, and `.add()` gives the texts by language. A key is the English text followed by its note in parentheses, which tells apart uses of the same text:
 
 ```ts title="press.config.ts"
+import { uiTranslations } from "@fumapress/vue/i18n";
+
 export default createPress(content, { i18n }).config({
   ui: {
-    translations: {
-      en: { displayName: "English" },
-      cn: {
-        displayName: "中文",
-        "Search(search trigger)": "搜索",
-        "Search(search dialog)": "搜索",
-        "On this page(table of contents)": "本页内容",
-        "Edit on GitHub(edit page)": "在 GitHub 上编辑",
-      },
-    },
+    translations: i18n
+      .translations()
+      .extend(uiTranslations())
+      .add({
+        en: { displayName: "English" },
+        cn: {
+          displayName: "中文",
+          "Search(search trigger)": "搜索",
+          "Search(search dialog)": "搜索",
+          "On this page(table of contents)": "本页内容",
+          "Edit on GitHub(edit page)": "在 GitHub 上编辑",
+        },
+      }),
   },
 });
 ```
 
 `displayName` is the name of the language in the language switch. Without it, the switch shows the language code.
 
-The full list of keys is in `node_modules/@fumapress/vue/ui/.translations/keys.json`. A key that isn't in the list has no effect.
+The keys and the languages are typed: a key that isn't in the list, or a language that the site doesn't have, is a type error. The full list of keys is in `node_modules/@fumapress/vue/ui/.translations/keys.json`.
+
+A site without languages translates its UI with `defineTranslations()`, whose `.add()` takes the texts directly:
+
+```ts title="press.config.ts"
+import { defineTranslations, uiTranslations } from "@fumapress/vue/i18n";
+
+export default createPress(content).config({
+  ui: {
+    translations: defineTranslations()
+      .extend(uiTranslations())
+      .add({ "On this page(table of contents)": "Contents" }),
+  },
+});
+```
 
 ## Links per Language
 
@@ -117,7 +137,8 @@ The default plugins and your views follow the languages of the site:
 - Search has an index per language, and the dialog searches the language of the page.
 - `llms.txt` and `llms-full.txt` exist per language: at the root of the site for the default language, and at the prefix of the others, like `/cn/llms.txt`.
 - The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links. The translations of a page are the pages of other languages at the same URL without the prefix, in any source.
-- A [view](/plugins/views) of a plugin exists in every language, at its prefix, and receives the language as `lang`.
+- A [view](/plugins/views) exists in every language, at its prefix, and receives the language as `lang`.
+- A plugin with texts of its own lists their keys in `translations`, and `ui.translations` of your site translates them.
 
 ## Text Direction
 

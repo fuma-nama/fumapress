@@ -3,9 +3,10 @@ import { createSSRApp, defineComponent, h } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { injectConfigProviderContext } from "../src/reka/config-provider";
 import { pressKey, type PressState } from "../src/client";
-import { createCollection } from "../src/collection";
+import { createCollection, type CollectionConfig } from "../src/collection";
 import { getPressContext } from "../src/core/context";
-import { defineI18n, directionOf } from "../src/core/i18n";
+import { directionOf } from "../src/core/i18n";
+import { defineI18n, uiTranslations } from "../src/i18n";
 import type { Plugin } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
 import { recommendedPreset } from "../src/core/preset";
@@ -25,7 +26,7 @@ import { createFetchHandler } from "../src/server";
 import Root from "../theme/Root.vue";
 
 /** a page as the Vite plugin lists it: with its compiled module */
-function page(path: string, data: Record<string, unknown>): SourceFile {
+function page(path: string, data: CollectionConfig["pageData"]): SourceFile<CollectionConfig> {
   const ref: ModuleRef = {
     file: `content/${path}`,
     assets: async () => ({ entry: `/assets/${path}.js` }),
@@ -287,7 +288,8 @@ test("merges options: the site's own win, then plugins in order, then the defaul
 
   // lists concatenate, and the first defined value wins
   const site: SiteData = await (await get(siteDataPath("en"))).json();
-  expect(site.layout).toEqual({
+  expect(site.layout).toBe("docs");
+  expect(site.layoutProps).toEqual({
     nav: { title: "From the plugin", url: "/" },
     links: [
       { text: "Home", url: "/" },
@@ -413,13 +415,21 @@ const notes: Record<string, { title: string; html: string }> = {
 const notesPlugin: Plugin = {
   name: "notes",
   getPageBody: (current) =>
-    typeof current.data.html === "string" ? { html: current.data.html } : undefined,
+    "html" in current.data && typeof current.data.html === "string"
+      ? { html: current.data.html }
+      : undefined,
   getPageToc: () => [{ title: "Top", url: "#top", depth: 2 }],
   getPageText: (current) => `# ${current.data.title}`,
   getPageLastModified: () => new Date("2026-01-02T00:00:00Z"),
 };
-const noteFiles = (): SourceFile[] =>
-  Object.entries(notes).map(([path, data]) => ({ type: "page", path, data }));
+const noteFiles = () =>
+  Object.entries(notes).map(
+    ([path, data]): SourceFile<{ pageData: typeof data; metaData: {} }> => ({
+      type: "page",
+      path,
+      data,
+    }),
+  );
 
 test("renders the pages of a custom source through content hooks", async () => {
   const custom = serve(
@@ -497,8 +507,8 @@ test("keeps sources apart by key", async () => {
   await mixed("/");
   const ctx = getPressContext();
 
-  expect(ctx.getPage("/docs/guide/install")?.source).toBe("docs");
-  expect(ctx.getPage("/notes/first")?.source).toBe("notes");
+  expect(ctx.getPage("/docs/guide/install")?.type).toBe("docs");
+  expect(ctx.getPage("/notes/first")?.type).toBe("notes");
   expect(ctx.getContentRender("docs")).toBe("static");
   expect(ctx.getContentRender("notes")).toBe("dynamic");
 
@@ -532,11 +542,11 @@ test("adds the loader options of plugins", async () => {
   const seen: string[] = [];
   const configured = serve(
     createPress(collection.toSource(), {
-      loaderPlugins: [{ name: "own", config: (config: object) => (seen.push("own"), config) }],
+      loaderPlugins: [{ name: "own", config: (config) => (seen.push("own"), config) }],
     }).plugins({
       name: "loader",
       configureLoader: () => ({
-        plugins: [{ name: "added", config: (config: object) => (seen.push("added"), config) }],
+        plugins: [{ name: "added", config: (config) => (seen.push("added"), config) }],
       }),
     }),
   );
@@ -652,15 +662,14 @@ const languages = createCollection("docs", [
 ]);
 
 function i18nSite(hideLocale: "never" | "default-locale", fallbackLanguage?: null) {
+  const i18n = defineI18n({
+    languages: ["en", "cn"],
+    defaultLanguage: "en",
+    hideLocale,
+    fallbackLanguage,
+  });
   return serve(
-    createPress(languages.toSource(), {
-      i18n: defineI18n({
-        languages: ["en", "cn"],
-        defaultLanguage: "en",
-        hideLocale,
-        fallbackLanguage,
-      }),
-    })
+    createPress(languages.toSource(), { i18n })
       .plugins({
         name: "blog",
         routes({ createView }) {
@@ -673,7 +682,10 @@ function i18nSite(hideLocale: "never" | "default-locale", fallbackLanguage?: nul
       .config({
         site: { name: "Docs", baseUrl: "https://example.com" },
         ui: {
-          translations: { cn: { displayName: "中文", "Search(search trigger)": "搜索" } },
+          translations: i18n
+            .translations()
+            .extend(uiTranslations())
+            .add({ cn: { displayName: "中文", "Search(search trigger)": "搜索" } }),
         },
       }),
   );
@@ -703,10 +715,10 @@ test("serves each language at its prefix, with its own site data", async () => {
       { locale: "en", name: "en" },
       { locale: "cn", name: "中文" },
     ],
-    translations: { "Search(search trigger)": "搜索" },
+    translations: { displayName: "中文", "Search(search trigger)": "搜索" },
   });
-  expect(data.layout.nav).toEqual({ title: "Docs", url: "/cn" });
-  expect(data.layout.search?.options).toEqual({ type: "static", api: searchIndexPath("cn") });
+  expect(data.layoutProps.nav).toEqual({ title: "Docs", url: "/cn" });
+  expect(data.layoutProps.search?.options).toEqual({ type: "static", api: searchIndexPath("cn") });
   expect(data.tree.children.map((node) => node.name)).toContain("主页");
 
   // without a fallback language, a page that is not translated doesn't exist there
@@ -782,7 +794,7 @@ test("sends a URL with the prefix of the hidden language to the one without it",
 test("refuses to hide every language", async () => {
   const hidden = serve(
     createPress(languages.toSource(), {
-      i18n: { languages: ["en"], defaultLanguage: "en", hideLocale: "always" as never },
+      i18n: { languages: ["en"], defaultLanguage: "en", hideLocale: "always" },
     }),
   );
   await expect(hidden("/")).rejects.toThrow('`hideLocale: "always"` is not supported');

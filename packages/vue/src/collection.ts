@@ -1,5 +1,12 @@
-import type { I18nConfig } from "./core/i18n";
+import type { I18nConfig } from "fumadocs-core/i18n";
+import type { MetaData, PageData } from "fumadocs-core/source";
 import type { Source, SourceFile } from "./core/types";
+
+/** the files of a collection: the frontmatter of its pages and its `meta.json` files, with any field */
+export interface CollectionConfig {
+  pageData: PageData & Record<string, unknown>;
+  metaData: MetaData & Record<string, unknown>;
+}
 
 export interface ToSourceOptions {
   /** puts the files in a folder, so their URLs start with it: `"docs"` gives `/docs/...` */
@@ -14,12 +21,12 @@ export interface ToSourceOptions {
 /** the Markdown files of a directory, from the Vite plugin: a page has its compiled module in `data._module` */
 export interface Collection {
   name: string;
-  files: SourceFile[];
+  files: SourceFile<CollectionConfig>[];
   /** the files as a content source */
-  toSource: (options?: ToSourceOptions) => Source;
+  toSource: (options?: ToSourceOptions) => Source<CollectionConfig>;
 }
 
-export function createCollection(name: string, files: SourceFile[]): Collection {
+export function createCollection(name: string, files: SourceFile<CollectionConfig>[]): Collection {
   return {
     name,
     files,
@@ -27,7 +34,7 @@ export function createCollection(name: string, files: SourceFile[]): Collection 
       const dir = baseDir?.replace(/^\/+|\/+$/g, "");
       if (!dir) return { files };
 
-      const byFolder = i18n?.parser === "dir" ? i18n.languages : [];
+      const byFolder: readonly string[] = i18n?.parser === "dir" ? i18n.languages : [];
       const move = (path: string) => {
         const [first = "", ...rest] = path.split("/");
         return byFolder.includes(first) && rest.length > 0

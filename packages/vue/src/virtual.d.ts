@@ -1,11 +1,12 @@
 declare module "virtual:press/collections" {
+  import type { CollectionConfig } from "./collection";
   import type { SourceFile } from "./core/types";
-  export const collections: Record<string, SourceFile[]>;
+  export const collections: Record<string, SourceFile<CollectionConfig>[]>;
 }
 
 declare module "virtual:press/config" {
   import type { Press } from "./core/press";
-  const press: Press;
+  const press: Press<any, any>;
   export default press;
 }
 

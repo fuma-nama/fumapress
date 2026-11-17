@@ -8,58 +8,62 @@ A content source is a list of files: pages and `meta.json` files. The Markdown c
 This site has a `changelog` source next to its docs. Its pages come from a list in the config, and a plugin renders them:
 
 ```ts title="press.config.ts"
-import { createPress, type Plugin } from "@fumapress/vue/config";
+import { createPress, type Source } from "@fumapress/vue/config";
 import { collections } from "@fumapress/vue/content";
+
+interface Release {
+  title: string;
+  description: string;
+  date: string;
+  html: string;
+}
 
 const releases = [
   { version: "0.2.0", date: "2026-11-01", notes: "<p>Custom content sources.</p>" },
   { version: "0.1.0", date: "2026-10-01", notes: "<p>The first release.</p>" },
 ];
 
-const changelogPlugin: Plugin = {
-  name: "site:changelog",
-  getPageBody(page) {
-    if (page.source === "changelog") return { html: String(page.data.html) };
-  },
-  getPageText(page) {
-    if (page.source === "changelog") return `# ${page.data.title}`;
-  },
-  getPageLastModified(page) {
-    if (page.source === "changelog") return new Date(String(page.data.date));
-  },
+const changelog: Source<{ pageData: Release; metaData: {} }> = {
+  files: releases.map(({ version, date, notes }) => ({
+    type: "page",
+    path: `changelog/${version}.md`,
+    data: { title: `v${version}`, description: "Release notes", date, html: notes },
+  })),
 };
 
-export default createPress({
-  docs: collections.docs!.toSource(),
-  changelog: {
-    files: releases.map(({ version, date, notes }) => ({
-      type: "page",
-      path: `changelog/${version}.md`,
-      data: { title: `v${version}`, description: "Release notes", date, html: notes },
-    })),
+export default createPress({ docs: collections.docs!.toSource(), changelog }).plugins({
+  name: "site:changelog",
+  getPageBody(page) {
+    if (page.type === "changelog") return { html: page.data.html };
   },
-}).plugins(changelogPlugin);
+  getPageText(page) {
+    if (page.type === "changelog") return `# ${page.data.title}`;
+  },
+  getPageLastModified(page) {
+    if (page.type === "changelog") return new Date(page.data.date);
+  },
+});
 ```
 
 The `path` of a file sets the URL of its page, so `changelog/0.2.0.md` is `/changelog/0.2.0`. Its `data` is `page.data`: `title` and `description` are the title and description of the page, and the plugin reads the rest.
 
-With sources by key, `page.source` is the key of the source of a page. A plugin checks it and returns `undefined` for the pages of other sources, since the first result of a content hook wins. With one source, `page.source` is `undefined`. For sources that load files on the server, like from a CMS, see [Content Sources](/content/sources).
+With sources by key, `page.type` is the key of the source of a page. A plugin checks it and returns `undefined` for the pages of other sources, since the first result of a content hook wins. A plugin written in `.plugins()` has the types of the site, so `page.type === "changelog"` gives `page.data` the fields of `Release`. With one source, `page.type` is `undefined`. For sources that load files on the server, like from a CMS, see [Content Sources](/content/sources).
 
 ## Page Body
 
 `getPageBody` is the only hook a page needs. It returns one of:
 
 - `{ html }`: HTML rendered as it is, in the docs layout.
-- `{ view: { type, props } }`: a component of the `views` of your theme renders the page, in place of the docs layout. It works like the [views](/plugins/views) of a plugin.
+- `{ view: { type, props } }`: a component of the `views` of your theme renders the page, in place of the docs layout. `type` is the key of the source of the page, and the component of `views` with that name receives `props`, like the component of a [view](/plugins/views).
 - `{ module, load }`: the URL of a module that the browser imports, whose default export is the content component, and `load()` to import the same module on the server. This is what `core:markdown` returns for a compiled Markdown file.
 
 ```ts
 getPageBody(page) {
-  if (page.source === "cards") {
-    return { view: { type: "card", props: { title: String(page.data.title) } } };
-  }
+  if (page.type === "cards") return { view: { type: "cards", props: { title: page.data.title } } };
 },
 ```
+
+A plugin of its own module declares these props in its types, as `pages` by source key, like the [views of a plugin](/plugins/views#views-of-plugins).
 
 A page that no plugin renders fails with an error that names its file.
 
@@ -78,10 +82,10 @@ Each of these is optional. A page without a result has none of what the hook giv
 
 ```ts
 getPageStructuredData(page) {
-  if (page.source !== "changelog") return;
+  if (page.type !== "changelog") return;
   return {
     headings: [],
-    contents: [{ content: String(page.data.html).replace(/<[^>]+>/g, "") }],
+    contents: [{ content: page.data.html.replace(/<[^>]+>/g, "") }],
   };
 },
 ```
@@ -94,7 +98,7 @@ The docs layout shows `lastModified` as the last update of the page, and `github
 
 ```ts
 transformPage(_data, { page }) {
-  if (page?.source === "changelog") {
+  if (page?.type === "changelog") {
     return { githubUrl: "https://github.com/acme/docs/blob/main/CHANGELOG.md" };
   }
 },

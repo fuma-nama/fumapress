@@ -27,6 +27,7 @@
   "exports": {
     "./config": "./dist/config.js",
     "./content": "./dist/content.js",
+    "./i18n": "./dist/i18n.js",
     "./client": "./dist/client.js",
     "./server": "./dist/server.js",
     "./page-tree": "./dist/page-tree.js",
