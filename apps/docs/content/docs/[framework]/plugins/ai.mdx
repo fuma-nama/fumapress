@@ -13,9 +13,10 @@ Use any of these three features:
 
 A new site already has these files:
 
-- `/llms.txt`: an index of your pages.
+- `/llms.txt`: an index of your pages, with a link to the Markdown of each page.
 - `/llms-full.txt`: the text of all pages in one file.
 - `<page>.md`: a Markdown version of each page, like `/docs/install.md`. The root page is `/index.md`.
+- `<section>/llms-full.txt`: the text of all pages of a [section](#sections), like `/docs/llms-full.txt`.
 
 Pass its options to `recommendedPreset()`:
 
@@ -55,14 +56,12 @@ createPress(content).config({
 
 ### Page Text
 
-Return the text of a page from `getLLMText`, or `undefined` to leave it out of `/llms-full.txt`:
+Return the Markdown of a page from `getLLMText`:
 
 ```tsx title="press.config.tsx"
 recommendedPreset({
   llms: {
     async getLLMText(page) {
-      if (page.path.startsWith("internal/")) return;
-
       return `# ${page.data.title} (${this.absoluteUrl(page.url)})
 
 ${await this.getPageText(page)}`;
@@ -70,6 +69,49 @@ ${await this.getPageText(page)}`;
   },
 });
 ```
+
+### Leaving Pages Out
+
+Return `false` from `filter` to give a page no Markdown version:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  llms: {
+    filter: (page) => !page.path.startsWith("internal/"),
+  },
+});
+```
+
+The page has no `<page>.md` and is left out of the `llms-full.txt` files, while `/llms.txt` links to the page itself.
+
+A page with [`noindex`](./seo.mdx#leaving-pages-out) keeps its `<page>.md`, and is only left out of the `llms-full.txt` files.
+
+### Sections
+
+A section is a folder with its own `llms-full.txt`, so an AI agent can read a large site one part at a time. Every [root folder](https://fumadocs.dev/docs/page-conventions#root-folder) is a section by default, and its line in `/llms.txt` links to the `llms-full.txt` of the section.
+
+To choose the sections, pass `section`. It receives a folder and returns whether the folder is a section:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  llms: {
+    // every folder with an index page
+    section: (folder) => folder.index !== undefined,
+  },
+});
+```
+
+On a large site, collapse sections to keep `/llms.txt` short. `/llms.txt` lists a collapsed section as one link to `<section>/llms.txt`, which lists the pages of the section:
+
+```tsx title="press.config.tsx"
+recommendedPreset({
+  llms: {
+    section: (folder) => (folder.root ? { collapse: true } : false),
+  },
+});
+```
+
+The files of a section are under the URL of the index page of its folder, or under the URL directory of its pages when the folder has no index page.
 
 ### Content Negotiation
 
@@ -86,6 +128,12 @@ Turn it off with `autoRedirect: false`.
   it only applies to pages rendered on demand, because these platforms serve prerendered pages
   without your server.
 </Callout>
+
+The `<head>` of a page also links to its Markdown, for AI agents that read the HTML:
+
+```html
+<link rel="alternate" type="text/markdown" href="/docs/install.md" />
+```
 
 <show when={props.framework === "waku"}>
 

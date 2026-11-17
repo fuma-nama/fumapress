@@ -121,7 +121,10 @@ async function coreHead(
       for (const item of current.translations)
         if (item.lang) alternates.push(pageAlternate(ctx, item.lang, item.path));
     }
-    return [...dataTags(await ctx.getPageData(route, path)), ...pageLinks(ctx, path, alternates)];
+    return [
+      ...dataTags(ctx, await ctx.getPageData(route, path)),
+      ...pageLinks(ctx, path, alternates),
+    ];
   }
   if (!page) return;
 
@@ -131,7 +134,7 @@ async function coreHead(
     ctx.getPageAlternates(page),
   ]);
   const origin = fallbackOrigin(source, ctx.i18nConfig, page);
-  const tags = dataTags(data);
+  const tags = dataTags(ctx, data);
   tags.push({ tag: "meta", attrs: { property: "og:title", content: data.title } });
   if (data.description)
     tags.push({ tag: "meta", attrs: { property: "og:description", content: data.description } });
@@ -142,12 +145,16 @@ async function coreHead(
   return tags;
 }
 
-/** the title, description and `noindex` of a page */
-function dataTags({ title, description, noindex }: PageData): HeadTag[] {
+/** the title, description and `noindex` of a page, and the link from its HTML to its Markdown */
+function dataTags(ctx: Context, { title, description, noindex, markdownUrl }: PageData): HeadTag[] {
   const tags: HeadTag[] = [];
   if (title) tags.push({ tag: "title", children: title });
   if (description) tags.push({ tag: "meta", attrs: { name: "description", content: description } });
   if (noindex) tags.push({ tag: "meta", attrs: { name: "robots", content: "noindex" } });
+  if (markdownUrl) {
+    const href = ctx.withBase(markdownUrl);
+    tags.push({ tag: "link", attrs: { rel: "alternate", type: "text/markdown", href } });
+  }
   return tags;
 }
 

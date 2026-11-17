@@ -37,15 +37,15 @@
     "@base-ui/react": "^1.9.0",
     "@fumapress/core": "workspace:^",
     "cn": "^0.5.2",
-    "lucide-react": "^1.71.0",
+    "lucide-react": "^1.73.0",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
-    "fumadocs-core": "^16.19.0",
-    "fumadocs-ui": "^16.19.0",
+    "fumadocs-core": "^16.19.4",
+    "fumadocs-ui": "^16.19.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tegami": "^1.5.0",

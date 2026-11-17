@@ -1,7 +1,7 @@
 import { isMarkdownPreferred } from "fumadocs-core/negotiation";
-import { llms } from "fumadocs-core/source/llms";
+import { llms, type LLMsConfig } from "fumadocs-core/source/llms";
 import type { Context } from "../context";
-import type { AppShape, Awaitable, Plugin } from "../plugin";
+import type { AppShape, Awaitable, InferLoaderConfig, Plugin } from "../plugin";
 import { joinPaths, matchPageRoute, stripBase, type PageRoute } from "../routes";
 
 export interface LLMsOptions<C extends AppShape = AppShape> {
@@ -14,11 +14,26 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
   autoRedirect?: boolean;
 
   /**
-   * The Markdown of a page, pages without it or with `noindex` in their page data are left out of `llms-full.txt`.
+   * The Markdown of a page, pages without it or with `noindex` in their page data are left out of the `llms-full.txt` files.
    *
    * By default, the text of content sources under a heading with the title and URL of the page.
    */
   getLLMText?: (this: Context<C>, page: C["page"]) => Awaitable<string | undefined>;
+
+  /**
+   * The pages with a Markdown version, every page of your content sources by default. A page left out has no `<page>.md`,
+   * isn't in the `llms-full.txt` files, and `llms.txt` links to the page itself.
+   */
+  filter?: LLMsConfig<C["page"]>["filter"];
+
+  /**
+   * Whether a folder is a section: a folder with its own `llms-full.txt`, like `/docs/llms-full.txt`, that its line in
+   * `llms.txt` links to. Root folders are sections by default.
+   *
+   * - `collapse`: list the section in `llms.txt` as one link to its own `llms.txt`, which lists its pages.
+   * - `asPath`: the path of its files, instead of the URL of the folder's index page.
+   */
+  section?: LLMsConfig<C["page"]>["section"];
 
   /**
    * Which pages get a Markdown version (`/page.md`, `/index.md` for the root):
@@ -35,6 +50,12 @@ export interface LLMsOptions<C extends AppShape = AppShape> {
    */
   routes?: "content" | "all";
 }
+
+/** stands for a page left out of an `llms-full.txt`: `llms()` joins the pages of a file with blank lines */
+const omitted = "\0";
+
+/** the files of sections, like `/docs/llms-full.txt`: the root has routes of its own */
+const sectionFile = /.\/llms(-full)?\.txt$/;
 
 /** the route mirroring the `<page>.md` URLs of the page routes rendered on demand, it renders their Markdown */
 const mirrorPath = "/_llms.txt";
@@ -64,7 +85,8 @@ function varyAccept(response: Response): Response {
 }
 
 /**
- * `llms.txt`, `llms-full.txt` and the Markdown of pages: `/docs/page.md`, `/index.md` for the root page.
+ * `llms.txt`, `llms-full.txt`, the `llms-full.txt` of sections and the Markdown of pages: `/docs/page.md`, `/index.md` for
+ * the root page.
  *
  * Pages your server handles serve their Markdown to requests preferring it (`Accept: text/markdown`).
  */
@@ -74,6 +96,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
   const {
     autoRedirect = true,
     routes = "content",
+    filter = () => true,
+    section,
     getLLMText = async function (page) {
       const [text, { title }] = await Promise.all([this.getPageText(page), this.getPageData(page)]);
       if (text !== undefined) return `# ${title} (${this.absoluteUrl(page.url)})\n\n${text}`;
@@ -82,6 +106,28 @@ export function llmsPlugin<C extends AppShape = AppShape>(
 
   async function markdown(ctx: Context<C>, page: C["page"]): Promise<Response> {
     return markdownResponse((await getLLMText.call(ctx, page)) ?? "", ctx.getCacheControl(page));
+  }
+
+  /** `llms.txt`, `llms-full.txt` and the files of sections: `llms.txt` links pages to their `<page>.md` */
+  function textFiles(ctx: Context<C>) {
+    return llms<InferLoaderConfig<C>>(() => ctx.getLoader(), {
+      filter,
+      section,
+      renderUrl: (item) => ctx.absoluteUrl(item.url),
+      async renderPage(page) {
+        if ((await ctx.getPageData(page)).noindex) return omitted;
+        return (await getLLMText.call(ctx, page)) ?? omitted;
+      },
+    });
+  }
+
+  /** the response of a `.txt` file, `undefined` when there is none at `path` */
+  async function serveText(ctx: Context<C>, path: string): Promise<Response | undefined> {
+    const response = await textFiles(ctx).serve(path);
+    if (!response || !path.endsWith("/llms-full.txt")) return response;
+
+    const pages = (await response.text()).split("\n\n").filter((text) => text !== omitted);
+    return new Response(pages.join("\n\n"), response);
   }
 
   /** the mirror paths of the rewrites in flight, each with an unguessable segment: the mirrors serve the `<page>.md` URLs only, never a request of their own */
@@ -97,42 +143,29 @@ export function llmsPlugin<C extends AppShape = AppShape>(
     name: "core:llms.txt",
     transformPage(data, { page, route, path }) {
       const markdown =
-        page ||
+        (page && filter(page)) ||
         (route?.render === "dynamic"
           ? hasMirror(route) && routes === "all"
           : path !== undefined && staticMarkdown.has(path));
       if (markdown) return { markdownUrl: markdownPath(data.url) };
     },
     async routes({ createApi }) {
-      createApi({
-        path: "/llms.txt",
-        render: this.getContentRender(),
-        GET: async () =>
-          new Response(
-            llms(await this.getLoader(), {
-              renderUrl: (item) => this.absoluteUrl(item.url),
-            }).index(),
-          ),
-      });
-      createApi({
-        path: "/llms-full.txt",
-        render: this.getContentRender(),
-        GET: async () => {
-          const results = await Promise.all(
-            (await this.getLoader())
-              .getPages()
-              .map(async (page) =>
-                (await this.getPageData(page)).noindex ? undefined : getLLMText.call(this, page),
-              ),
-          );
-          const texts: string[] = [];
-          for (const text of results) if (text !== undefined) texts.push(text);
-          return new Response(texts.join("\n\n"));
-        },
-      });
+      const render = this.getContentRender();
+      // sections follow the content: the middleware serves their files on a site rendered on demand
+      const paths =
+        render === "dynamic"
+          ? ["/llms.txt", "/llms-full.txt"]
+          : (await textFiles(this).files()).filter((path) => path.endsWith(".txt"));
+      for (const path of paths) {
+        createApi({
+          path,
+          render,
+          GET: async () => (await serveText(this, path)) ?? new Response(null, { status: 404 }),
+        });
+      }
       // a route per file, a catch-all route would take the paths of pages; the middleware serves the pages of dynamic sources
       for (const page of (await this.getLoader()).getPages()) {
-        if (this.getContentRender(page.type) === "dynamic") continue;
+        if (!filter(page) || this.getContentRender(page.type) === "dynamic") continue;
         createApi({
           path: markdownPath(page.url),
           render: "static",
@@ -193,7 +226,8 @@ export function llmsPlugin<C extends AppShape = AppShape>(
       if (path.endsWith(".md")) {
         // the Markdown of other pages is prerendered
         const page = (await this.getLoader()).getPageByUrl(pageUrl(path));
-        if (page && this.getContentRender(page.type) === "dynamic") return markdown(this, page);
+        if (page && filter(page) && this.getContentRender(page.type) === "dynamic")
+          return markdown(this, page);
 
         const response = await next();
         if (routes !== "all" || response.headers.get("Content-Type")?.startsWith("text/markdown"))
@@ -213,6 +247,10 @@ export function llmsPlugin<C extends AppShape = AppShape>(
         } finally {
           rewrites.delete(mirror);
         }
+      }
+      if (sectionFile.test(path) && this.getContentRender() === "dynamic") {
+        const response = await serveText(this, path);
+        if (response) return response;
       }
       if (!autoRedirect) return next();
 
