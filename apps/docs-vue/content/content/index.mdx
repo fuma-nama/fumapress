@@ -26,19 +26,19 @@ A collection is a folder of pages and `meta.json` files. `defineDocs()` in `pres
 import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource());
 ```
 
-`dir` is the folder from the root of the project. It defaults to `content/docs`, as in Fumadocs, so a site with its pages in `content` sets it. For a second folder, see [Multiple Sources](/content/sources#multiple-sources), and for a blog, [Blog](/content/blog).
+`dir` is the folder from the root of the project, `content` by default. A folder that doesn't exist fails the build. For a second folder, see [Multiple Sources](/content/sources#multiple-sources), and for a blog, [Blog](/content/blog).
 
 `defineDocs()` and `defineCollections()` are macros, like those of [Fumadocs MDX](https://fumadocs.dev/docs/mdx/macro). The Vite plugin reads their calls in `press.config.ts` without running the file, and compiles each call to imports of the files of its folder. So a call follows two rules:
 
-- It is the value of a top-level `const`, like `const docs = defineDocs({ ... })`.
+- It is the value of a top-level `const` in `press.config.ts`, like `const docs = defineDocs({ ... })`.
 - `dir`, `files`, `type` and `lastModified` are literals, not variables or expressions.
 
-A call that breaks a rule fails with its file, line and column.
+A call that breaks a rule fails with its file, line and column, and so does a call in another file.
 
 ### Leaving Files Out
 
@@ -46,7 +46,6 @@ A call that breaks a rule fails with its file, line and column.
 
 ```ts title="press.config.ts"
 const docs = defineDocs({
-  dir: "content",
   docs: { files: ["**/*.{md,mdx}", "!drafts/**"] },
 });
 ```
@@ -68,7 +67,6 @@ import { pageSchema } from "@fumapress/vue/schema";
 import { z } from "zod";
 
 const docs = defineDocs({
-  dir: "content",
   docs: { schema: pageSchema.extend({ author: z.string() }) },
 });
 
@@ -84,7 +82,7 @@ The server validates every page and `meta.json` when it starts. A file that does
 `lastModified: true` gives each page of a collection the date of the last commit that changed its file, as `page.data.lastModified`. The docs layout shows it below the page, and the sitemap lists it. A file that git doesn't track has no date.
 
 ```ts title="press.config.ts"
-const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
+const docs = defineDocs({ docs: { lastModified: true } });
 ```
 
 In `defineCollections()`, `lastModified` is an option of the call, next to `dir`.

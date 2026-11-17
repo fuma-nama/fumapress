@@ -32,7 +32,23 @@ export default createPress({
 
 The key of a source is the `type` of its pages: a plugin tells them apart with `page.type === "blog"`, and the theme gives each type its [component](/theme#page-types). `page.data.date` of a blog page is a `string`. With one source, `page.type` is `undefined`.
 
-The sources share one page tree, so the sidebar lists the folders of every source. [Blog](/content/blog) shows how to leave the posts out of it, and how to list them on a page of their own.
+### Sidebar of Multiple Sources
+
+The sources share one page tree, so the sidebar of the docs lists the folders of every source, like a `blog` folder. A `meta.json` keeps a folder out of it:
+
+- With the docs at the root, `"!blog"` in their root `meta.json` leaves the folder of the blog out:
+
+  ```json title="content/docs/meta.json"
+  { "pages": ["...", "!blog"] }
+  ```
+
+- With the docs in their own folder, like `baseDir: "docs"`, make that folder a [root folder](/content#root-folders). The sidebar of a page of the docs then lists that folder only:
+
+  ```json title="content/docs/meta.json"
+  { "title": "Docs", "root": true }
+  ```
+
+[Blog](/content/blog) shows how to list the posts on a page of their own.
 
 ## Content Options
 
@@ -43,7 +59,7 @@ import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 import { defineI18n } from "@fumapress/vue/i18n";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource(), {
   i18n: defineI18n({ languages: ["en", "cn"], defaultLanguage: "en" }),
@@ -64,7 +80,7 @@ A custom source lists pages from anywhere, and a [plugin](/plugins/content) rend
 import { createPress, type Source } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 const releases = [
   { version: "0.2.0", notes: "<p>Custom content sources.</p>" },

@@ -5,7 +5,7 @@ import { pageSchema } from "@fumapress/vue/schema";
 import { z } from "zod";
 
 // the pages of `content/`, dated by the last commit of their file
-const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
+const docs = defineDocs({ docs: { lastModified: true } });
 
 // the posts of `blog/`: the schema checks their frontmatter, and types `page.data`
 const blog = defineCollections({

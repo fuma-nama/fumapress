@@ -60,6 +60,8 @@ function pluginOf(options: PressOptions, name: string): any {
 
 test("the theme module is used as written, and the default theme without one", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "press-theme-"));
+  // the folder of the pages of a site without `press.config`
+  await mkdir(path.join(root, "content"));
   const plugin = pluginOf({}, "fumapress:vue");
   await plugin.config({ root }, { command: "build" });
   plugin.configResolved({ command: "build", base: "/", environments: {} });
@@ -74,6 +76,36 @@ test("the theme module is used as written, and the default theme without one", a
   expect(theme).not.toContain("@fumapress/vue/theme/default");
   expect(theme).toContain(`export { default } from ${JSON.stringify(`${root}/src/theme.ts`)}`);
   await rm(root, { recursive: true });
+});
+
+test("fails once on an optional peer dependency the site imports without having it", async () => {
+  const plugin = pluginOf({}, "fumapress:optional-peers");
+  const importer = `${process.cwd()}/node_modules/@fumapress/vue/theme/layouts/Flux.vue?vue&type=script`;
+  // what Vite resolves a missing optional peer dependency to
+  const missing = {
+    resolve: async () => ({ id: "__vite-optional-peer-dep:motion-v:@fumapress/vue" }),
+    error(message: string): never {
+      throw new Error(message);
+    },
+  };
+  await expect(plugin.resolveId.call(missing, "motion-v", importer, {})).rejects.toThrow(
+    '[Fumapress] node_modules/@fumapress/vue/theme/layouts/Flux.vue imports "motion-v", an optional peer dependency of @fumapress/vue that the site doesn\'t have. Install motion-v in the site.',
+  );
+  // once: the other imports of the build would repeat it
+  await expect(plugin.resolveId.call(missing, "motion-v", importer, {})).resolves.toEqual({
+    id: "__vite-optional-peer-dep:motion-v:@fumapress/vue",
+  });
+  // a subpath of another package
+  await expect(plugin.resolveId.call(missing, "@orama/core/x", importer, {})).rejects.toThrow(
+    "Install @orama/core in the site.",
+  );
+
+  // installed, or not a peer dependency: resolved as it is
+  const installed = { resolve: async (id: string) => ({ id: `/node_modules/${id}/index.js` }) };
+  await expect(plugin.resolveId.call(installed, "motion-v", importer, {})).resolves.toEqual({
+    id: "/node_modules/motion-v/index.js",
+  });
+  await expect(plugin.resolveId.call(missing, "vue", importer, {})).resolves.toBeUndefined();
 });
 
 test("adds the options of the site to those of the Vue plugin", () => {

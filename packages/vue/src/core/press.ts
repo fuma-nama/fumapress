@@ -20,7 +20,7 @@ import type {
   PluginOption,
   PluginTypes,
   PresetEntry,
-  UnknownKeys,
+  PluginErrors,
   ViewEnv,
   ViewRouteOptions,
 } from "./plugin";
@@ -70,17 +70,16 @@ export type ContentOptions<I extends ContentInput, Lang extends string | undefin
 export interface SiteView<C extends AppShape, Props> extends Omit<ViewRouteOptions, "data"> {
   /** the props of the page at `params` in `lang`, none for a 404 */
   view(this: Context<C>, env: ViewEnv<C["lang"]>): Awaitable<Props | undefined | void>;
-  /** the data of its pages, like their title: or of each page, from the props `view` returned */
+  /**
+   * The data of its pages, like their title: or of each page, from its `params` and `lang`. Data from what `view`
+   * loaded is a view of a plugin, whose `view` returns it with the props.
+   */
   data?:
     | Partial<PageData>
-    | ((
-        this: Context<C>,
-        // the props are inferred from `view` only
-        env: ViewEnv<C["lang"]> & { props: NoInfer<Props> },
-      ) => Awaitable<Partial<PageData> | undefined>);
+    | ((this: Context<C>, env: ViewEnv<C["lang"]>) => Awaitable<Partial<PageData> | undefined>);
 }
 
-/** a view of any site, as the runtime holds it: its props are both what `view` returns and what `data` receives */
+/** a view of any site, as the runtime holds it */
 export type AnySiteView = SiteView<AppShape, any>;
 
 export interface UIOptions<C extends AppShape> {
@@ -134,8 +133,8 @@ export interface PressApp<C extends AppShape, T extends PluginTypes> extends Pre
 
 /** after `.plugins()`; `.config()` directly is a site without views of its own */
 export interface PressPlugins<C extends AppShape, T extends PluginTypes> extends PressApp<C, T> {
-  /** the views of the site by name, with the props of their component */
-  views<P extends Record<string, object>>(views: {
+  /** the views of the site by name, with the props of their component; a name is not the key of a source */
+  views<P extends Record<string, object> & { [K in C["source"] & string]?: never }>(views: {
     [K in keyof P]: SiteView<C, P[K]>;
   }): PressApp<C, MergedTypes<T | { views: P }>>;
 }
@@ -143,9 +142,7 @@ export interface PressPlugins<C extends AppShape, T extends PluginTypes> extends
 /** the result of `createPress(content, options)`; `.views()` or `.config()` directly is a site without plugins */
 export interface PressContent<C extends AppShape> extends PressPlugins<C, MergedTypes<never>> {
   plugins<const P extends readonly PluginOption<Plugin<C, any>>[]>(
-    this: [UnknownKeys<FlatArray<P, 20>>] extends [never]
-      ? unknown
-      : { "unknown plugin keys": UnknownKeys<FlatArray<P, 20>> },
+    this: PluginErrors<FlatArray<P, 20>>,
     ...plugins: P | readonly PluginOption<Plugin<C, any>>[]
   ): PressPlugins<C, CollectTypes<P>>;
 }

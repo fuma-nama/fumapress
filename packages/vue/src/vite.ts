@@ -8,7 +8,7 @@ import { normalizePath, type Plugin, type PluginOption } from "vite";
 import * as compiler from "vue/compiler-sfc";
 import { compileMarkdown, type MarkdownOptions } from "./vite/compile";
 import { parseFrontmatter } from "./vite/frontmatter";
-import { listPages, readMacros, transformMacros } from "./vite/macro";
+import { checkNoMacros, listPages, readMacros, transformMacros } from "./vite/macro";
 import { scanPages } from "./vite/scan";
 import { typeResolver } from "./vite/type-resolver";
 import { mergeOptions } from "./core/merge";
@@ -54,7 +54,7 @@ interface Site {
 const defaultConfig = `import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource());
 `;
@@ -115,7 +115,7 @@ function core(options: PressOptions, site: Site): Plugin {
       if (command === "build") {
         const file = find(configFiles);
         const code = file ? readFileSync(file, "utf8") : defaultConfig;
-        for (const collection of readMacros(code, file ?? `${PREFIX}config`)) {
+        for (const collection of readMacros(code, file ?? `${PREFIX}config`, root)) {
           pages.push(...(await listPages(collection, root)));
         }
       }
@@ -220,7 +220,12 @@ function core(options: PressOptions, site: Site): Plugin {
       if (isConfig(id)) return transformMacros(source, id.replace(RESOLVED, PREFIX), root);
 
       const [file, query] = id.split("?");
-      if (query || !file || !/\.mdx?$/.test(file)) return;
+      if (query || !file) return;
+      // a macro outside `press.config` would fail when it runs, without a position
+      if (/\.[cm]?[jt]s$/.test(file) && !file.includes("/node_modules/")) {
+        return checkNoMacros(source, file);
+      }
+      if (!/\.mdx?$/.test(file)) return;
 
       const { code } = await compileMarkdown({
         source,
@@ -265,11 +270,42 @@ function vuePlugin(site: Site, options: VueOptions = {}): Plugin {
   return vue({ ...mergeOptions<VueOptions>([own, options]), compiler });
 }
 
+/**
+ * Fails once on an optional peer dependency of the package that the build imports and the site doesn't have. Vite
+ * would put a module that throws in its place, and the build would report each name imported from it.
+ */
+function optionalPeers(site: Site): Plugin {
+  const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const optional: Record<string, { optional?: boolean }> = manifest.peerDependenciesMeta ?? {};
+  const peers = Object.keys(optional).filter((name) => optional[name]?.optional);
+  // the build loads modules in parallel: the first import fails it, and the others would repeat the error
+  const reported = new Set<string>();
+
+  return {
+    name: "fumapress:optional-peers",
+    enforce: "pre",
+    async resolveId(id, importer, options) {
+      const peer = peers.find((name) => id === name || id.startsWith(`${name}/`));
+      if (!peer || !importer) return;
+      const resolved = await this.resolve(id, importer, { ...options, skipSelf: true });
+      // the module Vite puts in place of an optional peer dependency that is not installed
+      if (resolved && !resolved.id.startsWith("__vite-optional-peer-dep:")) return resolved;
+      if (reported.has(peer)) return resolved;
+      reported.add(peer);
+      const from = normalizePath(path.relative(site.root, importer.split("?")[0]!));
+      this.error(
+        `[Fumapress] ${from} imports "${id}", an optional peer dependency of @fumapress/vue that the site doesn't have. Install ${peer} in the site.`,
+      );
+    },
+  };
+}
+
 /** Fumapress for Vue: your content as a docs site, served and built by Nitro */
 export default function press(options: PressOptions = {}): PluginOption[] {
   const site: Site = { root: process.cwd() };
 
   return [
+    optionalPeers(site),
     vuePlugin(site, options.vue),
     core(options, site),
     nitro({

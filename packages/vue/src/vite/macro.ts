@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { glob } from "node:fs/promises";
 import path from "node:path";
 import { normalizePath, parseAst } from "vite";
@@ -23,8 +24,8 @@ interface Node {
 export interface MacroCollection {
   /** its folder, from the project root */
   dir: string;
-  /** patterns of its pages from `dir`, none for a collection of `meta.json` files */
-  pages?: string[];
+  /** patterns of its pages from `dir` */
+  pages: string[];
   /** patterns of its `meta.json` files from `dir`, none for a collection of pages */
   meta?: string[];
   lastModified: boolean;
@@ -36,7 +37,8 @@ interface MacroCall {
   collection: MacroCollection;
 }
 
-const DEFAULT_DIR = "content/docs";
+/** the folder of a site without `press.config` too */
+const DEFAULT_DIR = "content";
 const DEFAULT_PAGES = ["**/*.{md,mdx}"];
 const DEFAULT_META = ["**/meta{,.*}.json"];
 /** a file or folder starting with `_` holds what pages import, like a partial: it is in no collection */
@@ -101,15 +103,12 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 const isStrings = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every(isString);
 
-/** reads the macro calls of a module; none when it doesn't import a macro */
-function readCalls(code: string, file: string): MacroCall[] {
-  const fail = (node: Node, message: string) => errorAt(file, code, node.start, message);
-  const program = parseAst(
-    code,
-    { lang: /\.m?ts$/.test(file) ? "ts" : "js" },
-    file,
-  ) as unknown as Node;
+function parse(code: string, file: string): Node {
+  return parseAst(code, { lang: /\.[cm]?ts$/.test(file) ? "ts" : "js" }, file) as unknown as Node;
+}
 
+/** the macros a module imports, by their local name */
+function macroImports(program: Node, fail: (node: Node, message: string) => Error) {
   const macros = new Map<string, MacroName>();
   for (const statement of program.body as Node[]) {
     if (
@@ -130,6 +129,34 @@ function readCalls(code: string, file: string): MacroCall[] {
       }
     }
   }
+  return macros;
+}
+
+/**
+ * Fails on a call of a macro outside `press.config`, where nothing compiles it: a module whose code has the name of
+ * the macro module is parsed.
+ */
+export function checkNoMacros(code: string, file: string): void {
+  if (!code.includes(MACRO_MODULE)) return;
+  const fail = (node: Node, message: string) => errorAt(file, code, node.start, message);
+  const program = parse(code, file);
+  const macros = macroImports(program, fail);
+  walkReferences(program, (node) => {
+    const macro = macros.get(node.name);
+    if (macro) {
+      throw fail(
+        node,
+        `\`${macro}()\` is a macro, compiled in \`press.config\` only: call it there, as the value of a top-level \`const\`.`,
+      );
+    }
+  });
+}
+
+/** reads the macro calls of a module; none when it doesn't import a macro */
+function readCalls(code: string, file: string, root: string): MacroCall[] {
+  const fail = (node: Node, message: string) => errorAt(file, code, node.start, message);
+  const program = parse(code, file);
+  const macros = macroImports(program, fail);
   if (macros.size === 0) return [];
 
   /** the value of an option, the last one written; a spread could hide it */
@@ -189,18 +216,11 @@ function readCalls(code: string, file: string): MacroCall[] {
       };
     }
 
-    const type = literal(
-      options,
-      "type",
-      (value) => value === "doc" || value === "meta",
-      '"doc" or "meta"',
-    );
-    if (type === undefined) throw fail(call, "defineCollections requires a `type` option.");
-    const files = literal(options, "files", isStrings, "an array of string literals");
-    if (type === "meta") return { dir, meta: files ?? DEFAULT_META, lastModified: false };
+    const type = literal(options, "type", (value) => value === "doc", '"doc"');
+    if (type === undefined) throw fail(call, 'defineCollections requires `type: "doc"`.');
     return {
       dir,
-      pages: files ?? DEFAULT_PAGES,
+      pages: literal(options, "files", isStrings, "an array of string literals") ?? DEFAULT_PAGES,
       lastModified: literal(options, "lastModified", isBoolean, "a boolean literal") ?? false,
     };
   }
@@ -239,7 +259,15 @@ function readCalls(code: string, file: string): MacroCall[] {
       }
 
       callees.add(init.callee);
-      calls.push({ node: init, options: args[0], collection: collectionOf(macro, init, args[0]) });
+      const collection = collectionOf(macro, init, args[0]);
+      // a misspelled folder would be a collection without files
+      if (!statSync(path.resolve(root, collection.dir), { throwIfNoEntry: false })?.isDirectory()) {
+        throw fail(
+          init,
+          `\`${macro}()\` reads the folder "${collection.dir}", which doesn't exist. \`dir\` is a folder from the root of the project, "${DEFAULT_DIR}" by default.`,
+        );
+      }
+      calls.push({ node: init, options: args[0], collection });
     }
   }
 
@@ -256,8 +284,8 @@ function readCalls(code: string, file: string): MacroCall[] {
 }
 
 /** the collections that the macro calls of a module declare, read without running it */
-export function readMacros(code: string, file: string): MacroCollection[] {
-  return readCalls(code, file).map((call) => call.collection);
+export function readMacros(code: string, file: string, root: string): MacroCollection[] {
+  return readCalls(code, file, root).map((call) => call.collection);
 }
 
 /** a pattern of `files` from the folder of `import.meta.glob`, which starts with `./` */
@@ -275,25 +303,22 @@ async function filesOf(collection: MacroCollection, root: string): Promise<strin
   const globOf = (patterns: string[], options: object) =>
     `import.meta.glob(${JSON.stringify([...patterns, ...HIDDEN].map(globPattern))}, ${JSON.stringify({ base: `/${fromRoot}`, ...options })})`;
 
-  const fields = [`dir: ${JSON.stringify(fromRoot)}`];
-  if (collection.pages) {
-    const pages = [
-      // the frontmatter only, which the server validates when it starts
-      `frontmatter: ${globOf(collection.pages, { query: "?frontmatter", import: "default", eager: true })}`,
-      `load: ${globOf(collection.pages, {})}`,
-      `assets: ${globOf(collection.pages, { query: "?assets=client", import: "default" })}`,
-    ];
-    if (collection.lastModified) {
-      // one `git log` for the folder, when the module is compiled: a deployed server has no repository
-      const dates = Object.fromEntries(
-        [...(await lastCommitDates(dir))].flatMap(([file, date]) =>
-          /\.mdx?$/.test(file) ? [[`./${normalizePath(path.relative(dir, file))}`, date]] : [],
-        ),
-      );
-      pages.push(`lastModified: ${JSON.stringify(dates)}`);
-    }
-    fields.push(`pages: { ${pages.join(", ")} }`);
+  const pages = [
+    // the frontmatter only, which the server validates when it starts
+    `frontmatter: ${globOf(collection.pages, { query: "?frontmatter", import: "default", eager: true })}`,
+    `load: ${globOf(collection.pages, {})}`,
+    `assets: ${globOf(collection.pages, { query: "?assets=client", import: "default" })}`,
+  ];
+  if (collection.lastModified) {
+    // one `git log` for the folder, when the module is compiled: a deployed server has no repository
+    const dates = Object.fromEntries(
+      [...(await lastCommitDates(dir))].flatMap(([file, date]) =>
+        /\.mdx?$/.test(file) ? [[`./${normalizePath(path.relative(dir, file))}`, date]] : [],
+      ),
+    );
+    pages.push(`lastModified: ${JSON.stringify(dates)}`);
   }
+  const fields = [`dir: ${JSON.stringify(fromRoot)}`, `pages: { ${pages.join(", ")} }`];
   if (collection.meta) {
     fields.push(`meta: ${globOf(collection.meta, { import: "default", eager: true })}`);
   }
@@ -310,7 +335,7 @@ export async function transformMacros(
   file: string,
   root: string,
 ): Promise<{ code: string; map: ReturnType<MagicString["generateMap"]> } | undefined> {
-  const calls = readCalls(code, file);
+  const calls = readCalls(code, file, root);
   if (calls.length === 0) return;
 
   const s = new MagicString(code);
@@ -329,7 +354,6 @@ export async function transformMacros(
 
 /** the pages of a collection on disk, matched like `import.meta.glob` matches them: the entries of the browser build */
 export async function listPages(collection: MacroCollection, root: string): Promise<string[]> {
-  if (!collection.pages) return [];
   const cwd = path.resolve(root, collection.dir);
   const patterns = [...collection.pages, ...HIDDEN];
   const include = patterns.filter((pattern) => !pattern.startsWith("!"));

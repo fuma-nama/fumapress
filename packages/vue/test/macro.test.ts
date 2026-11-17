@@ -1,14 +1,17 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expect, test } from "vitest";
+import { afterAll, expect, test } from "vitest";
 import press from "../src/vite";
-import { listPages, readMacros, transformMacros } from "../src/vite/macro";
+import { checkNoMacros, listPages, readMacros, transformMacros } from "../src/vite/macro";
 
 // The static rules of the macros, as `fumadocs-mdx/macro` has them: a call is read without running the module.
 
-const root = "/site";
-const file = "/site/press.config.ts";
+/** a project with the folders of the collections below */
+const root = await mkdtemp(path.join(tmpdir(), "press-macros-"));
+for (const dir of ["content/docs", "blog"]) await mkdir(path.join(root, dir), { recursive: true });
+afterAll(() => rm(root, { recursive: true }));
+const file = path.join(root, "press.config.ts");
 const imports = `import { defineCollections, defineDocs } from "@fumapress/vue/content";\n`;
 const transform = async (code: string) => (await transformMacros(imports + code, file, root))?.code;
 
@@ -29,12 +32,11 @@ test("reads `files`, `type` and `lastModified` of both macros", async () => {
     [
       "export const docs = defineDocs();",
       'const blog = defineCollections({ type: "doc", dir: "blog/", files: ["**/*.md", "!drafts/**"], lastModified: true, },);',
-      "const meta = defineCollections({ type: 'meta', dir: `content`, files: ['meta.json'] });",
     ].join("\n"),
   );
-  // the default folder, and no options
+  // the default folder, the one of a site without `press.config`, and no options
   expect(code).toContain(
-    'export const docs = await defineDocs(undefined, { dir: "content/docs", pages:',
+    'export const docs = await defineDocs(undefined, { dir: "content", pages:',
   );
   // the patterns from the folder, and a trailing comma that stays valid
   expect(code).toContain(
@@ -42,14 +44,15 @@ test("reads `files`, `type` and `lastModified` of both macros", async () => {
   );
   // the dates of git: none outside a repository
   expect(code).toContain("lastModified: {} } },);");
-  expect(code).toContain(
-    "const meta = await defineCollections({ type: 'meta', dir: `content`, files: ['meta.json'] }, { dir: \"content\", meta: import.meta.glob([\"./meta.json\",",
-  );
   // a collection of pages has no `meta.json` files
   expect(code!.split("\n")[2]).not.toContain("meta:");
 
   expect(
-    readMacros(imports + "const docs = defineDocs({ docs: { lastModified: true } });", file),
+    readMacros(
+      imports + 'const docs = defineDocs({ dir: "content/docs", docs: { lastModified: true } });',
+      file,
+      root,
+    ),
   ).toEqual([
     {
       dir: "content/docs",
@@ -58,6 +61,37 @@ test("reads `files`, `type` and `lastModified` of both macros", async () => {
       lastModified: true,
     },
   ]);
+});
+
+test("fails on a folder that doesn't exist, at the call", async () => {
+  const missing =
+    '2:14: `defineDocs()` reads the folder "content/nope", which doesn\'t exist. `dir` is a folder from the root of the project, "content" by default.';
+  await expect(transform('const docs = defineDocs({ dir: "content/nope" });')).rejects.toThrow(
+    `[Fumapress] ${file}:${missing}`,
+  );
+  // the build reads the calls first, to list the pages
+  expect(() =>
+    readMacros(imports + 'const docs = defineDocs({ dir: "content/nope" });', file, root),
+  ).toThrow(missing);
+  const empty = await mkdtemp(path.join(tmpdir(), "press-empty-"));
+  await expect(
+    transformMacros(imports + "const docs = defineDocs();", file, empty),
+  ).rejects.toThrow('2:14: `defineDocs()` reads the folder "content", which doesn\'t exist.');
+  await rm(empty, { recursive: true });
+});
+
+test("fails on a macro outside `press.config`, where nothing compiles it", () => {
+  const content = path.join(root, "src/content.ts");
+  expect(() => checkNoMacros(`${imports}export const docs = defineDocs();`, content)).toThrow(
+    `[Fumapress] ${content}:2:21: \`defineDocs()\` is a macro, compiled in \`press.config\` only: call it there, as the value of a top-level \`const\`.`,
+  );
+  // its types are not a call
+  expect(() =>
+    checkNoMacros(
+      'import type { DocsOptions } from "@fumapress/vue/content";\nexport const a: DocsOptions<any, any, false> = {};',
+      content,
+    ),
+  ).not.toThrow();
 });
 
 test("leaves a module without macro calls as it is", async () => {
@@ -125,11 +159,12 @@ test("rejects what can't be read without running the module, at its position", a
   );
   await failsWith(
     'const blog = defineCollections({ dir: "blog" });',
-    "2:14: defineCollections requires a `type` option.",
+    '2:14: defineCollections requires `type: "doc"`.',
   );
+  // a collection of `meta.json` files alone can't be joined with pages: they are in `defineDocs()`
   await failsWith(
-    'const blog = defineCollections({ type: "docs", dir: "blog" });',
-    '2:40: the `type` option of a macro must be "doc" or "meta"',
+    'const blog = defineCollections({ type: "meta", dir: "blog" });',
+    '2:40: the `type` option of a macro must be "doc"',
   );
 
   await expect(
@@ -162,7 +197,7 @@ test("lists the pages of a collection like its glob: without `_` files and the p
     await writeFile(path.join(dir, name), content);
   }
 
-  const list = async (pages?: string[]) =>
+  const list = async (pages: string[]) =>
     (await listPages({ dir: ".", pages, lastModified: false }, dir)).map((name) =>
       path.relative(dir, name),
     );
@@ -172,8 +207,6 @@ test("lists the pages of a collection like its glob: without `_` files and the p
     "index.mdx",
   ]);
   expect(await list(["**/*.mdx", "!drafts/**"])).toEqual(["index.mdx"]);
-  // a collection of `meta.json` files has no pages
-  expect(await list()).toEqual([]);
   await rm(dir, { recursive: true });
 });
 
@@ -198,11 +231,12 @@ test("a site without `press.config` is a collection of `content/`, compiled like
 
   const id = "\0virtual:press/config";
   const code: string = plugin.load(id);
-  expect(code).toContain('const docs = defineDocs({ dir: "content" });');
+  // the default folder of `defineDocs()`
+  expect(code).toContain("const docs = defineDocs();");
   expect(code).toContain("export default createPress(docs.toFumadocsSource());");
   const compiled = await plugin.transform(code, id);
   expect(compiled.code).toContain(
-    'const docs = await defineDocs({ dir: "content" }, { dir: "content", pages:',
+    'const docs = await defineDocs(undefined, { dir: "content", pages:',
   );
 
   // with `press.config`, its own calls

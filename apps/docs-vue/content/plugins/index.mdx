@@ -10,7 +10,7 @@ A plugin is an object with a `name` and hooks. Add it to your site with `.plugin
 import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource()).plugins({
   name: "site:status",
@@ -118,8 +118,8 @@ createPress(docs.toFumadocsSource()).plugins(process.env.ANALYTICS === "1" && an
 
 The default plugins come from `recommendedPreset()`, in the `preset` option of `.config()`. Each has a key in its options:
 
-- `sitemap`, the `core:sitemap` plugin, adds `/sitemap.xml`.
-- `robots`, the `core:robots` plugin, adds `/robots.txt`, with a link to the sitemap.
+- `sitemap`, the `core:sitemap` plugin, adds `/sitemap.xml`, on a site with `site.baseUrl`.
+- `robots`, the `core:robots` plugin, adds `/robots.txt`, with a link to the sitemap when there is one.
 - `llms`, the `core:llms` plugin, adds `/llms.txt` and `/llms-full.txt`, in each language.
 - `search`, the `core:search` plugin, adds a search index per language, searched in the browser.
 
@@ -134,7 +134,7 @@ import { createPress, recommendedPreset } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 import { mySearchPlugin } from "./search-plugin";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource())
   .plugins(mySearchPlugin())

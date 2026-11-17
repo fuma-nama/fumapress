@@ -10,7 +10,7 @@ icon: Settings
 import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource()).config({
   site: {
@@ -53,7 +53,7 @@ createPress(docs.toFumadocsSource()).config({
 
 ### URL
 
-`site.baseUrl` is the full URL of your deployed site. It adds a canonical link to every page, and makes the URLs in the sitemap, `llms.txt` and the alternate links of translated pages absolute. Without it, pages have no canonical link and those URLs are relative.
+`site.baseUrl` is the full URL of your deployed site. It adds a canonical link to every page, and makes the URLs in `llms.txt` and the alternate links of translated pages absolute. A sitemap lists full URLs, so `/sitemap.xml` and its link in `robots.txt` exist with `site.baseUrl` only, and the build says so without it. Without `site.baseUrl`, pages have no canonical link and the other URLs are relative.
 
 ```ts title="press.config.ts"
 createPress(docs.toFumadocsSource()).config({
@@ -148,7 +148,7 @@ Layout props are sent to the browser, so every value must be serializable: text,
 
 ## Default Plugins
 
-Your site comes with a sitemap, `robots.txt`, `llms.txt` and [search](/search). They come from `recommendedPreset()`, and each takes options, or `false` to leave it out:
+Your site comes with a sitemap (with [`site.baseUrl`](#url)), `robots.txt`, `llms.txt` and [search](/search). They come from `recommendedPreset()`, and each takes options, or `false` to leave it out:
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
@@ -181,7 +181,6 @@ import { pageSchema } from "@fumapress/vue/schema";
 import { z } from "zod";
 
 const docs = defineDocs({
-  dir: "content",
   docs: { schema: pageSchema.extend({ unlisted: z.boolean().default(false) }) },
 });
 

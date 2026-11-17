@@ -11,7 +11,7 @@ This site has a `changelog` source next to its docs. Its pages come from a list 
 import { createPress, type Source } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 interface Release {
   title: string;
@@ -56,16 +56,26 @@ With sources by key, `page.type` is the key of the source of a page. A plugin ch
 `getPageBody` is the only hook a page needs. It returns one of:
 
 - `{ html }`: HTML rendered as it is, as the content of the page.
-- `{ view: { type, props } }`: the page has `props` in place of its content. `type` is the key of the source of the page, and the component of [`views`](/theme#page-types) for that key renders it with its own layout, like the component of a [view](/plugins/views).
+- `{ view: { props } }`: the page has `props` in place of its content. The component of [`views`](/theme#page-types) for the key of the source of the page renders it with its own layout, like the component of a [view](/plugins/views).
 - `{ module, load }`: the URL of a module that the browser imports, whose default export is the content component, and `load()` to import the same module on the server. This is what `core:markdown` returns for a compiled Markdown file.
 
-```ts
-getPageBody(page) {
-  if (page.type === "cards") return { view: { type: "cards", props: { title: page.data.title } } };
-},
-```
+A plugin that returns views declares their props in its types, as `pages` by source key, like the [views of a plugin](/plugins/views#views-of-plugins). The theme then needs a component for that key. Written in `.plugins()` without these types, the plugin is a type error:
 
-A plugin of its own module declares these props in its types, as `pages` by source key, like the [views of a plugin](/plugins/views#views-of-plugins).
+```ts title="cards-plugin.ts"
+import type { AppShape, Plugin } from "@fumapress/vue/config";
+
+export function cardsPlugin<C extends AppShape>(): Plugin<
+  C,
+  { pages: { cards: { title: string } } }
+> {
+  return {
+    name: "acme:cards",
+    getPageBody(page) {
+      if (page.type === "cards") return { view: { props: { title: page.url } } };
+    },
+  };
+}
+```
 
 A page that no plugin renders fails with an error that names its file.
 
@@ -105,6 +115,29 @@ transformPage(_data, { page }) {
 ```
 
 `transformPage` runs for [views](/plugins/views#page-data) too, where `env.page` is `undefined`. Every value it returns is sent to the browser, so it must be serializable.
+
+`PageData` has the fields of the core and of the plugins, so a misspelled field is a type error. A plugin declares the fields it adds by declaration merging, in its module:
+
+```ts title="reading-time-plugin.ts"
+import type { Plugin } from "@fumapress/vue/config";
+
+declare module "@fumapress/vue/config" {
+  interface PageData {
+    /** minutes to read the page */
+    readingTime?: number;
+  }
+}
+
+export const readingTimePlugin: Plugin = {
+  name: "acme:reading-time",
+  async transformPage(_data, { page }) {
+    const text = page && (await this.getPageText(page));
+    if (text) return { readingTime: Math.ceil(text.split(/\s+/).length / 200) };
+  },
+};
+```
+
+A view component then reads `page.pageData.readingTime` with its type.
 
 ## Startup Hooks
 

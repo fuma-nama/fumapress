@@ -51,7 +51,7 @@ export interface AddResult {
   written: string[];
   /** files kept because they exist, by absolute path */
   skipped: string[];
-  /** files of the project now importing a copy instead of the package */
+  /** files of the project and copies now importing a copy instead of the package */
   relinked: string[];
   /** the packages the copies import that the project doesn't depend on, with the version the UI is written for */
   missing: Record<string, string>;
@@ -236,7 +236,7 @@ function relink(project: Project, file: string, code: string): string {
 
 /**
  * Copies units of the UI into a project. A copy imports the rest of the UI from the package, and from the project
- * where it has a copy: so are the files copied before, which now use the new copies.
+ * where it has a copy: so do the other files of the project and the files copied before, which now use the new copies.
  */
 export function add(
   project: Project,
@@ -288,10 +288,12 @@ export function add(
     }
   }
 
-  // every copy of the project, old and new, uses the copies of the project
+  // every file of the project and every copy, old and new, uses the copies of the project: a copy is used only when a
+  // file of the project imports it
   const dirs = [project.uiDir, project.themeDir].filter((dir) => existsSync(dir));
-  for (const file of dirs.flatMap((dir) => walk(dir))) {
-    if (!/\.(ts|vue|css)$/.test(file)) continue;
+  const files = new Set([...projectFiles(project.root), ...dirs.flatMap((dir) => walk(dir))]);
+  for (const file of files) {
+    if (!/\.(m?[jt]sx?|vue|mdx|css)$/.test(file)) continue;
     const code = readFileSync(file, "utf8");
     const next = relink(project, file, code);
     if (next === code) continue;
@@ -339,6 +341,27 @@ function unusedCopies(project: Project, units: string[]): Record<string, string[
     });
   }
   return result;
+}
+
+/** the lockfiles of package managers, and the command that adds packages with each */
+const LOCKFILES: [file: string, command: string][] = [
+  ["pnpm-lock.yaml", "pnpm add"],
+  ["yarn.lock", "yarn add"],
+  ["bun.lock", "bun add"],
+  ["bun.lockb", "bun add"],
+  ["package-lock.json", "npm install"],
+];
+
+/**
+ * The command that adds packages to a project, by the lockfile of its package manager: in its folder, or in a folder
+ * above it, the root of its workspace. `npm install` without one.
+ */
+export function installCommand(root: string): string {
+  for (let dir = root; ; dir = path.dirname(dir)) {
+    const found = LOCKFILES.find(([file]) => existsSync(path.join(dir, file)));
+    if (found) return found[1];
+    if (path.dirname(dir) === dir) return "npm install";
+  }
 }
 
 function readManifest(dir: string): Record<string, Record<string, string> | undefined> {

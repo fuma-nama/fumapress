@@ -15,11 +15,14 @@ export function sitePlugin(): Plugin {
         tags.push({ tag: "meta", attrs: { name: "description", content: description } });
       }
       if (site.baseUrl) {
-        const href = this.absoluteUrl(page?.url ?? pathname);
+        // a page shown in the fallback language is the page of that language
+        const own = page && (this.getFallbackOrigin(page) ?? page);
+        const href = this.absoluteUrl(own?.url ?? pathname);
         tags.push({ tag: "link", attrs: { rel: "canonical", href } });
       }
       // the page in its other languages, for search engines
-      for (const { lang, url } of page ? this.getPageAlternates(page) : []) {
+      const alternates = page ? this.getPageAlternates(page) : this.getViewAlternates(pathname);
+      for (const { lang, url } of alternates) {
         tags.push({
           tag: "link",
           attrs: { rel: "alternate", hreflang: lang, href: this.absoluteUrl(url) },

@@ -36,7 +36,9 @@ The compiled Markdown of every page in your collections is a file of `.output/pu
 
 A site with nothing in the second list is fully static: upload `.output/public` to any static host. A docs site with Markdown collections and the default plugins is fully static.
 
-The build writes `404.html`, the not found page of your site. Most static hosts serve it for a URL without a file.
+The build writes `404.html`, the not found page of your site. Most static hosts serve it for a URL without a file, so it renders the `NotFound` of your [theme](/theme), never a custom page with params.
+
+The build also writes `.nojekyll`. GitHub Pages leaves out the folders starting with `_` without this file, and the data the browser loads for each page is under `/_press/`.
 
 ## Server Deployment
 
@@ -104,4 +106,6 @@ Links and [images](/markdown#images) in your content, the `href` and `src` of yo
 
 ## Build Errors
 
-A page that fails to render fails the build, so a broken page never reaches a deployment. This is the `prerender.failOnError` option of Nitro, which you can set to `false` in the `nitro` option.
+A page that fails to render fails the build, so a broken page never reaches a deployment. The error names the URL of the page, like a Markdown page that uses a component the theme doesn't have. This is the `prerender.failOnError` option of Nitro, which you can set to `false` in the `nitro` option.
+
+On a server, a page that fails to render answers with a `500` status.

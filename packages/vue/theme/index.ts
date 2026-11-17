@@ -8,7 +8,7 @@ export { components } from "./components";
 /**
  * A theme, typed by the site of `press.config` with a type-only import: `defineTheme<typeof app>({ ... })`. The keys
  * of `views` are the page types of the site, each component receives the pages of its type, and every view has a
- * component, here or in the theme `extends` names.
+ * component in the theme's own `views`.
  */
 export function defineTheme<A extends Press<any, any> = never>(theme: ThemeOptions<A>): Theme {
   // a theme, whose views the type checked against the site `A`

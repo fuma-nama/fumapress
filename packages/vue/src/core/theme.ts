@@ -49,43 +49,27 @@ export interface Theme {
   enhanceApp?: (ctx: { app: App; router: Router }) => void;
 }
 
-/** the content types of a site that `views.default` renders: those not rendered as views */
-type DefaultType<A extends Press<any, any>> = Exclude<
-  PressPageType<A>,
-  PressViewName<A> | ViewSourceOf<A>
->;
+/** the page types that only a component of their own renders: views, and the sources a plugin renders as views */
+type ViewOnlyType<A extends Press<any, any>> = PressViewName<A> | (ViewSourceOf<A> & string);
 
-/** the components of the page types of a site, each receiving the pages of its type */
+/** the content types of a site that `views.default` renders: those not rendered as views */
+type DefaultType<A extends Press<any, any>> = Exclude<PressPageType<A>, ViewOnlyType<A>>;
+
+/**
+ * The components of the page types of a site, each receiving the pages of its type. A view type requires its own,
+ * while a content type has its own or `views.default`.
+ */
 export type ThemeViews<A extends Press<any, any>> = {
-  [K in Exclude<PressPageType<A>, undefined>]?: ViewComponent<PageOf<A, K>>;
+  [K in ViewOnlyType<A>]: ViewComponent<PageOf<A, K>>;
+} & {
+  [K in Exclude<DefaultType<A>, undefined>]?: ViewComponent<PageOf<A, K>>;
 } & { default?: ViewComponent<PageOf<A, DefaultType<A>>> };
 
 /**
- * The keys of `views` that can render each page type of a site: its own key for a view or a source a plugin renders
- * as views, its own key or `default` for content pages.
+ * The options of `defineTheme<typeof app>()`: a theme whose `views` are checked against the pages of the site `A`.
+ * Its own `views` has the component of each view type, also the ones it takes from another theme.
  */
-type ViewKeys<A extends Press<any, any>> = {
-  [K in PressViewName<A> | (ViewSourceOf<A> & string)]: K;
-} & { [K in DefaultType<A> & string]: K | "default" } & (undefined extends DefaultType<A>
-    ? { default: "default" }
-    : {});
-
-/** a component for one of the keys `K`, in `views` or in the `views` of the theme `extends` names */
-type Covers<K extends string> = K extends string
-  ? { views: Record<K, unknown> } | { extends: { views: Record<K, unknown> } }
-  : never;
-
-/**
- * A component for every page type. Each type gives a union of the themes that cover it, and the requirement is their
- * intersection: the parameters of a union of functions infer it.
- */
-type ViewRequirement<N extends Record<string, string>> = [keyof N] extends [never]
-  ? {}
-  : { [K in keyof N]: (given: Covers<N[K]>) => void }[keyof N] extends (given: infer I) => void
-    ? I
-    : never;
-
-/** the options of `defineTheme<typeof app>()`: a theme whose `views` are checked against the pages of the site `A` */
 export type ThemeOptions<A extends Press<any, any>> = [A] extends [never]
   ? Theme
-  : Omit<Theme, "views"> & { views?: ThemeViews<A> } & ViewRequirement<ViewKeys<A>>;
+  : Omit<Theme, "views"> &
+      ([ViewOnlyType<A>] extends [never] ? { views?: ThemeViews<A> } : { views: ThemeViews<A> });

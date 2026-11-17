@@ -47,7 +47,7 @@ export interface HeadEnv<C extends AppShape = AppShape> extends PageEnv<C> {
 
 /**
  * What a plugin declares for types: the props of its views by type, and the props of the content pages it renders
- * as views, by source key (its `getPageBody` returns `{ view: { type: key, props } }`).
+ * as views, by source key (its `getPageBody` returns `{ view: { props } }` for the pages of that source).
  */
 export type PluginTypes = { views?: object; pages?: object };
 
@@ -77,6 +77,39 @@ export type UnknownKeys<E> = E extends readonly unknown[]
   : E extends object
     ? Exclude<keyof E, keyof Plugin>
     : never;
+
+/** the props of the views `getPageBody` of a plugin returns, `never` for none */
+type ViewProps<E> = E extends { getPageBody?: (...args: never[]) => infer R }
+  ? Extract<Awaited<R>, { view: unknown }> extends infer V
+    ? [V] extends [never]
+      ? never
+      : V extends { view: { props: infer P } }
+        ? P
+        : never
+    : never
+  : never;
+
+/**
+ * The names of plugins whose `getPageBody` returns views without declaring the `pages` they render as views, like a
+ * plugin written inline: the theme would have no component for them.
+ */
+export type UndeclaredPages<E> = E extends readonly unknown[]
+  ? never
+  : E extends { name: infer N }
+    ? [ViewProps<E>] extends [never]
+      ? never
+      : [Declared<TypesOf<E>, "pages">] extends [never]
+        ? N
+        : never
+    : never;
+
+/** what `.plugins()` refuses in the plugins written in its call, where `const P` skips the checks of literals */
+export type PluginErrors<E> = ([UnknownKeys<E>] extends [never]
+  ? {}
+  : { "unknown plugin keys": UnknownKeys<E> }) &
+  ([UndeclaredPages<E>] extends [never]
+    ? {}
+    : { "plugins returning views of pages they don't declare in their types": UndeclaredPages<E> });
 
 /** no recursion over the list: `FlatArray` flattens nested lists by depth */
 export type CollectTypes<P extends readonly unknown[]> =

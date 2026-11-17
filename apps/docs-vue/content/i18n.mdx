@@ -11,7 +11,7 @@ import { createPress } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 import { defineI18n } from "@fumapress/vue/i18n";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 const i18n = defineI18n({
   languages: ["en", "cn"],
@@ -47,6 +47,8 @@ To use a folder per language instead, like `cn/guide/install.mdx`, set `parser: 
 
 A page without a translation shows the page of the default language, at the URL of its own language: `/cn/guide/english-only` shows the English page. Set `fallbackLanguage` to another language to fall back to it, or to `null` for none: the page then doesn't exist in that language, and its URL is a 404.
 
+A page shown in the fallback language is not a translation. Its canonical link is the URL of the page it shows, like `/guide/english-only`, and the sitemap and the alternate links of other pages leave it out.
+
 ## URLs
 
 The language is the first segment of the URL. `hideLocale` sets which languages have it:
@@ -54,7 +56,7 @@ The language is the first segment of the URL. `hideLocale` sets which languages 
 - `"never"`, the default: every language has its prefix, like `/en/guide/install` and `/cn/guide/install`. A URL without a prefix, like `/guide/install`, redirects to the page in the default language on a server. A static host has the redirect of `/` only.
 - `"default-locale"`: the default language has no prefix, like `/guide/install`, while others have one, like `/cn/guide/install`. On a server, a URL with the prefix of the default language, like `/en/guide/install`, redirects to the URL without it.
 
-Fumapress tells the languages apart by their prefix, so `hideLocale: "always"` fails with an error.
+Fumapress tells the languages apart by their prefix, so `hideLocale: "always"` is a type error of `defineI18n()`, and fails when the site starts.
 
 ### Links in Translated Pages
 
@@ -133,7 +135,7 @@ The default plugins and your views follow the languages of the site:
 - Search has an index per language, and the dialog searches the language of the page.
 - `llms.txt` and `llms-full.txt` exist per language: at the root of the site for the default language, and at the prefix of the others, like `/cn/llms.txt`.
 - The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links. The translations of a page are the pages of other languages at the same URL without the prefix, in any source.
-- A [view](/plugins/views) exists in every language, at its prefix, and receives the language as `lang`.
+- A [view](/plugins/views) exists in every language, at its prefix, and receives the language as `lang`. Its pages link to each other with `hreflang` alternate links, and the sitemap lists them as translations.
 - A plugin with texts of its own lists their keys in `translations`, and `ui.translations` of your site translates them.
 
 ## Text Direction

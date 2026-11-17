@@ -87,7 +87,7 @@ test("a macro that was not compiled says where to call it", () => {
   expect(() => defineDocs({ dir: "content" })).toThrow(
     "[Fumapress] `defineDocs()` was not compiled. It is a macro: the Vite plugin of Fumapress compiles it in `press.config`",
   );
-  expect(() => defineCollections({ type: "meta", dir: "content" })).toThrow(
+  expect(() => defineCollections({ type: "doc", dir: "content" })).toThrow(
     "`defineCollections()` was not compiled",
   );
 });

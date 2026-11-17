@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, test } from "vitest";
-import { add, listUnits, type Project } from "../src/add";
+import { add, installCommand, listUnits, type Project } from "../src/add";
 
 const toPosix = (file: string) => file.split(path.sep).join("/");
 
@@ -130,6 +130,52 @@ test("a copy of the theme has the layouts the project imports, and the project i
   expect(written).toContain(layout);
   expect(readFileSync(own, "utf8")).toContain('from "./layouts/Notebook.vue"');
   expect(readFileSync(layout, "utf8")).toContain('from "../../ui/layouts/notebook"');
+});
+
+test("every file of the project that imports a copied layout imports the copy", () => {
+  const target = project();
+  mkdirSync(path.join(target.root, "src/views"), { recursive: true });
+  // a component of `views` in the notebook layout, and a view in the home layout of the theme
+  const page = path.join(target.root, "src/DocsPage.vue");
+  writeFileSync(
+    page,
+    '<script setup>\nimport NotebookLayout from "@fumapress/vue/theme/layouts/notebook";\n</script>\n',
+  );
+  const view = path.join(target.root, "src/views/Releases.vue");
+  writeFileSync(
+    view,
+    '<script setup>\nimport HomeLayout from "@fumapress/vue/theme/layouts/home";\n</script>\n',
+  );
+
+  const { written, relinked } = add(target, ["theme"]);
+  expect(written).toContain(path.join(target.themeDir, "layouts/Notebook.vue"));
+  expect(relinked).toEqual([page, view]);
+  expect(readFileSync(page, "utf8")).toContain('from "./theme/layouts/Notebook.vue"');
+  expect(readFileSync(view, "utf8")).toContain('from "../theme/layouts/Home.vue"');
+
+  // a copy of a module of the UI too
+  const card = path.join(target.root, "src/Card.vue");
+  writeFileSync(
+    card,
+    '<script setup>\nimport { Card } from "@fumapress/vue/ui/components/card";\n</script>\n',
+  );
+  const copied = add(target, ["components/card"]);
+  expect(copied.relinked).toEqual([card]);
+  expect(copied.unused).toEqual({});
+  expect(readFileSync(card, "utf8")).toContain('from "./ui/components/card"');
+});
+
+test("the command to add packages is the one of the package manager of the project", () => {
+  const target = project();
+  expect(installCommand(target.root)).toBe("npm install");
+  writeFileSync(path.join(target.root, "pnpm-lock.yaml"), "");
+  expect(installCommand(target.root)).toBe("pnpm add");
+  // in a workspace, the lockfile is in a folder above the project
+  const app = path.join(target.root, "apps/docs");
+  mkdirSync(app, { recursive: true });
+  expect(installCommand(app)).toBe("pnpm add");
+  writeFileSync(path.join(app, "yarn.lock"), "");
+  expect(installCommand(app)).toBe("yarn add");
 });
 
 test("the theme isn't named for a layout its copy wouldn't have", () => {

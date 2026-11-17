@@ -1,7 +1,7 @@
 ---
 title: UI
 description: The layouts and components of your site, from Fumadocs UI ported to Vue.
-icon: Blocks
+icon: LayoutTemplate
 ---
 
 The UI of Fumapress for Vue is [Fumadocs UI](https://fumadocs.dev/docs/ui) ported to Vue, with Reka UI in place of Base UI. The default theme uses it, and your theme and custom pages can import any part of it from `@fumapress/vue/ui/<path>`:
@@ -40,7 +40,7 @@ export default defineTheme<typeof app>({
 });
 ```
 
-The base theme is the default theme without a layout for content pages. Extend it rather than the default theme, since a theme extending the default theme keeps the code of the docs layout in your site, even with another `views.default`.
+The base theme is the default theme without a layout for content pages. Extend it rather than the default theme, since a theme extending the default theme keeps the code of the docs layout in your site, even with another `views.default`. A theme on the base theme without `views.default` needs a component for each source, or the site fails when it starts.
 
 A layout under the key of a source renders the pages of that source only. With [multiple sources](/content/sources#multiple-sources), this theme renders the guides in the notebook layout and the API reference in the docs layout:
 

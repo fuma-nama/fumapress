@@ -13,7 +13,7 @@ Add the plugin to `vite.config.ts` and write pages under `content/`. Without oth
 - A docs layout with a sidebar built from your files, a table of contents, and a light and dark theme.
 - Markdown and MDX with callouts, highlighted code blocks, tabs, steps and components like `Cards` and `TypeTable`.
 - Search in the browser, from an index generated at build time, so it works on a static host.
-- `/sitemap.xml`, `/robots.txt`, `/llms.txt` and `/llms-full.txt`.
+- `/robots.txt`, `/llms.txt` and `/llms-full.txt`, and `/sitemap.xml` once you set the [URL of the site](/config#url).
 - Pages prerendered to HTML at build time, with client-side navigation after the first load.
 
 ## Files of a Site
@@ -39,6 +39,8 @@ The differences:
 - The [layout](/ui#choosing-a-layout) is a component the theme imports, where Fumapress passes `layout` to `renderDefault()`.
 - The [compile options](/markdown#compile-options) of Markdown are global, in the Vite plugin, where Fumadocs MDX has them per collection.
 - The frontmatter of a collection is [validated when the server starts](/content#frontmatter-schema), not when its file compiles.
+- The folder of `defineDocs()` is `content` by default, where Fumadocs MDX has `content/docs`, so a site with or without `press.config.ts` reads the same folder.
+- `defineCollections()` defines pages only, with `type: "doc"`. The `meta.json` files of a folder are in the collection of `defineDocs()`.
 - `.views()` of `createPress()` adds the views of your site, without a plugin.
 
 ## Next Steps

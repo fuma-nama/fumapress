@@ -1,12 +1,12 @@
-import { expect, test } from "vitest";
-import { createSSRApp, defineComponent, h } from "vue";
+import { expect, test, vi } from "vitest";
+import { createSSRApp, defineComponent, h, onErrorCaptured } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { injectConfigProviderContext } from "../src/reka/config-provider";
 import { pressKey, type PressState } from "../src/client";
 import { getPressContext } from "../src/core/context";
 import { directionOf } from "../src/core/i18n";
 import { defineI18n, uiTranslations } from "../src/i18n";
-import type { Plugin, ViewEnv } from "../src/core/plugin";
+import type { AppShape, Plugin } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
 import { recommendedPreset } from "../src/core/preset";
 import {
@@ -19,10 +19,19 @@ import {
   prerenderListPath,
   staticPathsOf,
 } from "../src/core/routes";
-import type { Page, PageContent, SiteData, SourceFile } from "../src/core/types";
-import { createFetchHandler } from "../src/server";
+import type { Page, PageContent, PageTree, SiteData, Source, SourceFile } from "../src/core/types";
+import { createFetchHandler, renderApp } from "../src/server";
 import Root from "../theme/Root.vue";
 import { collectionOf, compiledDefineDocs, filesOf } from "./collection";
+
+// the fields the plugins of these tests add to the data of a page
+declare module "../src/core/types" {
+  interface PageData {
+    words?: number;
+    author?: string;
+    reviewer?: string;
+  }
+}
 
 const collection = await collectionOf({
   "index.mdx": { title: "Home" },
@@ -362,6 +371,7 @@ test("lists the paths to generate, only for the prerenderer", async () => {
     "/_press/pages/index.json",
     "/_press/pages/guide/install.json",
     "/404.html",
+    "/.nojekyll",
     "/about",
   ]);
 });
@@ -465,7 +475,9 @@ test("dates a Markdown page by the last commit of its file, with `lastModified: 
   });
   expect(Object.keys(draft!)).toEqual(["title", "lastModified"]);
 
-  const dated = serve(createPress(docs.toFumadocsSource()));
+  const dated = serve(
+    createPress(docs.toFumadocsSource()).config({ site: { baseUrl: "https://example.com" } }),
+  );
   const content: PageContent = await (await dated("/_press/pages/index.json")).json();
   expect(content.pageData.lastModified).toBe("2026-03-04T00:00:00.000Z");
   // the frontmatter as JSON, without the compiled module: a date is a string
@@ -494,7 +506,12 @@ test("reads a dynamic source on the server, and again when invalidated", async (
 
   // its pages render on demand: none is generated at build time, and the routes listing them follow
   expect(getPressContext().getContentRender()).toBe("dynamic");
-  expect((await prerendered(dynamic)).paths).toEqual(["/robots.txt", "/404.html", "/about"]);
+  expect((await prerendered(dynamic)).paths).toEqual([
+    "/robots.txt",
+    "/404.html",
+    "/.nojekyll",
+    "/about",
+  ]);
 
   files.push({ type: "page", path: "second.md", data: { title: "Second", html: "<p>2</p>" } });
   await getPressContext().invalidateLoader();
@@ -521,6 +538,23 @@ test("keeps sources apart by key", async () => {
   const { paths } = await prerendered(mixed);
   expect(paths).toContain("/docs/guide/install");
   expect(paths).not.toContain("/notes/first");
+});
+
+test("has a sitemap with `site.baseUrl` only, and the build says how to get one", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const relative = serve(createPress(collection.toFumadocsSource()));
+  // a sitemap lists full URLs
+  expect((await relative("/sitemap.xml")).status).toBe(404);
+  expect(await (await relative("/robots.txt")).text()).toBe("User-agent: *\nAllow: /\n");
+  expect((await prerendered(relative)).paths).not.toContain("/sitemap.xml");
+  await prerendered(relative);
+  expect(warn).toHaveBeenCalledOnce();
+  expect(warn.mock.calls[0]![0]).toContain("No /sitemap.xml: a sitemap lists full URLs");
+  warn.mockRestore();
+
+  expect(await (await get("/robots.txt")).text()).toContain(
+    "Sitemap: https://example.com/sitemap.xml",
+  );
 });
 
 test("runs build hooks once, and a file they emit is a static route", async () => {
@@ -568,9 +602,91 @@ test("generates the not found page for static hosts", async () => {
   const response = await get.prerenderer("/404.html");
   expect(response.status).toBe(200);
   const html = await response.text();
-  expect(html).toContain('<div id="app">missing</div>');
+  // the app in the browser starts on the not found page too, at any URL
+  expect(html).toContain('<div id="app" data-not-found>missing</div>');
   // the file is served at every URL without a page: it names none as the one to prefer
   expect(html).not.toContain('rel="canonical"');
+  // GitHub Pages serves the folders starting with `_` with this file only
+  expect((await get.prerenderer("/.nojekyll")).status).toBe(200);
+  expect((await get("/.nojekyll")).status).toBe(404);
+});
+
+test("renders the not found page at `/404.html`, whatever page the URL has", async () => {
+  const seen: boolean[] = [];
+  const handler = createFetchHandler({
+    press,
+    assets: { css: [], js: [] },
+    // like a site with a custom page that takes every path: the app answers 200 unless it renders the not found page
+    async render({ notFound }) {
+      seen.push(notFound);
+      return { html: notFound ? "not found" : "page", status: notFound ? 404 : 200 };
+    },
+  });
+  const response = await handler(new Request("http://localhost/404.html"));
+  expect(response.status).toBe(404);
+  expect(await response.text()).toContain("not found");
+  await handler(new Request("http://localhost/anything"));
+  expect(seen).toEqual([true, false]);
+});
+
+test("a theme without a component for a type of content pages fails when the site starts", async () => {
+  const site = (views: Record<string, unknown>) =>
+    createFetchHandler({
+      press: createPress({ notes: { files: noteFiles() } }),
+      assets: { css: [], js: [] },
+      views,
+      render: async () => ({ html: "" }),
+    })(new Request("http://localhost/about"));
+
+  // at a URL without a content page too
+  await expect(site({ other: {} })).rejects.toThrow(
+    '[Fumapress] The theme has no component for the pages of "notes": set `views.default`, or extend the default theme, whose `views.default` is the docs layout.',
+  );
+  await expect(site({ notes: {} })).resolves.toBeInstanceOf(Response);
+  await expect(site({ default: {} })).resolves.toBeInstanceOf(Response);
+});
+
+test("a page that fails to render fails its response, naming the page", async () => {
+  const handler = createFetchHandler({
+    press,
+    assets: { css: [], js: [] },
+    render: () => Promise.reject(new Error("Expected component `Missing` to be defined")),
+  });
+  await expect(handler(new Request("http://localhost/guide/install"))).rejects.toThrow(
+    'The page "/guide/install" failed to render: Expected component `Missing` to be defined',
+  );
+});
+
+test("an error no component handles fails the render", async () => {
+  const Broken = defineComponent({
+    setup: () => () => {
+      throw new Error("broken");
+    },
+  });
+  const seen: unknown[] = [];
+  const app = createSSRApp({ render: () => h("main", [h(Broken)]) });
+  app.config.errorHandler = (error) => void seen.push(error);
+  await expect(renderApp(app)).rejects.toThrow("broken");
+  // the handler of the app still sees it
+  expect(seen).toHaveLength(1);
+
+  // in an async setup too, which Vue's renderer would leave out
+  const Async = defineComponent({
+    async setup() {
+      throw new Error("async");
+    },
+  });
+  await expect(renderApp(createSSRApp({ render: () => h(Async) }))).rejects.toThrow("async");
+
+  // a component that handles the error of its children renders
+  const Boundary = defineComponent({
+    setup(_, { slots }) {
+      onErrorCaptured(() => false);
+      return () => slots.default?.();
+    },
+  });
+  const handled = createSSRApp({ render: () => h(Boundary, null, () => h(Broken)) });
+  await expect(renderApp(handled)).resolves.toContain("<!---->");
 });
 
 test("keeps the data a page or an earlier plugin has set", async () => {
@@ -648,18 +764,52 @@ test("serves the pages of plugins as views", async () => {
   );
 });
 
+test("keeps a second source out of the sidebar of the docs with `meta.json`", async () => {
+  const blog = (await collectionOf({ "hello.mdx": { title: "Hello" } })).toFumadocsSource({
+    baseDir: "blog",
+  });
+  const names = (tree: PageTree.Root) =>
+    tree.children.map((node) => (node.type === "folder" ? `${node.name}/` : node.name));
+  const treeOf = async (docs: Source, baseDir?: string) => {
+    await serve(createPress({ docs: { ...docs, baseDir }, blog }))("/");
+    return getPressContext().getPageTree();
+  };
+
+  // the docs at the root: their `meta.json` is the one of the root, which leaves the folder of the blog out
+  const atRoot = await collectionOf({
+    "index.mdx": { title: "Home" },
+    "meta.json": { pages: ["...", "!blog"] },
+  });
+  expect(names(await treeOf(atRoot.toFumadocsSource()))).toEqual(["Home"]);
+
+  // the docs in their own folder, a root folder: the sidebar of a page of the docs shows that folder only
+  const inFolder = await collectionOf({
+    "index.mdx": { title: "Home" },
+    "meta.json": { title: "Docs", root: true },
+  });
+  const tree = await treeOf(inFolder.toFumadocsSource(), "docs");
+  expect(names(tree)).toEqual(["Blog/", "Docs/"]);
+  expect(tree.children[1]).toMatchObject({ type: "folder", root: true });
+});
+
 test("renders a content page as a view when its plugin says so", async () => {
-  const cards = serve(
-    createPress({ files: noteFiles() }).plugins({
-      name: "cards",
-      getPageBody: (current) => ({ view: { type: "card", props: { title: current.data.title } } }),
+  // a plugin declares the pages it renders as views, by source key
+  const cardsPlugin = <C extends AppShape>(): Plugin<
+    C,
+    { pages: { notes: { title?: string } } }
+  > => ({
+    name: "cards",
+    getPageBody: (current) => ({ view: { props: { title: current.data.title } } }),
+  });
+  const cards = serve(createPress({ notes: { files: noteFiles() } }).plugins(cardsPlugin()));
+  const content: PageContent = await (await cards("/_press/pages/first.json")).json();
+  // the component of the type of the page renders it: the body has the props only
+  expect(content).toEqual(
+    expect.objectContaining({
+      data: notes["first.md"],
+      body: { view: { props: { title: "First" } } },
     }),
   );
-  const content: PageContent = await (await cards("/_press/pages/first.json")).json();
-  expect(content).toMatchObject({
-    data: notes["first.md"],
-    body: { view: { type: "card", props: { title: "First" } } },
-  });
 });
 
 test("sends the props of a view and the frontmatter of a page as JSON, the same on the server", async () => {
@@ -682,24 +832,24 @@ test("sends the props of a view and the frontmatter of a page as JSON, the same 
   expect(rendered).toMatchObject({ type: "dated", props: { date: "2026-01-02T00:00:00.000Z" } });
 });
 
-test("gives the pages of a view their data, from its params and props", async () => {
+test("gives the pages of a view their data, from their params and language", async () => {
   const tags = serve(
     createPress(collection.toFumadocsSource())
       .views({
         tag: {
           path: "/tags/[tag]",
           staticPaths: ["news"],
-          view: ({ params }: ViewEnv) => ({ tag: params.tag, count: 2 }),
-          data: ({ params, props }) => ({ title: `${props.count} posts tagged ${params.tag}` }),
+          view: ({ params }) => ({ tag: params.tag }),
+          data: ({ params, lang }) => ({ title: `Posts tagged ${params.tag} (${lang})` }),
         },
         about: { path: "/about", data: { title: "About" }, view: () => ({}) },
       })
       .config({ site: { name: "Docs" } }),
   );
   const content: PageContent = await (await tags("/_press/pages/tags/news.json")).json();
-  expect(content.pageData).toEqual({ title: "2 posts tagged news" });
+  expect(content.pageData).toEqual({ title: "Posts tagged news (en)" });
   expect(await (await tags("/tags/news")).text()).toContain(
-    "<title>2 posts tagged news | Docs</title>",
+    "<title>Posts tagged news (en) | Docs</title>",
   );
   expect(await (await tags("/about")).text()).toContain("<title>About | Docs</title>");
 });
@@ -810,6 +960,72 @@ test("serves each language at its prefix, with its own site data", async () => {
   expect((await prerendered(site)).paths).toEqual(
     expect.arrayContaining(["/blog", "/cn/blog", "/cn", "/_press/site/cn.json", "/cn/llms.txt"]),
   );
+});
+
+test("links the translations of views, and not the pages shown in the fallback language", async () => {
+  const site = i18nSite("default-locale");
+  const alternates = (html: string) => html.match(/<link rel="alternate"[^>]*>/g) ?? [];
+
+  // a view is in every language
+  const blog = await (await site("/cn/blog")).text();
+  expect(alternates(blog)).toEqual([
+    '<link rel="alternate" hreflang="en" href="https://example.com/blog">',
+    '<link rel="alternate" hreflang="cn" href="https://example.com/cn/blog">',
+  ]);
+
+  // a page without a file in Chinese shows the English one: that one is its address, and it is no translation
+  const fallback = await (await site("/cn/guide/english-only")).text();
+  expect(fallback).toContain(
+    '<link rel="canonical" href="https://example.com/guide/english-only">',
+  );
+  expect(alternates(fallback)).toEqual([]);
+  expect(alternates(await (await site("/guide/english-only")).text())).toEqual([]);
+
+  const sitemap = await (await site("/sitemap.xml")).text();
+  expect(sitemap).not.toContain("/cn/guide/english-only<");
+  expect(sitemap).toContain(
+    '<url><loc>https://example.com/cn/blog</loc><xhtml:link rel="alternate" hreflang="en" href="https://example.com/blog"/><xhtml:link rel="alternate" hreflang="cn" href="https://example.com/cn/blog"/></url>',
+  );
+  // a URL without a page has no translations
+  expect(alternates(await (await site("/cn/nothing")).text())).toEqual([]);
+});
+
+test("a view without params at the URL of a content page fails when the site starts", async () => {
+  const site = serve(
+    createPress(collection.toFumadocsSource()).views({
+      install: { path: "/guide/install", view: () => ({}) },
+    }),
+  );
+  await expect(site("/")).rejects.toThrow(
+    'The view "install" of `.views()` is at "/guide/install", the URL of the content page "guide/install.mdx", which wins over it.',
+  );
+  // a view with params answers the URLs without a content page
+  const params = serve(
+    createPress(collection.toFumadocsSource()).views({
+      any: { path: "/guide/[name]", view: ({ params }) => ({ name: params.name }) },
+    }),
+  );
+  const install: PageContent = await (await params("/_press/pages/guide/install.json")).json();
+  expect(install.type).toBeUndefined();
+  const other: PageContent = await (await params("/_press/pages/guide/other.json")).json();
+  expect(other).toMatchObject({ type: "any", props: { name: "other" } });
+});
+
+test("a view that returns nothing for one of its `staticPaths` names itself", async () => {
+  const site = serve(
+    createPress(collection.toFumadocsSource()).views({
+      post: {
+        path: "/blog/[slug]",
+        staticPaths: ["a", "b"],
+        view: ({ params }) => (params.slug === "a" ? {} : undefined),
+      },
+    }),
+  );
+  await expect(site("/blog/b")).rejects.toThrow(
+    'The view "post" of `.views()` returns nothing for "/blog/b", one of its `staticPaths`',
+  );
+  // another URL of its path is a 404
+  expect((await site("/blog/c")).status).toBe(404);
 });
 
 test('puts `baseDir` after the folder of a language, with `parser: "dir"`', async () => {

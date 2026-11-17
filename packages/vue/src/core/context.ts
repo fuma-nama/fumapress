@@ -25,6 +25,7 @@ import { recommendedPreset } from "./preset";
 import {
   decodePath,
   encodePath,
+  hasParams,
   matchRoute,
   normalizePath,
   staticPathsOf,
@@ -88,8 +89,21 @@ export interface Context<out C extends AppShape = AppShape> {
   getLanguage(pathname: string): C["lang"];
   /** a path in a language: with its prefix, unless `i18n.hideLocale` hides it */
   localizePath(lang: C["lang"], pathname: string): string;
-  /** a page in every language it exists in, itself included; empty without another one */
+  /**
+   * A page in every language it has a file in, itself included; empty without another one. A page shown in the
+   * fallback language is not a translation.
+   */
   getPageAlternates(page: C["page"]): { lang: C["lang"]; url: string }[];
+  /**
+   * The page of the fallback language that a page shows, when its language has no file of its own: its canonical
+   * URL. None for a page with its own file.
+   */
+  getFallbackOrigin(page: C["page"]): C["page"] | undefined;
+  /**
+   * The page of a view in every language the view is created in, itself included; empty without another one or
+   * outside a view.
+   */
+  getViewAlternates(pathname: string): { lang: C["lang"]; url: string }[];
   /**
    * How the content renders, or the sources of the keys `source`: `static` pages are generated at build time, the
    * pages of a dynamic source (`files` as a function) render on demand. A route reading the content follows it.
@@ -108,6 +122,7 @@ export interface Context<out C extends AppShape = AppShape> {
 
 /** a view of the site or of a plugin in a language */
 export interface ServedView {
+  /** the same object in every language of the view */
   route: ViewRoute;
   lang: string;
   /** the URL pattern of its pages, with the language prefix */
@@ -234,9 +249,13 @@ export async function createContext(
   }
   const defaultLanguage = i18n?.defaultLanguage ?? site.lang ?? "en";
   const languages = i18n?.languages ?? [defaultLanguage];
+  /** the language whose page a language without a file of its own shows */
+  const fallbackLanguage = i18n?.fallbackLanguage ?? defaultLanguage;
 
   let pages: Page[] = [];
   let byUrl = new Map<string, Page>();
+  /** the pages of the fallback language by their file */
+  let ofFallback = new Map<string, Page>();
   let trees = new Map<string, PageTree.Root>();
   let loaderOptions: LoaderOptions = {};
   const routes: ApiRoute[] = [];
@@ -248,7 +267,7 @@ export async function createContext(
       const added = await plugin.transformPage?.call(ctx, data, env);
       if (!added) continue;
       // like the other hooks: the page's own data wins, then plugins in order
-      const next = { ...data };
+      const next: Record<string, unknown> = { ...data };
       for (const [key, value] of Object.entries(added)) next[key] ??= value;
       data = next;
     }
@@ -324,6 +343,9 @@ export async function createContext(
       .getPages()
       .map((page) => ({ ...page, url: decodePath(page.url) ?? normalizePath(page.url) }));
     byUrl = new Map(pages.map((page) => [page.url, page]));
+    ofFallback = new Map(
+      pages.filter((page) => page.locale === fallbackLanguage).map((page) => [page.path, page]),
+    );
     trees = new Map(languages.map((lang) => [lang, toTree(output.getPageTree(lang))]));
   }
 
@@ -381,7 +403,7 @@ export async function createContext(
         data: toJson(page.data),
         pageData,
         toc: toc ?? [],
-        body: "view" in body ? { view: { ...body.view, props: toJson(body.view.props) } } : body,
+        body: "view" in body ? { view: { props: toJson(body.view.props) } } : body,
         head: await documentHead(env),
       };
     },
@@ -392,8 +414,20 @@ export async function createContext(
 
       for (const { route, lang, path } of views) {
         const params = matchRoute(path, url);
-        const result = params && (await route.view({ params, lang }));
-        if (!result) continue;
+        if (!params) continue;
+        const result = await route.view({ params, lang });
+        if (!result) {
+          // a page the build generates can't be a 404: the message names the view, not the list of the build
+          if (
+            route.render !== "dynamic" &&
+            (await staticPathsOf({ ...route, path })).includes(url)
+          ) {
+            throw new Error(
+              `[Fumapress] ${owners.get(route)} returns nothing for "${url}", one of its \`staticPaths\`: return the props of the page, or leave the path out.`,
+            );
+          }
+          continue;
+        }
         const { type, props, data } = result;
         const pageData = await transformPage({ ...route.data, ...data }, { pathname: url, lang });
         const head = await documentHead({ pathname: url, lang, pageData });
@@ -420,8 +454,25 @@ export async function createContext(
       const path = (url: string) => localeOf(i18n, url).pathname;
       const own = path(page.url);
       const out = pages
-        .filter((other) => path(other.url) === own)
+        .filter((other) => path(other.url) === own && !ctx.getFallbackOrigin(other))
         .map((other) => ({ lang: other.locale ?? defaultLanguage, url: other.url }));
+      return out.length > 1 ? out : [];
+    },
+    getFallbackOrigin(page) {
+      // the loader gives a language without a file the file of the fallback language, like core tells them apart
+      if (!i18n || page.locale === fallbackLanguage) return;
+      return ofFallback.get(page.path);
+    },
+    getViewAlternates(pathname) {
+      if (!i18n) return [];
+      const url = normalizePath(pathname);
+      const served = views.find(({ path }) => matchRoute(path, url));
+      if (!served) return [];
+      // the view has the same pages in each of its languages, at the URL with their prefix
+      const own = localeOf(i18n, url).pathname;
+      const out = views
+        .filter(({ route }) => route === served.route)
+        .map(({ lang }) => ({ lang, url: ctx.localizePath(lang, own) }));
       return out.length > 1 ? out : [];
     },
     getContentRender(source) {
@@ -462,7 +513,9 @@ export async function createContext(
   await load();
   for (const plugin of plugins) await plugin.configure?.call(ctx);
 
-  const fns = (plugin?: AnyPlugin): RouteFns => ({
+  /** what an error calls a view: its name of `.views()`, or the plugin that created it */
+  const owners = new Map<ViewRoute, string>();
+  const fns = (owner: string, plugin?: AnyPlugin): RouteFns => ({
     createApi(route) {
       if (route.data && (route.GET ?? route.ALL)) {
         throw new Error(
@@ -488,31 +541,38 @@ export async function createContext(
             }
             return result;
           };
+      const served: ViewRoute = { ...route, view };
+      owners.set(served, owner);
       for (const each of lang === undefined ? languages : [lang]) {
-        views.push({
-          route: { ...route, view },
-          lang: each,
-          path: ctx.localizePath(each, route.path),
-        });
+        views.push({ route: served, lang: each, path: ctx.localizePath(each, route.path) });
       }
     },
   });
   // the views of the site first: the first view matching a URL renders it
-  const ofSite = fns();
   for (const [type, { view, data, ...route }] of Object.entries(ownViews)) {
-    ofSite.createView({
+    fns(`The view "${type}" of \`.views()\``).createView({
       ...route,
       async view(env) {
         const props = await view.call(ctx, env);
         if (props === undefined) return;
-        const pageData =
-          typeof data === "function" ? await data.call(ctx, { ...env, props }) : data;
+        const pageData = typeof data === "function" ? await data.call(ctx, env) : data;
         return { type, props, data: pageData };
       },
     });
   }
-  for (const plugin of plugins) await plugin.routes?.call(ctx, fns(plugin));
+  for (const plugin of plugins) {
+    await plugin.routes?.call(ctx, fns(`A view of the plugin "${plugin.name}"`, plugin));
+  }
 
+  // a content page wins over a view at its URL: such a view would never render
+  for (const { route, path } of views) {
+    const page = hasParams(path) ? undefined : byUrl.get(path);
+    if (page) {
+      throw new Error(
+        `[Fumapress] ${owners.get(route)} is at "${path}", the URL of the content page "${page.path}", which wins over it. Give one of them another URL.`,
+      );
+    }
+  }
   return ctx;
 }
 

@@ -37,7 +37,7 @@ export interface MetaOptions<Schema> {
 }
 
 export interface DocsOptions<PageSchema, MetaSchema, LastModified extends boolean> {
-  /** the folder of the pages and `meta.json` files, from the project root. A literal. @defaultValue "content/docs" */
+  /** the folder of the pages and `meta.json` files, from the project root. A literal. @defaultValue "content" */
   dir?: string;
   docs?: DocOptions<PageSchema, LastModified>;
   meta?: MetaOptions<MetaSchema>;
@@ -47,14 +47,9 @@ export interface DocCollectionOptions<Schema, LastModified extends boolean> exte
   Schema,
   LastModified
 > {
+  /** a collection of pages, the one type: `meta.json` files are in the collections of `defineDocs()` */
   type: "doc";
   /** the folder of the pages, from the project root. A literal. */
-  dir: string;
-}
-
-export interface MetaCollectionOptions<Schema> extends MetaOptions<Schema> {
-  type: "meta";
-  /** the folder of the `meta.json` files, from the project root. A literal. */
   dir: string;
 }
 
@@ -73,7 +68,7 @@ export interface Collection<Config extends SourceConfig> {
 export interface CollectionFiles {
   /** the folder of the collection, from the project root */
   dir: string;
-  pages?: {
+  pages: {
     frontmatter: Record<string, unknown>;
     /** the compiled module of each page on the server */
     load: Record<string, () => Promise<PageModule>>;
@@ -103,7 +98,7 @@ function notCompiled(name: string): Error {
 
 /** the files of a collection, validated; one error names every file that doesn't match its schema */
 async function createCollection(
-  { dir, pages = { frontmatter: {}, load: {}, assets: {} }, meta = {} }: CollectionFiles,
+  { dir, pages, meta = {} }: CollectionFiles,
   schemas: { page: StandardSchemaV1; meta: StandardSchemaV1 },
 ): Promise<Collection<SourceConfig>> {
   const failures: string[] = [];
@@ -181,18 +176,8 @@ export function defineDocs(
 }
 
 /**
- * The `meta.json` files of a folder. A macro: call it in `press.config` as the value of a top-level `const`, with
- * literals for `type`, `dir` and `files`.
- */
-export function defineCollections<
-  Meta extends MetaSchema = StandardSchemaV1<unknown, DefaultMetaData>,
->(
-  options: MetaCollectionOptions<Meta>,
-): Collection<{ pageData: never; metaData: StandardSchemaV1.InferOutput<Meta> }>;
-
-/**
- * The pages of a folder. A macro: call it in `press.config` as the value of a top-level `const`, with literals for
- * `type`, `dir`, `files` and `lastModified`.
+ * The pages of a folder, without `meta.json` files. A macro: call it in `press.config` as the value of a top-level
+ * `const`, with literals for `type`, `dir`, `files` and `lastModified`.
  */
 export function defineCollections<
   Page extends PageSchema = StandardSchemaV1<unknown, DefaultPageData>,
@@ -203,14 +188,12 @@ export function defineCollections<
 
 // The Vite plugin compiles a call to `await defineCollections(options, files)`, which creates the collection.
 export function defineCollections(
-  options:
-    | DocCollectionOptions<StandardSchemaV1, boolean>
-    | MetaCollectionOptions<StandardSchemaV1>,
+  options: DocCollectionOptions<StandardSchemaV1, boolean>,
   files?: CollectionFiles,
 ): unknown {
   if (!files) throw notCompiled("defineCollections");
   return createCollection(files, {
-    page: (options.type === "doc" && options.schema) || defaultPageSchema,
-    meta: (options.type === "meta" && options.schema) || defaultMetaSchema,
+    page: options.schema ?? defaultPageSchema,
+    meta: defaultMetaSchema,
   });
 }

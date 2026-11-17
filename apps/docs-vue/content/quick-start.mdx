@@ -1,7 +1,7 @@
 ---
 title: Quick Start
 description: Create a docs site from an empty folder.
-icon: Terminal
+icon: Zap
 ---
 
 You need Node.js 24 or later.
@@ -86,7 +86,7 @@ A site with only Markdown content works from `.output/public` on any static host
 
 ## TypeScript
 
-A site needs no TypeScript. To type-check your config, theme and pages, install `typescript@6` and `vue-tsc`, and add a `tsconfig.json`:
+A site needs no TypeScript. To type-check your config, theme and pages, install `typescript@6`, `vue-tsc` and `@types/node`, and add a `tsconfig.json`:
 
 ```json title="tsconfig.json"
 {
@@ -98,13 +98,13 @@ A site needs no TypeScript. To type-check your config, theme and pages, install 
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "types": ["node", "vite/client"]
   },
   "include": ["*.ts", "src"]
 }
 ```
 
-Then run `npx vue-tsc --noEmit`. It checks the UI of the package with your files, which is written for ES2023, so `lib` can't be older.
+Then run `npx vue-tsc --noEmit`. It checks the UI of the package with your files, which is written for ES2023, so `lib` can't be older. `press.config.ts` and `vite.config.ts` run in Node.js, so `"node"` in `types` gives them its globals, like `process.env`.
 
 :::note
 `vue-tsc` runs on the JavaScript API of TypeScript, which TypeScript 7 doesn't have, so install TypeScript 6.

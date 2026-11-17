@@ -4,6 +4,7 @@ import { expect, test } from "vitest";
 import { createSSRApp, h } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { pressKey, useMDXComponents, type PressState } from "../src/client";
+import { Fragment, jsx } from "../src/jsx-runtime";
 import { compileMarkdown, type MarkdownOptions } from "../src/vite/compile";
 
 const source = `---
@@ -97,6 +98,14 @@ test("Markdown reads the components of the theme from the app, so a partial has 
   const app = createSSRApp({ render: () => h(Content) });
   app.provide(pressKey, { theme: { components: { Callout } } } as unknown as PressState);
   expect(await renderToString(app)).toBe("<aside>callout</aside>");
+});
+
+test("a page without content renders", async () => {
+  const { code } = await compileMarkdown({ source: "---\ntitle: Empty\n---\n", filePath: "/a.md" });
+  // an empty document compiles to a fragment without children
+  expect(code).toContain("_jsx(_Fragment, {})");
+  const app = createSSRApp({ render: () => jsx(Fragment, {}) });
+  expect(await renderToString(app)).toBe("<!--[--><!--]-->");
 });
 
 test("compiles only the content for the browser", async () => {

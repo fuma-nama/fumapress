@@ -1,3 +1,5 @@
+import type { App } from "vue";
+import { renderToString } from "vue/server-renderer";
 import { getContext, type Context } from "./core/context";
 import { escapeHtml, keyOf, mergeHead, renderHead, withBase } from "./core/head";
 import { directionOf } from "./core/i18n";
@@ -27,6 +29,11 @@ export interface RenderEnv {
   lang: string;
   /** the data routes of the site, called without a request: what the app loads comes with the page */
   load: Load;
+  /**
+   * Render the not found page, whatever page the URL has: the document at `/404.html`, which static hosts serve for
+   * every URL without a file. A custom page with params doesn't answer it.
+   */
+  notFound: boolean;
 }
 
 export interface RenderOutput {
@@ -51,6 +58,8 @@ export interface HandlerOptions {
   assets: ClientAssets;
   /** tags of every page from the theme, like the script that applies the color theme before the first paint */
   head?: HeadTag[];
+  /** the `views` of the theme: the site fails to start when a type of its content pages has no component */
+  views?: Readonly<Record<string, unknown>>;
   /** the paths of the custom pages of the app: the ones without params are generated at build time */
   customPages?: string[];
   /**
@@ -77,6 +86,22 @@ const contentTypes: Record<string, string> = {
 };
 
 const notFound = () => new Response("Not Found", { status: 404 });
+
+/**
+ * Renders an app to HTML. An error no component handles fails the render: in production, Vue would only log it and
+ * render the page without the part that failed.
+ */
+export async function renderApp(app: App): Promise<string> {
+  const errors: unknown[] = [];
+  const own = app.config.errorHandler;
+  app.config.errorHandler = (error, instance, info) => {
+    errors.push(error);
+    own?.(error, instance, info);
+  };
+  const html = await renderToString(app);
+  if (errors.length > 0) throw errors[0];
+  return html;
+}
 
 /** the path of a request in the site: decoded and without the base path, none outside of it */
 function sitePath(pathname: string, base: string): string | undefined {
@@ -146,7 +171,27 @@ async function renderDocument(
   const lang = ctx.getLanguage(pathname);
   // the path is encoded here, where it goes out to the app as a URL
   const url = ctx.base + encodePath(shown).slice(1) + search;
-  const output = await options.render({ ctx, url, pathname: shown, lang, load: load as Load });
+  const notFound = pathname === NOT_FOUND_PATH;
+  let output: RenderOutput;
+  try {
+    output = await options.render({
+      ctx,
+      url,
+      pathname: shown,
+      lang,
+      load: load as Load,
+      notFound,
+    });
+  } catch (error) {
+    // the response fails, and a build with it: the message names the page, whatever failed in it
+    const reason = (error instanceof Error ? error.message : String(error)).replace(
+      /^\[Fumapress\] /,
+      "",
+    );
+    throw new Error(`[Fumapress] The page "${shown}" failed to render: ${reason}`, {
+      cause: error,
+    });
+  }
   const { html, status = 200, assets = options.assets, pageData: ownData } = output;
 
   // Where the response sends the browser instead: where a hook of the app sent the page, or for a URL that names its
@@ -206,8 +251,10 @@ async function renderDocument(
       { tag: "meta", attrs: { name: "viewport", content: "width=device-width, initial-scale=1" } },
     ],
     withBase(options.head, ctx.base),
-    // a URL without a page has no address to prefer
-    status === 404 ? head.filter((tag) => keyOf(tag) !== "link:canonical") : head,
+    // a URL without a page has no address to prefer, nor translations
+    status === 404
+      ? head.filter((tag) => !/^link:(canonical|alternate)/.test(keyOf(tag) ?? ""))
+      : head,
     assets.css.map((css) => ({ tag: "link", attrs: { rel: "stylesheet", ...css } })),
     modules.map(({ href }) => ({ tag: "link", attrs: { rel: "modulepreload", href } })),
     shared.map((path) => ({
@@ -219,7 +266,9 @@ async function renderDocument(
   const script = assets.entry
     ? `<script type="module" src="${escapeHtml(assets.entry)}"></script>`
     : "";
-  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}" dir="${directionOf(lang)}"><head>${renderHead(tags)}</head><body><div id="app">${html}</div><script type="application/json" id="__PRESS__">${data}</script>${script}</body></html>`;
+  // the app in the browser starts on the not found page too, whatever page its URL has
+  const root = notFound ? '<div id="app" data-not-found>' : '<div id="app">';
+  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}" dir="${directionOf(lang)}"><head>${renderHead(tags)}</head><body>${root}${html}</div><script type="application/json" id="__PRESS__">${data}</script>${script}</body></html>`;
 
   return new Response(document, {
     status,
@@ -229,7 +278,8 @@ async function renderDocument(
 
 /**
  * The routes of the prerenderer of a build: the list of the paths to generate, which Nitro reads from a response
- * header, the not found page as a file, and the files the `build` hooks of plugins emit.
+ * header, the files of static hosts (the not found page, `.nojekyll`), and the files the `build` hooks of plugins
+ * emit.
  */
 function buildRoutes(
   options: HandlerOptions,
@@ -314,6 +364,13 @@ function buildRoutes(
         return new Response(response.body, { headers: response.headers });
       },
     },
+    {
+      // GitHub Pages leaves out the folders starting with `_`, like the data routes of `/_press/`, unless the output
+      // has this file
+      path: "/.nojekyll",
+      render: "static",
+      GET: () => new Response("", { headers: { "Content-Type": "text/plain; charset=utf-8" } }),
+    },
   );
   return routes;
 }
@@ -342,17 +399,38 @@ async function handle(
     : response;
 }
 
+/**
+ * Fails when a type of the content pages has no component: its own in `views`, or `views.default`. The types check
+ * the components of views, which only a component of their own renders.
+ */
+function checkViews(ctx: Context, views: Readonly<Record<string, unknown>>) {
+  if (Object.hasOwn(views, "default")) return;
+  for (const type of new Set(ctx.getPages().map((page) => page.type))) {
+    if (type !== undefined && Object.hasOwn(views, type)) continue;
+    const pages = type === undefined ? "the content pages" : `the pages of "${type}"`;
+    throw new Error(
+      `[Fumapress] The theme has no component for ${pages}: set \`views.default\`, or extend the default theme, whose \`views.default\` is the docs layout.`,
+    );
+  }
+}
+
 /** the server of a site: the middleware of its plugins, then their routes, then its pages */
 export function createFetchHandler(
   options: HandlerOptions,
 ): (request: Request) => Promise<Response> {
   let ofBuild: ApiRoute[] | undefined;
+  const checked = new WeakSet<Context>();
 
   const fetch = async (request: Request): Promise<Response> => {
     const ctx = await getContext(options.press, {
       base: options.base,
       customPages: options.customPages?.filter((path) => !hasParams(path)),
     });
+    // once per site, when it starts
+    if (options.views && !checked.has(ctx)) {
+      checkViews(ctx, options.views);
+      checked.add(ctx);
+    }
     if (options.prerender) ofBuild ??= buildRoutes(options, ctx, fetch);
     // read on each request: a build adds the files it emits
     const routes = [...(ofBuild ?? []), ...ctx.routes];

@@ -32,9 +32,15 @@ function announce(text: string) {
 
 /**
  * The app of the site in a language, the same on the server and in the browser: `url` is where it starts, with the
- * base path, and `load` reads the data routes of the server.
+ * base path, and `load` reads the data routes of the server. With `notFound`, it starts on the not found page.
  */
-export async function createPressApp(url: string, base: string, lang: string, load: Load) {
+export async function createPressApp(
+  url: string,
+  base: string,
+  lang: string,
+  load: Load,
+  notFound = false,
+) {
   const state = await createPressState(lang, load, theme);
   const { site } = state.site;
   /** the path of the page last announced: another anchor of the same page is not one */
@@ -46,7 +52,8 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     routes,
     // content pages, views, and the not found page
     fallback: PageView,
-    hasPage: (path) => hasPage(state, path),
+    // the not found document has the not found page at its URL, whatever the URL: never a custom page with params
+    hasPage: (path) => notFound || hasPage(state, path),
   });
   router.beforeEach(async (to, { first }) => {
     // The app has the data of one language, like its page tree: a page of another one is another document. The
@@ -86,6 +93,8 @@ export async function createPressApp(url: string, base: string, lang: string, lo
   // the hooks of the site run after those of the app, for the first page too
   enhanceApp?.({ app, router });
   await router.start();
+  // the pages the app navigates to afterwards are those of the content
+  notFound = false;
   announced = router.route.value.path;
   return { app, router, state };
 }

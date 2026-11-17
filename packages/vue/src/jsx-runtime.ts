@@ -16,10 +16,12 @@ export function jsx(type: unknown, props: Props | null, key?: unknown): VNode {
   if (key !== undefined) rest.key = key;
 
   const component = type as Parameters<typeof h>[0];
-  if (children === undefined || children === null) return h(component, rest);
+  // the children of an element or a fragment are a list, empty without any: a fragment can't render none
   if (typeof type === "string" || type === Fragment) {
+    if (children === undefined || children === null) return h(component, rest, []);
     return h(component, rest, Array.isArray(children) ? children : [children]);
   }
+  if (children === undefined || children === null) return h(component, rest);
   return h(component, rest, { default: () => children });
 }
 

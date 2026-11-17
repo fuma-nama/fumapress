@@ -95,7 +95,16 @@ A content page has:
 
 A view has `type`, `url`, `pageData`, and `props`, what its `view` returned. A source whose pages a [plugin renders as views](/plugins/content#page-body) has `props` in place of `Content`, and needs a component under its own key.
 
-With `defineTheme<typeof app>()`, a key that isn't a page type of your site, a component whose `page` is of another type, and a page type without a component are type errors. A page type can get its component from the theme of `extends`, like the theme a plugin ships. A functional component in `views` declares its `props`, since a function without them is read as a function that imports a component.
+With `defineTheme<typeof app>()`, a key that isn't a page type of your site and a component whose `page` is of another type are type errors. So is a view without a component in the theme's own `views`, and the error names the view. To use the components of another theme, like the theme a plugin ships, spread its `views` into yours:
+
+```ts title="src/theme.ts"
+export default defineTheme<typeof app>({
+  extends: [defaultTheme, releasesTheme],
+  views: { ...releasesTheme.views, blog: () => import("./views/BlogPost.vue") },
+});
+```
+
+A content page renders with the component of its source or with `views.default`, here or in a theme of `extends`. A site whose theme has neither for a source fails when it starts, with an error that names the source. A functional component in `views` declares its `props`, since a function without them is read as a function that imports a component.
 
 A page shows once its data, its content and its view component have loaded.
 
@@ -175,7 +184,19 @@ export default defineTheme<typeof app>({
 });
 ```
 
-A page without a component fails to render, and so does a URL without a page when the theme has no `NotFound`, with an error that names what is missing. The build renders `404.html`, so it fails without `NotFound`.
+A source without a component fails when the site starts, a view without one fails to render, and so does a URL without a page when the theme has no `NotFound`, each with an error that names what is missing. The build renders `404.html`, so it fails without `NotFound`.
+
+Markdown needs components for some of its syntax: callouts render with `CalloutContainer`, `CalloutTitle` and `CalloutDescription`, and code tabs and `npm` code blocks with `CodeBlockTabs`, `CodeBlockTabsList`, `CodeBlockTabsTrigger` and `CodeBlockTab`. A page that uses a component the theme doesn't have fails to render. To keep every component of Markdown, spread the ones of the base theme:
+
+```ts title="src/theme.ts"
+import { components } from "@fumapress/vue/theme";
+
+export default defineTheme<typeof app>({
+  NotFound,
+  views: { default: Page },
+  components: { ...components, Note },
+});
+```
 
 The [stylesheet](#styles) is still the default one until you create `src/theme.css`.
 

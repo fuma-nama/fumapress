@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { add, listUnits, resolveProject } from "./add";
+import { add, installCommand, listUnits, resolveProject } from "./add";
 
 const help = `Copies the UI of @fumapress/vue into your project, to change it.
 
@@ -58,7 +58,7 @@ function main(): number {
   const packages = Object.entries(result.missing).map(([name, range]) => `${name}@${range}`);
   if (packages.length > 0) {
     console.log(
-      `\nYour copies import packages your project doesn't depend on yet. Add them:\n  npm install ${packages.join(" ")}`,
+      `\nYour copies import packages your project doesn't depend on yet. Add them:\n  ${installCommand(root)} ${packages.join(" ")}`,
     );
   }
 

@@ -64,11 +64,13 @@ defineProps<{ page: PageOf<typeof app, "releases"> }>();
 </template>
 ```
 
-`defineTheme<typeof app>()` requires a component for each view, and checks that it receives the pages of its view. A view without a component also fails to render, with an error that names it.
+`defineTheme<typeof app>()` requires a component for each view in the theme's own `views`, with a type error that names the view, and checks that it receives the pages of its view. A view without a component also fails to render, with an error that names it.
 
 The props are sent to the browser, so every value must be serializable, like strings, numbers, lists and plain objects. `PageOf<typeof app, "releases">` has the props as JSON: a `Date` is a string there.
 
-A view has its own name: a name of `.views()` that is also the key of a source fails when the site starts, and one that is also the name of a view of a plugin fails when that view renders.
+A view has its own name: a name of `.views()` that is also the key of a source is a type error and fails when the site starts, and one that is also the name of a view of a plugin fails when that view renders.
+
+A content page wins over a view at its URL. A view without params at the URL of a content page fails when the site starts, since it would never render. A view with params answers the URLs that have no content page: `/guide/[name]` renders `/guide/other`, while `/guide/install` stays the page of `content/guide/install.mdx`.
 
 ## Params
 
@@ -88,15 +90,15 @@ createPress(docs.toFumadocsSource()).views({
 
 ## Render Mode
 
-Views are generated at build time by default, like the pages of a static source, and the sitemap lists them. A view with params generates one page per entry of `staticPaths`.
+Views are generated at build time by default, like the pages of a static source, and the sitemap lists them. A view with params generates one page per entry of `staticPaths`, and a `view` that returns nothing for one of them fails the build.
 
-With `render: "dynamic"`, a view renders on demand, and needs a [server deployment](/deploy). A view that reads your content follows its render mode with `this.getContentRender()`, so it renders on demand when a source is dynamic.
+With `render: "dynamic"`, a view renders on demand, and needs a [server deployment](/deploy). The sitemap lists a view without params whatever its render mode. A view that reads your content follows its render mode with `this.getContentRender()`, so it renders on demand when a source is dynamic.
 
 ## Page Data
 
 `data` of a view sets the data of its pages, like the `title` and `description` of their `<head>`. The component of the view reads it in `page.pageData`.
 
-For data that differs per page, like the title of a tag page, `data` is a function. It receives the `params` and `lang` of the page, and the `props` that `view` returned:
+For data that differs per page, like the title of a tag page, `data` is a function. It receives the `params` and `lang` of the page, and `this` is the context of the site:
 
 ```ts title="press.config.ts"
 createPress(docs.toFumadocsSource()).views({
@@ -109,7 +111,7 @@ createPress(docs.toFumadocsSource()).views({
 });
 ```
 
-TypeScript types `props` in `data` only when every `view` of the same `.views()` call has no parameter or an annotated one, unlike `({ params })` above. To read `props` with its type, annotate the parameter, like `view(env: ViewEnv)` with `ViewEnv` of `@fumapress/vue/config`.
+For data from what `view` loaded, like the title of a post from a CMS, write a [view of a plugin](#views-of-plugins), whose `view` returns the data with the props.
 
 ## Languages
 
@@ -160,11 +162,11 @@ import type app from "../press.config";
 
 export default defineTheme<typeof app>({
   extends: [defaultTheme, releasesTheme],
-  views: releasesTheme.views,
+  views: { ...releasesTheme.views },
 });
 ```
 
-`defineTheme<typeof app>()` reads the components of `extends` when it is one theme. Its types can't read them in a list, so the theme above lists the components of the plugin in `views` too.
+`defineTheme<typeof app>()` requires the component of each view in the theme's own `views`, so the theme above spreads the components of the plugin there.
 
 A view of a plugin can return `data` with its `type` and `props`, for data that differs per page, like the title of each post. It wins over the `data` of `createView()`:
 

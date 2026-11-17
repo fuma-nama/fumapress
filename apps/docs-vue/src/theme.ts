@@ -1,9 +1,10 @@
 import {
   Blocks,
   BookOpen,
-  Component,
+  FileCode,
   Gauge,
   Languages,
+  LayoutTemplate,
   Paintbrush,
   Plug,
   Rocket,
@@ -11,6 +12,7 @@ import {
   Server,
   Settings,
   Terminal,
+  Zap,
 } from "@lucide/vue";
 import { defineTheme } from "@fumapress/vue/theme";
 import defaultTheme from "@fumapress/vue/theme/default";
@@ -22,9 +24,10 @@ export default defineTheme<typeof app>({
   icons: {
     Blocks,
     BookOpen,
-    Component,
+    FileCode,
     Gauge,
     Languages,
+    LayoutTemplate,
     Paintbrush,
     Plug,
     Rocket,
@@ -32,5 +35,6 @@ export default defineTheme<typeof app>({
     Server,
     Settings,
     Terminal,
+    Zap,
   },
 });

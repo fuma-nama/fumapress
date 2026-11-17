@@ -101,7 +101,8 @@ type JsonValue<T> = T extends { toJSON(): infer J }
 
 /**
  * The data of a rendered page, sent to the browser: from the `title`, `description` and `full` of `page.data` or the
- * `data` of a view, then the `transformPage` hook of plugins. Its values are serializable.
+ * `data` of a view, then the `transformPage` hook of plugins. Its values are serializable. A plugin module adds its
+ * fields by declaration merging: `declare module "@fumapress/vue/config" { interface PageData { ... } }`.
  */
 export interface PageData {
   title?: string;
@@ -112,7 +113,6 @@ export interface PageData {
   githubUrl?: string;
   /** when its content last changed, as an ISO date: from the `getPageLastModified` hook of the plugin that knows */
   lastModified?: string;
-  [key: string]: unknown;
 }
 
 /**
@@ -129,12 +129,13 @@ export type View<V = any> = V extends unknown
  * - `module`: the URL of a module whose default export is the content, which the browser imports. `load` is the
  *   same module on the server; a function, so it never reaches the browser.
  * - `html`: HTML rendered as it is, for content that comes from elsewhere.
- * - `view`: a component of the theme renders the page, in place of the docs layout: one of the views `V`.
+ * - `view`: the component of `views` of the theme for the type of the page renders it, in place of the docs layout,
+ *   with these props: those of one of the page types `P`, the props by source key.
  */
-export type PageBody<V = any> =
+export type PageBody<P = any> =
   | { module: string; load?: () => Promise<PageModule> }
   | { html: string }
-  | { view: View<V> };
+  | { view: { props: P[keyof P] } };
 
 /**
  * A page as the browser receives it: with the first response, then one request per navigation. A content page has

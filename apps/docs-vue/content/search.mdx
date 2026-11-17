@@ -22,7 +22,7 @@ With a [dynamic source](/content/sources), the server builds the index on reques
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
@@ -39,7 +39,7 @@ Search is a default plugin. Leave it out with `recommendedPreset()`, and the sea
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
 import { defineDocs } from "@fumapress/vue/content";
 
-const docs = defineDocs({ dir: "content" });
+const docs = defineDocs();
 
 export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({ search: false }),

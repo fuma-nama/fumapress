@@ -141,6 +141,12 @@ test("languages are the site's", () => {
   single.config({ ui: { translations: i18n.translations() } });
 });
 
+test("languages are told apart by their URL", () => {
+  defineI18n({ languages: ["en", "cn"], defaultLanguage: "en", hideLocale: "default-locale" });
+  // @ts-expect-error: a site never hides every language
+  defineI18n({ languages: ["en", "cn"], defaultLanguage: "en", hideLocale: "always" });
+});
+
 test("unknown keys are type errors", () => {
   // @ts-expect-error: not a hook
   site.plugins({ name: "a", getPageBodyy() {} });
@@ -282,8 +288,81 @@ test("a collection takes the options of its macro only", () => {
     defineCollections({ type: "doc" });
     // @ts-expect-error: the frontmatter of a page must fit `PageData`, like a title that is text
     defineDocs({ docs: { schema: z.object({ title: z.number() }) } });
+    // @ts-expect-error: `meta.json` files are in the collections of `defineDocs()`
+    defineCollections({ type: "meta", dir: "meta" });
+
+    // an unknown option is one error, and the collection keeps its types
+    const posts = defineCollections({
+      type: "doc",
+      dir: "blog",
+      schema: pageSchema.extend({ date: z.string() }),
+      // @ts-expect-error: not an option of a collection
+      async: true,
+    });
+    const source = posts.toFumadocsSource();
+    expectTypeOf(source.files[0]!).toExtend<{ type: "page" | "meta" }>();
+    const site = createPress({ posts: source });
+    type Page = NonNullable<(typeof site)["~types"]>["content"]["page"];
+    expectTypeOf<Page["data"]["date"]>().toEqualTypeOf<string>();
   }
   void options;
+});
+
+// a plugin module adds the fields of the page data it sets
+declare module "@fumapress/vue/config" {
+  interface PageData {
+    readingTime?: number;
+  }
+}
+
+test("the page data has the fields core and plugins declare", () => {
+  site.plugins({ name: "reading-time", transformPage: () => ({ readingTime: 2 }) });
+  // @ts-expect-error: a field no plugin declares
+  site.plugins({ name: "typo", transformPage: () => ({ titel: "Home" }) });
+  site.views({
+    // @ts-expect-error: a misspelled field of the data of a view
+    about: { path: "/about", data: { titel: "About" }, view: () => ({}) },
+  });
+  // @ts-expect-error: the same in the options of a custom page
+  defineComponent({ page: { titel: "About" } });
+  // the type of the browser is the same one
+  const ofClient: PageData = { title: "About", readingTime: 1 };
+  void ofClient;
+});
+
+test("a view has its own name, not the key of a source", () => {
+  // @ts-expect-error: the theme renders both with `views.docs`
+  site.views({ docs: { path: "/docs-index", view: () => ({}) } });
+});
+
+test("a plugin renders the pages of a source it declares as views", () => {
+  const cards = <C extends AppShape>(): Plugin<C, { pages: { docs: { title: string } } }> => ({
+    name: "test:cards",
+    getPageBody: (page) => ({ view: { props: { title: page.url } } }),
+  });
+  void cards;
+  const wrong = <C extends AppShape>(): Plugin<C, { pages: { docs: { title: string } } }> => ({
+    name: "test:wrong",
+    // @ts-expect-error: the props of another page type
+    getPageBody: () => ({ view: { props: { count: 1 } } }),
+  });
+  void wrong;
+  const untyped: Plugin = {
+    name: "test:untyped",
+    // @ts-expect-error: a plugin without declared pages renders none as a view
+    getPageBody: () => ({ view: { props: {} } }),
+  };
+  void untyped;
+
+  // written in `.plugins()`: the theme would have no component for its pages
+  // @ts-expect-error: the plugin "inline" returns views of pages it doesn't declare
+  site.plugins({ name: "inline", getPageBody: () => ({ view: { props: { title: "" } } }) });
+  // other bodies, and typed plugins, are fine
+  site.plugins(
+    { name: "html", getPageBody: () => ({ html: "<p>Hi</p>" }) },
+    releasesPlugin(),
+    cards(),
+  );
 });
 
 test("the content of a site is sources: a collection is one through `toFumadocsSource()`", () => {
@@ -299,8 +378,9 @@ test("the content of a site is sources: a collection is one through `toFumadocsS
   void content;
 });
 
-test("the data of the pages of a view can come from its params and props", () => {
-  site.views({
+test("the props of views are inferred next to static data and data from params", () => {
+  // every way to write `view` in one call: methods using `this`, arrow functions, with or without a parameter
+  const views = site.views({
     "blog.tag": {
       path: "/blog/tags/[tag]",
       staticPaths: ["news"],
@@ -310,16 +390,40 @@ test("the data of the pages of a view can come from its params and props", () =>
         return { title: `Posts tagged ${params.tag}` };
       },
     },
-  });
-  // TypeScript infers the props `data` receives when the parameter of `view` is annotated or absent
-  site.views({
     "blog.count": {
       path: "/blog/count",
-      view: (env: ViewEnv<"en" | "cn">) => ({ count: env.lang.length }),
-      data: ({ props }) => {
-        expectTypeOf(props).toEqualTypeOf<{ count: number }>();
-        return { title: `${props.count} posts` };
+      view({ lang }) {
+        return { count: this.getPages(lang).length };
       },
+      data: { title: "Count" },
+    },
+    "blog.year": {
+      path: "/blog/years/[year]",
+      staticPaths: ["2026"],
+      view({ params }) {
+        return { year: Number(params.year), pages: this.getPages().length };
+      },
+      data({ params }) {
+        return { title: `Posts of ${params.year}`, description: this.site.name };
+      },
+    },
+    "blog.all": { path: "/blog/all", view: (env: ViewEnv) => ({ lang: env.lang }) },
+  });
+  type Views = typeof views;
+  expectTypeOf<PageOf<Views, "blog.tag">["props"]>().toEqualTypeOf<{ tag: string }>();
+  expectTypeOf<PageOf<Views, "blog.count">["props"]>().toEqualTypeOf<{ count: number }>();
+  expectTypeOf<PageOf<Views, "blog.year">["props"]>().toEqualTypeOf<{
+    year: number;
+    pages: number;
+  }>();
+  expectTypeOf<PageOf<Views, "blog.all">["props"]>().toEqualTypeOf<{ lang: string }>();
+
+  site.views({
+    "blog.tag": {
+      path: "/blog/tags/[tag]",
+      view: ({ params }) => ({ tag: params.tag }),
+      // @ts-expect-error: the page data of a view comes from its params, not from its props
+      data: ({ props }) => ({ title: props.tag }),
     },
   });
 });
@@ -379,17 +483,19 @@ test("a theme gives each page type of the site a component that receives its pag
     views: { "blog.index": DocsLayout, releases: Releases },
   });
 
-  // a theme whose views have components for the page types of the site satisfies them
-  const plugin = { views: { default: DocsLayout, releases: Releases } };
-  defineTheme<typeof app>({ extends: plugin, views: { "blog.index": Index } });
+  // the components of views are in the theme's own `views`: the ones of another theme are spread there
+  const plugin = { views: { releases: Releases } };
   defineTheme<typeof app>({
-    extends: { views: { default: DocsLayout, releases: Releases, "blog.index": Index } },
+    extends: [defaultTheme, plugin],
+    views: { ...plugin.views, "blog.index": Index },
   });
-  // @ts-expect-error: a theme without the component of `blog.index`
-  defineTheme<typeof app>({ extends: plugin });
+  // @ts-expect-error: `extends` doesn't count, so `releases` has no component
+  defineTheme<typeof app>({ extends: [defaultTheme, plugin], views: { "blog.index": Index } });
+  // @ts-expect-error: a theme without `views` has no component for the views
+  defineTheme<typeof app>({ extends: defaultTheme });
 
-  // content pages need their own component or `views.default`, which the base theme doesn't have
-  // @ts-expect-error: no component for the pages of `docs` and `blog`
+  // a content type has its own component or `views.default`, here or in a theme it extends: the site checks it
+  // when it starts
   defineTheme<typeof app>({
     extends: baseTheme,
     views: { "blog.index": Index, releases: Releases },
@@ -399,11 +505,8 @@ test("a theme gives each page type of the site a component that receives its pag
     views: { docs: Docs, blog: Post, "blog.index": Index, releases: Releases },
   });
 
-  // a theme of a site without views needs a component for its content pages, and checks nothing without the type
-  // of the site
+  // a site without views needs no `views` in its types, and nothing is checked without the type of the site
   defineTheme<typeof single>({ views: { default: DocsLayout } });
-  // @ts-expect-error: no component for the content pages
-  defineTheme<typeof single>({ extends: baseTheme });
   defineTheme<typeof single>({ extends: defaultTheme });
   defineTheme({ views: { anything: Post } });
 });

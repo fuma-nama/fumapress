@@ -45,6 +45,8 @@ export type {
   PresetEntry,
   RouteFns,
   StaticPath,
+  PluginErrors,
+  UndeclaredPages,
   UnknownKeys,
   ViewEnv,
   ViewRoute,

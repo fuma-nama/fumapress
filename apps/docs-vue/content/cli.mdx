@@ -74,7 +74,7 @@ They are `theme` and the modules of the [UI](/ui/components), by their path unde
 npx @fumapress/vue-cli add components/card components/callout
 ```
 
-`add theme` copies the default theme: the base theme with its `Root`, `NotFound`, Markdown components and stylesheet, and the docs and home layouts in `layouts`. The `index.ts` of the copy is the default theme, which you edit like your own theme. Another layout, like `@fumapress/vue/theme/layouts/notebook`, is copied when a file of your project imports it, and the files of `src/theme` then import the copy.
+`add theme` copies the default theme: the base theme with its `Root`, `NotFound`, Markdown components and stylesheet, and the docs and home layouts in `layouts`. The `index.ts` of the copy is the default theme, which you edit like your own theme. Another layout, like `@fumapress/vue/theme/layouts/notebook`, is copied when a file of your project imports it, and every file of your project then imports the copy.
 
 ## Options
 
@@ -85,11 +85,11 @@ npx @fumapress/vue-cli add components/card components/callout
 
 ## Imports of a Copy
 
-A copy imports the rest of the UI from the package, like `@fumapress/vue/ui/contexts/tree`, and keeps the relative imports inside its own folder. When you copy a module that other copies import, the CLI changes their imports to your copy and marks them with `~`.
+A copy imports the rest of the UI from the package, like `@fumapress/vue/ui/contexts/tree`, and keeps the relative imports inside its own folder. When you copy a module that other copies or other files of your project import, the CLI changes their imports to your copy and marks them with `~`.
 
 Modules you don't copy stay in the package and keep receiving its updates. Copy only what you change.
 
-A copy imports the packages the UI uses, like `class-variance-authority`. When your project doesn't depend on one, the CLI prints the command to add it:
+A copy imports the packages the UI uses, like `class-variance-authority`. When your project doesn't depend on one, the CLI prints the command to add it, with the package manager of the lockfile of your project:
 
 ```
 Your copies import packages your project doesn't depend on yet. Add them:
