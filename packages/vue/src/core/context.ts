@@ -75,7 +75,7 @@ export interface Context {
   getContent: (pathname: string) => Promise<PageContent | undefined>;
   /** the URLs of the custom pages generated at build time: the ones without params */
   customPages: string[];
-  /** the URLs of the pages generated at build time: the pages of static sources and the static views */
+  /** the URLs of the content pages and views generated at build time; custom pages are `customPages` */
   getStaticPages: () => Promise<string[]>;
   /** the language of a URL */
   getLanguage: (pathname: string) => string;

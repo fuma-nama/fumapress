@@ -1,5 +1,5 @@
 import type { Plugin } from "../core/plugin";
-import { PAGE_DATA_ROUTE, pageDataPath, pageOfDataParam, siteDataPath } from "../core/routes";
+import { PAGE_DATA_ROUTE, pageDataParam, pageOfDataParam, siteDataPath } from "../core/routes";
 import type { SiteData, SiteI18n } from "../core/types";
 
 /**
@@ -10,7 +10,6 @@ export function pagesPlugin(translations: Record<string, Record<string, string>>
   return {
     name: "core:pages",
     routes({ createApi }) {
-      const prefix = PAGE_DATA_ROUTE.indexOf("[");
       const { i18n } = this;
 
       const i18nOf = (lang: string): SiteI18n | undefined => {
@@ -45,8 +44,7 @@ export function pagesPlugin(translations: Record<string, Record<string, string>>
       createApi({
         path: PAGE_DATA_ROUTE,
         render: "static",
-        staticPaths: async () =>
-          (await this.getStaticPages()).map((url) => pageDataPath(url).slice(prefix).split("/")),
+        staticPaths: async () => (await this.getStaticPages()).map(pageDataParam),
         data: ({ params }) => {
           const url = pageOfDataParam(params.path ?? "");
           return url === undefined ? undefined : this.getContent(url);

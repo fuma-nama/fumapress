@@ -1,6 +1,6 @@
 import { nextTick, shallowRef, type Component, type ShallowRef } from "vue";
-import { decodePath, encodePath, matchRoute, safeHref } from "./core/routes";
-import type { Awaitable } from "./core/types";
+import { decodePath, encodePath, hasParams, matchRoute, safeHref } from "./core/routes";
+import type { Awaitable, ClientAssets } from "./core/types";
 
 /** a page of the app outside the content: a `.vue` file of `src/pages` */
 export interface RouteRecord {
@@ -9,7 +9,7 @@ export interface RouteRecord {
   /** loads the component of the page */
   component: () => Promise<{ default: Component }>;
   /** loads the styles of the page, for the document the server renders */
-  assets?: () => Promise<{ default: unknown }>;
+  assets?: () => Promise<{ default: ClientAssets }>;
 }
 
 /** where the app is */
@@ -138,7 +138,9 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
     first = false,
   ): Promise<{ route: Route; commit?: () => void } | undefined> {
     let { record } = target;
-    if (record?.path.includes("[") && (await options.hasPage?.(target.path))) record = undefined;
+    if (record && hasParams(record.path) && (await options.hasPage?.(target.path))) {
+      record = undefined;
+    }
     const route: Route = {
       ...target,
       params: record ? target.params : {},

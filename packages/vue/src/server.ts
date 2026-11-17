@@ -6,27 +6,22 @@ import {
   PRERENDER_ROUTE,
   decodePath,
   encodePath,
+  hasParams,
   matchRoute,
   pageDataPath,
   prerenderListPath,
   staticPathsOf,
 } from "./core/routes";
-import type { HeadTag, Load, PageContent, PageData } from "./core/types";
+import type { ClientAssets, HeadTag, Load, PageContent, PageData } from "./core/types";
 
-export { encodePath } from "./core/routes";
-
-export interface ClientAssets {
-  entry: string;
-  /** the attributes of a stylesheet link: its `href`, and what the dev server adds to follow its changes */
-  css: ({ href: string } & Record<string, string>)[];
-  js: { href: string }[];
-}
+export type { ClientAssets } from "./core/types";
 
 export interface RenderEnv {
   ctx: Context;
-  /** the path of the URL in the address bar, without the base path */
+  /** the URL in the address bar, where the app starts: with the base path and the query */
+  url: string;
+  /** its path in the site: decoded, without the base path */
   pathname: string;
-  search: string;
   /** the language of the page: the app loads the data of the site in it */
   lang: string;
   /** the data routes of the site, called without a request: what the app loads comes with the page */
@@ -50,8 +45,8 @@ export interface HandlerOptions {
   assets: ClientAssets;
   /** tags of every page from the theme, like the script that applies the color theme before the first paint */
   head?: HeadTag[];
-  /** paths of pages outside the content to generate at build time, like custom pages without params */
-  staticPaths?: string[];
+  /** the paths of the custom pages of the app: the ones without params are generated at build time */
+  customPages?: string[];
   /**
    * Whether this server is the prerenderer of a build. Only then does it list the paths to generate, run the `build`
    * hooks of plugins and serve the not found page as a file. It is a fact of the build, never read from a request.
@@ -143,7 +138,9 @@ async function renderDocument(
   };
 
   const lang = ctx.getLanguage(pathname);
-  const output = await options.render({ ctx, pathname: shown, search, lang, load: load as Load });
+  // the path is encoded here, where it goes out to the app as a URL
+  const url = ctx.base + encodePath(shown).slice(1) + search;
+  const output = await options.render({ ctx, url, pathname: shown, lang, load: load as Load });
   const { html, status = 200, assets = options.assets, data: ownData } = output;
 
   // A URL that names its language another way goes to the one a page has: without a prefix, like `/`, to the
@@ -206,7 +203,10 @@ async function renderDocument(
     })),
   );
   const data = JSON.stringify(payload).replace(/</g, "\\u003c");
-  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}"><head>${renderHead(tags)}</head><body><div id="app">${html}</div><script type="application/json" id="__PRESS__">${data}</script><script type="module" src="${assets.entry}"></script></body></html>`;
+  const script = assets.entry
+    ? `<script type="module" src="${escapeHtml(assets.entry)}"></script>`
+    : "";
+  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}"><head>${renderHead(tags)}</head><body><div id="app">${html}</div><script type="application/json" id="__PRESS__">${data}</script>${script}</body></html>`;
 
   return new Response(document, {
     status,
@@ -240,21 +240,25 @@ function buildRoutes(
   }
 
   async function list(): Promise<string[][]> {
+    const paths = await staticPaths();
+    const emitted: string[] = [];
     const output: BuildOutput = {
-      paths: await staticPaths(),
+      paths,
       fetch,
-      emitFile(path, content) {
-        const type = contentTypes[path.split(".").pop() ?? ""] ?? "application/octet-stream";
+      emitFile(file, content) {
+        const type = contentTypes[file.split(".").pop() ?? ""] ?? "application/octet-stream";
+        const path = `/${file.replace(/^\/+/, "")}`;
+        emitted.push(path);
         routes.push({
-          path: `/${path.replace(/^\/+/, "")}`,
+          path,
           render: "static",
           GET: () => new Response(content as BodyInit, { headers: { "Content-Type": type } }),
         });
       },
     };
     for (const plugin of ctx.plugins) await plugin.build?.call(ctx, output);
-    // again: the emitted files are static routes. Paths are encoded here, once, for the URLs Nitro requests
-    const urls = (await staticPaths()).map((path) => ctx.base + encodePath(path).slice(1));
+    // the emitted files are generated too. Paths are encoded here, once, for the URLs Nitro requests
+    const urls = [...paths, ...emitted].map((path) => ctx.base + encodePath(path).slice(1));
 
     const out: string[][] = [[]];
     let size = 0;
@@ -334,7 +338,7 @@ export function createFetchHandler(
   const fetch = async (request: Request): Promise<Response> => {
     const ctx = await getContext(options.press, {
       base: options.base,
-      customPages: options.staticPaths,
+      customPages: options.customPages?.filter((path) => !hasParams(path)),
     });
     if (options.prerender) ofBuild ??= buildRoutes(options, ctx, fetch);
     // read on each request: a build adds the files it emits
@@ -358,7 +362,9 @@ export function createFetchHandler(
         if (rewrite === undefined) return run(index + 1, current);
 
         // another path of the site, with an optional query
-        const [path = "", query] = rewrite.split("?", 2);
+        const at = rewrite.indexOf("?");
+        const path = at < 0 ? rewrite : rewrite.slice(0, at);
+        const query = at < 0 ? undefined : rewrite.slice(at + 1);
         const decoded = decodePath(path);
         if (decoded === undefined) {
           throw new Error(`[Fumapress] \`next("${rewrite}")\` is not a path of the site.`);

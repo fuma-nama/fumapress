@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["dom", "dom.iterable", "ES2023"],
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "nitro/vite/types"],
     "allowImportingTsExtensions": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

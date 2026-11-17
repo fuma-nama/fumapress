@@ -52,6 +52,11 @@ export function safeHref(href: string): string | undefined {
 const param = /^\[(\w+)\]$/;
 const rest = /^\[\.\.\.(\w+)\]$/;
 
+/** whether a pattern has a param: it then matches paths that are not known ahead */
+export function hasParams(pattern: string): boolean {
+  return pattern.split("/").some((part) => param.test(part) || rest.test(part));
+}
+
 /**
  * Checks the pattern of a route when it is created: a param is a whole segment, and a rest param is the last one. A
  * pattern like `/data/[id].json` would otherwise be a literal path that matches nothing.
@@ -114,10 +119,18 @@ export async function staticPathsOf(
 }
 
 /** where the browser requests the content of a page, by its URL: a route of the `core:pages` plugin */
-export const PAGE_DATA_ROUTE = "/_press/pages/[...path]";
+const PAGE_DATA = "/_press/pages";
+export const PAGE_DATA_ROUTE = `${PAGE_DATA}/[...path]`;
 
 export function pageDataPath(url: string): string {
-  return `/_press/pages${url === "/" ? "/index" : url}.json`;
+  return `${PAGE_DATA}${url === "/" ? "/index" : url}.json`;
+}
+
+/** the `path` param of the route for the data of a page, by segment */
+export function pageDataParam(url: string): string[] {
+  return pageDataPath(url)
+    .slice(PAGE_DATA.length + 1)
+    .split("/");
 }
 
 /** the URL of the page a {@link pageDataPath} is for, from the `path` param of its route */

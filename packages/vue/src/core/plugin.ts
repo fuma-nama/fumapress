@@ -61,7 +61,12 @@ export type ApiRoute = {
  * named `type`. Its `path` has no language prefix: the site adds it.
  */
 export interface ViewRoute extends Pick<ApiRoute, "path" | "staticPaths"> {
-  /** `static` pages are generated at build time, a view reading content follows it @defaultValue "static" */
+  /**
+   * `static` pages are generated at build time. A view that reads content sets `this.getContentRender()`, so it
+   * renders on demand when the content does.
+   *
+   * @defaultValue "static"
+   */
   render?: "static" | "dynamic";
   /** the data of its pages, like their title; `transformPage` sets it per page */
   data?: Partial<PageData>;

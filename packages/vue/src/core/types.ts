@@ -63,7 +63,6 @@ export interface StructuredData {
 /** the exports of a compiled Markdown file */
 export interface PageModule {
   default: unknown;
-  frontmatter?: Record<string, unknown>;
   toc?: TOCItem[];
   structuredData?: StructuredData;
   /** the content as Markdown, as it was written */
@@ -210,3 +209,12 @@ export interface SiteData {
 
 /** the value of a data route by its path, none without a route or a value; on the server, without a request */
 export type Load = <T = unknown>(path: string) => Promise<T | undefined>;
+
+/** the files of a part of the app in the browser build, as an `?assets` import of Nitro gives them */
+export interface ClientAssets {
+  /** the script that starts the app */
+  entry?: string;
+  /** the attributes of a stylesheet link: its `href`, and what the dev server adds to follow its changes */
+  css: { href: string; [attribute: string]: string | undefined }[];
+  js: { href: string }[];
+}

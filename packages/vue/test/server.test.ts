@@ -55,7 +55,7 @@ function handlerOf(press: Press, prerender: boolean): Get {
     prerender,
     assets: { entry: "/assets/entry.js", css: [{ href: "/assets/style.css" }], js: [] },
     head: [{ tag: "script", content: "theme()" }],
-    staticPaths: ["/about"],
+    customPages: ["/about"],
     // like the app: the data of the site, then the content of the page
     async render({ pathname, lang, load }) {
       await load<SiteData>(siteDataPath(lang));

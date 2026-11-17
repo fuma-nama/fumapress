@@ -3,25 +3,13 @@
 //
 //   node scripts/check-sfc.mjs
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileScript, parse, registerTS } from "vue/compiler-sfc";
+import { typeResolver } from "../src/vite/type-resolver.ts";
 
-// what the Vite plugin registers for a site without TypeScript, see `typeResolver` there
-registerTS(() => ({
-  findConfigFile: () => undefined,
-  resolveModuleName(source, containingFile) {
-    let resolvedFileName;
-    try {
-      const file = createRequire(containingFile).resolve(source);
-      resolvedFileName = /\.(ts|vue)$/.test(file)
-        ? file
-        : [file.replace(/\.[cm]?js$/, ".d.ts")].find((types) => fs.fileExists(types));
-    } catch {}
-    return { resolvedModule: resolvedFileName ? { resolvedFileName } : undefined };
-  },
-}));
+// what the Vite plugin registers for a site without TypeScript
+registerTS(() => typeResolver);
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const fs = {

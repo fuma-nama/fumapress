@@ -14,7 +14,7 @@ const outDir = path.join(root, "dist/style");
 mkdirSync(outDir, { recursive: true });
 
 const themes = readdirSync(cssDir)
-  .filter((name) => name.endsWith(".css") && name !== "default.css" && name !== "preset.css")
+  .filter((name) => name.endsWith(".css") && name !== "preset.css")
   .map((name) => name.slice(0, -4));
 
 for (const theme of themes) {

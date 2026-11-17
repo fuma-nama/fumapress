@@ -9,6 +9,7 @@ import * as compiler from "vue/compiler-sfc";
 import { compileMarkdown, type MarkdownOptions } from "./vite/compile";
 import { parseFrontmatter } from "./vite/frontmatter";
 import { isMeta, scanCollection, scanPages } from "./vite/scan";
+import { typeResolver } from "./vite/type-resolver";
 import { prerenderListPath } from "./core/routes";
 
 export type { MarkdownOptions } from "./vite/compile";
@@ -26,7 +27,7 @@ export interface PressOptions {
    * in the browser.
    *
    * The stylesheet of the site is `src/theme.css` (or `src/theme/style.css`) when the file exists, in place of the
-   * default one: Tailwind CSS, a color theme and the styles of the UI.
+   * default one, wherever this option points.
    *
    * @defaultValue "src/theme.ts" or "src/theme/index.ts", when the file exists
    */
@@ -51,6 +52,7 @@ interface Site {
 }
 
 function core(options: PressOptions, site: Site): Plugin {
+  const pagesPath = options.pagesDir ?? "src/pages";
   let root = site.root;
   let isDev = false;
   let collections: [name: string, dir: string][] = [];
@@ -98,7 +100,7 @@ function core(options: PressOptions, site: Site): Plugin {
     const file = configFiles.map((name) => path.join(root, name)).find((name) => existsSync(name));
     if (file) return `export { default } from ${str(normalizePath(file))};\n`;
     // a site without `press.config`: its content with the defaults
-    return `import { createPress } from "@fumapress/vue/config";\nimport { content } from "@fumapress/vue/content";\nexport default createPress(content).config({});\n`;
+    return `import { createPress } from "@fumapress/vue/config";\nimport { content } from "@fumapress/vue/content";\nexport default createPress(content);\n`;
   }
 
   function loadTheme() {
@@ -163,10 +165,7 @@ export default {
           exclude: ["@fumapress/vue"],
           // dependencies are pre-bundled from the start: one found while a page loads would reload the page. Vite
           // looks for those of the site in its theme and its custom pages, and is told the ones of the UI.
-          entries: [
-            options.theme ?? themeFiles,
-            `${options.pagesDir ?? "src/pages"}/**/*.vue`,
-          ].flat(),
+          entries: [options.theme ?? themeFiles, `${pagesPath}/**/*.vue`].flat(),
           include: [
             "vue",
             "@fumapress/vue > cn",
@@ -183,7 +182,7 @@ export default {
     },
     configResolved(config) {
       isDev = config.command === "serve";
-      pagesDir = path.resolve(root, options.pagesDir ?? "src/pages");
+      pagesDir = path.resolve(root, pagesPath);
     },
     configureServer(server) {
       /** loads virtual modules again, on the server and in the browser */
@@ -202,7 +201,8 @@ export default {
       const ofTheme = under([...themeFiles, ...styleFiles]);
       const ofConfig = under(configFiles);
 
-      // a file added or removed changes what a virtual module lists: the pages, or which file is the theme
+      // A file added or removed changes what a virtual module lists: the pages, or which file is the theme. The
+      // server also lists the custom pages it generates, so it starts again with the collections.
       const onListChange = (file: string) => {
         if (inContent(file) || file.startsWith(pagesDir + path.sep))
           reload("collections", "routes");
@@ -257,26 +257,6 @@ export default {
     },
   };
 }
-
-/**
- * What the Vue compiler asks of TypeScript: the file of a type imported from a package. Without TypeScript, Node
- * finds it: the source file an export points to (the UI modules of this package), or the declarations next to it.
- */
-const typeResolver = {
-  findConfigFile: () => undefined,
-  resolveModuleName(source: string, containingFile: string) {
-    let resolvedFileName: string | undefined;
-    try {
-      const file = createRequire(containingFile).resolve(source);
-      resolvedFileName = /\.(ts|vue)$/.test(file)
-        ? file
-        : [file.replace(/\.[cm]?js$/, ".d.ts")].find((types) => existsSync(types));
-    } catch {
-      // not installed: the compiler reports the import
-    }
-    return { resolvedModule: resolvedFileName ? { resolvedFileName } : undefined };
-  },
-};
 
 /**
  * The Vue plugin for the components of the UI, which ship as source. Their props are types imported from other

@@ -33,12 +33,12 @@ export function sitemapPlugin({ path = "/sitemap.xml" }: SitemapOptions = {}): P
             }),
           );
           const content = new Set(this.getPages().map((page) => page.url));
-          const ofViews = [...(await this.getStaticPages()), ...this.customPages]
+          const others = [...(await this.getStaticPages()), ...this.customPages]
             .filter((url) => !content.has(url))
             .map((url) => `  <url>${loc(url)}</url>`);
 
           return new Response(
-            `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${[...ofContent, ...ofViews].join("\n")}\n</urlset>\n`,
+            `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${[...ofContent, ...others].join("\n")}\n</urlset>\n`,
             { headers: { "Content-Type": "application/xml; charset=utf-8" } },
           );
         },

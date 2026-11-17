@@ -1,5 +1,10 @@
 import type { HeadTag } from "./types";
 
+/** the title of a page of a site: on the server for its document, and in the browser after a navigation */
+export function pageTitle(title: string | undefined, siteName: string | undefined): string {
+  return [title, siteName].filter(Boolean).join(" | ");
+}
+
 /**
  * Tags with a key are unique: `title`, a `meta` by its `name`, `property` or `http-equiv`, the canonical link, and an
  * alternate link by its `hreflang`.

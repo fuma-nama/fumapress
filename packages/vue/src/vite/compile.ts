@@ -4,7 +4,6 @@ import { rehypeToc } from "@fumadocs/satteri/rehype-toc";
 import { remarkCodeTab } from "@fumadocs/satteri/remark-code-tab";
 import { remarkDirectiveAdmonition } from "@fumadocs/satteri/remark-directive-admonition";
 import { rehypeHeading, remarkHeading } from "@fumadocs/satteri/remark-heading";
-import { remarkImage } from "@fumadocs/satteri/remark-image";
 import { remarkLlms } from "@fumadocs/satteri/remark-llms";
 import { remarkNpm } from "@fumadocs/satteri/remark-npm";
 import { remarkSteps } from "@fumadocs/satteri/remark-steps";
@@ -33,9 +32,8 @@ export interface CompileInput {
 }
 
 export interface CompileOutput {
-  /** an ES module: the content as its default export; on the server, `frontmatter`, `toc`, `structuredData` and `markdown` too */
+  /** an ES module: the content as its default export; on the server, `toc`, `structuredData` and `markdown` too */
   code: string;
-  frontmatter: Record<string, unknown>;
 }
 
 /** the kinds of a URL in content: of another site, of this site (like a file of `public`), or a file next to the page */
@@ -51,17 +49,16 @@ const withBase = (url: string) => `import.meta.env.BASE_URL + ${JSON.stringify(u
  * imported, so Vite puts it in the build; a path of the site gets the base path; another URL stays as it is.
  */
 function images(): MdastPluginInput {
-  // writes the imports of the images into the module
-  const { afterToJs } = remarkImage();
+  /** the imports of the files, added to the module once it is generated */
+  const imports: string[] = [];
   const attribute = (name: string, value: unknown) => ({ type: "mdxJsxAttribute", name, value });
 
   /** the expression of a `src` in the module, none for a URL that stays as it is */
-  function srcOf(url: string, ctx: { data: { _imageImports?: string[] } }) {
+  function srcOf(url: string) {
     const kind = kindOf(url);
     if (kind === "external") return;
     let value = withBase(url);
     if (kind === "file") {
-      const imports = (ctx.data._imageImports ??= []);
       value = `__img${imports.length}`;
       const file = decodeURI(url);
       imports.push(
@@ -75,7 +72,7 @@ function images(): MdastPluginInput {
     const written = node.attributes.find(
       (item) => item.type === "mdxJsxAttribute" && item.name === "src",
     );
-    const src = typeof written?.value === "string" ? srcOf(written.value, ctx) : undefined;
+    const src = typeof written?.value === "string" ? srcOf(written.value) : undefined;
     if (!src) return;
     ctx.setProperty(
       node,
@@ -86,9 +83,11 @@ function images(): MdastPluginInput {
 
   return {
     name: "images",
-    afterToJs,
+    afterToJs({ result }: { result: { code: string } }) {
+      if (imports.length > 0) result.code += `\n${imports.join("\n")}`;
+    },
     image(node: any, ctx: any) {
-      const src = srcOf(node.url, ctx);
+      const src = srcOf(node.url);
       if (!src) return;
       ctx.replaceNode(node, {
         type: "mdxJsxFlowElement",
@@ -118,12 +117,12 @@ export async function compileMarkdown({
   browser = false,
   options = {},
 }: CompileInput): Promise<CompileOutput> {
-  const { data: frontmatter, body } = parseFrontmatter(source);
+  // the frontmatter is the data of the page, which the collection has: the module is the content
+  const { body } = parseFrontmatter(source);
 
   const result = await compileMdx({
     source: body,
     filePath,
-    frontmatter: browser ? undefined : frontmatter,
     isDevelopment,
     options: {
       jsxImportSource: "@fumapress/vue",
@@ -157,11 +156,10 @@ export async function compileMarkdown({
     },
   });
 
-  if (browser) return { code: result.code, frontmatter };
+  if (browser) return { code: result.code };
 
   const toc = (result.data as { rehypeToc?: unknown }).rehypeToc ?? [];
   return {
     code: `${result.code}\nexport const toc = ${JSON.stringify(toc)};\n`,
-    frontmatter,
   };
 }

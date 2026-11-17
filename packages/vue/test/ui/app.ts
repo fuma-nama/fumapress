@@ -185,7 +185,7 @@ export type LayoutName = keyof typeof layouts;
 
 export async function createTestApp(layout: LayoutName) {
   const theme: Theme = { Root, Layout: layouts[layout], icons: { Languages } };
-  const state = await createPressState("/", "en", load, theme);
+  const state = await createPressState("en", load, theme);
   const router = await createRouter({
     base: "/",
     url: PAGE_URL,

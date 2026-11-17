@@ -3,8 +3,10 @@ import {
   RouterView,
   createPressState,
   createRouter,
+  hasPage,
   languageOf,
   loadPage,
+  pageTitle,
   pressKey,
   routerKey,
   type Load,
@@ -32,7 +34,7 @@ function announce(text: string) {
  * base path, and `load` reads the data routes of the server.
  */
 export async function createPressApp(url: string, base: string, lang: string, load: Load) {
-  const state = await createPressState(base, lang, load, theme);
+  const state = await createPressState(lang, load, theme);
   const { site } = state.site;
   /** the path of the page last announced: another anchor of the same page is not one */
   let announced: string | undefined;
@@ -43,7 +45,7 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     routes,
     // content pages, the views of plugins, and the not found page
     fallback: theme.Layout,
-    hasPage: async (path) => (await loadPage(state, path)) !== undefined,
+    hasPage: (path) => hasPage(state, path),
     async beforeEach(to, { first }) {
       // The app has the data of one language, like its page tree: a page of another one is another document. The
       // document the app starts in is the server's answer for the URL, whatever its language: asking again would loop.
@@ -63,7 +65,7 @@ export async function createPressApp(url: string, base: string, lang: string, lo
       // a content page comes with the head the server made; a custom page has its data in its options
       const own = to.record ? (to.component as ComponentOptions).page : undefined;
       const { head } = state.page.value ?? {};
-      document.title = head?.title ?? [own?.title, site.name].filter(Boolean).join(" | ");
+      document.title = head?.title ?? pageTitle(own?.title, site.name);
       const description = head?.description ?? own?.description ?? site.description;
       if (description) {
         document.querySelector('meta[name="description"]')?.setAttribute("content", description);

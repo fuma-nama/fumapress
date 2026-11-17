@@ -7,12 +7,12 @@ import {
   shallowRef,
   type App,
   type Component,
-  type ComputedRef,
   type InjectionKey,
   type ShallowRef,
 } from "vue";
 import type { Router } from "./router";
-import { localeOf, localizePath, type LocaleRules } from "./core/i18n";
+import { pageTitle } from "./core/head";
+import { localeOf, type LocaleRules } from "./core/i18n";
 import {
   encodePath,
   normalizePath,
@@ -34,7 +34,7 @@ import type {
   SiteI18n,
 } from "./core/types";
 
-export { normalizePath, safeHref, searchIndexPath };
+export { pageTitle, safeHref, searchIndexPath };
 
 declare module "vue" {
   interface ComponentCustomOptions {
@@ -93,8 +93,6 @@ export interface Theme {
 }
 
 export interface PressState {
-  /** the base path of the site, with a trailing slash */
-  base: string;
   /** the language of the document: another language is another document */
   lang: string;
   /** the data every page of the language needs: the site's info, the layout props and the page tree */
@@ -159,7 +157,6 @@ function withIcons(root: PageTree.Root, icons: Record<string, Component>): PageT
  * language is the one of the document, `<html lang>` in the browser.
  */
 export async function createPressState(
-  base: string,
   lang: string,
   load: Load,
   theme: Theme,
@@ -168,7 +165,6 @@ export async function createPressState(
   if (!site) throw new Error("[Fumapress] The data of the site failed to load.");
 
   return {
-    base,
     lang,
     site: theme.icons ? { ...site, tree: withIcons(site.tree, theme.icons) } : site,
     page: shallowRef(),
@@ -220,9 +216,10 @@ export async function loadPage(
 
 /** requests the content of a page ahead of a navigation, like when a link to it is hovered */
 export function prefetchPage(state: PressState, pathname: string): void {
-  void contentOf(state, normalizePath(pathname)).then(
-    (content) => content && bodyOf(state, content),
-  );
+  // a failed request is made again by the navigation, which reports it
+  contentOf(state, normalizePath(pathname))
+    .then((content) => content && bodyOf(state, content))
+    .catch(() => {});
 }
 
 function rulesOf({ defaultLanguage, hideLocale, locales }: SiteI18n): LocaleRules {
@@ -236,12 +233,9 @@ export function languageOf(state: PressState, pathname: string): string {
   return localeOf(rulesOf(i18n), normalizePath(pathname)).lang ?? i18n.defaultLanguage;
 }
 
-/** a URL of the site in another language: the same page there, when it has one */
-export function translatePath(state: PressState, lang: string, pathname: string): string {
-  const { i18n } = state.site;
-  if (!i18n) return pathname;
-  const rules = rulesOf(i18n);
-  return localizePath(rules, lang, localeOf(rules, normalizePath(pathname)).pathname);
+/** whether the content has a page at a URL: a content page or the view of a plugin */
+export async function hasPage(state: PressState, pathname: string): Promise<boolean> {
+  return (await contentOf(state, normalizePath(pathname))) !== undefined;
 }
 
 export function usePress(): PressState {
@@ -343,35 +337,12 @@ export const Link = defineComponent({
   },
 });
 
-export interface PressRouter {
-  /** the path of the page, without the base path */
-  path: ComputedRef<string>;
-  query: ComputedRef<Record<string, string>>;
-  hash: ComputedRef<string>;
-  /** the values of the params of a custom page, like `slug` of `src/pages/blog/[slug].vue` */
-  params: ComputedRef<Record<string, string>>;
-  /** the URL of a page for the address bar, with the base path: none for a URL that leaves the site */
-  resolve: (href: string) => string | undefined;
-  /** go to a page: a path of the site without the base path */
-  push: (href: string) => Promise<void>;
-  replace: (href: string) => Promise<void>;
-  back: () => void;
-  forward: () => void;
-}
-
-export function useRouter(): PressRouter {
-  const { route, resolve, push, replace, back, forward } = injectRouter();
-  return {
-    path: computed(() => route.value.path),
-    query: computed(() => route.value.query),
-    hash: computed(() => route.value.hash),
-    params: computed(() => route.value.params),
-    resolve: (href) => resolve(href)?.href,
-    push,
-    replace,
-    back,
-    forward,
-  };
+/**
+ * The router of the app: `route` is the page on screen, with its `path`, `query`, `hash` and the `params` of a
+ * custom page; `push()` and `replace()` go to a path of the site, written without the base path.
+ */
+export function useRouter(): Router {
+  return injectRouter();
 }
 
 /** renders the page the app is at */

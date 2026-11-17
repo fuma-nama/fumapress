@@ -121,7 +121,7 @@ Your `Layout` handles three cases, like the default one:
 - `useLayoutProps()`: the [layout props](/config#layout-props) of the site.
 - `useSite()`: the `name` and `description` of the site.
 - `usePress()`: the state of the app, with the `components` and `views` of the theme.
-- `useRouter()`: the `path`, `query`, `hash` and `params` of the page, `push()` and `replace()` to navigate, and `resolve()` for the URL of a page with the [base path](/deploy#base-path).
+- `useRouter()`: the router. `route` is a ref of the page on screen, with its `path`, `query`, `hash` and `params`. `push()` and `replace()` navigate, and `resolve(path)?.href` is the URL of a page with the [base path](/deploy#base-path). `enhanceApp` receives the same router.
 
 `Link` from `@fumapress/vue/client` links to a page of the site with client-side navigation, and opens other URLs in a new tab.
 
@@ -171,7 +171,7 @@ Files and folders starting with `_` aren't pages, so they can hold the component
 
 When a custom page and a content page have the same URL, the more specific one renders. A custom page at a fixed path, like `about.vue`, wins over a content page, and a content page wins over a custom page with params. So `[...path].vue` renders the URLs nothing else has, in place of the not found page. A content page that a custom page replaces stays in the sitemap and the search index, so remove its file.
 
-Pages without params are generated at build time and listed in the sitemap, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().params.value.slug`.
+Pages without params are generated at build time and listed in the sitemap, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().route.value.params.slug`.
 
 To give a custom page the navbar of your site, wrap it in `HomeLayout`:
 

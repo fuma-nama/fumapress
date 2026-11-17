@@ -22,12 +22,12 @@ const a = 1; // [!code highlight]
 `;
 
 test("compiles Markdown to a Vue module", async () => {
-  const { code, frontmatter } = await compileMarkdown({ source, filePath: "/content/hello.mdx" });
+  const { code } = await compileMarkdown({ source, filePath: "/content/hello.mdx" });
 
-  expect(frontmatter).toEqual({ title: "Hello", description: "A page" });
+  // the frontmatter is the data of the page in its collection, not part of the module
+  expect(code).not.toContain("A page");
   expect(code).toContain(`from "@fumapress/vue/jsx-runtime"`);
   expect(code).not.toContain(`from "react`);
-  expect(code).toContain("export const frontmatter");
   expect(code).toContain("export const structuredData");
   expect(code).toContain("CalloutContainer");
   // the transformer of `[!code highlight]` ran
@@ -46,7 +46,7 @@ test("compiles only the content for the browser", async () => {
 
   expect(browser.code).toContain("export default");
   expect(browser.code).toContain('id: "install"');
-  for (const name of ["frontmatter", "structuredData", "toc"]) {
+  for (const name of ["structuredData", "toc", "markdown"]) {
     expect(browser.code).not.toContain(`export const ${name}`);
   }
   expect(browser.code.length).toBeLessThan(server.code.length);

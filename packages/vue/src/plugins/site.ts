@@ -1,3 +1,4 @@
+import { pageTitle } from "../core/head";
 import type { Plugin } from "../core/plugin";
 import type { HeadTag } from "../core/types";
 
@@ -9,9 +10,7 @@ export function sitePlugin(): Plugin {
       const { site } = this;
       const description = data?.description ?? site.description;
 
-      const tags: HeadTag[] = [
-        { tag: "title", content: [data?.title, site.name].filter(Boolean).join(" | ") },
-      ];
+      const tags: HeadTag[] = [{ tag: "title", content: pageTitle(data?.title, site.name) }];
       if (description) {
         tags.push({ tag: "meta", attrs: { name: "description", content: description } });
       }

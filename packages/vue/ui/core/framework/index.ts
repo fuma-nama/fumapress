@@ -1,4 +1,4 @@
-import type { ComputedRef } from "vue";
+import { computed, type ComputedRef } from "vue";
 import { useRouter } from "@fumapress/vue/client";
 
 export { useRouter } from "@fumapress/vue/client";
@@ -15,5 +15,6 @@ export interface ImageProps {
 
 /** the path of the page, without the base path */
 export function usePathname(): ComputedRef<string> {
-  return useRouter().path;
+  const { route } = useRouter();
+  return computed(() => route.value.path);
 }

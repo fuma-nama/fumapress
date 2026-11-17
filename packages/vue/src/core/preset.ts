@@ -20,7 +20,7 @@ export function recommendedPreset(options: RecommendedPresetOptions = {}): Prese
   if (robots !== false) {
     out.push(() =>
       robotsPlugin({
-        sitemap: sitemap === false ? false : (sitemap?.path ?? "/sitemap.xml"),
+        sitemap: sitemap === false ? false : sitemap?.path,
         ...robots,
       }),
     );

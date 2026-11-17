@@ -130,8 +130,6 @@ function specifierOf(project: Project, file: string): string | undefined {
   if (relative.startsWith("css/") || relative.startsWith(`${THEME}/`)) {
     return `${PACKAGE}/${relative}`;
   }
-  // the compiled stylesheets are exported without `dist`
-  if (relative.startsWith("dist/style/")) return `${PACKAGE}/${relative.slice("dist/".length)}`;
 }
 
 /** a file of a unit for the project: an import leaving the unit goes to the package, by name */

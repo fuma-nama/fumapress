@@ -1,2 +1,2 @@
 /* the stylesheet of a site: the styles of the UI in a color theme, compiled */
-@import "../dist/style/neutral.css";
+@import "@fumapress/vue/style/neutral.css";
