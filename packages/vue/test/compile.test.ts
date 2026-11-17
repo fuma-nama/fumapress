@@ -1,5 +1,10 @@
+import ayuLight from "@pierre/highlights/themes/ayu-light";
+import dracula from "@pierre/highlights/themes/dracula";
 import { expect, test } from "vitest";
-import { compileMarkdown } from "../src/vite/compile";
+import { createSSRApp, h } from "vue";
+import { renderToString } from "vue/server-renderer";
+import { pressKey, useMDXComponents, type PressState } from "../src/client";
+import { compileMarkdown, type MarkdownOptions } from "../src/vite/compile";
 
 const source = `---
 title: Hello
@@ -38,6 +43,45 @@ test("compiles Markdown to a Vue module", async () => {
     { title: "Install", url: "#install", depth: 2 },
     { title: "Usage", url: "#usage", depth: 3 },
   ]);
+});
+
+test("highlights code with the themes of the options, as variables the color mode switches", async () => {
+  const code = async (highlight?: MarkdownOptions["highlight"]) =>
+    (
+      await compileMarkdown({
+        source: "```ts\nconst a = 1;\n```",
+        filePath: "/content/hello.mdx",
+        browser: true,
+        options: { highlight },
+      })
+    ).code;
+
+  const own = await code({ themes: { light: ayuLight, dark: dracula } });
+  expect(own).toContain("shiki-themes ayu-light dracula-theme");
+  // a color of each theme, under the variable of its mode
+  expect(own).toContain("--shiki-dark:#ff79c6;--shiki-light:#fa8d3e");
+  expect(await code()).toContain("shiki-themes github-light github-dark");
+});
+
+test("Markdown reads the components of the theme from the app, so a partial has them too", async () => {
+  const { code } = await compileMarkdown({
+    source: "<Callout>Hi</Callout>",
+    filePath: "/content/_note.mdx",
+    browser: true,
+  });
+  expect(code).toContain(
+    'import { useMDXComponents as _provideComponents } from "@fumapress/vue/client";',
+  );
+
+  // what the compiled module calls while it renders, without a `components` prop
+  const Callout = () => h("aside", "callout");
+  const Content = () => {
+    const { Callout: Component } = useMDXComponents();
+    return Component ? h(Component) : "missing";
+  };
+  const app = createSSRApp({ render: () => h(Content) });
+  app.provide(pressKey, { components: { Callout } } as unknown as PressState);
+  expect(await renderToString(app)).toBe("<aside>callout</aside>");
 });
 
 test("compiles only the content for the browser", async () => {

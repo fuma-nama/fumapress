@@ -1,12 +1,18 @@
 import type { Plugin } from "../core/plugin";
 import { searchIndexPath } from "../core/routes";
 import type { SearchEntry } from "../core/search";
+import type { Page } from "../core/types";
+
+export interface SearchOptions {
+  /** the content pages to index: a page it returns `false` for is left out */
+  filter?: (page: Page) => boolean;
+}
 
 /**
  * The search index of each language as a data route: the browser loads it on the first search and searches it itself,
  * so search works on static hosting. It is a file with static content, a response on demand with a dynamic source.
  */
-export function searchPlugin(): Plugin {
+export function searchPlugin({ filter }: SearchOptions = {}): Plugin {
   return {
     name: "core:search",
     layoutProps: ({ lang }) => ({
@@ -19,18 +25,20 @@ export function searchPlugin(): Plugin {
           render: this.getContentRender(),
           data: (): Promise<SearchEntry[]> =>
             Promise.all(
-              this.getPages(lang).map(async (page) => {
-                const [data, structuredData] = await Promise.all([
-                  this.getPageData(page),
-                  this.getPageStructuredData(page),
-                ]);
-                return {
-                  url: page.url,
-                  title: data.title ?? page.url,
-                  description: data.description,
-                  structuredData,
-                };
-              }),
+              this.getPages(lang)
+                .filter((page) => filter?.(page) ?? true)
+                .map(async (page) => {
+                  const [data, structuredData] = await Promise.all([
+                    this.getPageData(page),
+                    this.getPageStructuredData(page),
+                  ]);
+                  return {
+                    url: page.url,
+                    title: data.title ?? page.url,
+                    description: data.description,
+                    structuredData,
+                  };
+                }),
             ),
         });
       }

@@ -109,7 +109,7 @@ test("lists and serves paths with spaces encoded once", async () => {
       createView({
         path: "/blog/[slug]",
         staticPaths: ["hello world"],
-        view: ({ slug }) => ({ type: "post", props: { slug } }),
+        view: ({ params: { slug } }) => ({ type: "post", props: { slug } }),
       });
     },
   });

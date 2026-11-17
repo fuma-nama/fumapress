@@ -2,17 +2,29 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import vue from "@vitejs/plugin-vue";
+import vue, { type Options as VueOptions } from "@vitejs/plugin-vue";
 import { nitro } from "nitro/vite";
 import { normalizePath, type Plugin, type PluginOption } from "vite";
 import * as compiler from "vue/compiler-sfc";
 import { compileMarkdown, type MarkdownOptions } from "./vite/compile";
 import { parseFrontmatter } from "./vite/frontmatter";
-import { isMeta, scanCollection, scanPages } from "./vite/scan";
+import { lastCommitDates } from "./vite/git";
+import { isHidden, isMeta, scanCollection, scanPages } from "./vite/scan";
 import { typeResolver } from "./vite/type-resolver";
+import { mergeOptions } from "./core/merge";
 import { prerenderListPath } from "./core/routes";
 
 export type { MarkdownOptions } from "./vite/compile";
+
+export interface CollectionOptions {
+  /** the folder of the collection, from the project root */
+  dir: string;
+  /**
+   * The files of the collection: a page or `meta.json` it returns `false` for is left out of the site and of the build.
+   * It receives the path of the file in the collection, and the frontmatter of a page or the content of a `meta.json`.
+   */
+  filter?: (file: { path: string; data: Record<string, unknown> }) => boolean;
+}
 
 export interface PressOptions {
   /**
@@ -20,7 +32,7 @@ export interface PressOptions {
    *
    * @defaultValue { docs: { dir: "content" } }
    */
-  collections?: Record<string, { dir: string }>;
+  collections?: Record<string, CollectionOptions>;
   /**
    * A module that default-exports the theme of the site, merged over the default theme: its `Layout`, the
    * `components` of Markdown, the `views` of plugin pages and the `icons` of the page tree. It runs on the server and
@@ -32,9 +44,23 @@ export interface PressOptions {
    * @defaultValue "src/theme.ts" or "src/theme/index.ts", when the file exists
    */
   theme?: string;
+  /**
+   * Build on the default theme: `false` leaves its layout, root provider and Markdown components out of the site, whose
+   * theme module then gives its `Layout`.
+   *
+   * @defaultValue true
+   */
+  defaultTheme?: boolean;
   /** custom pages, a `.vue` file is a route by its path @defaultValue "src/pages" */
   pagesDir?: string;
   markdown?: MarkdownOptions;
+  /** options of `@vitejs/plugin-vue`, added to the ones Fumapress sets, like `template.compilerOptions` */
+  vue?: VueOptions;
+  /**
+   * The `lastModified` of a Markdown page without one in its frontmatter: `"git"` reads the date of the last commit
+   * that changed its file.
+   */
+  lastModified?: "git";
   /** options of Nitro, like the `preset` to deploy with */
   nitro?: Parameters<typeof nitro>[0];
 }
@@ -55,7 +81,7 @@ function core(options: PressOptions, site: Site): Plugin {
   const pagesPath = options.pagesDir ?? "src/pages";
   let root = site.root;
   let isDev = false;
-  let collections: [name: string, dir: string][] = [];
+  let collections: [name: string, dir: string, filter: CollectionOptions["filter"]][] = [];
   let pagesDir = "";
 
   /** the frontmatter of each page as the collections have it */
@@ -66,8 +92,9 @@ function core(options: PressOptions, site: Site): Plugin {
 
   async function loadCollections(addWatchFile: (file: string) => void) {
     const entries: string[] = [];
-    for (const [name, dir] of collections) {
-      const files = (await scanCollection(dir)).map((file) => {
+    for (const [name, dir, filter] of collections) {
+      const dates = options.lastModified === "git" ? await lastCommitDates(dir) : undefined;
+      const files = (await scanCollection(dir, filter)).map((file) => {
         // frontmatter is part of this module: the dev server loads it again when the one of a file changes
         addWatchFile(file.absolutePath);
         if (file.type === "page") frontmatters.set(file.absolutePath, JSON.stringify(file.data));
@@ -77,7 +104,9 @@ function core(options: PressOptions, site: Site): Plugin {
         // the compiled module of the page, which the `core:markdown` plugin renders: the server loads it, and
         // `?assets=client` is its file in the browser build, which the browser imports
         const ref = `{ file: ${str(fromRoot(file.absolutePath))}, load: () => import(${str(id)}), assets: () => import(${str(`${id}?assets=client`)}).then((mod) => mod.default) }`;
-        return `{ ${shared}, data: { ...${str(file.data)}, _module: ${ref} } }`;
+        // the date of a page is its own, or the one of git
+        const lastModified = file.data.lastModified ?? dates?.get(file.absolutePath);
+        return `{ ${shared}, data: { ...${str({ ...file.data, lastModified })}, _module: ${ref} } }`;
       });
       entries.push(`${str(name)}: [\n${files.join(",\n")}\n]`);
     }
@@ -103,20 +132,36 @@ function core(options: PressOptions, site: Site): Plugin {
     return `import { createPress } from "@fumapress/vue/config";\nimport { content } from "@fumapress/vue/content";\nexport default createPress(content);\n`;
   }
 
+  const find = (names: string[]) =>
+    names.map((name) => path.join(root, name)).find((name) => existsSync(name));
+
+  /** the theme module of the site, none without one: required without the default theme, which has the layout */
+  function ownTheme(): string | undefined {
+    const own = options.theme ? path.resolve(root, options.theme) : find(themeFiles);
+    if (!own && options.defaultTheme === false) {
+      throw new Error(
+        "[Fumapress] `defaultTheme: false` needs a theme module with a `Layout`: create `src/theme.ts`, or set the `theme` option.",
+      );
+    }
+    return own;
+  }
+
   function loadTheme() {
-    const find = (names: string[]) =>
-      names.map((name) => path.join(root, name)).find((name) => existsSync(name));
     // one stylesheet: the one of the site in place of the default one, never both
     const style = find(styleFiles);
     const css = `import ${str(style ? normalizePath(style) : "@fumapress/vue/theme/style.css")};\n`;
+    // without the default theme, nothing of it is imported: its code is not in the site
+    const base =
+      options.defaultTheme === false
+        ? "const base = {};\n"
+        : 'import base from "@fumapress/vue/theme";\n';
 
-    const own = options.theme ? path.resolve(root, options.theme) : find(themeFiles);
+    const own = ownTheme();
     if (!own) return `${css}export { default } from "@fumapress/vue/theme";\n`;
     // maps and lists add to the default ones, the rest replaces them
-    return `${css}import base from "@fumapress/vue/theme";
-import user from ${str(normalizePath(own))};
+    return `${css}${base}import user from ${str(normalizePath(own))};
 const maps = (key) => ({ ...base[key], ...user[key] });
-export default {
+const theme = {
   ...base,
   ...user,
   components: maps("components"),
@@ -124,6 +169,10 @@ export default {
   icons: maps("icons"),
   head: [...(base.head ?? []), ...(user.head ?? [])],
 };
+if (!theme.Layout) {
+  throw new Error(${str(`[Fumapress] The theme module ${fromRoot(own)} has no \`Layout\`, which renders the pages of the content.`)});
+}
+export default theme;
 `;
   }
 
@@ -133,14 +182,14 @@ export default {
     async config(config, { command }) {
       root = site.root = path.resolve(config.root ?? process.cwd());
       collections = Object.entries(options.collections ?? { docs: { dir: "content" } }).map(
-        ([name, { dir }]) => [name, path.resolve(root, dir)],
+        ([name, { dir, filter }]) => [name, path.resolve(root, dir), filter],
       );
 
       // each page is an entry of the browser build, so the browser imports it by its URL: no list of pages to ship
       const pages: string[] = [];
       if (command === "build") {
-        for (const [, dir] of collections) {
-          for (const file of await scanCollection(dir)) {
+        for (const [, dir, filter] of collections) {
+          for (const file of await scanCollection(dir, filter)) {
             if (file.type === "page") pages.push(normalizePath(file.absolutePath));
           }
         }
@@ -163,14 +212,18 @@ export default {
         ssr: { noExternal: ["@fumapress/vue"] },
         optimizeDeps: {
           exclude: ["@fumapress/vue"],
-          // dependencies are pre-bundled from the start: one found while a page loads would reload the page. Vite
-          // looks for those of the site in its theme and its custom pages, and is told the ones of the UI.
+          // Dependencies are pre-bundled from the start: one found while a page loads would reload the page. Vite
+          // looks for those of the site in its theme and its custom pages, and is told the ones of the UI, those it
+          // imports lazily too, like the highlighter of the dynamic code block.
           entries: [options.theme ?? themeFiles, `${pagesPath}/**/*.vue`].flat(),
           include: [
             "vue",
             "@fumapress/vue > cn",
             "@fumapress/vue > class-variance-authority",
             "@fumapress/vue > scroll-into-view-if-needed",
+            "@fumapress/vue > @pierre/highlights",
+            "@fumapress/vue > @pierre/highlights/themes/github-light",
+            "@fumapress/vue > @pierre/highlights/themes/github-dark",
           ],
         },
         define: {
@@ -183,6 +236,7 @@ export default {
     configResolved(config) {
       isDev = config.command === "serve";
       pagesDir = path.resolve(root, pagesPath);
+      ownTheme();
     },
     configureServer(server) {
       /** loads virtual modules again, on the server and in the browser */
@@ -195,8 +249,11 @@ export default {
           environment.hot.send({ type: "full-reload" });
         }
       };
+      // a file a collection can list: in its folder, and not under a name starting with `_`
       const inContent = (file: string) =>
-        collections.some(([, dir]) => file.startsWith(dir + path.sep));
+        collections.some(
+          ([, dir]) => file.startsWith(dir + path.sep) && !isHidden(path.relative(dir, file)),
+        );
       const under = (names: string[]) => new Set(names.map((name) => path.join(root, name)));
       const ofTheme = under([...themeFiles, ...styleFiles]);
       const ofConfig = under(configFiles);
@@ -263,7 +320,7 @@ export default {
  * files: the compiler reads those from the file system, so a site needs no TypeScript. It uses the one of the site
  * when it has a JS API (TypeScript 7 has none), for types that only TypeScript resolves.
  */
-function vuePlugin(site: Site): Plugin {
+function vuePlugin(site: Site, options: VueOptions = {}): Plugin {
   compiler.registerTS(() => {
     try {
       const ts = createRequire(path.join(site.root, "package.json"))("typescript");
@@ -274,9 +331,9 @@ function vuePlugin(site: Site): Plugin {
     return typeResolver;
   });
 
-  return vue({
-    exclude: /\?assets/,
-    compiler,
+  // the options of the site add to these
+  const own: VueOptions = {
+    exclude: [/\?assets/],
     script: {
       fs: {
         fileExists: (file) => statSync(file, { throwIfNoEntry: false })?.isFile() ?? false,
@@ -284,7 +341,9 @@ function vuePlugin(site: Site): Plugin {
         realpath: realpathSync,
       },
     },
-  });
+  };
+  // the compiler is the module, which a merge would copy
+  return vue({ ...mergeOptions<VueOptions>([own, options]), compiler });
 }
 
 /** Fumapress for Vue: your content as a docs site, served and built by Nitro */
@@ -292,7 +351,7 @@ export default function press(options: PressOptions = {}): PluginOption[] {
   const site: Site = { root: process.cwd() };
 
   return [
-    vuePlugin(site),
+    vuePlugin(site, options.vue),
     core(options, site),
     nitro({
       ...options.nitro,

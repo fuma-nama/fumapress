@@ -1,6 +1,6 @@
 import { llmsPlugin, type LLMsOptions } from "../plugins/llms.txt";
 import { robotsPlugin, type RobotsOptions } from "../plugins/robots";
-import { searchPlugin } from "../plugins/search";
+import { searchPlugin, type SearchOptions } from "../plugins/search";
 import { sitemapPlugin, type SitemapOptions } from "../plugins/sitemap";
 import type { PresetEntry } from "./plugin";
 
@@ -9,7 +9,7 @@ export interface RecommendedPresetOptions {
   sitemap?: SitemapOptions | false;
   robots?: RobotsOptions | false;
   llms?: LLMsOptions | false;
-  search?: false;
+  search?: SearchOptions | false;
 }
 
 /** Sitemap, robots.txt, llms.txt and search. To replace one, set it to `false` and list your plugin. */
@@ -26,6 +26,6 @@ export function recommendedPreset(options: RecommendedPresetOptions = {}): Prese
     );
   }
   if (llms !== false) out.push(() => llmsPlugin(llms));
-  if (search !== false) out.push(() => searchPlugin());
+  if (search !== false) out.push(() => searchPlugin(search));
   return out;
 }

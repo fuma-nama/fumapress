@@ -101,7 +101,6 @@ A route with `data` is a data route. Its `GET` response is the JSON of the value
 ```ts title="press.config.ts"
 createApi({
   path: "/api/contributors.json",
-  render: "static",
   data: async () => {
     const response = await fetch("https://api.github.com/repos/vuejs/core/contributors");
     return response.json();
@@ -132,7 +131,7 @@ How the value reaches the component:
 - On the server, `load()` calls `data` directly, without a request. The value comes with the HTML of the page, so the page hydrates without fetching it.
 - In the browser, `load()` of another path, like on a page you navigated to, fetches the route once and keeps the value.
 
-The browser fetches data routes, so a site on a static host needs `render: "static"` on them. A data route with params needs `staticPaths` too.
+The browser fetches data routes, so a data route is generated at build time by default, like a view. A data route with params needs `staticPaths`, and a data route that reads your content sets `render: this.getContentRender()`. With `render: "dynamic"`, it needs a [server deployment](/deploy).
 
 :::warning
 The value of a data route is public: it is written into the HTML of the pages that load it, and the server reads it without a request, so middleware doesn't run for it. For data that depends on who asks, write an API route with a `GET` handler and `fetch` it in the browser.
@@ -145,7 +144,6 @@ A data route with `shared: true` has the same value on every page. Its value isn
 ```ts
 createApi({
   path: "/api/announcement.json",
-  render: "static",
   shared: true,
   data: () => ({ text: "Version 2 is out" }),
 });

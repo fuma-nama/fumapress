@@ -173,11 +173,28 @@ createPress(content).config({
 - `sitemap.path`: the URL of the sitemap, `/sitemap.xml` by default.
 - `robots.sitemap`: the sitemap URL listed in `robots.txt`, or `false` for none. It follows `sitemap.path`.
 - `llms.path` and `llms.full`: the URLs of `llms.txt` and `llms-full.txt`. Set `full: false` to skip `llms-full.txt`.
-- `search` takes only `false`.
 
 Set `preset: []` to leave out every default plugin.
 
 To replace a default plugin with your own instance, set it to `false` in `recommendedPreset()` and list yours in `.plugins()`. A plugin listed twice fails with an error.
+
+### Leaving Pages Out
+
+`sitemap`, `llms` and `search` take a `filter`. A content page that `filter` returns `false` for isn't listed by that plugin, while the page itself still renders. This config leaves out the pages with `unlisted: true` in their frontmatter:
+
+```ts title="press.config.ts"
+import { createPress, recommendedPreset, type Page } from "@fumapress/vue/config";
+
+const listed = (page: Page) => page.data.unlisted !== true;
+
+createPress(content).config({
+  preset: recommendedPreset({
+    sitemap: { filter: listed },
+    llms: { filter: listed },
+    search: { filter: listed },
+  }),
+});
+```
 
 ## How Options Merge
 

@@ -18,7 +18,7 @@ const search = computed(() => {
 </script>
 
 <template>
-  <RootProvider :search="search" :i18n="state.site.i18n">
+  <RootProvider :search="search" :i18n="state.site.i18n" :dir="state.site.dir">
     <slot />
   </RootProvider>
 </template>

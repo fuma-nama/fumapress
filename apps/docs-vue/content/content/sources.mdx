@@ -85,6 +85,60 @@ export default createPress({
 
 `/changelog/0.2.0` shows the HTML of its release. The pages of collections render without a plugin, while a page of a custom source fails to render when no plugin returns its body.
 
+### Data Files
+
+`import.meta.glob()` of Vite puts files into the build of `press.config.ts`. With `eager: true`, a source lists its pages from JSON files, like the releases of the example above:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { collections } from "@fumapress/vue/content";
+
+interface Release {
+  version: string;
+  notes: string;
+}
+
+const releases = import.meta.glob<Release>("./releases/*.json", { eager: true, import: "default" });
+
+export default createPress({
+  docs: collections.docs!.toSource(),
+  changelog: {
+    files: Object.values(releases).map(({ version, notes }) => ({
+      type: "page",
+      path: `changelog/${version}.md`,
+      data: { title: `v${version}`, html: notes },
+    })),
+  },
+}).plugins(changelogPlugin);
+```
+
+To read YAML files, import them as text with `query: "?raw"` and parse each with a YAML parser, like the `yaml` package.
+
+:::warning
+Don't read files with `node:fs` in `press.config.ts`. It works during the build, but a serverless host runs the server without the files of your project, so the server fails to start there.
+:::
+
+### Fetching at Build Time
+
+`press.config.ts` can fetch a source with a top-level `await`:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+
+const response = await fetch("https://cms.example.com/posts");
+const posts: { slug: string; title: string; html: string }[] = await response.json();
+
+export default createPress({
+  files: posts.map((post) => ({
+    type: "page",
+    path: `${post.slug}.md`,
+    data: { title: post.title, html: post.html },
+  })),
+}).plugins(postsPlugin);
+```
+
+`postsPlugin` renders `page.data.html`, like the one of [Dynamic Sources](#dynamic-sources). The source is static, so its pages are generated at build time. The request runs when `press.config.ts` runs: during the build, and again when a server deployment starts. To read the posts again without a new deployment, make the source [dynamic](#dynamic-sources).
+
 ## Dynamic Sources
 
 When `files` is a function, the source is dynamic. The server reads it when the site starts, and its pages render on demand instead of at build time, so the site needs a server to [deploy](/deploy). The routes that list pages, like the sitemap and the search index, render on demand too.

@@ -14,7 +14,7 @@ const changelogPlugin: Plugin = {
     createView({
       path: "/releases",
       data: { title: "Releases" },
-      view: (_params, { lang }) => ({
+      view: ({ lang }) => ({
         type: "releases",
         props: {
           releases: this.getPages(lang)
@@ -27,7 +27,7 @@ const changelogPlugin: Plugin = {
 };
 ```
 
-`view` returns the `type` of the view and its `props`. The theme renders it with the component of `views` named after `type`:
+`view` receives the `params` of the URL and its `lang`, and returns the `type` of the view and its `props`. The theme renders it with the component of `views` named after `type`:
 
 ```ts title="src/theme.ts"
 import { defineAsyncComponent } from "vue";
@@ -70,7 +70,7 @@ defineProps<{ releases: { title: string; url: string }[] }>();
 
 ## Params
 
-A view path takes params like an [API route](/plugins/routes#path-params). `view` receives their values, and returns nothing for a page that doesn't exist, which is a `404`:
+A view path takes params like an [API route](/plugins/routes#path-params). `view` receives their values in `params`, and returns nothing for a page that doesn't exist, which is a `404`:
 
 ```ts
 const posts: Record<string, string> = { hello: "Hello", bye: "Bye" };
@@ -78,7 +78,7 @@ const posts: Record<string, string> = { hello: "Hello", bye: "Bye" };
 createView({
   path: "/blog/[slug]",
   staticPaths: Object.keys(posts),
-  view: ({ slug }) =>
+  view: ({ params: { slug } }) =>
     slug && posts[slug] ? { type: "post", props: { title: posts[slug] } } : undefined,
 });
 ```
@@ -99,22 +99,16 @@ createView({
 
 ## Page Data
 
-`data` sets the data of the pages of a view, like the `title` and `description` of their `<head>`. For data that differs per page, like the title of each post, use the `transformPage` hook. Its `env` has no `page` on a view, and `env.pathname` is the URL:
+`data` of `createView()` sets the data of every page of a view, like the `title` and `description` of their `<head>`. For data that differs per page, like the title of each post, `view` returns `data` with the `type` and `props`. It wins over the `data` of `createView()`:
 
-```ts title="press.config.ts"
-createPress(content).plugins({
-  name: "site:blog",
-  routes({ createView }) {
-    createView({
-      path: "/blog/[slug]",
-      staticPaths: Object.keys(posts),
-      view: ({ slug }) => (slug && posts[slug] ? { type: "post" } : undefined),
-    });
-  },
-  transformPage(data, { page, pathname }) {
-    // a content page, or another view
-    if (page || !pathname.startsWith("/blog/")) return;
-    return { title: posts[pathname.slice("/blog/".length)] };
+```ts
+createView({
+  path: "/blog/[slug]",
+  staticPaths: Object.keys(posts),
+  data: { description: "A post of the blog" },
+  view: ({ params: { slug } }) => {
+    if (!slug || !posts[slug]) return;
+    return { type: "post", props: { title: posts[slug] }, data: { title: posts[slug] } };
   },
 });
 ```

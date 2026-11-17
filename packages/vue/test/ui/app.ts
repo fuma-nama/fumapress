@@ -36,6 +36,7 @@ export const PAGE_URL = "/docs/configure/theme";
 
 export const site: SiteData = {
   site: { name: "Press", description: "Docs of Press" },
+  dir: "ltr",
   layout: {
     nav: { title: "Press", url: "/" },
     links: [
@@ -186,18 +187,14 @@ export type LayoutName = keyof typeof layouts;
 export async function createTestApp(layout: LayoutName) {
   const theme: Theme = { Root, Layout: layouts[layout], icons: { Languages } };
   const state = await createPressState("en", load, theme);
-  const router = await createRouter({
-    base: "/",
-    url: PAGE_URL,
-    routes: [],
-    fallback: theme.Layout,
-    async beforeEach(to) {
-      const page = to.record ? undefined : await loadPage(state, to.path);
-      return () => {
-        state.page.value = page;
-      };
-    },
+  const router = createRouter({ base: "/", url: PAGE_URL, routes: [], fallback: theme.Layout });
+  router.beforeEach(async (to) => {
+    const page = to.record ? undefined : await loadPage(state, to.path);
+    return () => {
+      state.page.value = page;
+    };
   });
+  await router.start();
 
   const app = createSSRApp({
     render: () => h(Root, null, { default: () => h(RouterView) }),

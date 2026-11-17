@@ -1,9 +1,14 @@
 import { expect, test } from "vitest";
+import { createSSRApp, defineComponent, h } from "vue";
+import { renderToString } from "vue/server-renderer";
+import { injectConfigProviderContext } from "../src/reka/config-provider";
+import { pressKey, type PressState } from "../src/client";
 import { createCollection } from "../src/collection";
 import { getPressContext } from "../src/core/context";
-import { defineI18n } from "../src/core/i18n";
+import { defineI18n, directionOf } from "../src/core/i18n";
 import type { Plugin } from "../src/core/plugin";
 import { createPress, type Press } from "../src/core/press";
+import { recommendedPreset } from "../src/core/preset";
 import {
   searchIndexPath,
   siteDataPath,
@@ -14,9 +19,10 @@ import {
   prerenderListPath,
   staticPathsOf,
 } from "../src/core/routes";
-import type { PageContent, SiteData, SourceFile } from "../src/core/types";
+import type { Page, PageContent, SiteData, SourceFile } from "../src/core/types";
 import type { ModuleRef } from "../src/plugins/markdown";
 import { createFetchHandler } from "../src/server";
+import Root from "../theme/Root.vue";
 
 /** a page as the Vite plugin lists it: with its compiled module */
 function page(path: string, data: Record<string, unknown>): SourceFile {
@@ -236,6 +242,42 @@ test("gives the app the data routes of plugins", async () => {
   expect((await request("/api/none")).status).toBe(404);
 });
 
+test("generates a data route at build time, unless it renders on demand", async () => {
+  const site = serve(
+    createPress(collection.toSource()).plugins({
+      name: "data",
+      routes({ createApi }) {
+        createApi({ path: "/api/stars.json", data: () => ({ stars: 42 }) });
+        createApi({ path: "/api/live.json", render: "dynamic", data: () => ({ now: 1 }) });
+        createApi({ path: "/api/handler.json", GET: () => Response.json({}) });
+      },
+    }),
+  );
+  const { paths } = await prerendered(site);
+  expect(paths).toContain("/api/stars.json");
+  expect(paths).not.toContain("/api/live.json");
+  expect(paths).not.toContain("/api/handler.json");
+});
+
+test("redirects where the app sent the page, like a hook of its router", async () => {
+  const handler = (prerender: boolean) =>
+    createFetchHandler({
+      press: createPress(collection.toSource()),
+      base: "/docs/",
+      prerender,
+      assets: { entry: "", css: [], js: [] },
+      render: async ({ pathname }) =>
+        pathname === "/old" ? { html: "", redirect: "/guide/install?from=old" } : { html: "" },
+    });
+
+  const response = await handler(false)(new Request("http://localhost/docs/old"));
+  expect(response.status).toBe(302);
+  expect(response.headers.get("Location")).toBe("/docs/guide/install?from=old");
+  // a static host can't redirect: the generated page sends the browser on
+  const html = await (await handler(true)(new Request("http://localhost/docs/old"))).text();
+  expect(html).toContain('content="0; url=/docs/guide/install?from=old"');
+});
+
 test("merges options: the site's own win, then plugins in order, then the defaults", async () => {
   const html = await (await get("/guide/install")).text();
   // by key: the config over the plugin, the plugin over the default from the page
@@ -296,6 +338,26 @@ test("serves the default plugins", async () => {
   // the text of a Markdown page is its Markdown, under its title
   const full = await (await get("/llms-full.txt")).text();
   expect(full).toContain("# Install\n\n## Intro\n\nText of guide/install.mdx");
+});
+
+test("the default plugins leave out the pages their filter rejects", async () => {
+  const filter = (current: Page) => current.path !== "guide/install.mdx";
+  const filtered = serve(
+    createPress(collection.toSource()).config({
+      site: { baseUrl: "https://example.com" },
+      preset: recommendedPreset({ sitemap: { filter }, llms: { filter }, search: { filter } }),
+    }),
+  );
+
+  const sitemap = await (await filtered("/sitemap.xml")).text();
+  expect(sitemap).toContain("<loc>https://example.com/</loc>");
+  expect(sitemap).not.toContain("/guide/install");
+  const index: { url: string }[] = await (await filtered(searchIndexPath("en"))).json();
+  expect(index.map((entry) => entry.url)).toEqual(["/"]);
+  expect(await (await filtered("/llms.txt")).text()).not.toContain("Install");
+  expect(await (await filtered("/llms-full.txt")).text()).not.toContain("Install");
+  // the page itself is still served
+  expect((await filtered("/guide/install")).status).toBe(200);
 });
 
 test("lists the paths to generate, only for the prerenderer", async () => {
@@ -386,6 +448,20 @@ test("renders the pages of a custom source through content hooks", async () => {
   expect(await (await custom("/llms-full.txt")).text()).toContain("# First");
   expect(await (await custom("/sitemap.xml")).text()).toContain(
     "<loc>https://example.com/first</loc><lastmod>2026-01-02T00:00:00.000Z</lastmod>",
+  );
+});
+
+test("dates a Markdown page by the `lastModified` of its frontmatter", async () => {
+  const site = (lastModified: string) =>
+    serve(createPress(createCollection("docs", [page("index.mdx", { lastModified })]).toSource()));
+  const dated = site("2026-03-04");
+  const content: PageContent = await (await dated("/_press/pages/index.json")).json();
+  expect(content.data.lastModified).toBe("2026-03-04T00:00:00.000Z");
+  expect(await (await dated("/sitemap.xml")).text()).toContain(
+    "<lastmod>2026-03-04T00:00:00.000Z</lastmod>",
+  );
+  await expect(site("yesterday")("/")).rejects.toThrow(
+    'The `lastModified` of "index.mdx" is "yesterday"',
   );
 });
 
@@ -512,23 +588,24 @@ test("serves the pages of plugins as views", async () => {
           createView({
             path: "/blog/[slug]",
             staticPaths: Object.keys(posts),
-            view: ({ slug }) =>
-              slug && posts[slug] ? { type: "post", props: { title: posts[slug] } } : undefined,
+            // the data of each page, over the one of the route
+            data: { title: "A post", description: "From the blog" },
+            view: ({ params: { slug } }) =>
+              slug && posts[slug]
+                ? { type: "post", props: { title: posts[slug] }, data: { title: posts[slug] } }
+                : undefined,
           });
         },
-        // the data of a view is per page here
-        transformPage: (data, { page: current, pathname }) =>
-          current ? undefined : { title: data.title ?? posts[pathname.split("/").pop()!] },
       })
       .config({ site: { name: "Docs", baseUrl: "https://example.com" } }),
   );
 
   const content: PageContent = {
     url: "/blog/hello",
-    data: { title: "Hello" },
+    data: { title: "Hello", description: "From the blog" },
     toc: [],
     body: { view: { type: "post", props: { title: "Hello" } } },
-    head: { title: "Hello | Docs" },
+    head: { title: "Hello | Docs", description: "From the blog" },
   };
   const html = await (await blog("/blog/hello")).text();
   expect(html).toContain("<title>Hello | Docs</title>");
@@ -589,7 +666,7 @@ function i18nSite(hideLocale: "never" | "default-locale", fallbackLanguage?: nul
         routes({ createView }) {
           createView({
             path: "/blog",
-            view: (_params, { lang }) => ({ type: "blog", props: { lang } }),
+            view: ({ lang }) => ({ type: "blog", props: { lang } }),
           });
         },
       })
@@ -606,7 +683,7 @@ test("serves each language at its prefix, with its own site data", async () => {
   const site = i18nSite("default-locale", null);
 
   const html = await (await site("/cn/guide/install")).text();
-  expect(html).toContain('<html lang="cn">');
+  expect(html).toContain('<html lang="cn" dir="ltr">');
   expect(html).toContain("<title>安装 | Docs</title>");
   expect(html).toContain('<link rel="preload" href="/_press/site/cn.json"');
   expect(html).toContain(
@@ -615,7 +692,7 @@ test("serves each language at its prefix, with its own site data", async () => {
   expect(html).toContain(
     '<link rel="alternate" hreflang="cn" href="https://example.com/cn/guide/install">',
   );
-  expect(await (await site("/guide/install")).text()).toContain('<html lang="en">');
+  expect(await (await site("/guide/install")).text()).toContain('<html lang="en" dir="ltr">');
 
   const data: SiteData = await (await site(siteDataPath("cn"))).json();
   expect(data.i18n).toEqual({
@@ -646,6 +723,27 @@ test("serves each language at its prefix, with its own site data", async () => {
   expect(view.body).toEqual({ view: { type: "blog", props: { lang: "cn" } } });
   expect((await prerendered(site)).paths).toEqual(
     expect.arrayContaining(["/blog", "/cn/blog", "/cn", "/_press/site/cn.json", "/cn/llms.txt"]),
+  );
+});
+
+test("links the translations of a page by its URL, across sources", async () => {
+  const i18n = defineI18n({ languages: ["en", "cn"], defaultLanguage: "en", parser: "dir" });
+  const site = serve(
+    createPress(
+      {
+        en: createCollection("en", [page("en/guide.mdx", { title: "Guide" })]).toSource(),
+        cn: createCollection("cn", [page("cn/guide.mdx", { title: "指南" })]).toSource(),
+      },
+      { i18n },
+    ).config({ site: { baseUrl: "https://example.com" } }),
+  );
+
+  const html = await (await site("/cn/guide")).text();
+  expect(html).toContain(
+    '<link rel="alternate" hreflang="en" href="https://example.com/en/guide">',
+  );
+  expect(await (await site("/sitemap.xml")).text()).toContain(
+    '<xhtml:link rel="alternate" hreflang="cn" href="https://example.com/cn/guide"/>',
   );
 });
 
@@ -688,4 +786,25 @@ test("refuses to hide every language", async () => {
     }),
   );
   await expect(hidden("/")).rejects.toThrow('`hideLocale: "always"` is not supported');
+});
+
+test("the language decides the direction of the text, for the document and the UI", async () => {
+  expect(directionOf("ar")).toBe("rtl");
+  expect(directionOf("he-IL")).toBe("rtl");
+  expect(directionOf("cn")).toBe("ltr");
+  expect(directionOf("not a language")).toBe("ltr");
+
+  const arabic = serve(createPress(collection.toSource()).config({ site: { lang: "ar" } }));
+  expect(await (await arabic("/")).text()).toContain('<html lang="ar" dir="rtl">');
+  const site: SiteData = await (await arabic(siteDataPath("ar"))).json();
+  expect(site.dir).toBe("rtl");
+
+  // the root of the default theme gives the direction to the components of the UI
+  const Direction = defineComponent(() => {
+    const { dir } = injectConfigProviderContext();
+    return () => h("p", dir?.value);
+  });
+  const app = createSSRApp({ render: () => h(Root, null, () => h(Direction)) });
+  app.provide(pressKey, { site } as PressState);
+  expect(await renderToString(app)).toContain("<p>rtl</p>");
 });

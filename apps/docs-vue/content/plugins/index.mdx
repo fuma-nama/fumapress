@@ -169,3 +169,30 @@ createPress(content).config({
 The hooks have the names and signatures of `@fumapress/core`, which Fumapress on Waku and Astro use. A plugin that uses only server-side hooks, like routes, middleware, content hooks and `build`, works on both.
 
 The UI is different: the pages of a plugin render with [Vue components of your theme](/plugins/views), and every value sent to the browser is serializable.
+
+## Testing Plugins
+
+`createFetchHandler()` of `@fumapress/vue/server` is the server of a site, without Vite. A test creates a site with your plugin and a custom source, and requests its routes. The handler needs a `render` function for pages, which a test of routes can stub:
+
+```ts title="status-plugin.test.ts"
+import { createPress } from "@fumapress/vue/config";
+import { createFetchHandler } from "@fumapress/vue/server";
+import { expect, test } from "vitest";
+import { statusPlugin } from "./status-plugin";
+
+test("answers the status route", async () => {
+  const press = createPress({
+    files: [{ type: "page", path: "index.md", data: { title: "Home" } }],
+  }).plugins(statusPlugin());
+  const fetch = createFetchHandler({
+    press,
+    assets: { css: [], js: [] },
+    render: async () => ({ html: "" }),
+  });
+
+  const response = await fetch(new Request("http://localhost/api/status"));
+  expect(await response.json()).toEqual({ ok: true });
+});
+```
+
+`@fumapress/vue/content` needs the Vite plugin, so a test lists its files instead of importing `content`.

@@ -1,3 +1,4 @@
+import { directionOf } from "../core/i18n";
 import type { Plugin } from "../core/plugin";
 import { PAGE_DATA_ROUTE, pageDataParam, pageOfDataParam, siteDataPath } from "../core/routes";
 import type { SiteData, SiteI18n } from "../core/types";
@@ -37,6 +38,7 @@ export function pagesPlugin(translations: Record<string, Record<string, string>>
             layout: await this.getLayoutProps({ lang }),
             tree: this.getPageTree(lang),
             i18n: i18nOf(lang),
+            dir: directionOf(lang),
           }),
         });
       }

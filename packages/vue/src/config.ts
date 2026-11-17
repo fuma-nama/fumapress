@@ -45,4 +45,4 @@ export type {
 export { sitemapPlugin, type SitemapOptions } from "./plugins/sitemap";
 export { robotsPlugin, type RobotsOptions } from "./plugins/robots";
 export { llmsPlugin, type LLMsOptions } from "./plugins/llms.txt";
-export { searchPlugin } from "./plugins/search";
+export { searchPlugin, type SearchOptions } from "./plugins/search";

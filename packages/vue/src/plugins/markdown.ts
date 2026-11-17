@@ -16,7 +16,10 @@ function moduleOf(page: Page): ModuleRef | undefined {
   return typeof ref === "object" && ref !== null ? (ref as ModuleRef) : undefined;
 }
 
-/** renders the pages of collections: the Markdown files the Vite plugin compiled to modules */
+/**
+ * Renders the pages of collections: the Markdown files the Vite plugin compiled to modules. A page's date is the
+ * `lastModified` of its frontmatter, which the Vite plugin can fill from git.
+ */
 export function markdownPlugin(): Plugin {
   return {
     name: "core:markdown",
@@ -38,6 +41,17 @@ export function markdownPlugin(): Plugin {
     },
     async getPageStructuredData(page) {
       return (await moduleOf(page)?.load())?.structuredData;
+    },
+    getPageLastModified(page) {
+      const value = page.data.lastModified;
+      if (!moduleOf(page) || value === undefined) return;
+      const date = new Date(value as string);
+      if (Number.isNaN(date.getTime())) {
+        throw new Error(
+          `[Fumapress] The \`lastModified\` of "${page.path}" is "${String(value)}", which is not a date: write it like \`2026-01-02\`.`,
+        );
+      }
+      return date;
     },
     async getPageText(page) {
       const markdown = (await moduleOf(page)?.load())?.markdown;

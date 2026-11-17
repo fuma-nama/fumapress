@@ -26,6 +26,22 @@ export function defineI18n<Languages extends string>(
   return config;
 }
 
+/** the direction of the text of a language, `ltr` when it is unknown */
+export function directionOf(lang: string): "ltr" | "rtl" {
+  try {
+    // a method in recent runtimes, a getter in older ones
+    const locale = new Intl.Locale(lang) as Intl.Locale & {
+      getTextInfo?: () => { direction?: string };
+      textInfo?: { direction?: string };
+    };
+    const info = locale.getTextInfo?.() ?? locale.textInfo;
+    return info?.direction === "rtl" ? "rtl" : "ltr";
+  } catch {
+    // not a language tag
+    return "ltr";
+  }
+}
+
 /** what tells the language of a URL: on the server and in the browser */
 export type LocaleRules = Pick<I18nConfig, "languages" | "defaultLanguage" | "hideLocale">;
 

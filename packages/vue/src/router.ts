@@ -41,15 +41,21 @@ export interface RouterOptions {
    * of the content is more specific than a param, as a custom page at a fixed path is more specific than both.
    */
   hasPage?: (path: string) => Awaitable<boolean>;
-  /**
-   * Runs before a page shows, to load what it renders: `first` for the page the app starts at. `false` cancels the
-   * navigation. A function it returns is called when the navigation wins, to apply what was loaded: a slower
-   * navigation the reader has left never does.
-   */
-  beforeEach?: (to: Route, env: { first: boolean }) => Awaitable<void | false | (() => void)>;
-  /** runs when the app moved to another page */
-  afterEach?: (to: Route) => void;
 }
+
+/**
+ * Runs before a page shows, in the order hooks were added: `first` for the page the app starts at, on the server and in
+ * the browser. It returns `false` to cancel the navigation, or a path of the site to go there instead. A function it
+ * returns is called when the navigation wins, to apply what the hook loaded: a slower navigation the reader has left
+ * never does.
+ */
+export type BeforeEachHook = (
+  to: Route,
+  env: { first: boolean },
+) => Awaitable<void | false | string | (() => void)>;
+
+/** runs when the app moved to another page, in the browser: not for the page it starts at */
+export type AfterEachHook = (to: Route) => void;
 
 export interface Router {
   /** the page on screen */
@@ -60,6 +66,12 @@ export interface Router {
   replace: (href: string) => Promise<void>;
   back: () => void;
   forward: () => void;
+  /** adds a hook that runs before a page shows, and returns a function that removes it */
+  beforeEach: (hook: BeforeEachHook) => () => void;
+  /** adds a hook that runs when the app moved to another page, and returns a function that removes it */
+  afterEach: (hook: AfterEachHook) => () => void;
+  /** loads the page the app starts at: the app calls it once, after the hooks are added */
+  start: () => Promise<void>;
   /** scroll where the reader was, after a reload: call it once the app is mounted */
   restoreScroll: () => void;
 }
@@ -69,6 +81,9 @@ const SITE = "http://site.invalid";
 
 /** the scroll positions of the history entries of a tab, in its session storage */
 const SCROLL_STORE = "press:scroll";
+
+/** how many times the hooks of one navigation can redirect it: more is a loop */
+const MAX_REDIRECTS = 10;
 
 interface Scroll {
   left: number;
@@ -80,10 +95,12 @@ interface Scroll {
  * showing it, so the server and the browser render it in one pass, and a navigation that fails falls back to a
  * request to the server.
  */
-export async function createRouter(options: RouterOptions): Promise<Router> {
+export function createRouter(options: RouterOptions): Router {
   const { base, routes, fallback } = options;
   const inBrowser = typeof window !== "undefined";
   const components = new Map<RouteRecord, Promise<Component>>();
+  const beforeHooks = new Set<BeforeEachHook>();
+  const afterHooks = new Set<AfterEachHook>();
   let current = 0;
 
   /** a link of the site: a path without the base path, or a URL relative to the page at `from` */
@@ -132,11 +149,15 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
     return component;
   }
 
-  /** the route with what it renders loaded, and what applies it; none when the navigation is cancelled */
+  /**
+   * The route with what it renders loaded, and what applies it: the one a hook redirects to, if any. None when the
+   * navigation is cancelled.
+   */
   async function load(
     target: Omit<Route, "component">,
     first = false,
-  ): Promise<{ route: Route; commit?: () => void } | undefined> {
+    redirects = 0,
+  ): Promise<{ route: Route; commit: () => void } | undefined> {
     let { record } = target;
     if (record && hasParams(record.path) && (await options.hasPage?.(target.path))) {
       record = undefined;
@@ -147,17 +168,30 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
       record,
       component: await componentOf(record),
     };
-    const result = await options.beforeEach?.(route, { first });
-    if (result === false) return;
-    return { route, commit: result || undefined };
+
+    const commits: (() => void)[] = [];
+    for (const hook of beforeHooks) {
+      const result = await hook(route, { first });
+      if (result === false) return;
+      if (typeof result === "function") commits.push(result);
+      else if (typeof result === "string") {
+        const next = resolve(result, route.path);
+        if (!next || redirects >= MAX_REDIRECTS) {
+          throw new Error(
+            `[Fumapress] A \`beforeEach\` hook sent "${route.path}" to "${result}", which is ${next ? "a loop of redirects" : "not a path of the site"}.`,
+          );
+        }
+        return load(next, first, redirects + 1);
+      }
+    }
+    return { route, commit: () => commits.forEach((commit) => commit()) };
   }
 
   const initial = fromLocation(options.url);
   if (!initial) throw new Error(`[Fumapress] "${options.url}" is not a URL of the site.`);
-  const first = await load(initial, true);
-  first?.commit?.();
-  // a cancelled first navigation leaves the document: nothing renders
-  const route = shallowRef<Route>(first?.route ?? { ...initial, component: fallback });
+  // until `start()` loads it; a cancelled first navigation leaves the document, so nothing renders
+  const route = shallowRef<Route>({ ...initial, component: fallback });
+  let started: Promise<void> | undefined;
 
   const currentScroll = (): Scroll => ({ left: window.scrollX, top: window.scrollY });
 
@@ -204,11 +238,11 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
     const leaving = currentScroll();
     // another anchor of the same page: nothing to load
     const loaded = sameDocument(from, target)
-      ? { route: { ...target, component: from.component } }
+      ? { route: { ...target, component: from.component }, commit: () => {} }
       : await load(target);
     // cancelled, or the reader went elsewhere meanwhile
     if (!loaded || id !== current) return;
-    const { route: next, commit } = loaded as { route: Route; commit?: () => void };
+    const { route: next, commit } = loaded;
 
     positions.set(entry, leaving);
     if (mode === "push") {
@@ -218,11 +252,14 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
       window.history.replaceState(window.history.state, "", next.href);
     } else {
       entry = currentEntry();
+      // the browser is at the entry: a redirect of a hook shows the page it went to
+      if (next.href !== target.href)
+        window.history.replaceState(window.history.state, "", next.href);
     }
     const saved = mode === "pop" ? positions.get(entry) : undefined;
-    commit?.();
+    commit();
     route.value = next;
-    options.afterEach?.(next);
+    for (const hook of afterHooks) hook(next);
 
     await nextTick();
     if (id === current) scrollTo(next, saved);
@@ -286,11 +323,33 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
     });
   }
 
+  /** adds a hook to a set, and returns a function that removes it */
+  const add =
+    <T>(hooks: Set<T>) =>
+    (hook: T) => {
+      hooks.add(hook);
+      return () => void hooks.delete(hook);
+    };
+
   return {
     route,
     resolve: (href) => resolve(href, route.value.path),
     push: (href) => go(href, "push"),
     replace: (href) => go(href, "replace"),
+    beforeEach: add(beforeHooks),
+    afterEach: add(afterHooks),
+    start() {
+      started ??= load(initial, true).then((loaded) => {
+        if (!loaded) return;
+        loaded.commit();
+        route.value = loaded.route;
+        // a redirect of a hook: the address bar shows the page it went to
+        if (inBrowser && loaded.route.href !== initial.href) {
+          window.history.replaceState(window.history.state, "", loaded.route.href);
+        }
+      });
+      return started;
+    },
     back: () => window.history.back(),
     forward: () => window.history.forward(),
     restoreScroll() {

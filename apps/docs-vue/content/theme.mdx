@@ -38,7 +38,18 @@ Your theme is merged over the default theme. `components`, `views` and `icons` m
 <Badge>New</Badge>
 ```
 
-A component with the name of a default one, like `Callout` or `Card`, replaces it. The default theme registers the components listed in [Components](/ui/components#markdown-components).
+Markdown uses the `components` of the theme by name, in pages and in the [partials](/markdown#partials) they import. A key that is the name of an element, like `a`, `pre` or `img`, replaces that element, so every link, code block or image of Markdown renders with your component. A component with the name of a default one, like `Callout` or `Card`, replaces it. The default theme registers the components listed in [Components](/ui/components#markdown-components).
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Image from "./components/Image.vue";
+
+export default {
+  components: { img: Image },
+} satisfies Partial<Theme>;
+```
+
+A component registered with `app.component()` isn't available in Markdown: Markdown reads only `components`.
 
 To load the code of a component only on the pages that use it, wrap it in `defineAsyncComponent()`:
 
@@ -76,14 +87,13 @@ An icon is any Vue component, like the icons of `@lucide/vue`, which you install
 
 ```vue title="src/Layout.vue"
 <script setup lang="ts">
-import { useLayoutProps, usePage, usePageTree, usePress } from "@fumapress/vue/client";
+import { useLayoutProps, usePage, usePageTree } from "@fumapress/vue/client";
 import NotFound from "@fumapress/vue/theme/NotFound.vue";
 import { DocsLayout } from "@fumapress/vue/ui/layouts/docs";
 import { DocsBody, DocsPage, DocsTitle } from "@fumapress/vue/ui/layouts/docs/page";
 
 const page = usePage();
 const tree = usePageTree();
-const { components } = usePress();
 const { nav, links, githubUrl } = useLayoutProps();
 </script>
 
@@ -93,7 +103,7 @@ const { nav, links, githubUrl } = useLayoutProps();
     <DocsPage :key="page.url" :toc="page.toc" :full="page.data.full">
       <DocsTitle>{{ page.data.title }}</DocsTitle>
       <DocsBody>
-        <component :is="page.Content" :components="components" />
+        <component :is="page.Content" />
       </DocsBody>
     </DocsPage>
   </DocsLayout>
@@ -111,7 +121,7 @@ export default { Layout } satisfies Partial<Theme>;
 Your `Layout` handles three cases, like the default one:
 
 - `page.view` is set on the page of a plugin: render `page.Content`, which is the component of the view.
-- On a content page, render `page.Content` with the `components` of the theme, so Markdown can use them.
+- On a content page, render `page.Content`, the compiled Markdown, inside your layout.
 - `page` is `undefined` on a URL without a page: render the not found page.
 
 `page.data` has the `title`, `description` and `full` of the page, the `githubUrl` of its source file, and what plugins add. The composables are:
@@ -145,15 +155,47 @@ export default {
 
 For tags that depend on the page, use [`head` in `press.config.ts`](/config#head): its tags win over the theme's by key.
 
-`enhanceApp` receives the Vue `app` and the `router`, to register Vue plugins and global components:
+`enhanceApp` receives the Vue `app` and the `router`, to register Vue plugins and the hooks of the router. It runs on the server and in the browser, before the app loads its first page:
 
 ```ts title="src/theme.ts"
 import type { Theme } from "@fumapress/vue/client";
-import Badge from "./components/Badge.vue";
+import { createPinia } from "pinia";
 
 export default {
   enhanceApp({ app }) {
-    app.component("Badge", Badge);
+    app.use(createPinia());
+  },
+} satisfies Partial<Theme>;
+```
+
+### Router Hooks
+
+`router.beforeEach()` adds a hook that runs before a page shows, and `router.afterEach()` adds a hook that runs after the app moved to another page. Each returns a function that removes the hook.
+
+A `beforeEach` hook returns `false` to cancel the navigation, or a path of the site to go there instead. It runs for the first page too, with `first: true`, and when it sends the first page to another path, the server answers with a redirect:
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+
+export default {
+  enhanceApp({ router }) {
+    // the pages of version 1 moved to /v2
+    router.beforeEach((to) => {
+      if (to.path.startsWith("/v1/")) return to.path.replace("/v1/", "/v2/");
+    });
+  },
+} satisfies Partial<Theme>;
+```
+
+An `afterEach` hook runs in the browser and receives the page the app moved to. It doesn't run for the page the app starts at, which an analytics script counts when it loads, so a hook counts the pages of later navigations:
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import { trackPageView } from "./analytics";
+
+export default {
+  enhanceApp({ router }) {
+    router.afterEach((to) => trackPageView(to.href));
   },
 } satisfies Partial<Theme>;
 ```
@@ -222,6 +264,27 @@ The color themes are `neutral`, `black`, `vitepress`, `dusk`, `catppuccin`, `oce
 }
 ```
 
+## Fonts
+
+The UI uses the font variables `--font-sans` and `--font-mono`. To use another font, load it with `@font-face` in `src/theme.css` and set the variable:
+
+```css title="src/theme.css"
+@import "@fumapress/vue/style/neutral.css";
+
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: "Inter", sans-serif;
+}
+```
+
+A `url()` relative to the stylesheet is a file of your project, like `src/fonts/Inter.woff2`, which the build includes.
+
 ## Tailwind CSS
 
 The stylesheets above are compiled, so a site needs no Tailwind CSS. The UI is written with Tailwind CSS classes though, and you can use them in your pages and components, or change them in a [copy of the UI](/cli). Install Tailwind CSS and add its Vite plugin:
@@ -246,4 +309,49 @@ Then write the stylesheet from its sources: Tailwind CSS, a color theme, and the
 @import "tailwindcss";
 @import "@fumapress/vue/css/ocean.css";
 @import "@fumapress/vue/css/preset.css";
+```
+
+## Without the Default Theme
+
+With `defaultTheme: false` in the Vite plugin, your theme doesn't build on the default one: its layout, `Root` and Markdown components aren't in the JavaScript of your site. Your theme module then gives the `Layout`, and a site without a theme module fails to start:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ defaultTheme: false })],
+});
+```
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Layout from "./Layout.vue";
+import Note from "./components/Note.vue";
+
+export default {
+  Layout,
+  components: { Note },
+} satisfies Theme;
+```
+
+The [stylesheet](#colors) is still the default one until you create `src/theme.css`.
+
+## Vue Plugin Options
+
+The Vite plugin sets up `@vitejs/plugin-vue` for your `.vue` files. Its `vue` option takes the [options of the Vue plugin](https://github.com/vitejs/vite-plugin-vue/tree/main/packages/plugin-vue#options), which are added to the ones Fumapress sets, like the custom elements of your templates:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      vue: {
+        template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("x-") } },
+      },
+    }),
+  ],
+});
 ```

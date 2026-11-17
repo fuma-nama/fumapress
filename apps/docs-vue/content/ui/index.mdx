@@ -34,7 +34,7 @@ The docs layouts (`docs`, `notebook`, `glass`, `spacious` and `flux`) all export
 
 ```vue title="src/Layout.vue"
 <script setup lang="ts">
-import { useLayoutProps, usePage, usePageTree, usePress } from "@fumapress/vue/client";
+import { useLayoutProps, usePage, usePageTree } from "@fumapress/vue/client";
 import NotFound from "@fumapress/vue/theme/NotFound.vue";
 import { DocsLayout } from "@fumapress/vue/ui/layouts/notebook";
 import {
@@ -48,7 +48,6 @@ import {
 
 const page = usePage();
 const tree = usePageTree();
-const { components } = usePress();
 const { nav, links, githubUrl } = useLayoutProps();
 </script>
 
@@ -59,7 +58,7 @@ const { nav, links, githubUrl } = useLayoutProps();
       <DocsTitle>{{ page.data.title }}</DocsTitle>
       <DocsDescription>{{ page.data.description }}</DocsDescription>
       <DocsBody>
-        <component :is="page.Content" :components="components" />
+        <component :is="page.Content" />
       </DocsBody>
       <div class="flex flex-row flex-wrap items-center justify-between gap-4 empty:hidden">
         <EditOnGitHub v-if="page.data.githubUrl" :href="page.data.githubUrl" />

@@ -19,14 +19,32 @@ full: true
 ---
 ```
 
-| Field         | Use                                                                  |
-| ------------- | -------------------------------------------------------------------- |
-| `title`       | The main heading of the page, its name in the sidebar, and `<title>` |
-| `description` | Below the title, and the meta description of the page                |
-| `icon`        | The icon of the page in the sidebar, see [Icons](/content#icons)     |
-| `full`        | Use the full width of the page, without the table of contents        |
+| Field          | Use                                                                  |
+| -------------- | -------------------------------------------------------------------- |
+| `title`        | The main heading of the page, its name in the sidebar, and `<title>` |
+| `description`  | Below the title, and the meta description of the page                |
+| `icon`         | The icon of the page in the sidebar, see [Icons](/content#icons)     |
+| `full`         | Use the full width of the page, without the table of contents        |
+| `lastModified` | The date of the last change, shown below the page and in the sitemap |
 
 Since `title` is the main heading, start the body at `##`. Other fields are kept in `page.data`, where plugins can read them.
+
+### Dates From Git
+
+With `lastModified: "git"` in the Vite plugin, a page without `lastModified` in its frontmatter gets the date of the last commit that changed its file. A file that git doesn't track has no date.
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ lastModified: "git" })],
+});
+```
+
+:::warning
+A shallow clone, which CI services often make, has only the latest commits, so a page last changed before them gets a wrong date. Clone the full history, like with `fetch-depth: 0` of `actions/checkout`.
+:::
 
 ## Headings
 
@@ -89,6 +107,23 @@ const c = 3; // [!code --]
 ````
 
 `[!code highlight]` highlights the line, and `[!code ++]` and `[!code --]` mark it as added or removed.
+
+### Themes
+
+Code blocks are colored with GitHub Light in light mode and GitHub Dark in dark mode. To use other themes, install `@pierre/highlights` and pass two of its themes to `markdown.highlight` of the Vite plugin:
+
+```ts title="vite.config.ts"
+import ayuLight from "@pierre/highlights/themes/ayu-light";
+import dracula from "@pierre/highlights/themes/dracula";
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ markdown: { highlight: { themes: { light: ayuLight, dark: dracula } } } })],
+});
+```
+
+The `light` theme colors code blocks in light mode, and the `dark` theme in dark mode. The languages are built into the highlighter, and a language it doesn't know is shown as plain text.
 
 ### Code Tabs
 
@@ -260,3 +295,49 @@ import Counter from "../src/components/Counter.vue";
 ```
 
 The component renders on the server and hydrates in the browser, so it follows the rules of Vue SSR: use browser APIs in `onMounted` or event handlers. The children of a tag are its default slot.
+
+## Partials
+
+A Markdown file whose name starts with `_` isn't a page, so it can hold content that several pages share. Import it in an `.mdx` page and use it like a component:
+
+````mdx title="content/_install.mdx"
+:::note
+Node.js 24 or later is required.
+:::
+
+```npm
+npm i @fumapress/vue
+```
+````
+
+```mdx title="content/guide/index.mdx"
+import Install from "../_install.mdx";
+
+## Installation
+
+<Install />
+```
+
+A partial uses the components of the [theme](/theme#markdown-components) like a page. Its headings and text aren't in the table of contents or the search index of the page that imports it.
+
+## Plugins
+
+`markdown.mdastPlugins` and `markdown.hastPlugins` of the Vite plugin add plugins of [Sätteri](https://github.com/bruits/satteri), the Markdown compiler, after the built-in ones. `mdastPlugins` run on the Markdown tree, and `hastPlugins` on the HTML tree.
+
+`@fumadocs/satteri` has plugins that `@fumapress/vue` doesn't add, like `remarkInclude` and `remarkMdxMermaid`. Install `@fumadocs/satteri` to use them:
+
+```npm
+npm i -D @fumadocs/satteri
+```
+
+```ts title="vite.config.ts"
+import { remarkMdxMermaid } from "@fumadocs/satteri/remark-mdx-mermaid";
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ markdown: { mdastPlugins: [remarkMdxMermaid()] } })],
+});
+```
+
+`remarkMdxMermaid` turns a `mermaid` code block into `<Mermaid chart="..." />`, so add a `Mermaid` component to the `components` of your [theme](/theme#markdown-components).

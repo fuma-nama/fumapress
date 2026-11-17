@@ -21,7 +21,7 @@ const changelogPlugin: Plugin = {
     createView({
       path: "/releases",
       data: { title: "Releases" },
-      view: (_params, { lang }) => ({
+      view: ({ lang }) => ({
         type: "releases",
         props: {
           releases: this.getPages(lang)

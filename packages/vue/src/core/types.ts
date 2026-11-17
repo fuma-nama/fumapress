@@ -205,6 +205,8 @@ export interface SiteData {
   tree: PageTree.Root;
   /** on a site with languages */
   i18n?: SiteI18n;
+  /** the direction of the text of the language, which `<html dir>` has too */
+  dir: "ltr" | "rtl";
 }
 
 /** the value of a data route by its path, none without a route or a value; on the server, without a request */

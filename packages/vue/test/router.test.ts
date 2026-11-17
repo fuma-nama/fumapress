@@ -10,7 +10,11 @@ const routes: RouteRecord[] = [
   { path: "/blog/[slug]", component: async () => ({ default: Post }) },
 ];
 
-const at = (url: string, base = "/") => createRouter({ base, url, routes, fallback: Fallback });
+async function at(url: string, base = "/") {
+  const router = createRouter({ base, url, routes, fallback: Fallback });
+  await router.start();
+  return router;
+}
 
 test("starts at the URL of the request, with its page loaded", async () => {
   const about = await at("/about?tab=team#people");
@@ -61,29 +65,52 @@ test("leaves other sites to the browser", async () => {
   expect(router.resolve("/about//")).toMatchObject({ path: "/about" });
 });
 
-test("runs the guard before the first page shows", async () => {
+test("runs the hooks before the first page shows, in the order they were added", async () => {
   const seen: string[] = [];
-  const router = await createRouter({
-    base: "/",
-    url: "/blog/first",
-    routes,
-    fallback: Fallback,
-    beforeEach: (to) => void seen.push(`${to.path} ${String(to.params.slug)}`),
-  });
-  expect(seen).toEqual(["/blog/first first"]);
+  const router = createRouter({ base: "/", url: "/blog/first", routes, fallback: Fallback });
+  router.beforeEach((to, { first }) => void seen.push(`${to.path} ${to.params.slug} ${first}`));
+  const remove = router.beforeEach(() => void seen.push("removed"));
+  router.beforeEach(() => void seen.push("last"));
+  remove();
+  await router.start();
+  expect(seen).toEqual(["/blog/first first true", "last"]);
   expect(router.route.value.component).toBe(Post);
+});
+
+test("a hook sends the first page to another path, or cancels it", async () => {
+  const redirected = createRouter({ base: "/docs/", url: "/docs/old", routes, fallback: Fallback });
+  redirected.beforeEach((to) => (to.path === "/old" ? "/about" : undefined));
+  await redirected.start();
+  expect(redirected.route.value).toMatchObject({
+    path: "/about",
+    href: "/docs/about",
+    component: About,
+  });
+
+  // a cancelled first navigation renders nothing
+  const cancelled = createRouter({ base: "/", url: "/about", routes, fallback: Fallback });
+  cancelled.beforeEach(() => false);
+  await cancelled.start();
+  expect(cancelled.route.value.component).toBe(Fallback);
+
+  const loop = createRouter({ base: "/", url: "/a", routes, fallback: Fallback });
+  loop.beforeEach((to) => (to.path === "/a" ? "/b" : "/a"));
+  await expect(loop.start()).rejects.toThrow("a loop of redirects");
 });
 
 test("a page of the content wins over a custom page with params, and loses to one at a fixed path", async () => {
   const pages = new Set(["/blog/hello", "/about"]);
-  const router = (url: string) =>
-    createRouter({
+  const router = async (url: string) => {
+    const created = createRouter({
       base: "/",
       url,
       routes: [...routes, { path: "/[...all]", component: async () => ({ default: Post }) }],
       fallback: Fallback,
       hasPage: (path) => pages.has(path),
     });
+    await created.start();
+    return created;
+  };
 
   // the content has this page: it is more specific than `[slug]`
   const content = (await router("/blog/hello")).route.value;

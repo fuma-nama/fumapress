@@ -17,15 +17,20 @@ The build generates every page and file that it can know ahead:
 
 - The pages of static sources, like your Markdown collections, with the data the browser loads for each.
 - Custom pages without params, like `src/pages/about.vue`.
-- Views and API routes of plugins with `render: "static"`, which is the default for [views](/plugins/views).
+- Views and API routes of plugins with `render: "static"`, which is the default for [views](/plugins/views) and [data routes](/plugins/routes#data-routes).
 - The sitemap, `robots.txt`, `llms.txt` and the search index.
 
 These need the server:
 
 - The pages of a [dynamic source](/content/sources), and the files that follow them, like the sitemap.
 - Custom pages with params.
-- API routes of plugins, which render on demand by default, and views with `render: "dynamic"`.
+- API routes of plugins with handlers, which render on demand by default.
+- Views and data routes with `render: "dynamic"`.
 - [Middleware](/plugins/routes#middleware), which runs only on requests that reach the server.
+
+:::warning
+The compiled Markdown of every page in your collections is a file of `.output/public`, which the browser imports and the host serves without the server. A middleware can't hide it, so keep private content out of your collections.
+:::
 
 ## Static Hosting
 
@@ -53,6 +58,36 @@ export default defineConfig({
 ```
 
 The `nitro` option takes the [config of Nitro](https://nitro.build/config). Pages generated at build time are still served as files, and the server renders the rest.
+
+### Headers and Caching
+
+`routeRules` of the `nitro` option sets the headers and the caching of responses by path:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      nitro: {
+        routeRules: {
+          "/assets/**": { headers: { "cache-control": "public, max-age=31536000, immutable" } },
+          "/api/stars": { cache: { maxAge: 60 } },
+        },
+      },
+    }),
+  ],
+});
+```
+
+`headers` apply to pages and files too, and `cache` keeps the response of a route that renders on demand for `maxAge` seconds. The server applies route rules, so a static host that serves `.output/public` without the server doesn't.
+
+## Environment Variables
+
+`process.env` is read on the server, when the code runs. A page or route generated at build time has the value of the build in its file, while a route that renders on demand reads the value of the deployment on each request.
+
+In the browser, `import.meta.env` has the variables starting with `VITE_`, which Vite writes into the JavaScript at build time. Anyone can read them, so keep secrets in `process.env` on the server.
 
 ## Base Path
 

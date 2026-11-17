@@ -1,16 +1,19 @@
 import { escapeHtml } from "../core/head";
 import type { Plugin } from "../core/plugin";
+import type { Page } from "../core/types";
 
 export interface SitemapOptions {
   /** @defaultValue "/sitemap.xml" */
   path?: string;
+  /** the content pages to list: a page it returns `false` for is left out */
+  filter?: (page: Page) => boolean;
 }
 
 /**
  * `/sitemap.xml` with every page generated ahead: the content pages of each language with their translations, the
  * pages of plugins and the custom pages without params. Generated at build time, or on demand with a dynamic source.
  */
-export function sitemapPlugin({ path = "/sitemap.xml" }: SitemapOptions = {}): Plugin {
+export function sitemapPlugin({ path = "/sitemap.xml", filter }: SitemapOptions = {}): Plugin {
   return {
     name: "core:sitemap",
     routes({ createApi }) {
@@ -19,11 +22,15 @@ export function sitemapPlugin({ path = "/sitemap.xml" }: SitemapOptions = {}): P
         render: this.getContentRender(),
         GET: async () => {
           const loc = (url: string) => `<loc>${escapeHtml(this.absoluteUrl(url))}</loc>`;
+          const listed = this.getPages().filter((page) => filter?.(page) ?? true);
+          const urls = new Set(listed.map((page) => page.url));
           const ofContent = await Promise.all(
-            this.getPages().map(async (page) => {
+            listed.map(async (page) => {
               const modified = await this.getPageLastModified(page);
               const lastmod = modified ? `<lastmod>${modified.toISOString()}</lastmod>` : "";
+              // a translation left out is not an alternate either
               const alternates = this.getPageAlternates(page)
+                .filter(({ url }) => urls.has(url))
                 .map(
                   ({ lang, url }) =>
                     `<xhtml:link rel="alternate" hreflang="${escapeHtml(lang)}" href="${escapeHtml(this.absoluteUrl(url))}"/>`,

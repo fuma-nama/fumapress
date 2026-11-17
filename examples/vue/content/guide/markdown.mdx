@@ -3,6 +3,8 @@ title: Markdown
 description: The syntax your pages can use.
 ---
 
+import Partial from "./_partial.mdx";
+
 ## Callouts
 
 :::note
@@ -60,3 +62,9 @@ An image file next to the page, which the build includes:
     No. Components only some pages use, like this one, are loaded by the pages that render them.
   </Accordion>
 </Accordions>
+
+## Partials
+
+A file starting with `_` is not a page: another page imports it, and it renders with the components of the theme.
+
+<Partial />

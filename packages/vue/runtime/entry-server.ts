@@ -21,9 +21,14 @@ export default {
     // a fact of the build: Nitro replaces it in the server it prerenders with, and in the one it deploys
     prerender: import.meta.prerender === true,
     customPages: routes.map((route) => route.path),
-    async render({ ctx, url, lang, load }) {
+    async render({ ctx, url, pathname, lang, load }) {
       const { app, router, state } = await createPressApp(url, ctx.base, lang, load);
-      const { record, component } = router.route.value;
+      const { record, component, path, query } = router.route.value;
+      // a hook of the router sent the page to another path: the response redirects there
+      if (path !== pathname) {
+        const search = new URLSearchParams(query).toString();
+        return { html: "", redirect: search ? `${path}?${search}` : path };
+      }
       // the styles of a custom page are in its own files
       const pageAssets = record?.assets ? [(await record.assets()).default] : [];
 

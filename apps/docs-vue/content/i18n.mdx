@@ -116,8 +116,12 @@ The default plugins and your views follow the languages of the site:
 
 - Search has an index per language, and the dialog searches the language of the page.
 - `llms.txt` and `llms-full.txt` exist per language: at the root of the site for the default language, and at the prefix of the others, like `/cn/llms.txt`.
-- The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links.
+- The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links. The translations of a page are the pages of other languages at the same URL without the prefix, in any source.
 - A [view](/plugins/views) of a plugin exists in every language, at its prefix, and receives the language as `lang`.
+
+## Text Direction
+
+The language sets the direction of the text. `<html dir>` is `rtl` for a language written from right to left, like Arabic (`ar`) or Hebrew (`he`), and `ltr` for others. The components of the UI follow it.
 
 ## Switching Languages
 

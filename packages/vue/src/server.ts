@@ -1,5 +1,6 @@
 import { getContext, type Context } from "./core/context";
 import { escapeHtml, keyOf, mergeHead, renderHead, withBase } from "./core/head";
+import { directionOf } from "./core/i18n";
 import type { ApiHandler, ApiRoute, BuildOutput, HttpMethod } from "./core/plugin";
 import type { Press } from "./core/press";
 import {
@@ -36,6 +37,11 @@ export interface RenderOutput {
   assets?: ClientAssets;
   /** the data of a page outside the content, like its title: what the head tags are made from */
   data?: PageData;
+  /**
+   * A path of the site, with an optional query, that the response redirects to: where a hook of the app sent the page.
+   * `html` is not sent.
+   */
+  redirect?: string;
 }
 
 export interface HandlerOptions {
@@ -143,25 +149,30 @@ async function renderDocument(
   const output = await options.render({ ctx, url, pathname: shown, lang, load: load as Load });
   const { html, status = 200, assets = options.assets, data: ownData } = output;
 
-  // A URL that names its language another way goes to the one a page has: without a prefix, like `/`, to the
-  // default language when no language is hidden, and with the prefix of the hidden language to the URL without it.
-  if (status === 404 && ctx.i18n) {
+  // Where the response sends the browser instead: where a hook of the app sent the page, or for a URL that names its
+  // language another way, the one a page has. Without a prefix, like `/`, that is the default language when no
+  // language is hidden, and with the prefix of the hidden language the URL without it.
+  let target = output.redirect;
+  if (target === undefined && status === 404 && ctx.i18n) {
     const [, first = "", ...rest] = pathname.split("/");
-    const target = ctx.i18n.languages.includes(first)
+    const other = ctx.i18n.languages.includes(first)
       ? ctx.localizePath(first, `/${rest.join("/")}`)
       : ctx.localizePath(ctx.defaultLanguage, pathname);
-    if (target !== pathname && (await ctx.getContent(target))) {
-      const location = ctx.base + encodePath(target).slice(1) + search;
-      // a static host can't redirect: the generated page sends the browser on
-      if (options.prerender) {
-        const href = escapeHtml(location);
-        return new Response(
-          `<!DOCTYPE html><html lang="${escapeHtml(ctx.defaultLanguage)}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${href}"><link rel="canonical" href="${escapeHtml(ctx.absoluteUrl(target))}"><title>${href}</title></head><body><a href="${href}">${href}</a></body></html>`,
-          { headers: { "Content-Type": "text/html; charset=utf-8" } },
-        );
-      }
-      return new Response(null, { status: 302, headers: { Location: location } });
+    if (other !== pathname && (await ctx.getContent(other))) target = other + search;
+  }
+  if (target !== undefined) {
+    const at = target.indexOf("?");
+    const path = at < 0 ? target : target.slice(0, at);
+    const location = ctx.base + encodePath(path).slice(1) + (at < 0 ? "" : target.slice(at));
+    // a static host can't redirect: the generated page sends the browser on
+    if (options.prerender) {
+      const href = escapeHtml(location);
+      return new Response(
+        `<!DOCTYPE html><html lang="${escapeHtml(ctx.defaultLanguage)}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${href}"><link rel="canonical" href="${escapeHtml(ctx.absoluteUrl(path))}"><title>${href}</title></head><body><a href="${href}">${href}</a></body></html>`,
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
     }
+    return new Response(null, { status: 302, headers: { Location: location } });
   }
 
   // what the app loaded comes with the page; a shared value is the same on every page, so the browser fetches it
@@ -206,7 +217,7 @@ async function renderDocument(
   const script = assets.entry
     ? `<script type="module" src="${escapeHtml(assets.entry)}"></script>`
     : "";
-  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}"><head>${renderHead(tags)}</head><body><div id="app">${html}</div><script type="application/json" id="__PRESS__">${data}</script>${script}</body></html>`;
+  const document = `<!DOCTYPE html><html lang="${escapeHtml(lang)}" dir="${directionOf(lang)}"><head>${renderHead(tags)}</head><body><div id="app">${html}</div><script type="application/json" id="__PRESS__">${data}</script>${script}</body></html>`;
 
   return new Response(document, {
     status,

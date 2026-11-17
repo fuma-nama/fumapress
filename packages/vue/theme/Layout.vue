@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue";
-import { useLayoutProps, usePage, usePageTree, usePress } from "@fumapress/vue/client";
+import { useLayoutProps, usePage, usePageTree } from "@fumapress/vue/client";
 import { DocsLayout } from "../ui/layouts/docs";
 import {
   DocsBody,
@@ -16,7 +16,6 @@ const NotFound = defineAsyncComponent(() => import("./NotFound.vue"));
 
 const page = usePage();
 const tree = usePageTree();
-const { components } = usePress();
 const { nav, links, githubUrl } = useLayoutProps();
 </script>
 
@@ -28,7 +27,7 @@ const { nav, links, githubUrl } = useLayoutProps();
       <DocsTitle>{{ page.data.title }}</DocsTitle>
       <DocsDescription>{{ page.data.description }}</DocsDescription>
       <DocsBody>
-        <component :is="page.Content" :components="components" />
+        <component :is="page.Content" />
       </DocsBody>
       <div class="flex flex-row flex-wrap items-center justify-between gap-4 empty:hidden">
         <EditOnGitHub v-if="page.data.githubUrl" :href="page.data.githubUrl" />

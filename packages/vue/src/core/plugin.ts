@@ -38,7 +38,12 @@ export type StaticPath = string | string[];
 export type ApiRoute = {
   /** without the base path; `[name]` matches a segment, `[...name]` the rest */
   path: string;
-  /** `static` routes are generated at build time from their `GET` handler @defaultValue "dynamic" */
+  /**
+   * `static` routes are generated at build time from their `GET` handler, or from `data`. A route that reads content
+   * sets `this.getContentRender()`, so it renders on demand when the content does.
+   *
+   * @defaultValue "static" for a data route, "dynamic" otherwise
+   */
   render?: "static" | "dynamic";
   /** the values of the param of a `static` route, one generated file each */
   staticPaths?: StaticPath[] | (() => Awaitable<StaticPath[]>);
@@ -68,10 +73,13 @@ export interface ViewRoute extends Pick<ApiRoute, "path" | "staticPaths"> {
    * @defaultValue "static"
    */
   render?: "static" | "dynamic";
-  /** the data of its pages, like their title; `transformPage` sets it per page */
+  /** the data of its pages, like their title */
   data?: Partial<PageData>;
-  /** the page at `params`, none for a 404 */
-  view: (params: Record<string, string>, env: { lang: string }) => Awaitable<View | undefined>;
+  /** the page at `params` in `lang`, none for a 404. Its `data` wins over the `data` of the route. */
+  view: (env: {
+    params: Record<string, string>;
+    lang: string;
+  }) => Awaitable<(View & { data?: Partial<PageData> }) | undefined>;
 }
 
 export interface RouteFns {

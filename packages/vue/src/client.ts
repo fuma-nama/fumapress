@@ -47,6 +47,8 @@ declare module "vue" {
 }
 export {
   createRouter,
+  type AfterEachHook,
+  type BeforeEachHook,
   type Route,
   type RouteRecord,
   type Router,
@@ -67,7 +69,7 @@ export type {
 
 /** the page on screen: what the server sent, with its body as a component */
 export interface LoadedPage extends Omit<PageContent, "body"> {
-  /** the content: compiled Markdown takes the components of the theme as its `components` prop */
+  /** the content: compiled Markdown renders with the `components` of the theme, which a `components` prop adds to */
   Content: Component;
   /** on the page of a plugin, the type of its view: `Content` is the component of `views`, with its own layout */
   view?: string;
@@ -88,7 +90,7 @@ export interface Theme {
   icons?: Record<string, Component>;
   /** tags of every page, like a script that runs before the first paint */
   head?: HeadTag[];
-  /** register plugins and global components */
+  /** register Vue plugins and the hooks of the router, before the app loads its first page */
   enhanceApp?: (ctx: { app: App; router: Router }) => void;
 }
 
@@ -242,6 +244,14 @@ export function usePress(): PressState {
   const state = inject(pressKey);
   if (!state) throw new Error("[Fumapress] `usePress()` is called outside of a Fumapress app.");
   return state;
+}
+
+/**
+ * The components of compiled Markdown, by name: the `components` of the theme. A Markdown file reads them while it
+ * renders, so a file that a page imports has them too.
+ */
+export function useMDXComponents(): Record<string, Component> {
+  return inject(pressKey, undefined)?.components ?? {};
 }
 
 /** loads the value of a data route of a plugin: with the page on the first render, by request afterwards */

@@ -16,8 +16,19 @@ export function isMeta(file: string): boolean {
   return /(^|[\\/])meta(\.[\w-]+)?\.json$/.test(file);
 }
 
-/** the Markdown pages and `meta.json` files of a directory, sorted by path; none when it doesn't exist */
-export async function scanCollection(dir: string): Promise<ScannedFile[]> {
+/** a file or folder starting with `_` holds what pages import, like a partial or a component: it is not a page */
+export function isHidden(file: string): boolean {
+  return file.split(/[\\/]/).some((part) => part.startsWith("_"));
+}
+
+/**
+ * The Markdown pages and `meta.json` files of a directory, sorted by path; none when it doesn't exist. A file that
+ * `filter` returns `false` for is left out.
+ */
+export async function scanCollection(
+  dir: string,
+  filter?: (file: Pick<ScannedFile, "path" | "data">) => boolean,
+): Promise<ScannedFile[]> {
   let entries: string[];
   try {
     entries = await readdir(dir, { recursive: true });
@@ -29,6 +40,7 @@ export async function scanCollection(dir: string): Promise<ScannedFile[]> {
     entries.sort().map(async (entry): Promise<ScannedFile | undefined> => {
       const file = entry.split(path.sep).join("/");
       const absolutePath = path.join(dir, entry);
+      if (isHidden(file)) return;
 
       if (/\.mdx?$/.test(file)) {
         const { data } = parseFrontmatter(await readFile(absolutePath, "utf8"));
@@ -44,7 +56,9 @@ export async function scanCollection(dir: string): Promise<ScannedFile[]> {
       }
     }),
   );
-  return files.filter((file) => file !== undefined);
+  return files.filter(
+    (file): file is ScannedFile => file !== undefined && (filter?.(file) ?? true),
+  );
 }
 
 /**
@@ -89,9 +103,7 @@ export async function scanPages(dir: string): Promise<{ path: string; absolutePa
 
   return entries
     .map((entry) => entry.split(path.sep).join("/"))
-    .filter(
-      (file) => file.endsWith(".vue") && !file.split("/").some((part) => part.startsWith("_")),
-    )
+    .filter((file) => file.endsWith(".vue") && !isHidden(file))
     .map((file) => ({ path: toRoutePath(file), absolutePath: path.join(dir, file) }))
     .sort((a, b) => compareRoutes(a.path, b.path));
 }

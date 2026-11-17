@@ -14,6 +14,21 @@ A text matches when it contains every word of the query, ignoring case. Pages ar
 
 With a [dynamic source](/content/sources), the server builds the index on request instead.
 
+### Leaving Pages Out
+
+`filter` of the search plugin leaves out the pages it returns `false` for, like the pages under `/changelog`:
+
+```ts title="press.config.ts"
+import { createPress, recommendedPreset } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content).config({
+  preset: recommendedPreset({
+    search: { filter: (page) => !page.url.startsWith("/changelog") },
+  }),
+});
+```
+
 ### Turning It Off
 
 Search is a default plugin. Leave it out with `recommendedPreset()`, and the search button disappears:

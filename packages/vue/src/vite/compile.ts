@@ -10,6 +10,7 @@ import { remarkSteps } from "@fumadocs/satteri/remark-steps";
 import { remarkStructure } from "@fumadocs/satteri/remark-structure";
 import { createHighlights } from "fumadocs-core/highlight/highlights";
 import type { HastPluginInput, MdastPluginInput } from "satteri";
+import type { HighlightsOptions } from "../highlight";
 import { parseFrontmatter } from "./frontmatter";
 
 export interface MarkdownOptions {
@@ -17,6 +18,8 @@ export interface MarkdownOptions {
   mdastPlugins?: MdastPluginInput[];
   /** plugins on the HTML tree, after the built-in ones */
   hastPlugins?: HastPluginInput[];
+  /** options of the highlighter of code blocks, like the `light` and `dark` themes */
+  highlight?: HighlightsOptions;
 }
 
 export interface CompileInput {
@@ -126,6 +129,8 @@ export async function compileMarkdown({
     isDevelopment,
     options: {
       jsxImportSource: "@fumapress/vue",
+      // the components of the theme, from the app: a file that a page imports has them too
+      providerImportSource: "@fumapress/vue/client",
       elementAttributeNameCase: "html",
       stylePropertyNameCase: "css",
       mdastPlugins: [
@@ -145,7 +150,8 @@ export async function compileMarkdown({
       ],
       hastPlugins: [
         rehypeCodeFromHighlighter(
-          ({ transformers }) => createHighlights({ shikiTransformers: transformers }),
+          ({ transformers }) =>
+            createHighlights({ ...options.highlight, shikiTransformers: transformers }),
           // tokens as HTML: about half the output of one element per token
           { tokens: "html" },
         ),

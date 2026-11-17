@@ -17,6 +17,8 @@ The URL of a page comes from its file path:
 | `content/guide/index.mdx`     | `/guide`           |
 | `content/guide/install.md`    | `/guide/install`   |
 
+Files and folders starting with `_` aren't pages, so they can hold [partials](/markdown#partials) next to your pages.
+
 In the dev server, adding or removing a file updates the sidebar without a restart.
 
 ## Collections
@@ -40,6 +42,30 @@ export default defineConfig({
 ```
 
 Without `press.config.ts`, the site shows the first collection only. To show several, with a URL prefix for each, see [Multiple Sources](/content/sources#multiple-sources).
+
+### Leaving Files Out
+
+`filter` of a collection leaves out the files it returns `false` for: they aren't pages, and the build doesn't include them. It receives the `path` of each Markdown file and `meta.json` in the collection, and its `data`: the frontmatter of a page, or the content of a `meta.json`.
+
+To keep the pages with `draft: true` in their frontmatter out of the build, while the dev server still shows them, read the command of Vite:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig(({ command }) => ({
+  plugins: [
+    press({
+      collections: {
+        docs: {
+          dir: "content",
+          filter: (file) => command === "serve" || !file.data.draft,
+        },
+      },
+    }),
+  ],
+}));
+```
 
 ## Sidebar
 
@@ -68,7 +94,13 @@ The sidebar lists the pages and folders of the content. Add a `meta.json` to a f
 | `pages`       | The pages and folders of the folder, in order  |
 | `root`        | Make the folder a [root folder](#root-folders) |
 
-Items of `pages` are file names without the extension, or folder names. `"..."` adds the pages that aren't listed, and `"---Guides---"` adds a separator with the text "Guides".
+Items of `pages` are file names without the extension, or folder names. `"..."` adds the pages that aren't listed, and `"---Guides---"` adds a separator with the text "Guides". `"!name"` leaves a page out of `"..."`, so the sidebar doesn't list it, while the page still exists at its URL:
+
+```json title="content/meta.json"
+{
+  "pages": ["...", "!changelog"]
+}
+```
 
 For other syntax of `meta.json`, see the [page conventions of Fumadocs](https://fumadocs.dev/docs/page-conventions).
 

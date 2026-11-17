@@ -10,6 +10,8 @@ import {
   createRouter,
   pressKey,
   routerKey,
+  type AfterEachHook,
+  type BeforeEachHook,
   type PressState,
   type RouterOptions,
 } from "@fumapress/vue/client";
@@ -77,9 +79,22 @@ afterEach(() => {
 
 const Page: Component = { render: () => h("main", "page") };
 
-function router(options: Partial<RouterOptions> & { url: string }) {
+/** a router at a URL, with hooks of the site, once it has loaded the first page */
+async function router({
+  beforeEach,
+  afterEach,
+  ...options
+}: Partial<RouterOptions> & {
+  url: string;
+  beforeEach?: BeforeEachHook;
+  afterEach?: AfterEachHook;
+}) {
   window.history.replaceState(null, "", options.url);
-  return createRouter({ base: "/", routes: [], fallback: Page, ...options });
+  const created = createRouter({ base: "/", routes: [], fallback: Page, ...options });
+  if (beforeEach) created.beforeEach(beforeEach);
+  if (afterEach) created.afterEach(afterEach);
+  await created.start();
+  return created;
 }
 
 /** whether the browser would follow a click: its default wasn't prevented by the time it reached `window` */
@@ -252,6 +267,24 @@ test("a navigation slower than a later one never shows", async () => {
   expect(committed).toEqual(["/fast"]);
   expect(shown).toEqual(["/fast"]);
   expect(window.history.length).toBe(entries + 1);
+});
+
+test("a hook sends a navigation to another path, and a removed hook no longer runs", async () => {
+  const shown: string[] = [];
+  const r = await router({ url: "/" });
+  r.beforeEach((to) => (to.path === "/old" ? "/new?from=old" : undefined));
+  const remove = r.afterEach((to) => void shown.push(to.path));
+  const entries = window.history.length;
+
+  await r.push("/old");
+  expect(r.route.value).toMatchObject({ path: "/new", query: { from: "old" } });
+  expect(window.location.pathname).toBe("/new");
+  // one entry, for the page it went to
+  expect(window.history.length).toBe(entries + 1);
+
+  remove();
+  await r.push("/other");
+  expect(shown).toEqual(["/new"]);
 });
 
 test("a navigation to another anchor of the page loads nothing", async () => {

@@ -341,9 +341,11 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
 
       for (const { route, lang, path } of views) {
         const params = matchRoute(path, url);
-        const view = params && (await route.view(params, { lang }));
-        if (!view) continue;
-        const data = await transformPage({ ...route.data }, { pathname: url, lang });
+        const result = params && (await route.view({ params, lang }));
+        if (!result) continue;
+        // the data of the page goes to `data`, the rest is what the theme renders
+        const { data: own, ...view } = result;
+        const data = await transformPage({ ...route.data, ...own }, { pathname: url, lang });
         const head = await documentHead({ pathname: url, lang, data });
         return { url, data, toc: [], body: { view }, head };
       }
@@ -364,9 +366,11 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
     localizePath: (lang, pathname) => localizePath(i18n, lang, pathname),
     getPageAlternates(page) {
       if (!i18n) return [];
-      const slugs = page.slugs.join("/");
+      // the translations of a page are at its URL in other languages, in any source
+      const path = (url: string) => localeOf(i18n, url).pathname;
+      const own = path(page.url);
       const out = pages
-        .filter((other) => other.source === page.source && other.slugs.join("/") === slugs)
+        .filter((other) => path(other.url) === own)
         .map((other) => ({ lang: other.locale ?? defaultLanguage, url: other.url }));
       return out.length > 1 ? out : [];
     },
@@ -411,13 +415,15 @@ export async function createContext(press: Press, env: ContextEnv = {}): Promise
   for (const plugin of plugins) {
     await plugin.routes?.call(ctx, {
       createApi(route) {
-        validateRoute(route.path, route.render === "static");
         if (route.data && (route.GET ?? route.ALL)) {
           throw new Error(
             `[Fumapress] The route "${route.path}" has \`data\` and a \`GET\` handler: a data route answers \`GET\` with the JSON of its data.`,
           );
         }
-        routes.push(route);
+        // the browser fetches a data route, so it is generated like a view: a static host has its file
+        const render = route.render ?? (route.data ? "static" : "dynamic");
+        validateRoute(route.path, render === "static");
+        routes.push({ ...route, render });
       },
       createView({ lang, ...route }) {
         validateRoute(route.path, route.render !== "dynamic");
