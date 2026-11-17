@@ -42,7 +42,7 @@ export default createPress(content).plugins(blogPlugin({ source: "blog" }));
 
 ## Default Plugins
 
-`recommendedPreset()` has these plugins. The key is its option:
+A site has these plugins by default. Each one has a key in `recommendedPreset()`:
 
 | Feature                                          | Key       |
 | ------------------------------------------------ | --------- |
@@ -153,4 +153,7 @@ const blog = process.env.ENABLE_BLOG && blogPlugin({ source: "blog" });
 createPress(content).plugins(blog);
 ```
 
-The order matters in two places. Middleware is nested in list order, so your first plugin wraps the others. Navbar links also use the list order, after your `ui.layoutProps` links.
+The order of the list matters in two places:
+
+- Middleware is nested in list order, so your first plugin wraps the others.
+- Navbar links use the list order, after your `ui.layoutProps` links.

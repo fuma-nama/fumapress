@@ -5,7 +5,7 @@ description: Add pages and API routes from a plugin.
 
 ## Pages
 
-`createView()` adds a page. `view` returns its content, and `type` tells `ui.renderPage` which page it is. `data` is the [page data](./ui.mdx#page-data), like its title in `<head>`:
+`createView()` adds a page. The site can restyle the page in `ui.renderPage`, by the type you give it:
 
 ```tsx tab="acme/index.tsx"
 type Types = {
@@ -59,7 +59,7 @@ export default createPress(content)
   });
 ```
 
-A custom page at the same path takes priority over a plugin page.
+`data` is the [page data](./ui.mdx#page-data) of the page, like its title. A custom page at the same path takes priority over a plugin page.
 
 ### Translated Pages
 
@@ -118,7 +118,7 @@ createView({
 
 ## API Routes
 
-`createApi()` takes a handler per HTTP method, or `ALL` for all of them. Add `render: "static"` to generate a file from the `GET` handler at build time:
+`createApi()` takes a handler per HTTP method. Add `render: "static"` to generate a file from the `GET` handler at build time:
 
 ```tsx tab="On the server" title="acme/index.tsx"
 routes({ createApi }) {
@@ -205,11 +205,12 @@ Plugin<C, { views: { print: { page: C["page"] } } }>;
 
 ### Reading Existing Routes
 
-The `routes` argument has the custom pages and plugin pages of that language. This plugin adds a JSON file with the params of each page, at `/meta<path>`. For a prerendered route, it creates one file per entry in `route.pages`. For a route rendered on demand, it creates one API route:
+The `routes` argument has the custom pages and plugin pages of that language. This plugin adds a JSON file with the params of each page, at `/meta<path>`:
 
 ```tsx title="acme/index.tsx"
 deriveRoutes({ createApi }, { routes }) {
   for (const route of routes) {
+    // rendered on demand: one API route
     if (route.render === "dynamic") {
       createApi({
         path: `/meta${route.path}`,
@@ -218,6 +219,7 @@ deriveRoutes({ createApi }, { routes }) {
       continue;
     }
 
+    // prerendered: one file per page
     for (const { path, params } of route.pages)
       createApi({
         path: `/meta${path}`,

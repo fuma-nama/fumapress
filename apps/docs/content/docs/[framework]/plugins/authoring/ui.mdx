@@ -42,9 +42,13 @@ export function ShareButton({ url }: { url: string }) {
 }
 ```
 
-`slots` runs with `page` for the items of a content page, and without `page` for the items of every page. Each item has a name, unique on the site, written as `<plugin>:<item>`. List the names in the `slots` of your plugin types. Names starting with `core:` belong to Fumapress.
+`slots` runs with `page` for the items of a content page, and without `page` for the items of every page. The built-in UI places an item in its region, while a custom layout places it by name, with `props.slots["acme:share"]`.
 
-The built-in UI places an item in its region. A custom layout places it by name, with `props.slots["acme:share"]`.
+Each item has a name:
+
+- It is unique on the site, and written as `<plugin>:<item>`.
+- It is listed in the `slots` of your plugin types.
+- It can't start with `core:`, which belongs to Fumapress.
 
 To translate the label, add your strings with the `translations` field. See the [Fumadocs Translations API](https://fumadocs.dev/docs/ui/translations).
 
@@ -93,7 +97,7 @@ Two wrappers in one region are nested by `order`, with the lowest on the outside
 
 ## Layout Props
 
-`layoutProps` adds to the [layout props](../../configuration.mdx#navbar-and-links) of every layout, like links, `sidebar` and `tabs`. It runs for each page, with `page` on content pages. Its links come after the links of the site, and for other props the values of the site take priority.
+`layoutProps` adds to the [layout props](../../configuration.mdx#navbar-and-links) of every layout, like links, `sidebar` and `tabs`. It runs for each page, with `page` on content pages.
 
 ```tsx title="acme/index.tsx"
 layoutProps({ lang }) {
@@ -103,7 +107,7 @@ layoutProps({ lang }) {
 },
 ```
 
-`providerProps` does the same for the [root provider](https://fumadocs.dev/docs/ui/layouts/root-provider).
+Its links come after the links of the site, and for other props the values of the site take priority. `providerProps` does the same for the [root provider](https://fumadocs.dev/docs/ui/layouts/root-provider).
 
 ## Head Tags
 
@@ -178,12 +182,9 @@ export default app.config({
 });
 ```
 
-- `pages` maps a source key to the props that the plugin adds.
-- `page.type` is the source of the page. Return `undefined` for pages of other sources.
-- `body.node` is the content of the page.
-- `props` are passed to `ui.renderPage` as they are, and `node` becomes `props.children`.
-
-Without a `ui.renderPage`, `node` shows in the Home Layout.
+- Return `undefined` for the pages of other sources.
+- `ui.renderPage` receives `props` as they are, and `node` as `props.children`.
+- Without a `ui.renderPage`, `node` shows in the Home Layout.
 
 ### Page Rendering Order
 
@@ -206,7 +207,7 @@ Each step receives the result of the one above. Write the hook of the step you w
 
 ### Page Data
 
-`transformPage` changes the page data of every page: content pages, plugin pages and custom pages. A layout reads it from `props.pageData`, like the title or the width, and `<head>` gets its title and description. Return only the fields you change. Two plugins changing the same field is an error.
+`transformPage` changes the page data of every page: content pages, plugin pages and custom pages. A layout reads it from `props.pageData`, and `<head>` gets its title and description.
 
 ```tsx title="acme/index.tsx"
 transformPage(data) {
@@ -214,7 +215,9 @@ transformPage(data) {
 },
 ```
 
-It receives `page` on content pages, and `route` with `path` on other pages. Read the page data of any page with `this.getPageData()`.
+- Return only the fields you change. Two plugins changing the same field is an error.
+- It receives `page` on content pages, and `route` with `path` on other pages.
+- `this.getPageData()` reads the page data of any page.
 
 <show when={props.framework === "astro"}>
 

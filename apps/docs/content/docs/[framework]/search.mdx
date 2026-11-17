@@ -3,7 +3,12 @@ title: Search
 description: Set up the search dialog of your site.
 ---
 
-Search works without setup, with FlexSearch. The build exports an index of your pages, and the browser downloads and searches it. With a dynamic source, like [Notion](./content-sources/notion.mdx), search runs on your server instead, since the pages change after the build.
+Search works without setup, with FlexSearch. Where it runs follows your content source:
+
+| Content source                                       | Search runs                                            |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| Static, like MDX files                               | In the browser, on an index that the build exports     |
+| Dynamic, like [Notion](./content-sources/notion.mdx) | On your server, since the pages change after the build |
 
 ## Search Engines
 
@@ -147,4 +152,18 @@ createPress(content).config({
 });
 ```
 
-When search runs on the server, the props are `api` and `locale`, and the hook is `useFetchSearch` from `fumadocs-core/search/client/fetch`.
+When search runs on the server, the dialog uses the fetch hook instead:
+
+```tsx title="src/search.tsx"
+import { useFetchSearch, type FetchOptions } from "fumadocs-core/search/client/fetch";
+
+type Props = SharedProps & FetchOptions;
+
+export function SearchDialog({ api, locale, ...props }: Props) {
+  return (
+    <Dialog {...props} {...useFetchSearch({ api, locale })}>
+      {/* ... */}
+    </Dialog>
+  );
+}
+```

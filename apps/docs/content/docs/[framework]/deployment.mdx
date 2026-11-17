@@ -15,7 +15,14 @@ description: Build your site and put it online.
 
 </show>
 
-Pages of a static source are prerendered. Pages of a dynamic source, like [Notion](./content-sources/notion.mdx), render on demand, and one site can mix both. Files generated from your content, like `.md` files, the sitemap and Open Graph images, use the same render mode as their pages.
+The render mode of a page follows its content source, and one site can have both kinds:
+
+| Content source                                       | Its pages                 |
+| ---------------------------------------------------- | ------------------------- |
+| Static, like MDX files                               | Prerendered at build time |
+| Dynamic, like [Notion](./content-sources/notion.mdx) | Rendered on demand        |
+
+Files generated from your content, like `.md` files, the sitemap and Open Graph images, use the render mode of their pages.
 
 ## What Needs a Server
 
@@ -34,7 +41,8 @@ Without an [adapter](#adapters), the build fails on anything in this list and pr
 
 <show when={props.framework === "waku"}>
 
-[Self-hosted image optimization](./content.mdx#image-optimization) and the `middleware` of a plugin that you list in `.plugins()`, like [authentication](./authentication.mdx), need one too. A build without a server warns about that middleware.
+- [Self-hosted image optimization](./content.mdx#image-optimization).
+- A plugin with `middleware` in `.plugins()`, like [authentication](./authentication.mdx). A build without a server warns that the middleware never runs.
 
 The default plugins don't need a server. On a static build, they leave out what needs one, like the Markdown [content negotiation](./plugins/ai.mdx#content-negotiation) of llms.txt.
 
@@ -72,13 +80,13 @@ With `output: "server"`, `auto` renders every source on demand, like other Astro
 
 ### Cache Headers
 
-A dynamic source with `staleTime`, in milliseconds, is read again once that time has passed. Its pages rendered on demand, with their `.md` file and Open Graph image, get `Cache-Control: public, s-maxage=<staleTime in seconds>`, so a CDN keeps them for the same time:
+A dynamic source with `staleTime`, in milliseconds, is read again once that time has passed:
 
 ```tsx title="press.config.tsx"
 createPress({ ...notion.dynamicSource(), staleTime: 60_000 });
 ```
 
-Without `staleTime`, Fumapress sets no `Cache-Control`.
+Its pages rendered on demand, with their `.md` files and Open Graph images, have the same time as `s-maxage` in their `Cache-Control` header, so a CDN keeps them that long. Without `staleTime`, Fumapress sets no `Cache-Control`.
 
 <show when={props.framework === "waku"}>
 

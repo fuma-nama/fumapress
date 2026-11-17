@@ -82,9 +82,12 @@ recommendedPreset({
 });
 ```
 
-The page has no `<page>.md` and is left out of the `llms-full.txt` files, while `/llms.txt` links to the page itself.
+A page with [`noindex`](./seo.mdx#leaving-pages-out) is left out too, but keeps its Markdown version:
 
-A page with [`noindex`](./seo.mdx#leaving-pages-out) keeps its `<page>.md`, and is only left out of the `llms-full.txt` files.
+| Page                | `<page>.md` | `llms-full.txt` | Link in `/llms.txt` |
+| ------------------- | ----------- | --------------- | ------------------- |
+| Removed by `filter` | None        | Left out        | The page itself     |
+| With `noindex`      | Kept        | Left out        | Its `<page>.md`     |
 
 ### Sections
 
@@ -139,7 +142,7 @@ The `<head>` of a page also links to its Markdown, for AI agents that read the H
 
 ### Custom Pages
 
-Set `routes: "all"`, then return Markdown from a page with `asMarkdown()` and `md`. This page gets a `/index.md`, and an entry in `/llms.txt`.
+Set `routes: "all"`, then return Markdown from the page. This page gets a `/index.md`, and an entry in `/llms.txt`:
 
 ```tsx tab="src/pages/index.tsx"
 import { asMarkdown, md } from "fumapress/markdown";
@@ -177,7 +180,7 @@ function Callout({ title, children }) {
 }
 ```
 
-`md` also has `md.indent(size)`. To render a React tree to Markdown yourself, use `renderToMarkdown(<Page />)`.
+To render a React tree to Markdown yourself, use `renderToMarkdown(<Page />)`.
 
 </show>
 

@@ -57,7 +57,13 @@ linkValidationPlugin({
 
 ## CI Reports
 
-To annotate a pull request instead of parsing an error message, write the results to a file. `"json"` keeps the build passing, and `"both"` also fails it.
+To annotate a pull request instead of parsing an error message, write the results to a file with `report`:
+
+| `report`               | On a broken link | Diagnostics file |
+| ---------------------- | ---------------- | ---------------- |
+| `"throw"`, the default | The build fails  | Not written      |
+| `"json"`               | The build passes | Written          |
+| `"both"`               | The build fails  | Written          |
 
 ```tsx tab="press.config.tsx"
 linkValidationPlugin({

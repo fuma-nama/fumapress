@@ -60,26 +60,11 @@ Your [`ui.layoutProps`](../configuration.mdx#navbar-and-links) and `ui.providerP
 
 ### Feature Toggles
 
-Everything is on by default. Turn off a feature to configure it yourself. This example turns off search:
+Every feature is on by default. Turn off a feature to configure it yourself, like search:
 
 ```tsx title="press.config.tsx"
 mintlifyPlugin({
-  // relative to the project root
-  path: "docs.json",
-  // the docs folder inside `content/`
-  docsDir: "docs",
-  features: {
-    navigation: true,
-    navbar: true,
-    theme: true,
-    appearance: true,
-    banner: true,
-    footer: true,
-    redirects: true,
-    notFound: true,
-    search: false, // [!code highlight]
-    metadata: true,
-  },
+  features: { search: false },
 });
 ```
 
@@ -195,3 +180,7 @@ Unsupported properties are accepted and ignored, so they never stop the migratio
 
 </Accordion>
 </Accordions>
+
+## Options
+
+<auto-type-table cwd path="../../packages/mintlify/src/index.tsx" name="MintlifyPluginOptions" />
