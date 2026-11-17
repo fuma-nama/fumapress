@@ -1,0 +1,110 @@
+---
+title: Internationalization
+description: Serve your docs in several languages, each with its own pages, URLs and UI texts.
+icon: Languages
+---
+
+Pass your languages to `createPress()` with the `i18n` option:
+
+```ts title="press.config.ts"
+import { createPress, defineI18n } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content, {
+  i18n: defineI18n({
+    languages: ["en", "cn"],
+    defaultLanguage: "en",
+    hideLocale: "default-locale",
+  }),
+});
+```
+
+Each language has its own pages, page tree, URLs and search index. The layouts show a language switch.
+
+## Translating Pages
+
+A translated page sits next to the original, with the language before the extension:
+
+```
+content/
+├── index.mdx
+├── index.cn.mdx
+└── guide/
+    ├── meta.json
+    ├── meta.cn.json
+    ├── install.mdx
+    └── install.cn.mdx
+```
+
+`meta.cn.json` translates the `title` of the folder and its order of pages. Files without a language, like `install.mdx`, are in the default language.
+
+To use a folder per language instead, like `cn/guide/install.mdx`, set `parser: "dir"` in `defineI18n()`.
+
+### Fallback Language
+
+A page without a translation shows the page of the default language, at the URL of its own language: `/cn/guide/english-only` shows the English page. Set `fallbackLanguage` to another language to fall back to it, or to `null` for none: the page then doesn't exist in that language, and its URL is a 404.
+
+## URLs
+
+The language is the first segment of the URL. `hideLocale` sets which languages have it:
+
+- `"never"`, the default: every language has its prefix, like `/en/guide/install` and `/cn/guide/install`. A URL without a prefix, like `/guide/install`, redirects to the page in the default language.
+- `"default-locale"`: the default language has no prefix, like `/guide/install`, while others have one, like `/cn/guide/install`.
+
+Fumapress tells the languages apart by their prefix, so `hideLocale: "always"` fails with an error.
+
+## UI Texts
+
+`ui.translations` translates the texts of the UI, by language. A key is the English text followed by its note in parentheses, which tells apart uses of the same text:
+
+```ts title="press.config.ts"
+export default createPress(content, { i18n }).config({
+  ui: {
+    translations: {
+      en: { displayName: "English" },
+      cn: {
+        displayName: "中文",
+        "Search(search trigger)": "搜索",
+        "Search(search dialog)": "搜索",
+        "On this page(table of contents)": "本页内容",
+        "Edit on GitHub(edit page)": "在 GitHub 上编辑",
+      },
+    },
+  },
+});
+```
+
+`displayName` is the name of the language in the language switch. Without it, the switch shows the language code.
+
+The full list of keys is in `node_modules/@fumapress/vue/ui/.translations/keys.json`. A key that isn't in the list has no effect.
+
+## Links per Language
+
+`ui.layoutProps` can be a function of the language, to translate the links of the navbar. `this.localizePath()` gives a path in a language, with its prefix:
+
+```ts title="press.config.ts"
+export default createPress(content, { i18n }).config({
+  ui: {
+    layoutProps({ lang }) {
+      return {
+        links: [
+          { text: lang === "cn" ? "版本" : "Releases", url: this.localizePath(lang, "/releases") },
+        ],
+      };
+    },
+  },
+});
+```
+
+## Plugins
+
+The default plugins and your views follow the languages of the site:
+
+- Search has an index per language, and the dialog searches the language of the page.
+- `llms.txt` and `llms-full.txt` exist per language, at its prefix, like `/cn/llms.txt`.
+- The sitemap lists the translations of each page, and each page links to its translations with `hreflang` alternate links.
+- A [view](/plugins/views) of a plugin exists in every language, at its prefix, and receives the language as `lang`.
+
+## Switching Languages
+
+The app in the browser holds the data of one language, like its page tree. Picking another language in the language switch loads the same page in that language as a new document, and so does a link to a page of another language.

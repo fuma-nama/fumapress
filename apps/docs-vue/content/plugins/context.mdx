@@ -1,0 +1,73 @@
+---
+title: Context
+description: Reference of `this` in the hooks of a plugin.
+---
+
+`this` in a hook, and in the `head` and `ui.layoutProps` options of your config, is the context of the site. It has the type `Context` of `@fumapress/vue/config`:
+
+```ts
+createPress(content).plugins({
+  name: "site:example",
+  configure() {
+    console.log(`${this.getPages().length} pages in ${this.languages.join(", ")}`);
+  },
+});
+```
+
+Use a regular function or a method for a hook, not an arrow function, so that `this` is the context.
+
+## Site
+
+- `site`: the `site` option of your config.
+- `base`: the base path of the site, with a trailing slash, like `/docs/`.
+- `plugins`: every plugin, in the order they run: yours, the preset, then the built-in ones.
+
+## Content
+
+- `getPages(lang?)`: the content pages, of every language or of one.
+- `getPage(pathname)`: a content page by its URL, without the base path.
+- `getPageTree(lang?)`: the page tree of a language, the default language when you omit it.
+- `getPageBody(page)`, `getPageToc(page)`, `getPageText(page)`, `getPageStructuredData(page)` and `getPageLastModified(page)`: the first result of that [content hook](/plugins/content) among plugins.
+- `getPageData(page)`: the data of a page that the browser receives, after the `transformPage` hook of plugins.
+- `getPageContent(page)`: a content page as the browser receives it, with its data, table of contents and body. It fails when no plugin renders the page.
+- `getContent(pathname)`: what the browser receives for a URL, a content page or the view of a plugin, or `undefined` for a `404`.
+- `getContentRender(source?)`: `"dynamic"` when a source is [dynamic](/content/sources), `"static"` otherwise. Pass the key of a source to check that source only.
+- `invalidateLoader()`: reads every source again, so a dynamic source shows its new pages.
+
+## Languages
+
+- `i18n`: the `i18n` option of the content, `undefined` on a site without languages.
+- `languages`: the languages of the site. Without `i18n`, it's `site.lang` alone, or `"en"`.
+- `defaultLanguage`: the default language.
+- `getLanguage(pathname)`: the language of a URL.
+- `localizePath(lang, pathname)`: a path in a language, with the language prefix unless `hideLocale` hides it.
+- `getPageAlternates(page)`: the page in every language it exists in, itself included, as a list of `{ lang, url }`. It's empty when the page has no translation.
+
+## Routes and Pages
+
+- `routes`: the API routes of plugins.
+- `views`: the [views](/plugins/views) of plugins, one per language, with the path of each including its language prefix.
+- `getStaticPages()`: the URLs of the pages generated at build time, the pages of static sources and the static views.
+- `getLayoutProps({ lang })`: the props of the layouts in a language, from your config and the `layoutProps` hook of plugins.
+- `getHead(env)`: the tags of the `<head>` of a page, from your config and the `head` hook of plugins.
+
+## URLs
+
+- `withBase(path)`: adds the base path.
+- `absoluteUrl(path)`: the full URL of a path, with the base path and `site.baseUrl`. Without `site.baseUrl`, it's the path with the base path.
+
+## Outside of Hooks
+
+`getPressContext()` returns the context of the running site, for server code that has no `this`, like a module that your API handlers call:
+
+```ts title="src/server/pages.ts"
+import { getPressContext } from "@fumapress/vue/config";
+
+export function pageUrls(): string[] {
+  return getPressContext()
+    .getPages()
+    .map((page) => page.url);
+}
+```
+
+It throws before the site has started, so call it in a handler, not when the module loads. It's for the server only: your Vue components run in the browser too.

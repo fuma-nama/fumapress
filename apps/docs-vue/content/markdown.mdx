@@ -1,0 +1,253 @@
+---
+title: Markdown
+description: The syntax and components of a page.
+icon: BookOpen
+---
+
+A page is a Markdown (`.md`) or MDX (`.mdx`) file. Use `.mdx` for components and imports: a `.md` file is compiled as plain Markdown, without JSX.
+
+MDX files aren't Vue templates. An expression is written `{value}`, and `{{ value }}` from VitePress doesn't work.
+
+## Frontmatter
+
+```mdx title="content/getting-started.mdx"
+---
+title: Getting Started
+description: Install and run the app.
+icon: Rocket
+full: true
+---
+```
+
+| Field         | Use                                                                  |
+| ------------- | -------------------------------------------------------------------- |
+| `title`       | The main heading of the page, its name in the sidebar, and `<title>` |
+| `description` | Below the title, and the meta description of the page                |
+| `icon`        | The icon of the page in the sidebar, see [Icons](/content#icons)     |
+| `full`        | Use the full width of the page, without the table of contents        |
+
+Since `title` is the main heading, start the body at `##`. Other fields are kept in `page.data`, where plugins can read them.
+
+## Headings
+
+Headings are listed in the table of contents. Each heading gets an id from its text, and `[#id]` at the end sets your own:
+
+```md
+## Installation [#install]
+```
+
+The heading links to `#install`.
+
+## Callouts
+
+A block between `:::` lines is a callout. A label in brackets is its title:
+
+```md
+:::note
+A note for the reader.
+:::
+
+:::warning[Careful]
+This can't be undone.
+:::
+```
+
+The types are `note`, `tip`, `info`, `warn`, `warning`, `danger` and `success`.
+
+In `.mdx`, the `Callout` component does the same, with `type` set to `info`, `warn`, `error`, `success` or `idea`:
+
+```mdx
+<Callout type="warn" title="Careful">
+  This can't be undone.
+</Callout>
+```
+
+## Code Blocks
+
+Code blocks are highlighted at build time and have a copy button. Add a `title` after the language:
+
+````md
+```ts title="hello.ts"
+export function hello(name: string) {
+  return `Hello, ${name}!`;
+}
+```
+````
+
+`lineNumbers` shows line numbers, and `noCopy` removes the copy button.
+
+### Highlighting Lines
+
+Mark a line with a comment in the code. The comment is removed from the output:
+
+````md
+```ts
+const a = 1; // [!code highlight]
+const b = 2; // [!code ++]
+const c = 3; // [!code --]
+```
+````
+
+`[!code highlight]` highlights the line, and `[!code ++]` and `[!code --]` mark it as added or removed.
+
+### Code Tabs
+
+Consecutive code blocks with a `tab` are grouped into tabs:
+
+````md
+```ts tab="TypeScript"
+const value: number = 1;
+```
+
+```js tab="JavaScript"
+const value = 1;
+```
+````
+
+### Package Managers
+
+A code block with the language `npm` becomes tabs with the command for npm, pnpm, Yarn and Bun:
+
+````md
+```npm
+npm i @fumapress/vue
+```
+````
+
+## Steps
+
+A heading that ends with `[step]` is a step. Consecutive steps render as a numbered list, each with the content under its heading:
+
+```md
+### Install the Package [step]
+
+Run the install command.
+
+### Add the Plugin [step]
+
+Add it to `vite.config.ts`.
+```
+
+A heading that starts with a number, like `### 1. Install the Package`, is a step too.
+
+## Tables
+
+```md
+| Syntax     | Result   |
+| ---------- | -------- |
+| `**bold**` | **bold** |
+```
+
+## Components
+
+In `.mdx`, the components of Fumadocs UI are available by name, without an import.
+
+### Cards
+
+Cards link to other pages:
+
+```mdx
+<Cards>
+  <Card title="Quick Start" href="/quick-start">
+    Create a site from an empty folder.
+  </Card>
+  <Card title="Markdown" href="/markdown" />
+</Cards>
+```
+
+### Tabs
+
+```mdx
+<Tabs items={["Vue", "React"]}>
+  <Tab value="Vue">Content for Vue.</Tab>
+  <Tab value="React">Content for React.</Tab>
+</Tabs>
+```
+
+`items` are the labels, and the `value` of each `Tab` matches one of them. `defaultIndex` sets the tab open first.
+
+### Accordions
+
+```mdx
+<Accordions>
+  <Accordion title="Is a server required?">
+    No, a site with only Markdown content is static.
+  </Accordion>
+  <Accordion title="Can I use Vue components?">Yes, in `.mdx` files.</Accordion>
+</Accordions>
+```
+
+One accordion is open at a time. Add `multiple` to `Accordions` to open several.
+
+### Files
+
+A file tree, with folders that open on click:
+
+```mdx
+<Files>
+  <Folder name="content" defaultOpen>
+    <File name="index.mdx" />
+    <File name="meta.json" />
+  </Folder>
+  <File name="vite.config.ts" />
+</Files>
+```
+
+### Type Table
+
+The props of a component or the options of a function:
+
+```mdx
+<TypeTable
+  type={{
+    dir: {
+      type: "string",
+      description: "The folder of the collection.",
+      required: true,
+    },
+    pagesDir: {
+      type: "string",
+      description: "The folder of custom pages.",
+      default: '"src/pages"',
+    },
+  }}
+/>
+```
+
+### Image Zoom
+
+An image that opens full size on click:
+
+```mdx
+<ImageZoom src="/screenshot.png" alt="The editor" />
+```
+
+### Other Components
+
+`Steps` and `Step` wrap steps without the `[step]` syntax. `CodeBlockTabs` and the `Tabs` parts (`TabsList`, `TabsTrigger`, `TabsContent`) are available for custom layouts of tabs.
+
+To make your own components available by name, add them to the `components` of the [theme](/theme).
+
+## Vue Components
+
+Import a Vue component in an `.mdx` file and use it like a tag:
+
+```vue title="src/components/Counter.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+
+const count = ref(0);
+</script>
+
+<template>
+  <button type="button" @click="count++">Clicked {{ count }} times</button>
+</template>
+```
+
+```mdx title="content/index.mdx"
+import Counter from "../src/components/Counter.vue";
+
+<Counter />
+```
+
+The component renders on the server and hydrates in the browser, so it follows the rules of Vue SSR: use browser APIs in `onMounted` or event handlers. The children of a tag are its default slot.

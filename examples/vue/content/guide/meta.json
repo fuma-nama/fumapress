@@ -1,0 +1,6 @@
+{
+  "title": "Guide",
+  "icon": "BookOpen",
+  "defaultOpen": true,
+  "pages": ["markdown", "plugins", "..."]
+}

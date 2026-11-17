@@ -1,0 +1,140 @@
+---
+title: Search
+description: Search your docs in the browser out of the box, or with Algolia or Orama Cloud.
+icon: Search
+---
+
+Your site has search without any setup: press <kbd>Ctrl</kbd> <kbd>K</kbd>, or <kbd>⌘</kbd> <kbd>K</kbd> on macOS, or click the search button of the layout.
+
+## Built-in Search
+
+At build time, Fumapress writes a search index for each language to `/_press/search/<lang>.json`. It holds the title, description, headings and text of every page. The browser loads the index on the first search and searches it itself, so search works on a static host, with no server or search service.
+
+A text matches when it contains every word of the query, ignoring case. Pages are ranked by where they match: a match in the title counts most, then a match in the description, then each matching heading, then each matching paragraph. The dialog shows the 10 best pages, each with up to 4 of its matching headings and paragraphs. On a site with [languages](/i18n), the dialog searches the index of the page's language.
+
+With a [dynamic source](/content/sources), the server builds the index on request instead.
+
+### Turning It Off
+
+Search is a default plugin. Leave it out with `recommendedPreset()`, and the search button disappears:
+
+```ts title="press.config.ts"
+import { createPress, recommendedPreset } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content).config({
+  preset: recommendedPreset({ search: false }),
+});
+```
+
+## Using Algolia or Orama Cloud
+
+For a hosted search service, give the search provider a dialog of your own. The UI has dialogs for Algolia and Orama Cloud, which search an index you fill yourself: Fumapress for Vue doesn't sync your pages to the service.
+
+<Steps>
+<Step>
+
+### Turn off the built-in search
+
+Set `search: false` in `recommendedPreset()`, as above, so your site no longer builds its own index.
+
+</Step>
+<Step>
+
+### Wrap the dialog
+
+Install the client of your service, then write a component that renders its dialog with your client. A search dialog receives the `open` prop and emits `update:open`.
+
+<Tabs items={["Algolia", "Orama Cloud"]}>
+<Tab value="Algolia">
+
+```npm
+npm install algoliasearch
+```
+
+```vue title="src/SearchDialog.vue"
+<script setup lang="ts">
+import { liteClient } from "algoliasearch/lite";
+import AlgoliaSearchDialog from "@fumapress/vue/ui/components/dialog/search-algolia";
+
+defineProps<{ open: boolean }>();
+const emit = defineEmits<{ "update:open": [open: boolean] }>();
+
+const client = liteClient("YOUR_APP_ID", "YOUR_SEARCH_API_KEY");
+</script>
+
+<template>
+  <AlgoliaSearchDialog
+    :open="open"
+    :search-options="{ client, indexName: 'docs' }"
+    @update:open="emit('update:open', $event)"
+  />
+</template>
+```
+
+Set `show-algolia` to show the "Powered by Algolia" label.
+
+</Tab>
+<Tab value="Orama Cloud">
+
+```npm
+npm install @orama/core
+```
+
+```vue title="src/SearchDialog.vue"
+<script setup lang="ts">
+import { OramaCloud } from "@orama/core";
+import OramaSearchDialog from "@fumapress/vue/ui/components/dialog/search-orama";
+
+defineProps<{ open: boolean }>();
+const emit = defineEmits<{ "update:open": [open: boolean] }>();
+
+const client = new OramaCloud({
+  projectId: "YOUR_PROJECT_ID",
+  apiKey: "YOUR_PUBLIC_API_KEY",
+});
+</script>
+
+<template>
+  <OramaSearchDialog :open="open" :client="client" @update:open="emit('update:open', $event)" />
+</template>
+```
+
+Set `index="crawler"` when the index comes from the crawler of Orama Cloud.
+
+</Tab>
+</Tabs>
+
+Both dialogs take `tags` and `defaultTag` to filter results by tag.
+
+</Step>
+<Step>
+
+### Give it to the root of the theme
+
+Write a `Root` for your [theme](/theme) that wraps the default one and passes your dialog:
+
+```vue title="src/Root.vue"
+<script setup lang="ts">
+import { Root } from "@fumapress/vue/theme";
+import SearchDialog from "./SearchDialog.vue";
+</script>
+
+<template>
+  <Root :search="{ SearchDialog }">
+    <slot />
+  </Root>
+</template>
+```
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Root from "./Root.vue";
+
+export default { Root } satisfies Partial<Theme>;
+```
+
+</Step>
+</Steps>
+
+The search button and the shortcut now open your dialog. To load the code of the dialog on the first search instead of with the page, pass `defineAsyncComponent(() => import("./SearchDialog.vue"))` as `SearchDialog`, with `preload: false`.

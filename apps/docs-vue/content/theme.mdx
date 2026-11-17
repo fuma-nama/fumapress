@@ -1,0 +1,221 @@
+---
+title: Theme
+description: Change the layout, Markdown components, icons and colors of your site with a theme module.
+icon: Paintbrush
+---
+
+The theme module is the UI of your site. Create `src/theme.ts` and export the parts you want to change: the rest comes from the default theme.
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import { BookOpen, Rocket } from "lucide-vue-next";
+import Badge from "./components/Badge.vue";
+
+export default {
+  components: { Badge },
+  icons: { BookOpen, Rocket },
+} satisfies Partial<Theme>;
+```
+
+Fumapress picks up `src/theme.ts`, `src/theme.js`, `src/theme/index.ts` or `src/theme/index.js`, in this order. To use another file, set the `theme` option of the Vite plugin:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ theme: "src/docs-theme.ts" })],
+});
+```
+
+Your theme is merged over the default theme. `components`, `views` and `icons` merge by name, while `Root`, `Layout`, `head` and `enhanceApp` replace the ones of the default theme. The theme module runs on the server and in the browser, so use browser APIs only in `onMounted()` and event handlers.
+
+## Markdown Components
+
+`components` makes components available in Markdown by name, without an import.
+
+```mdx title="content/index.mdx"
+<Badge>New</Badge>
+```
+
+A component with the name of a default one, like `Callout` or `Card`, replaces it. The default theme registers the components listed in [Components](/ui/components#markdown-components).
+
+To load the code of a component only on the pages that use it, wrap it in `defineAsyncComponent()`:
+
+```ts title="src/theme.ts"
+import { defineAsyncComponent } from "vue";
+import type { Theme } from "@fumapress/vue/client";
+
+export default {
+  components: {
+    Playground: defineAsyncComponent(() => import("./components/Playground.vue")),
+  },
+} satisfies Partial<Theme>;
+```
+
+## Icons
+
+`icons` are the icons of the sidebar, by the `icon` of a page or a folder:
+
+```json title="content/guide/meta.json"
+{
+  "title": "Guide",
+  "icon": "BookOpen"
+}
+```
+
+An icon is any Vue component, like the icons of `lucide-vue-next`, which you install yourself. An `icon` with no component of that name stays text, so an emoji works too.
+
+## Views
+
+`views` are the components rendering the pages of plugins, by the `type` of their view. Each view renders its own layout. See [Views](/plugins/views).
+
+## Layout
+
+`Layout` renders every content page, every view and the not found page. The default one renders content pages in the [docs layout](/ui). To change it, write your own and read the page with the composables of `@fumapress/vue/client`:
+
+```vue title="src/Layout.vue"
+<script setup lang="ts">
+import { useLayoutProps, usePage, usePageTree, usePress } from "@fumapress/vue/client";
+import NotFound from "@fumapress/vue/theme/NotFound.vue";
+import { DocsLayout } from "@fumapress/vue/ui/layouts/docs";
+import { DocsBody, DocsPage, DocsTitle } from "@fumapress/vue/ui/layouts/docs/page";
+
+const page = usePage();
+const tree = usePageTree();
+const { components } = usePress();
+const { nav, links, githubUrl } = useLayoutProps();
+</script>
+
+<template>
+  <component :is="page.Content" v-if="page?.view" :key="page.url" />
+  <DocsLayout v-else-if="page" :tree="tree" :nav="nav" :links="links" :github-url="githubUrl">
+    <DocsPage :key="page.url" :toc="page.toc" :full="page.data.full">
+      <DocsTitle>{{ page.data.title }}</DocsTitle>
+      <DocsBody>
+        <component :is="page.Content" :components="components" />
+      </DocsBody>
+    </DocsPage>
+  </DocsLayout>
+  <NotFound v-else />
+</template>
+```
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Layout from "./Layout.vue";
+
+export default { Layout } satisfies Partial<Theme>;
+```
+
+Your `Layout` handles three cases, like the default one:
+
+- `page.view` is set on the page of a plugin: render `page.Content`, which is the component of the view.
+- On a content page, render `page.Content` with the `components` of the theme, so Markdown can use them.
+- `page` is `undefined` on a URL without a page: render the not found page.
+
+`page.data` has the `title`, `description` and `full` of the page, the `githubUrl` of its source file, and what plugins add. The composables are:
+
+- `usePage()`: the page on screen, a ref.
+- `usePageTree()`: the page tree of the current language.
+- `useLayoutProps()`: the [layout props](/config#layout-props) of the site.
+- `useSite()`: the `name` and `description` of the site.
+- `usePress()`: the state of the app, with the `components` and `views` of the theme.
+- `useRouter()`: the path, query and hash of the page, and `push()` to navigate.
+
+`Link` from `@fumapress/vue/client` links to a page of the site with client-side navigation, and opens other URLs in a new tab.
+
+To start from the full default layout instead, copy it with the [CLI](/cli): `fumapress-vue add theme`.
+
+## Root
+
+`Root` wraps every page of the app, custom pages too. The default one renders `RootProvider`, which provides search, the light and dark themes, and the language switch. A `Root` of your own wraps the default one to keep those, like in [Search](/search#using-algolia-or-orama-cloud).
+
+## Head and App Setup
+
+`head` adds tags to every page, like a script that runs before the first paint. Your tags come after those of the default theme, which hold the script that applies the color mode before the first paint:
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+
+export default {
+  head: [{ tag: "script", attrs: { src: "/analytics.js", defer: true } }],
+} satisfies Partial<Theme>;
+```
+
+For tags that depend on the page, use [`head` in `press.config.ts`](/config#head): its tags win over the theme's by key.
+
+`enhanceApp` receives the Vue `app` and the `router`, to register Vue plugins and global components:
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Badge from "./components/Badge.vue";
+
+export default {
+  enhanceApp({ app }) {
+    app.component("Badge", Badge);
+  },
+} satisfies Partial<Theme>;
+```
+
+## Custom Pages
+
+A `.vue` file under `src/pages` is a page of your site, at the path of the file:
+
+- `index.vue` is `/`, and `blog/index.vue` is `/blog`.
+- `about.vue` is `/about`.
+- `blog/[slug].vue` matches one segment, like `/blog/hello`.
+- `[...path].vue` matches every URL under its folder.
+
+Files and folders starting with `_` aren't pages, so they can hold the components of your pages. A custom page wins over a content page at the same URL.
+
+Pages without params are generated at build time, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRoute()` of Vue Router.
+
+To give a custom page the navbar of your site, wrap it in `HomeLayout`:
+
+```vue title="src/pages/about.vue"
+<script setup lang="ts">
+import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+</script>
+
+<template>
+  <HomeLayout>
+    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
+      <h1 class="text-3xl font-semibold">About</h1>
+      <p class="text-fd-muted-foreground">We write docs.</p>
+    </main>
+  </HomeLayout>
+</template>
+```
+
+To use another folder, set the `pagesDir` option of the Vite plugin, like `press({ pagesDir: "src/routes" })`.
+
+## Colors
+
+The UI is styled with Tailwind CSS, and its colors are CSS variables like `--color-fd-primary`. The stylesheet of the default theme is `@fumapress/vue/css/default.css`, made of three parts:
+
+```css
+@import "tailwindcss";
+@import "@fumapress/vue/css/neutral.css"; /* the color theme */
+@import "@fumapress/vue/css/preset.css"; /* the styles of the UI */
+```
+
+To pick another color theme, create `src/theme.css` with the same parts and another color file. Fumapress loads it in place of the default stylesheet:
+
+```css title="src/theme.css"
+@import "tailwindcss";
+@import "@fumapress/vue/css/ocean.css";
+@import "@fumapress/vue/css/preset.css";
+```
+
+The color themes are `neutral`, `black`, `vitepress`, `dusk`, `catppuccin`, `ocean`, `purple`, `solar`, `emerald`, `ruby`, `aspen` and `shadcn`. To change single colors, set their variables after the imports:
+
+```css title="src/theme.css"
+@theme {
+  --color-fd-primary: hsl(160, 84%, 39%);
+}
+
+.dark {
+  --color-fd-primary: hsl(158, 64%, 52%);
+}
+```

@@ -16,6 +16,40 @@ Rendering is per route. A route reading content follows `getContentRender()`, wh
 - Check changes across setups: `base` with `trailingSlash` and `build.format`, static output, an adapter and `output: 'server'`, a dynamic source, i18n with every `hideLocale`, a custom `ui.renderPage`, custom search, own pages with `HomeLayout.astro`.
 - Astro needs Node >= 22.23.4.
 
+# Vue runtime
+
+`packages/vue` (`@fumapress/vue`) is Fumapress for Vue, on Vite, Vue Router and Nitro. It doesn't use `@fumapress/core`, and a site installs neither Fumadocs nor React: tsdown bundles the parts of Fumadocs it uses, and `react` resolves to a shim (`tsdown.config.ts`).
+
+- `src/` is built to `dist/`: the config, content, server, client and the Vite plugin. `runtime/`, `ui/` and `theme/` ship as source and are compiled by the site's Vite, since they import `.vue` files and the virtual modules of the plugin.
+- Plugin hooks keep the names and signatures of `@fumapress/core`, so server-side plugins port across runtimes.
+- What the server sends to the browser (layout props, the page tree) is serializable. UI is changed in the theme module, never by config functions that return elements.
+- The app reads the server through data routes (`createApi({ data })`, `load(path)`): the page, the site data, the search index. A feature that needs data in the browser adds a data route, not a new channel.
+- A page is content or a view. The body of a page is a compiled module, HTML, or a view: `{ type, props }` that the component of `views` of the theme named `type` renders, with its own layout. `createView` makes pages outside the content, and `getPageBody` can return a view for a content page. Don't add another way for plugins to render UI.
+- A site has languages, one without `i18n` (`site.lang`). What depends on the language is keyed by it: the site data and the search index have one data route per language, `layoutProps` receives `lang`, and views exist per language. The app holds the data of one language, the one of the document (`<html lang>`): a link to another language loads a new document. `hideLocale: "always"` is refused, since languages are told apart by their URL.
+- `theme/` is the default theme, a thin wiring of `ui/`: `Root` (providers around every page), `Layout` (the docs layout for content pages, the component of a view for the others) and the Markdown components. What only some pages use is loaded lazily (the not-found layout, components like `Accordion`), so the JS of a page is that of the docs layout. A theme's `views` should be lazy too (`defineAsyncComponent`).
+- A site needs no TypeScript: the Vue compiler reads the types of props from the file system, and finds a type imported from a package through Node (`typeResolver` of the Vite plugin) when the site has no TypeScript with a JS API. So a type a `.vue` file passes to `defineProps` or `defineEmits` is declared in this package, and a type of another package (like `HTMLAttributes` of `vue`) is behind `/* @vue-ignore */`. `node packages/vue/scripts/check-sfc.mjs` compiles every component that way.
+- `packages/vue-cli` (`@fumapress/vue-cli`, the `fumapress-vue` command) copies a module of `ui/`, or `theme/`, into a project. A copy imports the rest of the UI from the package by name, and the copies of the project by path. So a module of `ui/` imports another one by its folder, never a file inside it: the test of the CLI copies every module to check.
+- Run commands with Node 24. Check a change with `pnpm --dir packages/vue build`, `test` and `types:check`, then `pnpm --dir examples/vue build`.
+
+## UI port
+
+`packages/vue/ui` is a port of Fumadocs UI to Vue: the source is `packages/base-ui/src` of the Fumadocs repository. It stays a port, so that changes of Fumadocs UI can be followed file by file.
+
+- Paths mirror the source. `src/<path>/<name>.tsx` is the folder `ui/<path>/<name>/`: one `.vue` file per exported component, named after the export, and an `index.ts` that exports the same names (components, composables, types, helpers). Import a module by its folder: `@fumapress/vue/ui/components/tabs`.
+- The DOM, class names, ids, `data-*` and `aria-*` attributes, texts and behavior are those of the source. Copy Tailwind classes as they are. Don't restyle, rename, reorder, simplify or add features, and don't leave out a branch of the source.
+- Base UI primitives become Reka UI ones. Their state attributes differ (`data-open` on Base UI, `data-[state=open]` on Reka), so translate those selectors: `packages/radix-ui/src` of Fumadocs has the same files written for Radix, whose attributes are Reka's.
+- Props keep their names and defaults. `children` is the default slot, a prop taking a node or a render function is a slot of the same name, `onXChange` with its value is `v-model:x`, and another `onX` is the emit `x`. A hook is a composable of the same name, and a context is `provide`/`inject` with a typed key in the same module.
+- The React modules of `fumadocs-core` have Vue ports under `ui/core/` at the same path (`fumadocs-core/link` is `ui/core/link`). Icons are from `lucide-vue-next` with the same names, `cn` is `ui/utils/cn`.
+- Code runs on the server too: browser APIs only in `onMounted` and event handlers. `v-html` only where the source has `dangerouslySetInnerHTML`.
+- `index.ts` has the public names of the source module. State that several `.vue` files of a module share, like injection keys, is in a sibling `context.ts`, so a `.vue` file never imports a value from its own `index.ts`. Composables return refs, and a context is an object of refs.
+- Class strings are in `<script setup>` or a static `class="…"`, not inside a quoted `:class` expression, where the port check misses them. A template has no comment at its root.
+- UI files import the built entries by package name (`@fumapress/vue/client`, `@fumapress/vue/page-tree`) and other UI modules by relative folder. They never import `fumadocs-core`.
+- Not ported: `og*`, `provider/*` except `base`, `*.rsc.tsx` and `mdx.server`. No dependency beyond those of `package.json`. Optional peers, installed by the sites that use them: `motion-v` (the Flux layout), `algoliasearch` and `@orama/core` (their search dialogs, which only import types).
+- Where the source depends on a React library without a Vue version, the part it uses is ported into the module: `react-medium-image-zoom` in `components/image-zoom`. The dynamic code block highlights with `@fumapress/vue/highlight` (Highlights), not Shiki.
+- A Base UI primitive Reka UI lacks is ported to `ui/primitives/<name>`, with the attributes of Base UI, so the selectors of its users stay as in the source: the drawer of the Glass layout. Otherwise it is translated to the closest Reka primitive with the same DOM (the menus of the Spacious layout).
+- A value that is a React node in the source's data (an icon of the page tree, of a link item or of a tab) is `string | Component` here, rendered with `RenderNode` of `layouts/shared`.
+- `node packages/vue/scripts/check-port.mjs <source.tsx> <ported folder>` lists the classes a port lost or added. Lost classes are bugs unless they are state selectors translated for Reka.
+
 # Release workflow
 
 This repository uses [Tegami](https://tegami.fuma-nama.dev) for versioning and publishing.

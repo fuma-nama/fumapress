@@ -1,0 +1,31 @@
+import { computed, type ComputedRef } from "vue";
+import type * as PageTree from "@fumapress/vue/page-tree";
+import { useTreeContext } from "../../contexts/tree";
+
+const footerCache = new WeakMap<PageTree.Root | PageTree.Folder, PageTree.Item[]>();
+
+/**
+ * @returns a list of page tree items (linear), that you can obtain footer items
+ */
+export function useFooterItems(): ComputedRef<PageTree.Item[]> {
+  const { root } = useTreeContext();
+
+  return computed(() => {
+    const cached = footerCache.get(root.value);
+    if (cached) return cached;
+
+    const list: PageTree.Item[] = [];
+    function onNode(node: PageTree.Node) {
+      if (node.type === "folder") {
+        if (node.index) onNode(node.index);
+        for (const child of node.children) onNode(child);
+      } else if (node.type === "page" && !node.external) {
+        list.push(node);
+      }
+    }
+
+    for (const child of root.value.children) onNode(child);
+    footerCache.set(root.value, list);
+    return list;
+  });
+}

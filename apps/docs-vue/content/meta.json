@@ -1,0 +1,21 @@
+{
+  "pages": [
+    "index",
+    "quick-start",
+    "---Content---",
+    "markdown",
+    "content",
+    "i18n",
+    "---Customize---",
+    "config",
+    "theme",
+    "ui",
+    "cli",
+    "search",
+    "---Extend---",
+    "plugins",
+    "---Ship---",
+    "deploy",
+    "performance"
+  ]
+}

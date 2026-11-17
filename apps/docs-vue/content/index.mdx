@@ -1,0 +1,48 @@
+---
+title: Introduction
+description: A docs framework for Vue, on Vite, Vue Router and Nitro.
+icon: Rocket
+---
+
+`@fumapress/vue` turns the Markdown files of a folder into a docs site. It is a Vite plugin: Vue Router navigates between pages, and Nitro prerenders them and serves the rest.
+
+## What a Site Gets
+
+Add the plugin to `vite.config.ts` and write pages under `content/`. Without other configuration, the site has:
+
+- A docs layout with a sidebar built from your files, a table of contents, and a light and dark theme.
+- Markdown and MDX with callouts, highlighted code blocks, tabs, steps and components like `Cards` and `TypeTable`.
+- Search in the browser, from an index generated at build time, so it works on a static host.
+- `/sitemap.xml`, `/robots.txt`, `/llms.txt` and `/llms-full.txt`.
+- Pages prerendered to HTML at build time, with client-side navigation after the first load.
+
+For more, a site adds `press.config.ts` (site name, links, languages, content sources), a theme module (icons, components, layouts), Vue pages under `src/pages`, and plugins with their own routes.
+
+## Fumapress and Fumadocs
+
+`@fumapress/vue` is Fumapress for Vue. Its config and plugins have the shape of [Fumapress](https://press.fumadocs.dev) on React: the same `createPress()` chain, and plugin hooks with the same names and signatures.
+
+The UI is a port of [Fumadocs UI](https://fumadocs.dev) to Vue, with the same markup and Tailwind classes. The package bundles the parts of Fumadocs it uses, so a site installs neither Fumadocs nor React.
+
+## Next Steps
+
+<Cards>
+  <Card title="Quick Start" href="/quick-start">
+    Create a site from an empty folder.
+  </Card>
+  <Card title="Markdown" href="/markdown">
+    The syntax and components of a page.
+  </Card>
+  <Card title="Content" href="/content">
+    Collections, URLs and the sidebar.
+  </Card>
+  <Card title="Theme" href="/theme">
+    Icons, components and layouts.
+  </Card>
+  <Card title="Plugins" href="/plugins">
+    Routes, middleware and content hooks.
+  </Card>
+  <Card title="Deploy" href="/deploy">
+    Static hosting or a server.
+  </Card>
+</Cards>

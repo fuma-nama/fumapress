@@ -1,0 +1,121 @@
+---
+title: Content Hooks
+description: Render the pages of a content source with a plugin.
+---
+
+A content source is a list of files: pages and `meta.json` files. The Markdown collections of your site are sources, and the built-in `core:markdown` plugin renders them. A source of your own, from an API, a CMS or a list in code, needs a plugin that renders its pages with content hooks.
+
+This site has a `changelog` source next to its docs. Its pages come from a list in the config, and a plugin renders them:
+
+```ts title="press.config.ts"
+import { createPress, type Plugin } from "@fumapress/vue/config";
+import { collections } from "@fumapress/vue/content";
+
+const releases = [
+  { version: "0.2.0", date: "2026-11-01", notes: "<p>Custom content sources.</p>" },
+  { version: "0.1.0", date: "2026-10-01", notes: "<p>The first release.</p>" },
+];
+
+const changelogPlugin: Plugin = {
+  name: "site:changelog",
+  getPageBody(page) {
+    if (page.source === "changelog") return { html: String(page.data.html) };
+  },
+  getPageText(page) {
+    if (page.source === "changelog") return `# ${page.data.title}`;
+  },
+  getPageLastModified(page) {
+    if (page.source === "changelog") return new Date(String(page.data.date));
+  },
+};
+
+export default createPress({
+  docs: collections.docs!.toSource(),
+  changelog: {
+    files: releases.map(({ version, date, notes }) => ({
+      type: "page",
+      path: `changelog/${version}.md`,
+      data: { title: `v${version}`, description: "Release notes", date, html: notes },
+    })),
+  },
+}).plugins(changelogPlugin);
+```
+
+The `path` of a file sets the URL of its page, so `changelog/0.2.0.md` is `/changelog/0.2.0`. Its `data` is `page.data`: `title` and `description` are the title and description of the page, and the plugin reads the rest.
+
+With sources by key, `page.source` is the key of the source of a page. A plugin checks it and returns `undefined` for the pages of other sources, since the first result of a content hook wins. With one source, `page.source` is `undefined`. For sources that load files on the server, like from a CMS, see [Content Sources](/content/sources).
+
+## Page Body
+
+`getPageBody` is the only hook a page needs. It returns one of:
+
+- `{ html }`: HTML rendered as it is, in the docs layout.
+- `{ view: { type, props } }`: a component of the `views` of your theme renders the page, in place of the docs layout. It works like the [views](/plugins/views) of a plugin.
+- `{ module, load }`: the URL of a module that the browser imports, whose default export is the content component, and `load()` to import the same module on the server. This is what `core:markdown` returns for a compiled Markdown file.
+
+```ts
+getPageBody(page) {
+  if (page.source === "cards") {
+    return { view: { type: "card", props: { title: String(page.data.title) } } };
+  }
+},
+```
+
+A page that no plugin renders fails with an error that names its file.
+
+## Other Content Hooks
+
+Each of these is optional. A page without a result has none of what the hook gives:
+
+| Hook                    | Returns                                                  | Used by                                            |
+| ----------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| `getPageToc`            | The table of contents, a list of `{ title, url, depth }` | The docs layout                                    |
+| `getPageText`           | The page as Markdown                                     | `llms-full.txt`                                    |
+| `getPageStructuredData` | The headings of the page and the text under each         | The search index                                   |
+| `getPageLastModified`   | A `Date`                                                 | The sitemap, and the last update shown on the page |
+
+`getPageStructuredData` returns `headings`, a list of `{ id, content }`, and `contents`, a list of `{ heading, content }` where `heading` is the `id` of the heading a text is under:
+
+```ts
+getPageStructuredData(page) {
+  if (page.source !== "changelog") return;
+  return {
+    headings: [],
+    contents: [{ content: String(page.data.html).replace(/<[^>]+>/g, "") }],
+  };
+},
+```
+
+## Page Data
+
+The browser receives the data of each page: `title`, `description` and `full` from `page.data`, `lastModified` from the `getPageLastModified` hook, then what the `transformPage` hook of each plugin adds. A field that the page or an earlier plugin has set stays as it is.
+
+The docs layout shows `lastModified` as the last update of the page, and `githubUrl` as a link to edit it:
+
+```ts
+transformPage(_data, { page }) {
+  if (page?.source === "changelog") {
+    return { githubUrl: "https://github.com/acme/docs/blob/main/CHANGELOG.md" };
+  }
+},
+```
+
+`transformPage` runs for [views](/plugins/views#page-data) too, where `env.page` is `undefined`. Every value it returns is sent to the browser, so it must be serializable.
+
+## Startup Hooks
+
+Three hooks run once, when the site starts, in this order for all plugins:
+
+1. `init` runs before the content loads, so `this.getPages()` is still empty.
+2. `configureLoader` returns options of the Fumadocs content loader, merged with the options you pass to `createPress()`, which win over them. The `plugins` of every plugin are combined, after your `loaderPlugins`.
+3. `configure` runs after the content loads, with every page available.
+
+```ts
+configure() {
+  for (const page of this.getPages()) {
+    if (!page.data.title) throw new Error(`${page.path} has no title`);
+  }
+},
+```
+
+A dynamic source is read again with `this.invalidateLoader()`, which doesn't run these hooks again.

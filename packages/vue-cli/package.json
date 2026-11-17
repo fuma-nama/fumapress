@@ -1,0 +1,38 @@
+{
+  "name": "@fumapress/vue-cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Copies the UI of @fumapress/vue into your project, to change it",
+  "keywords": [
+    "Docs",
+    "Fumapress",
+    "Vue"
+  ],
+  "homepage": "https://press.fumadocs.dev",
+  "license": "MIT",
+  "author": "Fuma Nama",
+  "repository": "github:fuma-nama/fumapress",
+  "bin": {
+    "fumapress-vue": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest",
+    "types:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@fumapress/vue": "workspace:*",
+    "@types/node": "^26.6.6",
+    "tsdown": "0.23.7",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,185 @@
+---
+title: Configuration
+description: Configure your site, its head tags, navbar and default plugins in press.config.ts.
+icon: Settings
+---
+
+`press.config.ts` at the project root configures your site. The file is optional: without it, the site renders the content of your first collection with the defaults.
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content).config({
+  site: {
+    name: "Acme Docs",
+    description: "Guides and reference for Acme.",
+    baseUrl: "https://docs.acme.dev",
+  },
+});
+```
+
+The file can also be `press.config.mts`, `press.config.js` or `press.config.mjs`.
+
+## Content and Plugins
+
+`createPress(content, options)` takes your [content sources](/content/sources) and these options:
+
+- `i18n`: your [languages](/i18n).
+- `loaderPlugins`, `slugs`, `url`, `pageTree` and the other options of the Fumadocs content loader.
+
+`.plugins()` adds [plugins](/plugins), then `.config()` sets the options of the site. Both calls are optional, in this order.
+
+```ts title="press.config.ts"
+export default createPress(content, { i18n }).plugins(myPlugin).config({ site, head, ui });
+```
+
+## Site
+
+### Name and Description
+
+`site.name` shows in the navbar and after the title of every page, like `Installation | Acme Docs`. `site.description` is the meta description of pages without a `description` of their own.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  site: {
+    name: "Acme Docs",
+    description: "Guides and reference for Acme.",
+  },
+});
+```
+
+### URL
+
+`site.baseUrl` is the full URL of your deployed site. It adds a canonical link to every page, and makes the URLs in the sitemap, `llms.txt` and the alternate links of translated pages absolute. Without it, pages have no canonical link and those URLs are relative.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  site: {
+    baseUrl: "https://docs.acme.dev",
+  },
+});
+```
+
+### Language
+
+`site.lang` is the `<html lang>` of a site without [`i18n`](/i18n). It defaults to `"en"`.
+
+### Repository
+
+`site.git` adds a GitHub link to the navbar, and an "Edit on GitHub" link to each Markdown page.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  site: {
+    git: {
+      user: "acme",
+      repo: "docs",
+      branch: "dev",
+      dir: "apps/docs",
+    },
+  },
+});
+```
+
+- `branch` is the branch the edit links open, `"main"` by default.
+- `dir` is the folder of your site in the repository. Set it when your site isn't at the root of the repository, like in a monorepo.
+
+With the options above, the edit link of `content/guide.mdx` is `https://github.com/acme/docs/blob/dev/apps/docs/content/guide.mdx`. Pages of custom sources have no edit link.
+
+## Head
+
+`head` adds tags to the `<head>` of every page. `attrs` take HTML attribute names.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  head: [
+    { tag: "link", attrs: { rel: "icon", href: "/favicon.svg" } },
+    { tag: "meta", attrs: { name: "theme-color", content: "#0a0a0a" } },
+  ],
+});
+```
+
+For tags that depend on the page, pass a function. It receives the `pathname` and `lang` of the page, and on content pages and views, the `page` and its `data`.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  head({ data }) {
+    if (!data?.title) return;
+    return [{ tag: "meta", attrs: { property: "og:title", content: data.title } }];
+  },
+});
+```
+
+A tag with a key replaces the tag of the same key from plugins and defaults. The keyed tags are `title`, a `meta` by its `name`, `property` or `http-equiv`, the canonical link, and an alternate link by its `hreflang`. Other tags are all kept.
+
+## Layout Props
+
+`ui.layoutProps` sets the navbar of every layout:
+
+- `nav`: the `title` of the navbar and the `url` it links to. They default to `site.name` and the home page.
+- `links`: links in the navbar, each with `text`, `url` and an optional `external`.
+- `githubUrl`: the GitHub link of the navbar, set by `site.git`.
+
+```ts title="press.config.ts"
+createPress(content).config({
+  ui: {
+    layoutProps: {
+      links: [
+        { text: "Blog", url: "/blog" },
+        { text: "Discord", url: "https://discord.gg/acme", external: true },
+      ],
+    },
+  },
+});
+```
+
+On a site with languages, pass a function of `{ lang }` to return links per language. `this` is the context of the site, so `this.localizePath()` gives a path in that language.
+
+```ts title="press.config.ts"
+createPress(content, { i18n }).config({
+  ui: {
+    layoutProps({ lang }) {
+      return {
+        links: [{ text: lang === "cn" ? "博客" : "Blog", url: this.localizePath(lang, "/blog") }],
+      };
+    },
+  },
+});
+```
+
+:::note
+Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. Components belong in the [theme](/theme).
+:::
+
+## Default Plugins
+
+Your site comes with a sitemap, `robots.txt`, `llms.txt` and [search](/search). They come from `recommendedPreset()`, and each takes options, or `false` to leave it out:
+
+```ts title="press.config.ts"
+import { createPress, recommendedPreset } from "@fumapress/vue/config";
+
+createPress(content).config({
+  preset: recommendedPreset({
+    sitemap: { path: "/sitemap-docs.xml" },
+    robots: false,
+    llms: { full: false },
+  }),
+});
+```
+
+- `sitemap.path`: the URL of the sitemap, `/sitemap.xml` by default.
+- `robots.sitemap`: the sitemap URL listed in `robots.txt`, or `false` for none. It follows `sitemap.path`.
+- `llms.path` and `llms.full`: the URLs of `llms.txt` and `llms-full.txt`. Set `full: false` to skip `llms-full.txt`.
+- `search` takes only `false`.
+
+Set `preset: []` to leave out every default plugin.
+
+To replace a default plugin with your own instance, set it to `false` in `recommendedPreset()` and list yours in `.plugins()`. A plugin listed twice fails with an error.
+
+## How Options Merge
+
+Plugins return head tags and layout props too. Your own options win, then plugins in the order you list them, then the default plugins.
+
+- Head tags merge by key, as described in [Head](#head).
+- In layout props, the first value set wins, while lists like `links` concatenate: your links come first.

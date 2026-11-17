@@ -1,0 +1,72 @@
+---
+title: Deploy
+description: Build your site, then put it on a static host or a server.
+icon: Server
+---
+
+`vite build` builds your site with [Nitro](https://nitro.build) into `.output`:
+
+- `.output/public`: the pages generated at build time, the files of the browser, and generated files like the sitemap.
+- `.output/server`: the server, which renders everything else on demand.
+
+`@fumapress/vue` requires Node.js 24 or later.
+
+## What Renders on Demand
+
+The build generates every page and file that it can know ahead:
+
+- The pages of static sources, like your Markdown collections, with the data the browser loads for each.
+- Custom pages without params, like `src/pages/about.vue`.
+- Views and API routes of plugins with `render: "static"`, which is the default for [views](/plugins/views).
+- The sitemap, `robots.txt`, `llms.txt` and the search index.
+
+These need the server:
+
+- The pages of a [dynamic source](/content/sources), and the files that follow them, like the sitemap.
+- Custom pages with params.
+- API routes of plugins, which render on demand by default, and views with `render: "dynamic"`.
+- [Middleware](/plugins/routes#middleware), which runs only on requests that reach the server.
+
+## Static Hosting
+
+A site with nothing in the second list is fully static: upload `.output/public` to any static host. A docs site with Markdown collections and the default plugins is fully static.
+
+The build writes `404.html`, the not found page of your site. Most static hosts serve it for a URL without a file.
+
+## Server Deployment
+
+By default, the server is a Node.js server. Start it with:
+
+```bash
+node .output/server/index.mjs
+```
+
+To deploy to a platform, pass the Nitro [preset](https://nitro.build/deploy) of that platform to the `nitro` option of the Vite plugin:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press({ nitro: { preset: "vercel" } })],
+});
+```
+
+The `nitro` option takes the [config of Nitro](https://nitro.build/config). Pages generated at build time are still served as files, and the server renders the rest.
+
+## Base Path
+
+To serve your site under a path, like `https://example.com/docs/`, set the `base` of Vite:
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  base: "/docs/",
+  plugins: [press()],
+});
+```
+
+Links in your content and paths in plugins stay without the base path, and the site adds it. Set `site.baseUrl` in your config to the origin of the site, like `https://example.com`, for the canonical links and the sitemap.
+
+## Build Errors
+
+A page that fails to render fails the build, so a broken page never reaches a deployment. This is the `prerender.failOnError` option of Nitro, which you can set to `false` in the `nitro` option.

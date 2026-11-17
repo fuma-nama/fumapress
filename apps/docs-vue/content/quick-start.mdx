@@ -1,0 +1,100 @@
+---
+title: Quick Start
+description: Create a docs site from an empty folder.
+icon: Terminal
+---
+
+You need Node.js 24 or later.
+
+## Creating a Site
+
+### Install the Packages [step]
+
+In an empty folder, install `@fumapress/vue` with Vue and Vite:
+
+```npm
+npm i @fumapress/vue vue
+```
+
+```npm
+npm i -D vite
+```
+
+Then add the scripts to `package.json`:
+
+```json title="package.json"
+{
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}
+```
+
+### Add the Vite Plugin [step]
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press()],
+});
+```
+
+The plugin sets up Vue, Tailwind CSS and Nitro, so the site needs no `index.html` and no other plugin.
+
+### Write a Page [step]
+
+Each Markdown or MDX file under `content/` is a page:
+
+```mdx title="content/index.mdx"
+---
+title: Hello
+description: My first page.
+---
+
+## Getting Started
+
+Welcome to the docs.
+```
+
+See [Markdown](/markdown) for the syntax of a page.
+
+### Start the Dev Server [step]
+
+```npm
+npm run dev
+```
+
+Open the URL Vite prints. The page reloads when you edit it, and the sidebar updates when you add or remove a file.
+
+## Building
+
+```npm
+npm run build
+```
+
+`vite build` writes the site to `.output`:
+
+- `.output/public` has every page as HTML, with the assets, the search index and the sitemap.
+- `.output/server` has a Nitro server, for the routes that render on demand.
+
+A site with only Markdown content works from `.output/public` on any static host. To check the build locally, run `npm run preview`. See [Deploy](/deploy) to put it online.
+
+## Configuring the Site
+
+`press.config.ts` is optional. Without it, the site uses the pages of `content/` with the default plugins: sitemap, `robots.txt`, `llms.txt` and search. The file below does the same, and adds a site name:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content).config({
+  site: { name: "My Docs" },
+});
+```
+
+See [Configuration](/config) for the other options.

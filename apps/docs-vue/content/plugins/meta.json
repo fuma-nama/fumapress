@@ -1,0 +1,5 @@
+{
+  "title": "Plugins",
+  "icon": "Plug",
+  "pages": ["index", "routes", "views", "content", "build", "context"]
+}

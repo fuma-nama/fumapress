@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: A docs site on Vue, from Markdown files.
+icon: Rocket
+---
+
+Fumapress turns the Markdown files of `content/` into a docs site. This one runs on **Vue**, with [Vue Router](https://router.vuejs.org) for navigation and [Nitro](https://nitro.build) as its server.
+
+## Features
+
+<Cards>
+  <Card title="Markdown and MDX" href="/guide/markdown">
+    Callouts, tabs, steps and highlighted code.
+  </Card>
+  <Card title="Plugins" href="/guide/plugins">
+    Routes, middleware and head tags from an object with hooks.
+  </Card>
+</Cards>
+
+## Quick Start
+
+### Install the Package [step]
+
+```npm
+npm i @fumapress/vue
+```
+
+### Add the Vite Plugin [step]
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [press()], // [!code highlight]
+});
+```
+
+### Write a Page [step]
+
+Each file under `content/` is a page, and the sidebar lists them for you.
+
+:::tip[No config needed]
+`press.config.ts` is optional. Without it, the site uses your content with the defaults.
+:::

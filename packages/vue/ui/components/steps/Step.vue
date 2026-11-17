@@ -1,0 +1,3 @@
+<template>
+  <div class="fd-step"><slot /></div>
+</template>

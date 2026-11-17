@@ -1,0 +1,57 @@
+---
+title: Performance
+description: What a page costs to build and to load, measured against VitePress.
+icon: Gauge
+---
+
+These numbers come from one site of 1,001 Markdown pages, built with `@fumapress/vue` and with VitePress 1.6.4 on the same machine, each with its default theme.
+
+## Results
+
+| Measure                    | Fumapress Vue  | VitePress      |
+| -------------------------- | -------------- | -------------- |
+| Build time                 | 11.4 to 12.0 s | 22.2 to 22.3 s |
+| HTML of a page, gzip       | 9.8 kB         | 28.7 kB        |
+| JavaScript of a page, gzip | 122.4 kB       | 58.6 kB        |
+| CSS of a page, gzip        | 19.3 kB        | 19.4 kB        |
+| Size of the output         | 180 MB         | 463 MB         |
+| Installed size             | 160 MB         | 100 MB         |
+
+The build is about twice as fast and the output is less than half the size. The JavaScript of a page is about twice the size: the UI is a port of Fumadocs UI, with its search dialog, sidebar, table of contents and popovers, on top of Vue and Vue Router.
+
+## What a Page Loads
+
+The first request of a page gets its HTML with the content already rendered. The browser then loads:
+
+- The JavaScript of the layout, shared by every page and cached after the first one.
+- The module of the page, 3 kB gzip on the measured site.
+- The data of the site: its page tree, navbar and links. It is one file per language, fetched once: 23.6 kB gzip for the 1,001 pages.
+
+The HTML doesn't contain the page tree, which is why it stays small on a large site.
+
+A navigation loads the data and the module of the next page, about 3.3 kB gzip together. A link starts loading them when the reader hovers or focuses it.
+
+The search index is loaded on the first search. It holds the text of every page of the language, so it grows with the site: 796 kB gzip here. A site that large can use [Algolia or Orama Cloud](/search#using-algolia-or-orama-cloud) instead.
+
+## Development
+
+`vite dev` starts in about 2 seconds on the measured site, most of it reading the 1,001 files. A page opened after that renders on the server in 0.15 s.
+
+The two frameworks differ here. VitePress answers the first request in 0.4 s after its start, with an empty document that the browser renders once it has loaded the app. Fumapress sends the rendered page, as it does in production, so what you see while writing is what a reader gets.
+
+## Keeping Pages Light
+
+The default theme loads what only some pages use with those pages: the not found page, and components like `Accordions`, `Files`, `TypeTable` and `ImageZoom`. Do the same for what you add:
+
+```ts title="src/theme.ts"
+import { defineAsyncComponent } from "vue";
+import type { Theme } from "@fumapress/vue/client";
+
+export default {
+  // loaded by the pages that show it
+  views: { releases: defineAsyncComponent(() => import("./views/Releases.vue")) },
+  components: { Chart: defineAsyncComponent(() => import("./components/Chart.vue")) },
+} satisfies Partial<Theme>;
+```
+
+A component imported directly in the theme module is part of the JavaScript of every page.

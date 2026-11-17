@@ -1,0 +1,81 @@
+---
+title: UI
+description: The layouts and components of your site, from Fumadocs UI ported to Vue.
+icon: Component
+---
+
+The UI of Fumapress for Vue is [Fumadocs UI](https://fumadocs.dev/docs/ui) ported to Vue, with Reka UI in place of Base UI. The default theme uses it, and your theme and custom pages can import any part of it from `@fumapress/vue/ui/<path>`:
+
+```ts
+import { DocsLayout } from "@fumapress/vue/ui/layouts/docs";
+import { Callout } from "@fumapress/vue/ui/components/callout";
+```
+
+The modules follow the files of Fumadocs UI: a component has the same name, DOM, class names and props. A prop taking a node or a render function in React is a slot of the same name in Vue, and a hook is a composable of the same name. The [components](/ui/components) page lists the modules.
+
+## Layouts
+
+Each layout is a module under `@fumapress/vue/ui/layouts`.
+
+- `docs`: the default. A sidebar on the left with the title, search and page tree, the page in the middle and its table of contents on the right.
+- `notebook`: a navbar across the top of the page, with the sidebar under it. `tabMode: "navbar"` shows the tabs of root folders in the navbar.
+- `glass`: a sidebar and header buttons that float over the page, with rounded corners and a blurred, translucent background.
+- `spacious`: the page on a panel inside a frame of the card color, with a header above the page.
+- `flux`: no navbar. A floating panel at the bottom of the screen holds the title, the tabs and the tools, and the sidebar opens from it.
+- `home`: a navbar with the links of the site and no sidebar, for landing and custom pages. The default theme wraps it as `@fumapress/vue/theme/HomeLayout.vue`, which passes the navbar of your site.
+
+:::note
+The `flux` layout animates with `motion-v`, which isn't installed with Fumapress. Install it to use the layout: `npm install motion-v`.
+:::
+
+## Changing the Docs Layout
+
+The docs layouts (`docs`, `notebook`, `glass`, `spacious` and `flux`) all export `DocsLayout`, and a `page` module with `DocsPage`, `DocsTitle`, `DocsDescription` and `DocsBody`. To use another one, write a [`Layout`](/theme#layout) for your theme that imports from it. This one is the layout of the default theme with the `notebook` layout:
+
+```vue title="src/Layout.vue"
+<script setup lang="ts">
+import { useLayoutProps, usePage, usePageTree, usePress } from "@fumapress/vue/client";
+import NotFound from "@fumapress/vue/theme/NotFound.vue";
+import { DocsLayout } from "@fumapress/vue/ui/layouts/notebook";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  EditOnGitHub,
+  PageLastUpdate,
+} from "@fumapress/vue/ui/layouts/notebook/page";
+
+const page = usePage();
+const tree = usePageTree();
+const { components } = usePress();
+const { nav, links, githubUrl } = useLayoutProps();
+</script>
+
+<template>
+  <component :is="page.Content" v-if="page?.view" :key="page.url" />
+  <DocsLayout v-else-if="page" :tree="tree" :nav="nav" :links="links" :github-url="githubUrl">
+    <DocsPage :key="page.url" :toc="page.toc" :full="page.data.full">
+      <DocsTitle>{{ page.data.title }}</DocsTitle>
+      <DocsDescription>{{ page.data.description }}</DocsDescription>
+      <DocsBody>
+        <component :is="page.Content" :components="components" />
+      </DocsBody>
+      <div class="flex flex-row flex-wrap items-center justify-between gap-4 empty:hidden">
+        <EditOnGitHub v-if="page.data.githubUrl" :href="page.data.githubUrl" />
+        <PageLastUpdate v-if="page.data.lastModified" :date="new Date(page.data.lastModified)" />
+      </div>
+    </DocsPage>
+  </DocsLayout>
+  <NotFound v-else />
+</template>
+```
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import Layout from "./Layout.vue";
+
+export default { Layout } satisfies Partial<Theme>;
+```
+
+For a change the props of a layout don't cover, copy the layout into your project with the [CLI](/cli) and edit it.

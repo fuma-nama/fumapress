@@ -8,6 +8,24 @@
       "port": 3000
     },
     {
+      "name": "example-vue",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/vue", "dev", "--port", "5199"],
+      "port": 5199
+    },
+    {
+      "name": "example-vue-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "examples/vue", "preview", "--port", "5198"],
+      "port": 5198
+    },
+    {
+      "name": "docs-vue",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/docs-vue", "dev", "--port", "5196"],
+      "port": 5196
+    },
+    {
       "name": "docs",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/docs", "dev"],

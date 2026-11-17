@@ -1,0 +1,4 @@
+/* the stylesheet of the site, in place of the default one: another color theme */
+@import "tailwindcss";
+@import "@fumapress/vue/css/emerald.css";
+@import "@fumapress/vue/css/preset.css";

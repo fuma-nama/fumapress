@@ -1,0 +1,14 @@
+@import "./lib/base.css";
+@import "./lib/reka.css";
+@import "./lib/shiki.css";
+
+@plugin "@fumadocs/tailwind/typography";
+
+@source "../ui";
+@source "../theme";
+
+@layer base {
+  body {
+    @apply flex flex-col min-h-screen;
+  }
+}

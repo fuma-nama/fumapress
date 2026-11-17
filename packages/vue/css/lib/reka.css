@@ -1,0 +1,107 @@
+/*
+ * Animations of Reka UI primitives. Panels of Base UI animate with transitions (`data-starting-style`), the ones of
+ * Reka UI wait for a CSS animation before they hide: these are the animations of the Radix UI version of Fumadocs UI.
+ */
+@theme {
+  --animate-fd-collapsible-down: fd-collapsible-down 150ms cubic-bezier(0.45, 0, 0.55, 1);
+  --animate-fd-collapsible-up: fd-collapsible-up 150ms cubic-bezier(0.45, 0, 0.55, 1);
+
+  --animate-fd-accordion-down: fd-accordion-down 200ms ease-out;
+  --animate-fd-accordion-up: fd-accordion-up 200ms ease-out;
+
+  --animate-fd-enterFromLeft: fd-enterFromLeft 250ms ease;
+  --animate-fd-enterFromRight: fd-enterFromRight 250ms ease;
+
+  --animate-fd-exitToLeft: fd-exitToLeft 250ms ease;
+  --animate-fd-exitToRight: fd-exitToRight 250ms ease;
+
+  @keyframes fd-enterFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(200px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes fd-enterFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-200px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes fd-exitToRight {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(200px);
+    }
+  }
+
+  @keyframes fd-exitToLeft {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-200px);
+    }
+  }
+
+  @keyframes fd-collapsible-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--reka-collapsible-content-height);
+    }
+  }
+
+  @keyframes fd-collapsible-up {
+    from {
+      height: var(--reka-collapsible-content-height);
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-accordion-down {
+    from {
+      height: 0;
+      opacity: 0.5;
+    }
+    to {
+      height: var(--reka-accordion-content-height);
+    }
+  }
+
+  @keyframes fd-accordion-up {
+    from {
+      height: var(--reka-accordion-content-height);
+    }
+    to {
+      height: 0;
+      opacity: 0.5;
+    }
+  }
+}
+
+@property --reka-collapsible-content-height {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}

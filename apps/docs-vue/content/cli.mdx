@@ -1,0 +1,97 @@
+---
+title: CLI
+description: Copy the theme and the UI into your project to change them.
+icon: Terminal
+---
+
+When the options of a layout or a component aren't enough, copy its source into your project with `@fumapress/vue-cli`, and edit the copy.
+
+```npm
+npx @fumapress/vue-cli add layouts/docs
+```
+
+The CLI copies from the `@fumapress/vue` package installed in your project.
+
+## Changing a Layout
+
+<Steps>
+<Step>
+
+### Copy the theme
+
+```npm
+npx @fumapress/vue-cli add theme
+```
+
+The default theme lands in `src/theme`, where Fumapress picks it up as the [theme](/theme) of your site. Its `Layout.vue` renders the pages with the docs layout, imported from the package.
+
+</Step>
+<Step>
+
+### Copy the layout
+
+```npm
+npx @fumapress/vue-cli add layouts/docs
+```
+
+The layout lands in `src/ui/layouts/docs`, and `src/theme/Layout.vue` now imports your copy:
+
+```
++ src/ui/layouts/docs/DocsLayout.vue
+...
+~ src/theme/Layout.vue (now imports your copy)
+```
+
+</Step>
+<Step>
+
+### Edit the copy
+
+Change the files under `src/ui/layouts/docs`. The pages of your site render with them.
+
+</Step>
+</Steps>
+
+:::warning
+A site with a `src/theme.ts` loads that file instead of `src/theme/index.ts`, so the CLI refuses to copy the theme next to it. Rename the file first, for example to `src/theme/own.ts`, copy the theme, then add what your file exports to `src/theme/index.ts`.
+:::
+
+## Commands
+
+`list` prints the modules you can copy:
+
+```npm
+npx @fumapress/vue-cli list
+```
+
+They are `theme` and the modules of the [UI](/ui/components), by their path under `@fumapress/vue/ui`, like `layouts/notebook`, `components/card` or `provider/base`. A module comes with the modules inside its folder, so `layouts/docs` includes its page and its slots.
+
+`add` copies one or more modules:
+
+```npm
+npx @fumapress/vue-cli add components/card components/callout
+```
+
+`add theme` copies the default theme: its `Root`, `Layout`, `HomeLayout`, `NotFound`, Markdown components and stylesheet.
+
+## Options
+
+- `--dir <path>`: where modules go, `src/ui` by default.
+- `--theme-dir <path>`: where the theme goes, `src/theme` by default.
+- `--overwrite`: replace files that exist. Without it, the CLI keeps your files and lists them.
+- `--cwd <path>`: the project, the current folder by default.
+
+## Imports of a Copy
+
+A copy imports the rest of the UI from the package, like `@fumapress/vue/ui/contexts/tree`, and keeps the relative imports inside its own folder. When you copy a module that other copies import, the CLI changes their imports to your copy and marks them with `~`.
+
+Modules you don't copy stay in the package and keep receiving its updates. Copy only what you change.
+
+A copy imports the packages the UI uses, like `reka-ui` or `class-variance-authority`. When your project doesn't depend on one, the CLI prints the command to add it:
+
+```
+Your copies import packages your project doesn't depend on yet. Add them:
+  npm install reka-ui@^2.11.0
+```
+
+A module copied without the theme isn't used until something imports it: the default theme imports the UI of the package. Copy the theme too, or import the module from your own theme.

@@ -1,0 +1,79 @@
+---
+title: Components
+description: The components of the UI and where to import them from.
+---
+
+Every module is imported by its folder, like `@fumapress/vue/ui/components/card`. The components work as in [Fumadocs UI](https://fumadocs.dev/docs/ui/components), with slots in place of React nodes.
+
+```vue title="src/pages/index.vue"
+<script setup lang="ts">
+import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
+import { Card, Cards } from "@fumapress/vue/ui/components/card";
+</script>
+
+<template>
+  <HomeLayout>
+    <Cards class="mx-auto max-w-(--fd-layout-width) p-4">
+      <Card title="Quick Start" href="/quick-start">Create your first site.</Card>
+      <Card title="Theme" href="/theme">Change the UI of your site.</Card>
+    </Cards>
+  </HomeLayout>
+</template>
+```
+
+## Markdown Components
+
+The default theme makes these available in Markdown by name, without an import. Under `@fumapress/vue/ui/components/`:
+
+- `callout`: `Callout`, a box for a note or warning, with `CalloutContainer`, `CalloutTitle` and `CalloutDescription` to build your own.
+- `card`: `Cards` and `Card`, a grid of links to other pages.
+- `codeblock`: `CodeBlock` and `Pre`, the frame of a code block with its title and copy button, and `CodeBlockTabs` for code blocks in tabs.
+- `heading`: `Heading`, a heading with an anchor link.
+- `tabs`: `Tabs` and `Tab`, content in tabs, with `TabsList`, `TabsTrigger` and `TabsContent` for full control.
+- `steps`: `Steps` and `Step`, numbered steps.
+- `accordion`: `Accordions` and `Accordion`, sections that expand.
+- `files`: `Files`, `Folder` and `File`, a file tree.
+- `image-zoom`: `ImageZoom`, an image that opens full size on click.
+- `type-table`: `TypeTable`, a table of the properties of a type.
+
+The elements Markdown renders, like links, images, headings, code blocks and tables, are styled by the components of `@fumapress/vue/ui/mdx`. Its default export maps the elements and the callout, card and code block components by name.
+
+## Other Components
+
+Import these yourself, in a custom page or by adding them to the `components` of your [theme](/theme#markdown-components):
+
+- `banner`: `Banner`, a bar at the top of the page. With an `id`, the reader can close it.
+- `inline-toc`: `InlineTOC`, a table of contents inside the page that expands.
+- `github-info`: `GithubInfo`, a link to a repository with its stars, and `fetchRepositoryInfo()`.
+- `dynamic-codeblock`: `DynamicCodeBlock`, a code block highlighted in the browser, for code that isn't in your Markdown.
+
+## Layout Parts
+
+The parts the layouts are made of, for a layout of your own:
+
+- `@fumapress/vue/ui/layouts/<name>/page`: `DocsPage`, `DocsTitle`, `DocsDescription`, `DocsBody`, `EditOnGitHub` and `PageLastUpdate`, the parts of a page in each docs layout.
+- `@fumapress/vue/ui/layouts/shared/page-actions`: `MarkdownCopyButton` and `ViewOptionsPopover`, the actions of a page.
+- `@fumapress/vue/ui/layouts/home/not-found`: `DefaultNotFound`, the content of the not found page.
+- `@fumapress/vue/ui/components/sidebar/base`: `SidebarProvider`, `SidebarContent`, `SidebarItem`, `SidebarFolder` and the other parts of a sidebar.
+- `@fumapress/vue/ui/components/sidebar/page-tree`: `createPageTreeRenderer()`, which renders a page tree with the sidebar parts.
+- `@fumapress/vue/ui/components/sidebar/tabs`: `getSidebarTabs()`, the tabs of the root folders of a page tree, and `sidebar/tabs/dropdown` with `SidebarTabsDropdown` to switch between them.
+- `@fumapress/vue/ui/components/toc`: `TOCProvider` and `TOCScrollArea`, the table of contents, with its items in three styles: `toc/default`, `toc/clerk` and `toc/block`.
+
+## Search
+
+- `@fumapress/vue/ui/provider/base`: `RootProvider`, which provides search, the light and dark themes and the language switch.
+- `@fumapress/vue/ui/components/dialog/search-default`: the default search dialog.
+- `@fumapress/vue/ui/components/dialog/search-algolia`: a search dialog for Algolia.
+- `@fumapress/vue/ui/components/dialog/search-orama`: a search dialog for Orama Cloud.
+- `@fumapress/vue/ui/components/dialog/search`: `SearchDialog`, `SearchDialogInput`, `SearchDialogList` and the other parts, to build your own dialog.
+
+See [Search](/search) to use the Algolia and Orama dialogs.
+
+## Primitives
+
+The building blocks of the components above, styled on Reka UI. Under `@fumapress/vue/ui/components/ui/`:
+
+- `button`: `buttonVariants()`, the classes of a button by `variant` and `size`.
+- `accordion`, `collapsible`, `popover` and `tabs`: the Reka UI components of the same names, styled.
+
+`@fumapress/vue/ui/primitives/drawer` is the drawer the `glass` layout opens its sidebar in, and `@fumapress/vue/ui/utils/cn` exports `cn()` to join class names.

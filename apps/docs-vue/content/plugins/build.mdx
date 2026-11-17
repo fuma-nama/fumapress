@@ -1,0 +1,46 @@
+---
+title: Build Hook
+description: Run code when your site is built, and add files to the output.
+---
+
+The `build` hook of a plugin runs once when you build the site with `vite build`. This one writes a file next to the pages:
+
+```ts title="press.config.ts"
+createPress(content).plugins({
+  name: "site:report",
+  build({ paths, emitFile }) {
+    emitFile("build.json", JSON.stringify({ pages: paths.length }));
+  },
+});
+```
+
+The hook runs in the build, before the pages are generated. It doesn't run on the dev server or on a server deployment. The `build` hooks of several plugins run one after another, in plugin order.
+
+## Output
+
+The hook receives the output of the build:
+
+- `paths`: the URLs that the build generates, without the base path. They are the pages of static sources, static views, your custom pages without params, and files like the sitemap. Files emitted by `build` hooks are not in the list.
+- `emitFile(path, content)`: writes a file to the public output, with a string or a `Uint8Array`. `path` is relative to the output, so `build.json` is served at `/build.json`.
+- `fetch(request)`: requests a page of the built site, through its middleware and routes. The URL of the request has the base path.
+
+An emitted file is generated like a [static route](/plugins/routes#static-routes), so it exists in the output only, not on the dev server.
+
+## Failing a Build
+
+Throw to fail the build. This plugin requests every page, and fails when one has an error:
+
+```ts title="press.config.ts"
+createPress(content).plugins({
+  name: "site:check-pages",
+  async build({ paths, fetch }) {
+    for (const path of paths) {
+      const url = new URL(this.withBase(path), "http://localhost");
+      const response = await fetch(new Request(url));
+      if (response.status >= 400) throw new Error(`${path} responded with ${response.status}`);
+    }
+  },
+});
+```
+
+A page that fails to render fails the build too, without a hook. See [Deploy](/deploy).

@@ -1,0 +1,134 @@
+---
+title: Content Sources
+description: Combine collections, and load pages from anywhere.
+---
+
+A content source is the list of files the site builds its pages from. `createPress()` in `press.config.ts` takes one source, or several by key.
+
+## One Source
+
+`content` is the source of the first collection:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content);
+```
+
+This is the default when the site has no `press.config.ts`.
+
+## Multiple Sources
+
+Pass an object to combine sources. `collections` has each collection of the Vite plugin by name, and `toSource({ baseDir })` puts its pages under a URL prefix:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { collections } from "@fumapress/vue/content";
+
+export default createPress({
+  docs: collections.docs!.toSource({ baseDir: "docs" }),
+  blog: collections.blog!.toSource({ baseDir: "blog" }),
+});
+```
+
+`content/docs/install.mdx` is now at `/docs/install`, and `content/blog/hello.mdx` at `/blog/hello`. The key of a source is the `source` of its pages, so a plugin can tell them apart with `page.source === "blog"`.
+
+## Content Options
+
+The second argument of `createPress()` configures the content loader:
+
+```ts title="press.config.ts"
+import { createPress, defineI18n } from "@fumapress/vue/config";
+import { content } from "@fumapress/vue/content";
+
+export default createPress(content, {
+  i18n: defineI18n({ languages: ["en", "cn"], defaultLanguage: "en" }),
+});
+```
+
+- `i18n` sets the languages of the site, see [Internationalization](/i18n).
+- `loaderPlugins` are plugins of the Fumadocs content loader.
+- Other options, like `slugs`, `url` and `pageTree`, are passed to the Fumadocs content loader as they are.
+
+## Custom Sources
+
+A custom source lists pages from anywhere, and a [plugin](/plugins/content) renders them. Each file has a `path`, which sets its URL, and `data`, which is `page.data` of its page:
+
+```ts title="press.config.ts"
+import { createPress, type Plugin } from "@fumapress/vue/config";
+import { collections } from "@fumapress/vue/content";
+
+const releases = [
+  { version: "0.2.0", notes: "<p>Custom content sources.</p>" },
+  { version: "0.1.0", notes: "<p>The first release.</p>" },
+];
+
+const changelogPlugin: Plugin = {
+  name: "site:changelog",
+  getPageBody(page) {
+    if (page.source === "changelog") return { html: String(page.data.html) };
+  },
+};
+
+export default createPress({
+  docs: collections.docs!.toSource(),
+  changelog: {
+    files: releases.map(({ version, notes }) => ({
+      type: "page",
+      path: `changelog/${version}.md`,
+      data: { title: `v${version}`, html: notes },
+    })),
+  },
+}).plugins(changelogPlugin);
+```
+
+`/changelog/0.2.0` shows the HTML of its release. The pages of collections render without a plugin, while a page of a custom source fails to render when no plugin returns its body.
+
+## Dynamic Sources
+
+When `files` is a function, the source is dynamic. The server reads it when the site starts, and its pages render on demand instead of at build time, so the site needs a server to [deploy](/deploy). The routes that list pages, like the sitemap and the search index, render on demand too.
+
+```ts title="press.config.ts"
+import { createPress, type Plugin, type SourceFile } from "@fumapress/vue/config";
+
+interface Post {
+  slug: string;
+  title: string;
+  html: string;
+}
+
+async function listPosts(): Promise<SourceFile[]> {
+  const response = await fetch("https://cms.example.com/posts");
+  const posts: Post[] = await response.json();
+
+  return posts.map((post) => ({
+    type: "page",
+    path: `${post.slug}.md`,
+    data: { title: post.title, html: post.html },
+  }));
+}
+
+const postsPlugin: Plugin = {
+  name: "site:posts",
+  getPageBody(page) {
+    if (typeof page.data.html === "string") return { html: page.data.html };
+  },
+  routes({ createApi }) {
+    // read the posts again, after a change in the CMS
+    createApi({
+      path: "/api/refresh",
+      POST: async () => {
+        await this.invalidateLoader();
+        return new Response("Refreshed");
+      },
+    });
+  },
+};
+
+export default createPress({ files: listPosts }).plugins(postsPlugin);
+```
+
+The server keeps the files it read until `invalidateLoader()` reads every dynamic source again. Check a secret in the request before you call it, so that only your CMS can trigger it.
+
+With [multiple sources](#multiple-sources), only the pages of the dynamic sources render on demand, and the pages of the others are still generated at build time.

@@ -1,0 +1,106 @@
+---
+title: Content
+description: Organize pages into URLs and a sidebar.
+icon: Blocks
+---
+
+Each Markdown or MDX file under `content/` is a page, and the sidebar lists them for you.
+
+## Pages
+
+The URL of a page comes from its file path:
+
+| File                          | URL                |
+| ----------------------------- | ------------------ |
+| `content/index.mdx`           | `/`                |
+| `content/getting-started.mdx` | `/getting-started` |
+| `content/guide/index.mdx`     | `/guide`           |
+| `content/guide/install.md`    | `/guide/install`   |
+
+In the dev server, adding or removing a file updates the sidebar without a restart.
+
+## Collections
+
+A collection is a folder of pages. The site has one by default, `docs` in `content/`. Set `collections` in the Vite plugin to read another folder, or several:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      collections: {
+        docs: { dir: "content/docs" },
+        blog: { dir: "content/blog" },
+      },
+    }),
+  ],
+});
+```
+
+Without `press.config.ts`, the site shows the first collection only. To show several, with a URL prefix for each, see [Multiple Sources](/content/sources#multiple-sources).
+
+## Sidebar
+
+The sidebar lists the pages and folders of the content. Add a `meta.json` to a folder to set its title and the order of its pages:
+
+```json title="content/meta.json"
+{
+  "pages": ["index", "---Guides---", "guide"]
+}
+```
+
+```json title="content/guide/meta.json"
+{
+  "title": "Guide",
+  "icon": "BookOpen",
+  "defaultOpen": true,
+  "pages": ["install", "configure", "..."]
+}
+```
+
+| Field         | Use                                            |
+| ------------- | ---------------------------------------------- |
+| `title`       | The name of the folder in the sidebar          |
+| `icon`        | The icon of the folder, see [Icons](#icons)    |
+| `defaultOpen` | Open the folder in the sidebar by default      |
+| `pages`       | The pages and folders of the folder, in order  |
+| `root`        | Make the folder a [root folder](#root-folders) |
+
+Items of `pages` are file names without the extension, or folder names. `"..."` adds the pages that aren't listed, and `"---Guides---"` adds a separator with the text "Guides".
+
+For other syntax of `meta.json`, see the [page conventions of Fumadocs](https://fumadocs.dev/docs/page-conventions).
+
+### Root Folders
+
+A folder with `"root": true` is a tab of the sidebar, for separate parts of the docs like a guide and an API reference. On a page in a root folder, the sidebar shows only the content of that folder, and a dropdown at its top switches to the other root folders:
+
+```json title="content/guide/meta.json"
+{
+  "title": "Guide",
+  "root": true
+}
+```
+
+## Icons
+
+The `icon` of a page or a folder is a name. Map the names to components in the `icons` of the [theme](/theme):
+
+```ts title="src/theme.ts"
+import type { Theme } from "@fumapress/vue/client";
+import { BookOpen, Rocket } from "lucide-vue-next";
+
+export default {
+  icons: { BookOpen, Rocket },
+} satisfies Partial<Theme>;
+```
+
+`src/theme.ts` is found by default, and `lucide-vue-next` is a package to install. A name without a component is shown as text, so an emoji works as an icon too:
+
+```mdx title="content/index.mdx"
+---
+title: Introduction
+icon: 🚀
+---
+```

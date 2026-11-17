@@ -1,0 +1,179 @@
+---
+title: Routes
+description: Add API routes, data for your components, and middleware.
+---
+
+The `routes` hook of a plugin adds routes with `createApi()`. It runs once, when the site starts:
+
+```ts title="press.config.ts"
+createPress(content).plugins({
+  name: "site:api",
+  routes({ createApi }) {
+    createApi({
+      path: "/api/pages",
+      GET: () => Response.json(this.getPages().map((page) => page.url)),
+    });
+  },
+});
+```
+
+A handler takes a standard `Request` and returns a `Response`. Routes match before pages, and the first route that matches a URL handles it.
+
+## API Routes
+
+### Path Params
+
+`[name]` in a path matches one segment, and `[...name]` matches the rest of the path. The handler receives their decoded values in `params`:
+
+```ts
+createApi({
+  path: "/api/files/[...path]",
+  GET: (_request, { params }) => Response.json({ path: params.path }), // "a/b" for /api/files/a/b
+});
+```
+
+A path has no base path. It has no language prefix either: to add a route per language, call `createApi()` for each of `this.languages`, with `this.localizePath(lang, path)` as its path.
+
+### Methods
+
+A route has a handler per HTTP method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` and `OPTIONS`. `HEAD` falls back to `GET`, and `ALL` handles every method without its own handler:
+
+```ts
+createApi({
+  path: "/api/feedback",
+  POST: async (request) => {
+    const body = await request.json();
+    return Response.json({ received: body });
+  },
+  ALL: () => new Response("Use POST", { status: 405 }),
+});
+```
+
+A request with a method that the route doesn't handle gets a `405` response.
+
+## Static Routes
+
+An API route renders on demand by default. With `render: "static"`, the build generates it from its `GET` handler, so a static host can serve it as a file:
+
+```ts
+createApi({
+  path: "/version.json",
+  render: "static",
+  GET: () => Response.json({ version: "1.0.0" }),
+});
+```
+
+A static route with a param generates one file per entry of `staticPaths`: a string for `[name]`, a list of segments for `[...name]`. `staticPaths` can be a function, sync or async. Without `staticPaths`, a static route with a param generates nothing.
+
+```ts
+createApi({
+  path: "/api/pages/[...slugs]",
+  render: "static",
+  staticPaths: () => this.getPages().map((page) => page.slugs),
+  GET: async (_request, { params }) => {
+    const page = this.getPage(`/${params.slugs}`);
+    if (!page) return new Response("Not Found", { status: 404 });
+    return Response.json(await this.getPageData(page));
+  },
+});
+```
+
+On the dev server and on a server deployment, a static route still answers requests like any other route.
+
+### Following the Content
+
+A route that reads your content renders the way the content does: generated at build time, unless a source is [dynamic](/content/sources). `this.getContentRender()` gives that render mode, for every source or for one by its key:
+
+```ts
+createApi({
+  path: "/pages.json",
+  render: this.getContentRender(),
+  GET: () => Response.json(this.getPages().map((page) => page.url)),
+});
+```
+
+The sitemap, `llms.txt` and the search index use this, so they follow a dynamic source without config.
+
+## Data Routes
+
+A route with `data` is a data route. Its `GET` response is the JSON of the value, and `undefined` is a `404`:
+
+```ts title="press.config.ts"
+createApi({
+  path: "/api/contributors.json",
+  render: "static",
+  data: async () => {
+    const response = await fetch("https://api.github.com/repos/vuejs/core/contributors");
+    return response.json();
+  },
+});
+```
+
+Your components read it with `useLoad()` of `@fumapress/vue/client`. It returns `load(path)`, a function that resolves to the value of the data route at `path`, or `undefined` when there is none:
+
+```vue title="src/components/Contributors.vue"
+<script setup lang="ts">
+import { useLoad } from "@fumapress/vue/client";
+
+const load = useLoad();
+// an async setup: render this component under <Suspense>
+const contributors = (await load<{ login: string }[]>("/api/contributors.json")) ?? [];
+</script>
+
+<template>
+  <ul>
+    <li v-for="user in contributors" :key="user.login">{{ user.login }}</li>
+  </ul>
+</template>
+```
+
+How the value reaches the component:
+
+- On the server, `load()` calls `data` directly, without a request. The value comes with the HTML of the page, so the page hydrates without fetching it.
+- In the browser, `load()` of another path, like on a page you navigated to, fetches the route once and keeps the value.
+
+The browser fetches data routes, so a site on a static host needs `render: "static"` on them. A data route with params needs `staticPaths` too.
+
+### Shared Data
+
+A data route with `shared: true` has the same value on every page. Its value isn't sent with each page: the page preloads the route, and the browser fetches it once for every page.
+
+```ts
+createApi({
+  path: "/api/announcement.json",
+  render: "static",
+  shared: true,
+  data: () => ({ text: "Version 2 is out" }),
+});
+```
+
+## Middleware
+
+The `middleware` hook runs first on every request the server receives, before routes and pages. Call `next()` to continue, and change the response it returns:
+
+```ts title="press.config.ts"
+createPress(content).plugins({
+  name: "site:headers",
+  async middleware(_request, next) {
+    const response = await next();
+    const out = new Response(response.body, response);
+    out.headers.set("x-powered-by", "fumapress");
+    return out;
+  },
+});
+```
+
+`next(path)` serves another path instead, without a redirect. The path has no base path:
+
+```ts
+async middleware(request, next) {
+  const { pathname } = new URL(request.url);
+  return next(pathname === "/latest" ? "/guide/install" : undefined);
+}
+```
+
+Middleware of several plugins runs in plugin order, and each `next()` calls the next plugin.
+
+:::warning
+Requests that the host serves from the files of the build, like pages generated at build time, never reach middleware. A middleware that must see every request needs the pages to render on demand, on a [server deployment](/deploy).
+:::
