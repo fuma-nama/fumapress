@@ -23,7 +23,7 @@ export interface Route {
   params: Record<string, string>;
   /** the URL in the address bar: with the base path, the query and the hash */
   href: string;
-  /** the custom page it matched; without one, the route of content pages and views */
+  /** the custom page that renders it; without one, the route of content pages and views */
   record?: RouteRecord;
   component: Component;
 }
@@ -36,6 +36,11 @@ export interface RouterOptions {
   routes: RouteRecord[];
   /** renders every URL without a custom page: content pages, views, and the not found page */
   fallback: Component;
+  /**
+   * Whether `fallback` has a page at a path. A custom page with params only answers the paths without one: a page
+   * of the content is more specific than a param, as a custom page at a fixed path is more specific than both.
+   */
+  hasPage?: (path: string) => Awaitable<boolean>;
   /**
    * Runs before a page shows, to load what it renders: `first` for the page the app starts at. `false` cancels the
    * navigation. A function it returns is called when the navigation wins, to apply what was loaded: a slower
@@ -132,7 +137,14 @@ export async function createRouter(options: RouterOptions): Promise<Router> {
     target: Omit<Route, "component">,
     first = false,
   ): Promise<{ route: Route; commit?: () => void } | undefined> {
-    const route: Route = { ...target, component: await componentOf(target.record) };
+    let { record } = target;
+    if (record?.path.includes("[") && (await options.hasPage?.(target.path))) record = undefined;
+    const route: Route = {
+      ...target,
+      params: record ? target.params : {},
+      record,
+      component: await componentOf(record),
+    };
     const result = await options.beforeEach?.(route, { first });
     if (result === false) return;
     return { route, commit: result || undefined };

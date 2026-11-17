@@ -73,3 +73,29 @@ test("runs the guard before the first page shows", async () => {
   expect(seen).toEqual(["/blog/first first"]);
   expect(router.route.value.component).toBe(Post);
 });
+
+test("a page of the content wins over a custom page with params, and loses to one at a fixed path", async () => {
+  const pages = new Set(["/blog/hello", "/about"]);
+  const router = (url: string) =>
+    createRouter({
+      base: "/",
+      url,
+      routes: [...routes, { path: "/[...all]", component: async () => ({ default: Post }) }],
+      fallback: Fallback,
+      hasPage: (path) => pages.has(path),
+    });
+
+  // the content has this page: it is more specific than `[slug]`
+  const content = (await router("/blog/hello")).route.value;
+  expect(content).toMatchObject({ component: Fallback, params: {} });
+  expect(content.record).toBeUndefined();
+  // it has no page here, so the custom page answers
+  expect((await router("/blog/other")).route.value).toMatchObject({
+    component: Post,
+    params: { slug: "other" },
+  });
+  // a path nothing else has goes to the page that takes the rest
+  expect((await router("/nope/at/all")).route.value.params).toEqual({ all: "nope/at/all" });
+  // a custom page at a fixed path is the most specific
+  expect((await router("/about")).route.value.component).toBe(About);
+});

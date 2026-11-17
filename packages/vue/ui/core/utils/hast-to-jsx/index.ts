@@ -137,11 +137,14 @@ function one(node: Node, state: State, schema: Schema, key: string | undefined):
       key,
     );
   }
+  // Read as the types above: a package that declares these nodes for hast, like a Markdown parser of the project,
+  // can leave out their `estree`.
   if (node.type === "mdxFlowExpression" || node.type === "mdxTextExpression")
-    return evaluate(node.data?.estree, state.evaluator) as VNodeChild;
+    return evaluate((node as MdxExpression).data?.estree, state.evaluator) as VNodeChild;
   if (node.type === "mdxjsEsm") {
-    if (!node.data?.estree || !state.evaluator) throw new Error(mdxError);
-    return state.evaluator.evaluateProgram(node.data.estree) as VNodeChild;
+    const estree = (node as MdxjsEsm).data?.estree;
+    if (!estree || !state.evaluator) throw new Error(mdxError);
+    return state.evaluator.evaluateProgram(estree) as VNodeChild;
   }
 }
 

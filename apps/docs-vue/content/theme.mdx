@@ -167,9 +167,11 @@ A `.vue` file under `src/pages` is a page of your site, at the path of the file:
 - `blog/[slug].vue` matches one segment, like `/blog/hello`.
 - `[...path].vue` matches every URL under its folder.
 
-Files and folders starting with `_` aren't pages, so they can hold the components of your pages. A custom page wins over a content page at the same URL.
+Files and folders starting with `_` aren't pages, so they can hold the components of your pages.
 
-Pages without params are generated at build time, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().params.value.slug`.
+When a custom page and a content page have the same URL, the more specific one renders. A custom page at a fixed path, like `about.vue`, wins over a content page, and a content page wins over a custom page with params. So `[...path].vue` renders the URLs nothing else has, in place of the not found page. A content page that a custom page replaces stays in the sitemap and the search index, so remove its file.
+
+Pages without params are generated at build time and listed in the sitemap, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().params.value.slug`.
 
 To give a custom page the navbar of your site, wrap it in `HomeLayout`:
 
@@ -186,6 +188,14 @@ import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
     </main>
   </HomeLayout>
 </template>
+```
+
+A custom page names its title and description with `defineOptions`. They go to the `<head>` like those of a content page, so the title ends with the name of your site:
+
+```vue title="src/pages/about.vue"
+<script setup lang="ts">
+defineOptions({ page: { title: "About", description: "Who writes these docs." } });
+</script>
 ```
 
 To use another folder, set the `pagesDir` option of the Vite plugin, like `press({ pagesDir: "src/routes" })`.

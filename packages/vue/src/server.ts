@@ -1,6 +1,5 @@
 import { getContext, type Context } from "./core/context";
-import { escapeHtml, mergeHead, renderHead } from "./core/head";
-import { localeOf } from "./core/i18n";
+import { escapeHtml, keyOf, mergeHead, renderHead, withBase } from "./core/head";
 import type { ApiHandler, ApiRoute, BuildOutput, HttpMethod } from "./core/plugin";
 import type { Press } from "./core/press";
 import {
@@ -12,13 +11,14 @@ import {
   prerenderListPath,
   staticPathsOf,
 } from "./core/routes";
-import type { HeadTag, Load, PageContent } from "./core/types";
+import type { HeadTag, Load, PageContent, PageData } from "./core/types";
 
 export { encodePath } from "./core/routes";
 
 export interface ClientAssets {
   entry: string;
-  css: { href: string }[];
+  /** the attributes of a stylesheet link: its `href`, and what the dev server adds to follow its changes */
+  css: ({ href: string } & Record<string, string>)[];
   js: { href: string }[];
 }
 
@@ -39,6 +39,8 @@ export interface RenderOutput {
   status?: number;
   /** the assets of the page, with those of its route @defaultValue the client entry's */
   assets?: ClientAssets;
+  /** the data of a page outside the content, like its title: what the head tags are made from */
+  data?: PageData;
 }
 
 export interface HandlerOptions {
@@ -142,16 +144,26 @@ async function renderDocument(
 
   const lang = ctx.getLanguage(pathname);
   const output = await options.render({ ctx, pathname: shown, search, lang, load: load as Load });
-  const { html, status = 200, assets = options.assets } = output;
+  const { html, status = 200, assets = options.assets, data: ownData } = output;
 
-  // a URL without the prefix of its language, like `/` when no language is hidden, goes to the default language
-  if (status === 404 && ctx.i18n && localeOf(ctx.i18n, pathname).lang === undefined) {
-    const target = ctx.localizePath(ctx.defaultLanguage, pathname);
-    if (await ctx.getContent(target)) {
-      return new Response(null, {
-        status: 302,
-        headers: { Location: ctx.base + encodePath(target).slice(1) + search },
-      });
+  // A URL that names its language another way goes to the one a page has: without a prefix, like `/`, to the
+  // default language when no language is hidden, and with the prefix of the hidden language to the URL without it.
+  if (status === 404 && ctx.i18n) {
+    const [, first = "", ...rest] = pathname.split("/");
+    const target = ctx.i18n.languages.includes(first)
+      ? ctx.localizePath(first, `/${rest.join("/")}`)
+      : ctx.localizePath(ctx.defaultLanguage, pathname);
+    if (target !== pathname && (await ctx.getContent(target))) {
+      const location = ctx.base + encodePath(target).slice(1) + search;
+      // a static host can't redirect: the generated page sends the browser on
+      if (options.prerender) {
+        const href = escapeHtml(location);
+        return new Response(
+          `<!DOCTYPE html><html lang="${escapeHtml(ctx.defaultLanguage)}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=${href}"><link rel="canonical" href="${escapeHtml(ctx.absoluteUrl(target))}"><title>${href}</title></head><body><a href="${href}">${href}</a></body></html>`,
+          { headers: { "Content-Type": "text/html; charset=utf-8" } },
+        );
+      }
+      return new Response(null, { status: 302, headers: { Location: location } });
     }
   }
 
@@ -172,7 +184,7 @@ async function renderDocument(
     pathname,
     lang,
     page: ctx.getPage(pathname),
-    data: content?.data,
+    data: content?.data ?? ownData,
   });
   // the module of the page is fetched with the app, not after it runs
   const modules =
@@ -183,9 +195,10 @@ async function renderDocument(
       { tag: "meta", attrs: { charset: "utf-8" } },
       { tag: "meta", attrs: { name: "viewport", content: "width=device-width, initial-scale=1" } },
     ],
-    options.head,
-    head,
-    assets.css.map(({ href }) => ({ tag: "link", attrs: { rel: "stylesheet", href } })),
+    withBase(options.head, ctx.base),
+    // a URL without a page has no address to prefer
+    status === 404 ? head.filter((tag) => keyOf(tag) !== "link:canonical") : head,
+    assets.css.map((css) => ({ tag: "link", attrs: { rel: "stylesheet", ...css } })),
     modules.map(({ href }) => ({ tag: "link", attrs: { rel: "modulepreload", href } })),
     shared.map((path) => ({
       tag: "link",
@@ -220,7 +233,7 @@ function buildRoutes(
         .filter((route) => route.render === "static" && (route.GET ?? route.ALL ?? route.data))
         .map(staticPathsOf),
     );
-    const own = options.staticPaths ?? [];
+    const own = ctx.customPages;
     // without a hidden language, `/` leads to the default one
     const root = ctx.i18n && ctx.i18n.hideLocale !== "default-locale" && !own.includes("/");
     return [...(await ctx.getStaticPages()), ...ofRoutes.flat(), ...own, ...(root ? ["/"] : [])];
@@ -319,7 +332,10 @@ export function createFetchHandler(
   let ofBuild: ApiRoute[] | undefined;
 
   const fetch = async (request: Request): Promise<Response> => {
-    const ctx = await getContext(options.press, { base: options.base });
+    const ctx = await getContext(options.press, {
+      base: options.base,
+      customPages: options.staticPaths,
+    });
     if (options.prerender) ofBuild ??= buildRoutes(options, ctx, fetch);
     // read on each request: a build adds the files it emits
     const routes = [...(ofBuild ?? []), ...ctx.routes];

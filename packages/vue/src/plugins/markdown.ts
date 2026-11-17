@@ -1,5 +1,5 @@
 import type { Plugin } from "../core/plugin";
-import type { Page, PageModule, StructuredData } from "../core/types";
+import type { Page, PageModule } from "../core/types";
 
 /** the compiled module of a Markdown file, in `data._module` of a page of a collection */
 export interface ModuleRef {
@@ -14,21 +14,6 @@ export interface ModuleRef {
 function moduleOf(page: Page): ModuleRef | undefined {
   const ref = page.data._module;
   return typeof ref === "object" && ref !== null ? (ref as ModuleRef) : undefined;
-}
-
-/** the text of a page from its headings and the content under each */
-function textOf(page: Page, data: StructuredData): string {
-  const lines = [`# ${typeof page.data.title === "string" ? page.data.title : page.url}`];
-  const headings = new Map(data.headings.map((heading) => [heading.id, heading.content]));
-  let current: string | undefined;
-  for (const { heading, content } of data.contents) {
-    if (heading !== current) {
-      current = heading;
-      if (heading !== undefined && headings.has(heading)) lines.push(`## ${headings.get(heading)}`);
-    }
-    lines.push(content);
-  }
-  return lines.join("\n\n");
 }
 
 /** renders the pages of collections: the Markdown files the Vite plugin compiled to modules */
@@ -55,8 +40,10 @@ export function markdownPlugin(): Plugin {
       return (await moduleOf(page)?.load())?.structuredData;
     },
     async getPageText(page) {
-      const data = (await moduleOf(page)?.load())?.structuredData;
-      if (data) return textOf(page, data);
+      const markdown = (await moduleOf(page)?.load())?.markdown;
+      if (markdown === undefined) return;
+      const title = typeof page.data.title === "string" ? page.data.title : page.url;
+      return `# ${title}\n\n${markdown.trim()}`;
     },
   };
 }

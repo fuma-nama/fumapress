@@ -98,3 +98,25 @@ export default createPress(content).config({
 ```
 
 See [Configuration](/config) for the other options.
+
+## TypeScript
+
+A site needs no TypeScript. To type-check your config, theme and pages, install `typescript` and `vue-tsc`, and add a `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["*.ts", "src"]
+}
+```
+
+`npx vue-tsc --noEmit` checks the project. The UI of the package is source code, which `vue-tsc` checks with your files: it is written for ES2023, so `lib` can't be older.

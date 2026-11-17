@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { parseFrontmatter } from "../src/build/frontmatter";
-import { compareRoutes, toRoutePath } from "../src/build/scan";
+import { parseFrontmatter } from "../src/vite/frontmatter";
+import { compareRoutes, toRoutePath } from "../src/vite/scan";
 
 test("maps page files to route paths", () => {
   expect(toRoutePath("index.vue")).toBe("/");

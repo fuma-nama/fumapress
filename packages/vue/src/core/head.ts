@@ -77,3 +77,18 @@ export function renderHead(tags: readonly HeadTag[]): string {
   }
   return out;
 }
+
+/**
+ * The tags a site writes itself, in its config and its theme: an `href` or `src` that is a path of the site, like
+ * `/favicon.svg`, gets the base path, as a link in the content does.
+ */
+export function withBase(tags: readonly HeadTag[] | undefined, base: string): HeadTag[] {
+  return (tags ?? []).map((tag) => {
+    const attrs = { ...tag.attrs };
+    for (const name of ["href", "src"]) {
+      const value = attrs[name];
+      if (typeof value === "string" && /^\/(?!\/)/.test(value)) attrs[name] = base + value.slice(1);
+    }
+    return { ...tag, attrs };
+  });
+}

@@ -26,6 +26,7 @@ import type {
   LayoutProps,
   Load,
   PageContent,
+  PageData,
   PageModule,
   PageTree,
   SiteConfig,
@@ -34,6 +35,16 @@ import type {
 } from "./core/types";
 
 export { normalizePath, safeHref, searchIndexPath };
+
+declare module "vue" {
+  interface ComponentCustomOptions {
+    /**
+     * The data of a custom page, a `.vue` file of `src/pages`: its title and description, which the head tags of
+     * the site are made from like those of a content page. `defineOptions({ page: { title: "About" } })`
+     */
+    page?: PageData;
+  }
+}
 export {
   createRouter,
   type Route,

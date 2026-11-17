@@ -48,6 +48,7 @@ Use a regular function or a method for a hook, not an arrow function, so that `t
 - `routes`: the API routes of plugins.
 - `views`: the [views](/plugins/views) of plugins, one per language, with the path of each including its language prefix.
 - `getStaticPages()`: the URLs of the pages generated at build time, the pages of static sources and the static views.
+- `customPages`: the URLs of the [custom pages](/theme#custom-pages) generated at build time, the ones without params.
 - `getLayoutProps({ lang })`: the props of the layouts in a language, from your config and the `layoutProps` hook of plugins.
 - `getHead(env)`: the tags of the `<head>` of a page, from your config and the `head` hook of plugins.
 

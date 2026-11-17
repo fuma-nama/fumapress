@@ -26,6 +26,12 @@ export interface AddResult {
   relinked: string[];
   /** the packages the copies import that the project doesn't depend on, with the version the UI is written for */
   missing: Record<string, string>;
+  /**
+   * The modules copied that no file of the project outside them imports, so the site doesn't use them, each with the
+   * modules of the package that import it: copying one of those makes it import the copy. The theme isn't in it, the
+   * site loads it without an import.
+   */
+  unused: Record<string, string[]>;
 }
 
 const toPosix = (file: string) => file.split(path.sep).join("/");
@@ -57,9 +63,24 @@ export function resolveProject(
   };
 }
 
+/** the code files of a project, without its dependencies and hidden folders */
+function projectFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) projectFiles(file, out);
+    else if (CODE.test(entry.name)) out.push(file);
+  }
+  return out;
+}
+
+/** whether a path is the folder `dir` or inside it */
+const isIn = (file: string, dir: string) => file === dir || file.startsWith(dir + path.sep);
+
 /**
  * The units a project can copy: the theme, and the modules of the UI. A module is a folder with an `index.ts`, and
- * the modules inside it come with it, like the slots of a layout.
+ * the modules inside it come with it, like the slots of a layout. A folder starting with `.` is internal: its
+ * modules are imported from the package.
  */
 export function listUnits(packageDir: string): string[] {
   const units: string[] = [];
@@ -69,6 +90,7 @@ export function listUnits(packageDir: string): string[] {
       return;
     }
     for (const child of readdirSync(dir).sort()) {
+      if (child.startsWith(".")) continue;
       const file = path.join(dir, child);
       if (statSync(file).isDirectory()) visit(file, name ? `${name}/${child}` : child);
     }
@@ -85,6 +107,17 @@ const targetOf = (project: Project, unit: string) =>
 
 /** how files import others: `from "x"`, `import "x"`, `import("x")`, and `@import "x"` in CSS */
 const IMPORT = /(\bfrom\s*|\bimport\s*\(?\s*|@import\s+)(["'])([^"'\n]+)\2/g;
+/** the files that import modules */
+const CODE = /\.(m?[jt]sx?|vue|mdx)$/;
+
+/** the relative imports of a file, by absolute path */
+function importsOf(file: string): string[] {
+  const out: string[] = [];
+  for (const [, , , specifier = ""] of readFileSync(file, "utf8").matchAll(IMPORT)) {
+    if (specifier.startsWith(".")) out.push(path.resolve(path.dirname(file), specifier));
+  }
+  return out;
+}
 
 /** the package specifier of a file of the package: the folder of a module, or a file of `css/` or `theme/` */
 function specifierOf(project: Project, file: string): string | undefined {
@@ -108,7 +141,7 @@ function detach(project: Project, unit: string, file: string, code: string): str
   return code.replace(IMPORT, (match, before: string, quote: string, specifier: string) => {
     if (!specifier.startsWith(".")) return match;
     const target = path.resolve(path.dirname(file), specifier);
-    if (target === root || target.startsWith(root + path.sep)) return match;
+    if (isIn(target, root)) return match;
 
     const name = specifierOf(project, target);
     if (!name) {
@@ -168,12 +201,12 @@ export function add(
       .find((file) => existsSync(file));
     if (module) {
       throw new Error(
-        `${show(module)} is the theme module of this site, and it is loaded instead of ${show(project.themeDir)}/index.ts.\nRename it, for example to ${show(project.themeDir)}/own.ts, run this again, then add what it exports to ${show(project.themeDir)}/index.ts.`,
+        `${show(module)} is the theme module of this site, and it is loaded instead of ${show(project.themeDir)}/index.ts.\nMove it into the folder, for example to ${show(project.themeDir)}/own.ts, and update its relative imports, since it is one folder deeper. Run this again, then add what it exports to ${show(project.themeDir)}/index.ts.`,
       );
     }
   }
 
-  const result: AddResult = { written: [], skipped: [], relinked: [], missing: {} };
+  const result: AddResult = { written: [], skipped: [], relinked: [], missing: {}, unused: {} };
   for (const unit of units) {
     const source = sourceOf(project, unit);
     for (const file of walk(source)) {
@@ -204,6 +237,44 @@ export function add(
   }
 
   result.missing = missingPackages(project, result.written);
+  result.unused = unusedCopies(project, [...new Set(units)]);
+  return result;
+}
+
+/**
+ * The modules of `units` that no file of the project outside them imports, with the modules of the package that
+ * import them. The theme is loaded by the site, not imported.
+ */
+function unusedCopies(project: Project, units: string[]): Record<string, string[]> {
+  const files = projectFiles(project.root).map((file) => [file, importsOf(file)] as const);
+  const unused = units.filter((unit) => {
+    if (unit === THEME) return false;
+    const copy = targetOf(project, unit);
+    return !files.some(
+      ([file, imports]) => !isIn(file, copy) && imports.some((target) => isIn(target, copy)),
+    );
+  });
+  if (unused.length === 0) return {};
+
+  const all = listUnits(project.packageDir);
+  const ofPackage = [path.join(project.packageDir, "ui"), sourceOf(project, THEME)]
+    .flatMap((dir) => walk(dir))
+    .filter((file) => CODE.test(file))
+    .map((file) => [file, importsOf(file)] as const);
+
+  const result: Record<string, string[]> = {};
+  for (const unit of unused) {
+    const source = sourceOf(project, unit);
+    result[unit] = all.filter((other) => {
+      const dir = sourceOf(project, other);
+      return (
+        other !== unit &&
+        ofPackage.some(
+          ([file, imports]) => isIn(file, dir) && imports.some((target) => isIn(target, source)),
+        )
+      );
+    });
+  }
   return result;
 }
 

@@ -1,4 +1,4 @@
-import { createSSRApp, h } from "vue";
+import { createSSRApp, h, type ComponentOptions } from "vue";
 import {
   RouterView,
   createPressState,
@@ -43,6 +43,7 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     routes,
     // content pages, the views of plugins, and the not found page
     fallback: theme.Layout,
+    hasPage: async (path) => (await loadPage(state, path)) !== undefined,
     async beforeEach(to, { first }) {
       // The app has the data of one language, like its page tree: a page of another one is another document. The
       // document the app starts in is the server's answer for the URL, whatever its language: asking again would loop.
@@ -59,9 +60,11 @@ export async function createPressApp(url: string, base: string, lang: string, lo
     },
     // the server renders the tags of `<head>`: after a navigation, the browser updates the ones a reader sees
     afterEach(to) {
+      // a content page comes with the head the server made; a custom page has its data in its options
+      const own = to.record ? (to.component as ComponentOptions).page : undefined;
       const { head } = state.page.value ?? {};
-      document.title = head?.title ?? site.name ?? "";
-      const description = head?.description ?? site.description;
+      document.title = head?.title ?? [own?.title, site.name].filter(Boolean).join(" | ");
+      const description = head?.description ?? own?.description ?? site.description;
       if (description) {
         document.querySelector('meta[name="description"]')?.setAttribute("content", description);
       }

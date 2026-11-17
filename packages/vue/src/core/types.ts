@@ -66,6 +66,8 @@ export interface PageModule {
   frontmatter?: Record<string, unknown>;
   toc?: TOCItem[];
   structuredData?: StructuredData;
+  /** the content as Markdown, as it was written */
+  markdown?: string;
 }
 
 /** a file of a content source */

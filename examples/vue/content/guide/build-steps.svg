@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 80" width="480" height="80" font-family="system-ui, sans-serif" font-size="14">
+  <g fill="none" stroke="#8b8b8b" stroke-width="1.5">
+    <rect x="8" y="20" width="120" height="40" rx="8" />
+    <rect x="180" y="20" width="120" height="40" rx="8" />
+    <rect x="352" y="20" width="120" height="40" rx="8" />
+    <path d="M128 40h52M300 40h52" />
+  </g>
+  <g fill="#8b8b8b" text-anchor="middle">
+    <text x="68" y="45">Markdown</text>
+    <text x="240" y="45">Vue module</text>
+    <text x="412" y="45">HTML</text>
+  </g>
+</svg>

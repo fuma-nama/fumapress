@@ -68,6 +68,15 @@ test("a page has one path, however a request spells it", async () => {
   expect(html).not.toContain("https://evil.example");
 });
 
+test("the page tree has the one form of a path, so the page on screen is found in it", async () => {
+  const get = serve(createPress(docs()));
+  const { tree } = (await (await get("/_press/site/en.json")).json()) as {
+    tree: { children: { name: string; children?: { url: string }[] }[] };
+  };
+  const urls = tree.children.flatMap((node) => node.children?.map((item) => item.url) ?? []);
+  expect(urls).toEqual(expect.arrayContaining(["/guide/my page", "/guide/100%"]));
+});
+
 test("middleware sees the one form of a path", async () => {
   const seen: string[] = [];
   const guard: Plugin = {

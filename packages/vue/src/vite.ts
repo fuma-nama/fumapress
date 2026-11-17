@@ -6,12 +6,12 @@ import vue from "@vitejs/plugin-vue";
 import { nitro } from "nitro/vite";
 import { normalizePath, type Plugin, type PluginOption } from "vite";
 import * as compiler from "vue/compiler-sfc";
-import { compileMarkdown, type MarkdownOptions } from "./build/compile";
-import { parseFrontmatter } from "./build/frontmatter";
-import { isMeta, scanCollection, scanPages } from "./build/scan";
+import { compileMarkdown, type MarkdownOptions } from "./vite/compile";
+import { parseFrontmatter } from "./vite/frontmatter";
+import { isMeta, scanCollection, scanPages } from "./vite/scan";
 import { prerenderListPath } from "./core/routes";
 
-export type { MarkdownOptions } from "./build/compile";
+export type { MarkdownOptions } from "./vite/compile";
 
 export interface PressOptions {
   /**
@@ -85,8 +85,11 @@ function core(options: PressOptions, site: Site): Plugin {
   async function loadRoutes() {
     const routes = (await scanPages(pagesDir)).map(({ path: routePath, absolutePath }) => {
       const file = normalizePath(absolutePath);
-      // `?assets` is the styles of the page, linked from the HTML the server renders
-      return `{ path: ${str(routePath)}, component: () => import(${str(file)}), assets: () => import(${str(`${file}?assets`)}) }`;
+      // The styles of the page, linked from the HTML the server renders: the ones of the browser build. The build
+      // of the server has the stylesheet of the site too, under another name. In development styles are modules,
+      // found from the server.
+      const assets = `${file}?assets${isDev ? "" : "=client"}`;
+      return `{ path: ${str(routePath)}, component: () => import(${str(file)}), assets: () => import(${str(assets)}) }`;
     });
     return `export const routes = [\n${routes.join(",\n")}\n];\n`;
   }
@@ -304,7 +307,7 @@ function vuePlugin(site: Site): Plugin {
   });
 }
 
-/** Fumapress for Vue: your content as a docs site on Vue Router, served and built by Nitro */
+/** Fumapress for Vue: your content as a docs site, served and built by Nitro */
 export default function press(options: PressOptions = {}): PluginOption[] {
   const site: Site = { root: process.cwd() };
 

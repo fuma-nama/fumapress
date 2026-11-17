@@ -100,6 +100,8 @@ createPress(content).config({
 });
 ```
 
+An `href` or `src` that is a path of your site, like `/favicon.svg` above, gets the [base path](/deploy#base-path).
+
 For tags that depend on the page, pass a function. It receives the `pathname` and `lang` of the page, and on content pages and views, the `page` and its `data`.
 
 ```ts title="press.config.ts"

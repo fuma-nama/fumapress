@@ -1,3 +1,4 @@
+import type { ComponentOptions } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { createFetchHandler, encodePath, type ClientAssets } from "@fumapress/vue/server";
 import press from "virtual:press/config";
@@ -8,6 +9,12 @@ import { createPressApp } from "./app.ts";
 import clientAssets from "./entry-client.ts?assets=client";
 
 type Assets = ClientAssets & { merge: (...assets: ClientAssets[]) => ClientAssets };
+
+// In development a stylesheet is a module the browser loads after the page: the ones the server imported are
+// linked from the document, so a page doesn't show unstyled first.
+const devAssets: ClientAssets[] = import.meta.env.DEV
+  ? [((await import("./app.ts?assets=ssr")) as { default: ClientAssets }).default]
+  : [];
 
 export default {
   fetch: createFetchHandler({
@@ -26,7 +33,7 @@ export default {
         lang,
         load,
       );
-      const { record } = router.route.value;
+      const { record, component } = router.route.value;
       // the styles of a custom page are in its own files
       const pageAssets = record?.assets
         ? [((await record.assets()) as { default: ClientAssets }).default]
@@ -36,7 +43,9 @@ export default {
         html: await renderToString(app),
         // a URL without a custom page is a content page or a view, or nothing
         status: !record && !state.page.value ? 404 : 200,
-        assets: (clientAssets as Assets).merge(...pageAssets),
+        // a custom page names its title and description in its options
+        data: record ? (component as ComponentOptions).page : undefined,
+        assets: (clientAssets as Assets).merge(...devAssets, ...pageAssets),
       };
     },
   }),

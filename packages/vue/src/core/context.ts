@@ -2,7 +2,7 @@ import { loader } from "fumadocs-core/source";
 import { markdownPlugin } from "../plugins/markdown";
 import { pagesPlugin } from "../plugins/pages";
 import { sitePlugin } from "../plugins/site";
-import { mergeHead } from "./head";
+import { mergeHead, withBase } from "./head";
 import { localeOf, localizePath, type I18nConfig } from "./i18n";
 import { mergeOptions } from "./merge";
 import {
@@ -73,6 +73,8 @@ export interface Context {
   getPageContent: (page: Page) => Promise<PageContent>;
   /** what the browser receives for a URL: its content page, or the view of a plugin; none for a 404 */
   getContent: (pathname: string) => Promise<PageContent | undefined>;
+  /** the URLs of the custom pages generated at build time: the ones without params */
+  customPages: string[];
   /** the URLs of the pages generated at build time: the pages of static sources and the static views */
   getStaticPages: () => Promise<string[]>;
   /** the language of a URL */
@@ -130,7 +132,8 @@ function toTree(root: any): PageTree.Root {
     return {
       type: "page",
       ...base,
-      url: item.url,
+      // a path of the site in its one form, decoded: the loader encodes the ones it makes
+      url: (item.url.startsWith("/") && decodePath(item.url)) || item.url,
       external: item.external,
       description: text(item.description),
     };
@@ -144,7 +147,13 @@ function toTree(root: any): PageTree.Root {
   };
 }
 
-export async function createContext(press: Press, env: { base?: string } = {}): Promise<Context> {
+/** where a site runs: its base path, and the custom pages of the app that are generated at build time */
+export interface ContextEnv {
+  base?: string;
+  customPages?: string[];
+}
+
+export async function createContext(press: Press, env: ContextEnv = {}): Promise<Context> {
   const { content, options, plugins: listed, config } = press["~press"];
   const site = config.site ?? {};
   if (site.baseUrl !== undefined && !URL.canParse(site.baseUrl)) {
@@ -279,6 +288,7 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
 
   const ctx: Context = {
     site,
+    customPages: env.customPages ?? [],
     base,
     plugins,
     routes,
@@ -386,7 +396,7 @@ export async function createContext(press: Press, env: { base?: string } = {}): 
       const own =
         typeof config.head === "function" ? await config.head.call(ctx, env) : config.head;
       // a later list wins by key, so the first plugin goes last, then the site's own
-      return mergeHead(...ofPlugins.reverse(), own);
+      return mergeHead(...ofPlugins.reverse(), withBase(own, base));
     },
   };
 
@@ -425,7 +435,7 @@ const contexts = new WeakMap<Press, Promise<Context>>();
 let current: Context | undefined;
 
 /** one context per site: a reloaded `press.config` is another site */
-export function getContext(press: Press, env?: { base?: string }): Promise<Context> {
+export function getContext(press: Press, env?: ContextEnv): Promise<Context> {
   let ctx = contexts.get(press);
   if (!ctx) {
     ctx = createContext(press, env);

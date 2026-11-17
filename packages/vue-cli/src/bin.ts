@@ -62,10 +62,13 @@ function main(): number {
     );
   }
 
-  const usesCopies = names.includes("theme") || result.relinked.length > 0;
-  if (!usesCopies && result.written.length > 0) {
+  for (const [unit, dependents] of Object.entries(result.unused)) {
+    const next =
+      dependents.length > 0
+        ? `Copy a module that imports it, or import it from a file of your project:\n${dependents.map((name) => `  fumapress-vue add ${name}`).join("\n")}`
+        : "Import it from a file of your project.";
     console.log(
-      `\nNothing imports ${names.length > 1 ? "these copies" : "this copy"} yet: the default theme uses the UI of the package.\nRun \`fumapress-vue add theme\` to have a theme of your own that uses your copies, or import ${names.length > 1 ? "them" : "it"} from your theme.`,
+      `\nNothing in your project imports your copy of ${unit} yet, so your site doesn't use it. ${next}`,
     );
   }
   return 0;

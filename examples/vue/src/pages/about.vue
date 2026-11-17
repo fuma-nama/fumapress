@@ -2,6 +2,9 @@
 import { ref } from "vue";
 import HomeLayout from "@fumapress/vue/theme/HomeLayout.vue";
 
+// the title and description of the page, for its head tags
+defineOptions({ page: { title: "About", description: "A custom page of the example." } });
+
 const count = ref(0);
 </script>
 

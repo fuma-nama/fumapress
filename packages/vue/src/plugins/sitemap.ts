@@ -7,8 +7,8 @@ export interface SitemapOptions {
 }
 
 /**
- * `/sitemap.xml` with every page generated ahead: the content pages of each language with their translations, and the
- * pages of plugins. Generated at build time, or on demand with a dynamic source.
+ * `/sitemap.xml` with every page generated ahead: the content pages of each language with their translations, the
+ * pages of plugins and the custom pages without params. Generated at build time, or on demand with a dynamic source.
  */
 export function sitemapPlugin({ path = "/sitemap.xml" }: SitemapOptions = {}): Plugin {
   return {
@@ -33,7 +33,7 @@ export function sitemapPlugin({ path = "/sitemap.xml" }: SitemapOptions = {}): P
             }),
           );
           const content = new Set(this.getPages().map((page) => page.url));
-          const ofViews = (await this.getStaticPages())
+          const ofViews = [...(await this.getStaticPages()), ...this.customPages]
             .filter((url) => !content.has(url))
             .map((url) => `  <url>${loc(url)}</url>`);
 

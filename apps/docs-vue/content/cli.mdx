@@ -55,7 +55,7 @@ The UI is styled with Tailwind CSS classes. The compiled stylesheet of the site 
 </Steps>
 
 :::warning
-A site with a `src/theme.ts` loads that file instead of `src/theme/index.ts`, so the CLI refuses to copy the theme next to it. Rename the file first, for example to `src/theme/own.ts`, copy the theme, then add what your file exports to `src/theme/index.ts`.
+A site with a `src/theme.ts` loads that file instead of `src/theme/index.ts`, so the CLI refuses to copy the theme next to it. Move the file into the folder first, for example to `src/theme/own.ts`, and update its relative imports, since it is one folder deeper. Then copy the theme, and add what your file exports to `src/theme/index.ts`.
 :::
 
 ## Commands
@@ -110,4 +110,11 @@ The families are `accordion`, `collapsible`, `config-provider`, `dialog`, `dropd
 For another primitive, like a tooltip, install `reka-ui`. Don't mix the two inside one family: a `DialogClose` of `reka-ui` doesn't find a `DialogRoot` of `@fumapress/vue/reka/dialog`.
 :::
 
-A module copied without the theme isn't used until something imports it: the default theme imports the UI of the package. Copy the theme too, or import the module from your own theme.
+Your site uses a copy only when a file of your project imports it. The theme and the other modules of the package import the modules of the package, so a copy nothing imports changes nothing. The CLI then lists the modules of the package that import it:
+
+```
+Nothing in your project imports your copy of components/card yet, so your site doesn't use it. Copy a module that imports it, or import it from a file of your project:
+  fumapress-vue add mdx
+```
+
+Copy one of them. After `add mdx`, your copy of `mdx` imports your copy of the card, and your copy of the theme imports your copy of `mdx`. The CLI doesn't copy them for you, since a module like `components/ui/button` is imported by most of the UI.

@@ -138,6 +138,15 @@ A heading that starts with a number, like `### 1. Install the Package`, is a ste
 | `**bold**` | **bold** |
 ```
 
+## Images
+
+```md
+![The editor](./editor.png)
+![The logo](/logo.svg)
+```
+
+A relative path is a file next to the page, which the build includes. A path starting with `/` is a file of `public`, and gets the [base path](/deploy#base-path). The `src` of a component, like [`ImageZoom`](#image-zoom), follows the same rules.
+
 ## Components
 
 In `.mdx`, the components of Fumadocs UI are available by name, without an import.

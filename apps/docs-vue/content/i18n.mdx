@@ -48,10 +48,18 @@ A page without a translation shows the page of the default language, at the URL 
 
 The language is the first segment of the URL. `hideLocale` sets which languages have it:
 
-- `"never"`, the default: every language has its prefix, like `/en/guide/install` and `/cn/guide/install`. A URL without a prefix, like `/guide/install`, redirects to the page in the default language.
-- `"default-locale"`: the default language has no prefix, like `/guide/install`, while others have one, like `/cn/guide/install`.
+- `"never"`, the default: every language has its prefix, like `/en/guide/install` and `/cn/guide/install`. A URL without a prefix, like `/guide/install`, redirects to the page in the default language on a server. A static host has the redirect of `/` only.
+- `"default-locale"`: the default language has no prefix, like `/guide/install`, while others have one, like `/cn/guide/install`. On a server, a URL with the prefix of the default language, like `/en/guide/install`, redirects to the URL without it.
 
 Fumapress tells the languages apart by their prefix, so `hideLocale: "always"` fails with an error.
+
+### Links in Translated Pages
+
+A link in a page leads to the URL as it is written: the language of the page isn't added to it. In a translated page, write the prefix of its language:
+
+```md title="content/guide/index.cn.mdx"
+[安装](/cn/guide/install)
+```
 
 ## UI Texts
 

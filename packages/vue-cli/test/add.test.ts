@@ -31,6 +31,46 @@ test("lists the theme and the modules of the UI, a module with the ones inside i
   );
   // the slots and the page of a layout come with it
   expect(units.some((unit) => unit.startsWith("layouts/docs/"))).toBe(false);
+  // a folder starting with `.` is internal
+  expect(units.some((unit) => unit.split("/").some((part) => part.startsWith(".")))).toBe(false);
+});
+
+test("a copy imports an internal module from the package", () => {
+  const target = project();
+  add(target, ["i18n"]);
+  expect(readFileSync(path.join(target.uiDir, "i18n/index.ts"), "utf8")).toContain(
+    'from "@fumapress/vue/ui/.translations"',
+  );
+});
+
+test("names the modules of the package that import a copy nothing imports", () => {
+  const target = project();
+  add(target, ["theme"]);
+  // the theme gets the card from `mdx`, which imports the card of the package
+  const card = add(target, ["components/card"]);
+  expect(card.relinked).toEqual([]);
+  expect(card.unused).toEqual({ "components/card": ["mdx"] });
+
+  const mdx = add(target, ["mdx"]);
+  expect(mdx.unused).toEqual({});
+  expect(readFileSync(path.join(target.uiDir, "mdx/index.ts"), "utf8")).toContain(
+    'from "../components/card"',
+  );
+  expect(readFileSync(path.join(target.themeDir, "components.ts"), "utf8")).toContain(
+    'from "../ui/mdx"',
+  );
+});
+
+test("a copy a file of the project imports is used", () => {
+  const target = project();
+  mkdirSync(path.join(target.root, "src/pages"), { recursive: true });
+  writeFileSync(
+    path.join(target.root, "src/pages/home.vue"),
+    '<script setup>\nimport { Card } from "../ui/components/card";\n</script>\n',
+  );
+  expect(add(target, ["components/card"]).unused).toEqual({});
+  // the theme is loaded by the site
+  expect(add(target, ["theme"]).unused).toEqual({});
 });
 
 test("every module can be copied: what it imports from outside is a module of the package", () => {
@@ -114,6 +154,15 @@ test("refuses to copy the theme next to a theme module that would hide it", () =
   mkdirSync(path.join(target.root, "src"));
   writeFileSync(path.join(target.root, "src/theme.ts"), "export default {};\n");
   expect(() => add(target, ["theme"])).toThrow("src/theme.ts is the theme module of this site");
+  expect(() => add(target, ["theme"])).toThrow(
+    "Move it into the folder, for example to src/theme/own.ts, and update its relative imports",
+  );
+});
+
+test("refuses an internal module", () => {
+  expect(() => add(project(), [".translations"])).toThrow(
+    '".translations" is not a module of the UI',
+  );
 });
 
 test("refuses a name that is not a module", () => {

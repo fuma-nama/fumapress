@@ -30,6 +30,7 @@ function page(path: string, data: Record<string, unknown>): SourceFile {
         headings: [{ id: "intro", content: "Intro" }],
         contents: [{ heading: "intro", content: `Text of ${path}` }],
       },
+      markdown: `## Intro\n\nText of ${path}\n`,
     }),
   };
   return { type: "page", path, data: { ...data, _module: ref } };
@@ -283,6 +284,8 @@ test("runs middleware first, and rewrites with next(path)", async () => {
 test("serves the default plugins", async () => {
   const sitemap = await (await get("/sitemap.xml")).text();
   expect(sitemap).toContain("<loc>https://example.com/guide/install</loc>");
+  // a custom page without params is generated at build time, so it is listed too
+  expect(sitemap).toContain("<loc>https://example.com/about</loc>");
 
   const robots = await (await get("/robots.txt")).text();
   expect(robots).toContain("Sitemap: https://example.com/sitemap.xml");
@@ -290,7 +293,7 @@ test("serves the default plugins", async () => {
   const llms = await (await get("/llms.txt")).text();
   expect(llms).toContain("- [Install](https://example.com/guide/install): How to install");
 
-  // the text of a Markdown page comes from its structured data
+  // the text of a Markdown page is its Markdown, under its title
   const full = await (await get("/llms-full.txt")).text();
   expect(full).toContain("# Install\n\n## Intro\n\nText of guide/install.mdx");
 });
@@ -472,7 +475,10 @@ test("generates the not found page for static hosts", async () => {
   // the prerenderer gets the page, to write the file a static host serves
   const response = await get.prerenderer("/404.html");
   expect(response.status).toBe(200);
-  expect(await response.text()).toContain('<div id="app">missing</div>');
+  const html = await response.text();
+  expect(html).toContain('<div id="app">missing</div>');
+  // the file is served at every URL without a page: it names none as the one to prefer
+  expect(html).not.toContain('rel="canonical"');
 });
 
 test("keeps the data a page or an earlier plugin has set", async () => {
@@ -657,6 +663,22 @@ test("sends a URL without a language to the default one when none is hidden", as
   expect((await site("/cn/guide/english-only")).status).toBe(200);
   // the redirect of `/` is generated too
   expect((await prerendered(site)).paths).toContain("/");
+});
+
+test("generates the redirect of the root as a document, for a host that can't redirect", async () => {
+  const root = await i18nSite("never").prerenderer("/");
+  expect(root.status).toBe(200);
+  expect(root.headers.get("Content-Type")).toContain("text/html");
+  expect(await root.text()).toContain('<meta http-equiv="refresh" content="0; url=/en">');
+});
+
+test("sends a URL with the prefix of the hidden language to the one without it", async () => {
+  const site = i18nSite("default-locale");
+  const response = await site("/en/guide/install");
+  expect(response.status).toBe(302);
+  expect(response.headers.get("Location")).toBe("/guide/install");
+  expect((await site("/en")).headers.get("Location")).toBe("/");
+  expect((await site("/en/nope")).status).toBe(404);
 });
 
 test("refuses to hide every language", async () => {
