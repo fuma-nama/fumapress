@@ -4,7 +4,7 @@ description: A docs framework for Vue, on Vite and Nitro.
 icon: Rocket
 ---
 
-`@fumapress/vue` turns the Markdown files of a folder into a docs site. It is a Vite plugin: Nitro prerenders the pages and serves the rest, and the app navigates between them without loading a new document.
+`@fumapress/vue` turns the Markdown files of a folder into a docs site. It is a Vite plugin: Nitro prerenders the pages and serves the rest, and the app navigates between pages without loading a new document.
 
 ## What a Site Gets
 
@@ -16,22 +16,30 @@ Add the plugin to `vite.config.ts` and write pages under `content/`. Without oth
 - `/sitemap.xml`, `/robots.txt`, `/llms.txt` and `/llms-full.txt`.
 - Pages prerendered to HTML at build time, with client-side navigation after the first load.
 
-For more, a site adds `press.config.ts` (site name, links, languages, content sources), a theme module (icons, components, layouts), Vue pages under `src/pages`, and plugins with their own routes.
+## Files of a Site
 
-## Fumapress and Fumadocs
+Only `vite.config.ts` and the pages are required. The other files are optional, and each runs in its own place:
 
-`@fumapress/vue` is Fumapress for Vue. Its config and plugins have the shape of [Fumapress](https://press.fumadocs.dev) on React: the same `createPress()` chain, and plugin hooks with the same names and signatures.
+- `vite.config.ts`: the Vite plugin, with the [compile options of Markdown](/markdown#compile-options) and the [options of Nitro](/deploy#server-deployment). It runs in Vite, on the dev server and in the build.
+- `content/`: the [pages](/content) and `meta.json` files, compiled by Vite.
+- `press.config.ts`: the [content, site options, plugins and views](/config). It runs on the server only, so it can read secrets.
+- `src/theme.ts`: the [theme](/theme), which gives each page type its component and adds Markdown components and icons. It runs on the server and in the browser.
+- `src/theme.css`: the [stylesheet](/theme#styles), in place of the default one.
+- `src/pages/`: [custom pages](/pages), Vue files that render on the server and in the browser.
 
-The UI is a port of [Fumadocs UI](https://fumadocs.dev) to Vue, with the same markup and Tailwind classes. The package bundles the parts of Fumadocs it uses, so a site installs neither Fumadocs nor React.
+## Differences from Fumapress and Fumadocs
 
-### Differences
+`@fumapress/vue` is Fumapress for Vue. Its config and plugins have the shape of [Fumapress](https://press.fumadocs.dev) on React: the same `createPress()` chain, and plugin hooks with the same names and signatures. The UI is a port of [Fumadocs UI](https://fumadocs.dev) to Vue, with the same markup and Tailwind CSS classes. The package bundles the parts of Fumadocs it uses, so a site installs neither Fumadocs nor React.
 
-- The component of each page type is in [`views`](/theme#page-components) of the theme, not in `ui.renderPage` of the config, since it also runs in the browser.
-- A view returns props, and the theme names its component: a component can't be sent from the server.
-- A theme names the default theme in `extends` to build on it.
-- The compile options of Markdown are global, in the Vite plugin, and the frontmatter of a collection is validated when the server starts.
-- The [layout](/ui#choosing-a-layout) is an import in the theme, where Fumapress passes `layout` to `renderDefault`.
-- `.views()` exists, so a site adds pages of its own without a plugin.
+The differences:
+
+- The UI of a page type is a component in [`views` of the theme](/theme#page-types), where Fumapress has `ui.renderPage` in the config: the config runs on the server only, and a component runs in the browser too.
+- A [view](/plugins/views) returns props, and the theme names the component that renders them, since the server can't send a component to the browser.
+- A theme builds on the default theme or the base theme only when it names it in `extends`.
+- The [layout](/ui#choosing-a-layout) is a component the theme imports, where Fumapress passes `layout` to `renderDefault()`.
+- The [compile options](/markdown#compile-options) of Markdown are global, in the Vite plugin, where Fumadocs MDX has them per collection.
+- The frontmatter of a collection is [validated when the server starts](/content#frontmatter-schema), not when its file compiles.
+- `.views()` of `createPress()` adds the views of your site, without a plugin.
 
 ## Next Steps
 
@@ -46,7 +54,7 @@ The UI is a port of [Fumadocs UI](https://fumadocs.dev) to Vue, with the same ma
     Collections, URLs and the sidebar.
   </Card>
   <Card title="Theme" href="/theme">
-    Icons, components and layouts.
+    The components of your pages, icons and colors.
   </Card>
   <Card title="Plugins" href="/plugins">
     Routes, middleware and content hooks.

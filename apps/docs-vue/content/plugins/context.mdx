@@ -3,7 +3,7 @@ title: Context
 description: Reference of `this` in the hooks of a plugin.
 ---
 
-`this` in a hook, and in the `head` and `ui.layoutProps` options of your config, is the context of the site. It has the type `Context` of `@fumapress/vue/config`:
+`this` is the context of the site in a hook, in the functions of a view, and in the `head` and `ui.layoutProps` options of your config. Its type is `Context` of `@fumapress/vue/config`:
 
 ```ts
 createPress(docs.toFumadocsSource()).plugins({
@@ -59,8 +59,8 @@ export function blogLink(this: PressContext<typeof app>, lang: PressLang<typeof 
 - `routes`: the API routes of plugins.
 - `views`: the [views](/plugins/views) of the site and of plugins, one per language, with the path of each including its language prefix.
 - `getStaticPages()`: the URLs of the pages generated at build time, the pages of static sources and the static views.
-- `customPages`: the URLs of the [custom pages](/theme#custom-pages) generated at build time, the ones without params.
-- `getLayout({ lang })`: the layout of the content pages in a language, with its props from your config and the `layoutProps` hook of plugins.
+- `customPages`: the URLs of the [custom pages](/pages) generated at build time, the ones without params.
+- `getLayoutProps({ lang })`: the props every layout shares in a language, from `ui.layoutProps` of your config and the `layoutProps` hook of plugins.
 - `getHead(env)`: the tags of the `<head>` of a page, from your config and the `head` hook of plugins.
 
 ## URLs

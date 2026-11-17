@@ -1,6 +1,6 @@
 ---
 title: Theme
-description: Change the page components, Markdown components, icons and colors of your site with a theme module.
+description: Give each page type its component, and change the Markdown components, icons and styles of your site.
 icon: Paintbrush
 ---
 
@@ -35,16 +35,69 @@ export default defineConfig({
 
 The theme module runs on the server and in the browser, so use browser APIs only in `onMounted()` and event handlers.
 
-## Building on Another Theme
+## Page Types
 
-A theme is used as written: it has the UI of the default theme because it names the default theme in `extends`. `extends` takes a theme or a list of themes, where a later theme wins over an earlier one. Your theme adds to them:
+The pages of a site have types: the content pages of each source are one type, and the pages of each view another. `views` gives each page type its component, the view component. The keys are:
 
-- `views`, `components` and `icons` merge by name, and your entries win.
-- `head` lists are joined, with your tags last.
-- The `enhanceApp` of each theme runs, yours last.
-- `Root` and `NotFound` replace theirs.
+- The key of a source, for its content pages, like `blog` for the pages of `{ blog: blog.toFumadocsSource() }`.
+- The name of a [view](/plugins/views), of `.views()` or of a plugin.
+- `default`, for the content pages of a source without a component of its own. The default theme sets it to the docs layout.
 
-`baseTheme` of `@fumapress/vue/theme` is the default theme without a layout for content pages. A theme with [another layout](/ui#choosing-a-layout) extends it. A theme without `extends` has none of the default UI, and none of its code is in the JavaScript of your site. See [A Theme of Your Own](#a-theme-of-your-own).
+A value is a component, or a function that imports it, so only the pages that render it load its code. This theme renders the posts of the `blog` source and the `releases` view with components of its own, and the other content pages with the docs layout of the default theme:
+
+```ts title="src/theme.ts"
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import type app from "../press.config";
+
+export default defineTheme<typeof app>({
+  extends: defaultTheme,
+  views: {
+    blog: () => import("./views/BlogPost.vue"),
+    releases: () => import("./views/Releases.vue"),
+  },
+});
+```
+
+A layout is a view component too: [Choosing a Layout](/ui#choosing-a-layout) sets another one for the content pages, or for the pages of one source.
+
+### Typed View Components
+
+A view component receives one prop, `page`. `PageOf<typeof app, "blog">` of `@fumapress/vue/client` is its type, which is what the browser receives for a page of that type. A content page renders its content with `page.Content`:
+
+```vue title="src/views/BlogPost.vue"
+<script setup lang="ts">
+import type { PageOf } from "@fumapress/vue/client";
+import type app from "../../press.config";
+
+defineProps<{ page: PageOf<typeof app, "blog"> }>();
+</script>
+
+<template>
+  <article>
+    <h1>{{ page.pageData.title }}</h1>
+    <p>{{ page.data.date }}</p>
+    <component :is="page.Content" />
+  </article>
+</template>
+```
+
+The component renders the whole page, so this one has no navbar. Wrap it in the [home layout](/ui#landing-pages) for the navbar of your site, like the components of the [Blog](/content/blog) guide.
+
+A content page has:
+
+- `type`: the key of its source, `undefined` with one source.
+- `url`: its path, without the base path.
+- `data`: the frontmatter of its file, validated by its [schema](/content#frontmatter-schema), as JSON: a `Date` is a string.
+- `pageData`: its `title`, `description` and `full`, the `githubUrl` of its file, its `lastModified` date, and what plugins add with `transformPage`.
+- `toc`: its table of contents.
+- `Content`: its content, which renders Markdown with the `components` of the theme.
+
+A view has `type`, `url`, `pageData`, and `props`, what its `view` returned. A source whose pages a [plugin renders as views](/plugins/content#page-body) has `props` in place of `Content`, and needs a component under its own key.
+
+With `defineTheme<typeof app>()`, a key that isn't a page type of your site, a component whose `page` is of another type, and a page type without a component are type errors. A page type can get its component from the theme of `extends`, like the theme a plugin ships. A functional component in `views` declares its `props`, since a function without them is read as a function that imports a component.
+
+A page shows once its data, its content and its view component have loaded.
 
 ## Markdown Components
 
@@ -86,91 +139,45 @@ export default defineTheme({
 
 ## Icons
 
-`icons` are the icons of the sidebar, by the `icon` of a page or a folder:
+`icons` maps the `icon` names of pages and folders to Vue components, like the icons of `@lucide/vue`. See [Icons](/content#icons) of the content.
 
-```json title="content/guide/meta.json"
-{
-  "title": "Guide",
-  "icon": "BookOpen"
-}
-```
+## Building on Other Themes
 
-An icon is any Vue component, like the icons of `@lucide/vue`, which you install yourself. An `icon` with no component of that name stays text, so an emoji works too.
+A theme is used as written: it has the UI of the default theme because it names the default theme in `extends`. `extends` takes a theme or a list of themes, where a later theme wins over an earlier one. Your theme adds to them:
 
-## Page Components
+- `views`, `components` and `icons` merge by name, and your entries win.
+- `head` lists are joined, with your tags last.
+- The `enhanceApp` of each theme runs, yours last.
+- `Root` and `NotFound` replace theirs.
 
-`views` gives each page type its component. The keys are:
+There are two themes to build on:
 
-- The key of a source, for its content pages, like `blog` for the pages of `{ blog: blog.toFumadocsSource() }`.
-- The name of a [view](/plugins/views), of `.views()` or of a plugin.
-- `default`, for the content pages of a source without a component. The default theme sets it to the [docs layout](/ui#choosing-a-layout).
+- The default theme, `@fumapress/vue/theme/default`, renders content pages with the docs layout.
+- The base theme, `baseTheme` of `@fumapress/vue/theme`, is the default theme without a layout for content pages: its `Root`, `NotFound`, Markdown components and the script of the color mode. A theme with [another layout](/ui#choosing-a-layout) extends it, so the code of the docs layout isn't in your site.
 
-A value is a component, or a function that imports it, so only the pages that render it load its code. This theme renders the posts of the blog and the view of its index with components of its own, and the other content pages with the docs layout of the default theme:
+To change the default theme beyond its options, copy it into your project with the [CLI](/cli): `npx @fumapress/vue-cli add theme`.
+
+### A Theme Without `extends`
+
+A theme without `extends` doesn't build on the default theme: its layouts, `Root` and Markdown components aren't in the JavaScript of your site. Your theme then gives a component for every page type, with `views.default` for content pages, and `NotFound` for a URL without a page:
 
 ```ts title="src/theme.ts"
 import { defineTheme } from "@fumapress/vue/theme";
-import defaultTheme from "@fumapress/vue/theme/default";
 import type app from "../press.config";
+import NotFound from "./NotFound.vue";
+import Page from "./Page.vue";
+import Note from "./components/Note.vue";
 
 export default defineTheme<typeof app>({
-  extends: defaultTheme,
-  views: {
-    blog: () => import("./views/BlogPost.vue"),
-    "blog.index": () => import("./views/BlogIndex.vue"),
-  },
+  NotFound,
+  views: { default: Page },
+  components: { Note },
 });
 ```
 
-A component of `views` receives one prop, `page`. `PageOf<typeof app, "blog">` of `@fumapress/vue/client` is its type, which is what the browser receives for a page of that type. A content page renders its content with `page.Content`, and the [home layout](/ui#layouts) gives the page the navbar of your site:
+A page without a component fails to render, and so does a URL without a page when the theme has no `NotFound`, with an error that names what is missing. The build renders `404.html`, so it fails without `NotFound`.
 
-```vue title="src/views/BlogPost.vue"
-<script setup lang="ts">
-import type { PageOf } from "@fumapress/vue/client";
-import HomeLayout from "@fumapress/vue/theme/layouts/home";
-import type app from "../../press.config";
-
-defineProps<{ page: PageOf<typeof app, "blog"> }>();
-</script>
-
-<template>
-  <HomeLayout>
-    <article class="mx-auto w-full max-w-3xl px-4 py-12">
-      <h1 class="text-3xl font-semibold">{{ page.pageData.title }}</h1>
-      <p class="text-fd-muted-foreground">{{ page.data.date }}</p>
-      <div class="prose">
-        <component :is="page.Content" />
-      </div>
-    </article>
-  </HomeLayout>
-</template>
-```
-
-A content page has:
-
-- `type`: the key of its source, `undefined` with one source.
-- `url`: its path, without the base path.
-- `data`: the frontmatter of its file, validated by its [schema](/content#frontmatter-schema), as JSON: a `Date` is a string.
-- `pageData`: its `title` and `description`, the `githubUrl` of its file, its `lastModified` date, and what plugins add with `transformPage`.
-- `toc`: its table of contents.
-- `Content`: its content, which renders Markdown with the `components` of the theme.
-
-A view has `type`, `url`, `pageData`, and `props`, what its `view` returned. A source whose pages a plugin renders as views has `props` in place of `Content`, and needs a component in `views`.
-
-With `defineTheme<typeof app>()`, a key that isn't a page type of your site, a component whose `page` is of another type, and a page type without a component are type errors. A page type can get its component from the theme of `extends`, like the theme a plugin ships. A functional component in `views` declares its `props`, since a function without them is read as a function that imports a component.
-
-A page shows once its data, its content and the component of `views` have loaded.
-
-The page on screen is also in `usePage()` of `@fumapress/vue/client`, a ref. `usePage<typeof app>()` types it as one of the pages of your site, which narrow by `type`. The other composables of `@fumapress/vue/client` are:
-
-- `usePageTree()`: the page tree of the current language.
-- `useLayoutProps()`: the [layout props](/config#layout-props) of the site.
-- `useSite()`: the `name` and `description` of the site.
-- `usePress()`: the state of the app, with the theme.
-- `useRouter()`: the router. `route` is a ref of the page on screen, with its `path`, `query`, `hash` and `params`. `push()` and `replace()` navigate, and `resolve(path)?.href` is the URL of a page with the [base path](/deploy#base-path). `enhanceApp` receives the same router.
-
-`Link` from `@fumapress/vue/client` links to a page of the site with client-side navigation, and opens other URLs in a new tab.
-
-To start from the default theme as source code, copy it with the [CLI](/cli): `fumapress-vue add theme`.
+The [stylesheet](#styles) is still the default one until you create `src/theme.css`.
 
 ## Root
 
@@ -243,51 +250,13 @@ export default defineTheme({
 });
 ```
 
-## Custom Pages
+## Styles
 
-A `.vue` file under `src/pages` is a page of your site, at the path of the file:
+The stylesheet of your site is `src/theme.css`, or `src/theme/style.css`, when the file exists. It replaces the default stylesheet, and it is loaded with or without a theme module.
 
-- `index.vue` is `/`, and `blog/index.vue` is `/blog`.
-- `about.vue` is `/about`.
-- `blog/[slug].vue` matches one segment, like `/blog/hello`.
-- `[...path].vue` matches every URL under its folder.
+### Colors
 
-Files and folders starting with `_` aren't pages, so they can hold the components of your pages.
-
-When a custom page and a content page have the same URL, the more specific one renders. A custom page at a fixed path, like `about.vue`, wins over a content page, and a content page wins over a custom page with params. So `[...path].vue` renders the URLs nothing else has, in place of the not found page. A content page that a custom page replaces stays in the sitemap and the search index, so remove its file.
-
-Pages without params are generated at build time and listed in the sitemap, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter()` of `@fumapress/vue/client`: `useRouter().route.value.params.slug`.
-
-To give a custom page the navbar of your site, wrap it in the home layout:
-
-```vue title="src/pages/about.vue"
-<script setup lang="ts">
-import HomeLayout from "@fumapress/vue/theme/layouts/home";
-</script>
-
-<template>
-  <HomeLayout>
-    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
-      <h1 class="text-3xl font-semibold">About</h1>
-      <p class="text-fd-muted-foreground">We write docs.</p>
-    </main>
-  </HomeLayout>
-</template>
-```
-
-A custom page names its title and description with `defineOptions`. They go to the `<head>` like those of a content page, so the title ends with the name of your site:
-
-```vue title="src/pages/about.vue"
-<script setup lang="ts">
-defineOptions({ page: { title: "About", description: "Who writes these docs." } });
-</script>
-```
-
-To use another folder, set the `pagesDir` option of the Vite plugin, like `press({ pagesDir: "src/routes" })`.
-
-## Colors
-
-The colors of the UI are CSS variables like `--color-fd-primary`, and each color theme is a stylesheet of the package. To pick another one, create `src/theme.css`. Fumapress loads it in place of the default stylesheet:
+The colors of the UI are CSS variables like `--color-fd-primary`, and each color theme is a stylesheet of the package. To pick another one, import it in `src/theme.css`:
 
 ```css title="src/theme.css"
 @import "@fumapress/vue/style/ocean.css";
@@ -307,7 +276,7 @@ The color themes are `neutral`, `black`, `vitepress`, `dusk`, `catppuccin`, `oce
 }
 ```
 
-## Fonts
+### Fonts
 
 The UI uses the font variables `--font-sans` and `--font-mono`. To use another font, load it with `@font-face` in `src/theme.css` and set the variable:
 
@@ -328,9 +297,9 @@ The UI uses the font variables `--font-sans` and `--font-mono`. To use another f
 
 A `url()` relative to the stylesheet is a file of your project, like `src/fonts/Inter.woff2`, which the build includes.
 
-## Tailwind CSS
+### Tailwind CSS
 
-The stylesheets above are compiled, so a site needs no Tailwind CSS. The UI is written with Tailwind CSS classes though, and you can use them in your pages and components, or change them in a [copy of the UI](/cli). Install Tailwind CSS and add its Vite plugin:
+The stylesheets above are compiled, so a site needs no Tailwind CSS. They have the classes that the UI uses, and only those. To use other classes in your pages and components, or in a [copy of the UI](/cli), install Tailwind CSS and add its Vite plugin:
 
 ```npm
 npm install -D tailwindcss @tailwindcss/vite
@@ -352,45 +321,4 @@ Then write the stylesheet from its sources: Tailwind CSS, a color theme, and the
 @import "tailwindcss";
 @import "@fumapress/vue/css/ocean.css";
 @import "@fumapress/vue/css/preset.css";
-```
-
-## A Theme of Your Own
-
-A theme without `extends` doesn't build on the default theme: its layouts, `Root` and Markdown components aren't in the JavaScript of your site. Your theme then gives a component for every page type, with `views.default` for content pages, and `NotFound` for a URL without a page:
-
-```ts title="src/theme.ts"
-import { defineTheme } from "@fumapress/vue/theme";
-import type app from "../press.config";
-import NotFound from "./NotFound.vue";
-import Page from "./Page.vue";
-import Note from "./components/Note.vue";
-
-export default defineTheme<typeof app>({
-  NotFound,
-  views: { default: Page },
-  components: { Note },
-});
-```
-
-A page without a component fails to render, and so does a URL without a page when the theme has no `NotFound`, with an error that names what is missing. The build renders `404.html`, so it fails without `NotFound`.
-
-The [stylesheet](#colors) is still the default one until you create `src/theme.css`.
-
-## Vue Plugin Options
-
-The Vite plugin sets up `@vitejs/plugin-vue` for your `.vue` files. Its `vue` option takes the [options of the Vue plugin](https://github.com/vitejs/vite-plugin-vue/tree/main/packages/plugin-vue#options), which are added to the ones Fumapress sets, like the custom elements of your templates:
-
-```ts title="vite.config.ts"
-import { defineConfig } from "vite";
-import press from "@fumapress/vue/vite";
-
-export default defineConfig({
-  plugins: [
-    press({
-      vue: {
-        template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("x-") } },
-      },
-    }),
-  ],
-});
 ```

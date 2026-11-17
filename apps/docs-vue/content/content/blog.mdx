@@ -1,0 +1,161 @@
+---
+title: Blog
+description: Add a blog next to your docs, with a page that lists the posts.
+---
+
+A blog is a second [collection](/content#collections) of pages, a [view](/plugins/views) that lists the posts at `/blog`, and components of your [theme](/theme#page-types) that render both.
+
+## Adding a Blog
+
+### Add a Collection of Posts [step]
+
+Keep the pages of the docs and the posts in two folders, like `content/docs` and `content/blog`, since a collection of `content` would include the posts too. `defineCollections()` defines the posts, with a schema for the fields of their frontmatter:
+
+```ts title="press.config.ts"
+import { createPress } from "@fumapress/vue/config";
+import { defineCollections, defineDocs } from "@fumapress/vue/content";
+import { pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
+
+const docs = defineDocs({ dir: "content/docs" });
+const blog = defineCollections({
+  type: "doc",
+  dir: "content/blog",
+  schema: pageSchema.extend({ date: z.string(), author: z.string() }),
+});
+
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+});
+```
+
+The schema needs `zod` installed. `baseDir` puts the posts under `/blog`, so `content/blog/hello.mdx` is at `/blog/hello`:
+
+```mdx title="content/blog/hello.mdx"
+---
+title: Hello World
+description: The first post.
+date: 2026-11-01
+author: Fuma
+---
+
+Our blog is open.
+```
+
+### Leave the Posts Out of the Sidebar [step]
+
+The sources share one page tree, so the sidebar of the docs lists the posts as a `blog` folder. `"!blog"` in the `meta.json` at the root of the docs leaves the folder out:
+
+```json title="content/docs/meta.json"
+{
+  "pages": ["...", "!blog"]
+}
+```
+
+### List the Posts [step]
+
+`.views()` adds a page outside your content. The `view` of `blog.index` returns the posts of the language of the page, newest first, as the props of the page. `ui.layoutProps` adds a link to it in the navbar:
+
+```ts title="press.config.ts"
+export default createPress({
+  docs: docs.toFumadocsSource(),
+  blog: blog.toFumadocsSource({ baseDir: "blog" }),
+})
+  .views({
+    "blog.index": {
+      path: "/blog",
+      data: { title: "Blog" },
+      view({ lang }) {
+        const posts = this.getPages(lang).flatMap((page) =>
+          page.type === "blog"
+            ? [{ title: page.data.title, url: page.url, date: page.data.date }]
+            : [],
+        );
+        return { posts: posts.sort((a, b) => b.date.localeCompare(a.date)) };
+      },
+    },
+  })
+  .config({
+    ui: { layoutProps: { links: [{ text: "Blog", url: "/blog" }] } },
+  });
+```
+
+`page.data.date` is a `string`, from the schema of the collection.
+
+### Render the Posts and the List [step]
+
+The theme gives each page type its component: `blog` for the posts, and `blog.index` for the view. Without a component for `blog`, the posts render with `views.default`, the docs layout.
+
+```ts title="src/theme.ts"
+import { defineTheme } from "@fumapress/vue/theme";
+import defaultTheme from "@fumapress/vue/theme/default";
+import type app from "../press.config";
+
+export default defineTheme<typeof app>({
+  extends: defaultTheme,
+  views: {
+    blog: () => import("./views/BlogPost.vue"),
+    "blog.index": () => import("./views/BlogIndex.vue"),
+  },
+});
+```
+
+Each component receives the page as its `page` prop, typed with [`PageOf`](/theme#typed-view-components). A post has its frontmatter in `page.data` and its content in `page.Content`, and the [home layout](/ui#landing-pages) gives the page the navbar of your site:
+
+```vue title="src/views/BlogPost.vue"
+<script setup lang="ts">
+import type { PageOf } from "@fumapress/vue/client";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import type app from "../../press.config";
+
+defineProps<{ page: PageOf<typeof app, "blog"> }>();
+</script>
+
+<template>
+  <HomeLayout>
+    <article class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
+      <h1 class="text-2xl font-semibold">{{ page.pageData.title }}</h1>
+      <p class="text-fd-muted-foreground">{{ page.data.date }} by {{ page.data.author }}</p>
+      <div class="prose">
+        <component :is="page.Content" />
+      </div>
+    </article>
+  </HomeLayout>
+</template>
+```
+
+The list reads what `view` returned in `page.props`. `Link` navigates to a post without loading a new document:
+
+```vue title="src/views/BlogIndex.vue"
+<script setup lang="ts">
+import { Link, type PageOf } from "@fumapress/vue/client";
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import type app from "../../press.config";
+
+defineProps<{ page: PageOf<typeof app, "blog.index"> }>();
+</script>
+
+<template>
+  <HomeLayout>
+    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
+      <h1 class="mb-6 text-2xl font-semibold">{{ page.pageData.title }}</h1>
+      <Link
+        v-for="post in page.props.posts"
+        :key="post.url"
+        :href="post.url"
+        class="mb-2 block rounded-lg border p-4 hover:bg-fd-accent"
+      >
+        <p class="font-medium">{{ post.title }}</p>
+        <p class="text-sm text-fd-muted-foreground">{{ post.date }}</p>
+      </Link>
+    </main>
+  </HomeLayout>
+</template>
+```
+
+:::note
+The compiled stylesheet has the Tailwind CSS classes that the UI uses, like the ones above. For other classes, add [Tailwind CSS](/theme#tailwind-css) to your site, or write a `<style>` block.
+:::
+
+The posts and the list are generated at build time and listed in the sitemap, and search finds the posts like the pages of the docs.

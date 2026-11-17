@@ -6,7 +6,7 @@ description: Add pages outside your content, rendered by a Vue component of your
 A view is a page outside your content. The server gives its props, and a component of your theme renders it. `.views()` of `press.config.ts` adds the views of your site, by name. This one adds a `/releases` page that lists the pages of a `changelog` source:
 
 ```ts title="press.config.ts"
-export default createPress({ docs, changelog })
+export default createPress({ docs: docs.toFumadocsSource(), changelog })
   .plugins(changelogPlugin)
   .views({
     releases: {
@@ -23,7 +23,7 @@ export default createPress({ docs, changelog })
   .config({ site: { name: "Acme" } });
 ```
 
-`.views()` comes after `.plugins()` and before `.config()`, and each call is optional. `view` receives the `params` of the URL and its `lang`, and returns the props of the page. `this` is the [context](/plugins/context) of the site. The theme renders the page with the component of [`views`](/theme#page-components) named after the view:
+`.views()` comes after `.plugins()` and before `.config()`, and each call is optional. `view` receives the `params` of the URL and its `lang`, and returns the props of the page. `this` is the [context](/plugins/context) of the site. The theme renders the page with the component of its [`views`](/theme#page-types) named after the view:
 
 ```ts title="src/theme.ts"
 import { defineTheme } from "@fumapress/vue/theme";
@@ -37,7 +37,7 @@ export default defineTheme<typeof app>({
 });
 ```
 
-The component receives the page as its `page` prop, with the props of the view in `page.props`, and renders the whole page with its own layout. The [home layout](/ui#layouts) has the navbar of your site:
+The [view component](/theme#typed-view-components) receives the page as its `page` prop, with the props of the view in `page.props`, and renders the whole page with its own layout. The [home layout](/ui#landing-pages) has the navbar of your site:
 
 ```vue title="src/views/Releases.vue"
 <script setup lang="ts">
@@ -51,7 +51,7 @@ defineProps<{ page: PageOf<typeof app, "releases"> }>();
 <template>
   <HomeLayout>
     <div class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
-      <h1 class="mb-6 text-3xl font-semibold">{{ page.pageData.title }}</h1>
+      <h1 class="mb-6 text-2xl font-semibold">{{ page.pageData.title }}</h1>
       <ul class="flex flex-col gap-2">
         <li v-for="release in page.props.releases" :key="release.url">
           <Link :href="release.url" class="block rounded-lg border p-4 hover:bg-fd-accent">

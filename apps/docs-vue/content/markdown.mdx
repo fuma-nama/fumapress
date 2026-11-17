@@ -19,26 +19,12 @@ full: true
 ---
 ```
 
-| Field         | Use                                                                  |
-| ------------- | -------------------------------------------------------------------- |
-| `title`       | The main heading of the page, its name in the sidebar, and `<title>` |
-| `description` | Below the title, and the meta description of the page                |
-| `icon`        | The icon of the page in the sidebar, see [Icons](/content#icons)     |
-| `full`        | Use the full width of the page, without the table of contents        |
+- `title`: the main heading of the page, its name in the sidebar, and its `<title>`.
+- `description`: the text below the title, and the meta description of the page.
+- `icon`: the [icon](/content#icons) of the page in the sidebar.
+- `full`: the page uses the full width, without the table of contents.
 
-`title` is required. Since it is the main heading, start the body at `##`. Other fields need a [schema](/content#frontmatter-schema), which adds them to `page.data`, where plugins and views read them.
-
-### Dates From Git
-
-With `lastModified: true`, each page of a collection gets the date of the last commit that changed its file, as `page.data.lastModified`. The docs layout shows it below the page, and the sitemap lists it. A file that git doesn't track has no date.
-
-```ts title="press.config.ts"
-const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
-```
-
-:::warning
-A shallow clone, which CI services often make, has only the latest commits, so a page last changed before them gets a wrong date. Clone the full history, like with `fetch-depth: 0` of `actions/checkout`.
-:::
+`title` is required. Since it is the main heading, start the body at `##`. Other fields need a [schema](/content#frontmatter-schema), which adds them to `page.data`, where plugins and view components read them.
 
 ## Headings
 
@@ -178,7 +164,7 @@ A relative path is a file next to the page, which the build includes. A path sta
 
 ## Components
 
-In `.mdx`, the components of Fumadocs UI are available by name, without an import.
+In `.mdx`, the components of Fumadocs UI are available by name, without an import. The default theme registers them, see [Components](/ui/components#markdown-components) for the full list.
 
 ### Cards
 
@@ -264,7 +250,7 @@ An image that opens full size on click:
 
 `Steps` and `Step` wrap steps without the `[step]` syntax. `CodeBlockTabs` and the `Tabs` parts (`TabsList`, `TabsTrigger`, `TabsContent`) are available for custom layouts of tabs.
 
-To make your own components available by name, add them to the `components` of the [theme](/theme).
+To make your own components available by name, add them to the [`components` of the theme](/theme#markdown-components).
 
 ## Vue Components
 

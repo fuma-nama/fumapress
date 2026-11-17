@@ -84,26 +84,9 @@ npm run build
 
 A site with only Markdown content works from `.output/public` on any static host. To check the build locally, run `npm run preview`. See [Deploy](/deploy) to put it online.
 
-## Configuring the Site
-
-`press.config.ts` is optional. Without it, the site uses the pages of `content/` with the default plugins: sitemap, `robots.txt`, `llms.txt` and search. The file below does the same, and adds a site name:
-
-```ts title="press.config.ts"
-import { createPress } from "@fumapress/vue/config";
-import { defineDocs } from "@fumapress/vue/content";
-
-const docs = defineDocs({ dir: "content" });
-
-export default createPress(docs.toFumadocsSource()).config({
-  site: { name: "My Docs" },
-});
-```
-
-See [Configuration](/config) for the other options.
-
 ## TypeScript
 
-A site needs no TypeScript. To type-check your config, theme and pages, install `typescript@6` and `vue-tsc`, and add a `tsconfig.json`. `vue-tsc` runs on the JavaScript API of TypeScript, which TypeScript 7 doesn't have.
+A site needs no TypeScript. To type-check your config, theme and pages, install `typescript@6` and `vue-tsc`, and add a `tsconfig.json`:
 
 ```json title="tsconfig.json"
 {
@@ -121,4 +104,22 @@ A site needs no TypeScript. To type-check your config, theme and pages, install 
 }
 ```
 
-`npx vue-tsc --noEmit` checks the project. The UI of the package is source code, which `vue-tsc` checks with your files: it is written for ES2023, so `lib` can't be older.
+Then run `npx vue-tsc --noEmit`. It checks the UI of the package with your files, which is written for ES2023, so `lib` can't be older.
+
+:::note
+`vue-tsc` runs on the JavaScript API of TypeScript, which TypeScript 7 doesn't have, so install TypeScript 6.
+:::
+
+## Next Steps
+
+<Cards>
+  <Card title="Site Name and Links" href="/config">
+    Name your site, and add links to the navbar.
+  </Card>
+  <Card title="Another Layout" href="/ui#choosing-a-layout">
+    Render your pages with the notebook, glass, spacious or flux layout.
+  </Card>
+  <Card title="A Blog" href="/content/blog">
+    Add a collection of posts with a page that lists them.
+  </Card>
+</Cards>

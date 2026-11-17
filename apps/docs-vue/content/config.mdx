@@ -25,12 +25,7 @@ The file can also be `press.config.mts`, `press.config.js` or `press.config.mjs`
 
 ## Content, Plugins and Views
 
-`createPress(source, options)` takes your [content sources](/content/sources), like the [collection](/content#collections) of `defineDocs()`, and these options:
-
-- `i18n`: your [languages](/i18n).
-- `loaderPlugins`, `slugs`, `url`, `pageTree` and the other options of the Fumadocs content loader.
-
-`.plugins()` adds [plugins](/plugins), `.views()` adds the [views](/plugins/views) of your site, then `.config()` sets the options of the site. Each call is optional, in this order.
+`createPress()` takes your [content sources](/content/sources) and their [options](/content/sources#content-options), like the languages of the site. Then `.plugins()` adds [plugins](/plugins), `.views()` adds the [views](/plugins/views) of your site, and `.config()` sets the options on this page. Each call is optional, in this order:
 
 ```ts title="press.config.ts"
 export default createPress(docs.toFumadocsSource(), { i18n })
@@ -39,7 +34,7 @@ export default createPress(docs.toFumadocsSource(), { i18n })
   .config({ site, head, ui });
 ```
 
-The site takes its types from the content: `page.data` has the fields of its source, and plugins, views and options receive the pages and languages of the site. Other files read these types with a type-only import, like `PressContext<typeof app>` for the [context](/plugins/context) of the site.
+The site takes its types from the content: `page.data` has the fields of its source, and plugins, views and options receive the pages and languages of the site. Other files read these types with a type-only import of `press.config.ts`, like `PageOf<typeof app, "blog">` in a [view component](/theme#typed-view-components).
 
 ## Site
 
@@ -124,7 +119,7 @@ A tag with a key replaces the tag of the same key from plugins and defaults. The
 
 ## Layout Props
 
-`ui.layoutProps` sets the props that every layout shares, like the links of the navbar. The [theme](/ui#choosing-a-layout) picks the layout.
+`ui.layoutProps` sets the props that every layout shares, like the links of the navbar. The [theme](/ui#choosing-a-layout) picks the layout of each page type.
 
 - `nav`: the `title` of the navbar and the `url` it links to. They default to `site.name` and the home page.
 - `links`: links in the navbar, each with `text`, `url` and an optional `external`. A link with `type: "menu"` has `items`, the links of its menu.
@@ -145,22 +140,10 @@ createPress(docs.toFumadocsSource()).config({
 });
 ```
 
-On a site with languages, pass a function of `{ lang }` to return links per language. `this` is the context of the site, so `this.localizePath()` gives a path in that language.
-
-```ts title="press.config.ts"
-createPress(docs.toFumadocsSource(), { i18n }).config({
-  ui: {
-    layoutProps({ lang }) {
-      return {
-        links: [{ text: lang === "cn" ? "博客" : "Blog", url: this.localizePath(lang, "/blog") }],
-      };
-    },
-  },
-});
-```
+On a site with languages, `ui.layoutProps` can be a function of the language, see [Links per Language](/i18n#links-per-language).
 
 :::note
-Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. The props of one layout, the props of its page, and values like components go in the [`layoutProps` and `pageProps`](/ui#layout-and-page-props) of the layout in your theme.
+Layout props are sent to the browser, so every value must be serializable: text, numbers, lists and plain objects. Props of one layout, and values like components, are [props of the layout component](/ui#layout-and-page-props) in your theme.
 :::
 
 ## Default Plugins
@@ -185,30 +168,32 @@ createPress(docs.toFumadocsSource()).config({
 
 Set `preset: []` to leave out every default plugin.
 
-To replace a default plugin with your own instance, set it to `false` in `recommendedPreset()` and list yours in `.plugins()`. A plugin listed twice fails with an error.
+To use a plugin of your own in place of a default one, see [Replacing a Default Plugin](/plugins#replacing-a-default-plugin).
 
 ### Leaving Pages Out
 
-`sitemap`, `llms` and `search` take a `filter`. A content page that `filter` returns `false` for isn't listed by that plugin, while the page itself still renders. `filter` receives the pages of your site. This config leaves out the pages with `unlisted: true` in their frontmatter:
+`sitemap`, `llms` and `search` take a `filter`. A content page that `filter` returns `false` for isn't listed by that plugin, while the page itself still renders. `filter` receives the pages of your site, typed by their [schema](/content#frontmatter-schema). This config leaves out the pages with `unlisted: true` in their frontmatter:
 
 ```ts title="press.config.ts"
 import { createPress, recommendedPreset } from "@fumapress/vue/config";
+import { defineDocs } from "@fumapress/vue/content";
+import { pageSchema } from "@fumapress/vue/schema";
+import { z } from "zod";
 
-const listed = (page: { data: Record<string, unknown> }) => page.data.unlisted !== true;
+const docs = defineDocs({
+  dir: "content",
+  docs: { schema: pageSchema.extend({ unlisted: z.boolean().default(false) }) },
+});
 
-createPress(docs.toFumadocsSource()).config({
+export default createPress(docs.toFumadocsSource()).config({
   preset: recommendedPreset({
-    sitemap: { filter: listed },
-    llms: { filter: listed },
-    search: { filter: listed },
+    sitemap: { filter: (page) => !page.data.unlisted },
+    llms: { filter: (page) => !page.data.unlisted },
+    search: { filter: (page) => !page.data.unlisted },
   }),
 });
 ```
 
 ## How Options Merge
 
-Plugins return head tags and layout props too. Your own options win, then plugins in the order you list them, then the default plugins.
-
-- Head tags merge by key, as described in [Head](#head).
-- In layout props, the first value set wins, while lists like `links` concatenate: your links come first.
-- The [`layoutProps`](/ui#layout-and-page-props) of a layout in the theme win over `ui.layoutProps`, with the same merge.
+Plugins return head tags and layout props too. Your own options win, then plugins in the order you list them, then the default plugins. In layout props, lists like `links` concatenate, with your links first. See [Merging Results](/plugins#merging-results) for each hook.

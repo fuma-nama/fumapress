@@ -5,19 +5,16 @@ description: The components of the UI and where to import them from.
 
 Every module is imported by its folder, like `@fumapress/vue/ui/components/card`. The components work as in [Fumadocs UI](https://fumadocs.dev/docs/ui/components), with slots in place of React nodes.
 
-```vue title="src/pages/index.vue"
+```vue title="src/components/NextSteps.vue"
 <script setup lang="ts">
-import HomeLayout from "@fumapress/vue/theme/layouts/home";
 import { Card, Cards } from "@fumapress/vue/ui/components/card";
 </script>
 
 <template>
-  <HomeLayout>
-    <Cards class="mx-auto max-w-(--fd-layout-width) p-4">
-      <Card title="Quick Start" href="/quick-start">Create your first site.</Card>
-      <Card title="Theme" href="/theme">Change the UI of your site.</Card>
-    </Cards>
-  </HomeLayout>
+  <Cards>
+    <Card title="Quick Start" href="/quick-start">Create your first site.</Card>
+    <Card title="Theme" href="/theme">Change the UI of your site.</Card>
+  </Cards>
 </template>
 ```
 

@@ -41,7 +41,7 @@ content/
 
 `meta.cn.json` translates the `title` of the folder and its order of pages. Files without a language, like `install.mdx`, are in the default language.
 
-To use a folder per language instead, like `cn/guide/install.mdx`, set `parser: "dir"` in `defineI18n()`.
+To use a folder per language instead, like `cn/guide/install.mdx`, set `parser: "dir"` in `defineI18n()`. The folder of a language is then the first one of the URL, before the `baseDir` of a source, so `docs.toFumadocsSource({ baseDir: "docs" })` puts `content/cn/guide.mdx` at `/cn/docs/guide`.
 
 ### Fallback Language
 
@@ -126,9 +126,7 @@ export default createPress(docs.toFumadocsSource(), { i18n }).config({
 });
 ```
 
-With `parser: "dir"`, the folder of a language stays the first one of the URL. The `baseDir` of a source comes after it, so `docs.toFumadocsSource({ baseDir: "docs" })` puts `content/cn/guide.mdx` at `/cn/docs/guide`.
-
-## Plugins
+## Plugins and Views
 
 The default plugins and your views follow the languages of the site:
 

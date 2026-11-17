@@ -1,0 +1,94 @@
+---
+title: Custom Pages
+description: Add pages of your own as Vue files, and read the site from your components.
+icon: Component
+---
+
+A `.vue` file under `src/pages` is a page of your site, at the path of the file. This one is `/about`, with the navbar of your site from the [home layout](/ui#landing-pages):
+
+```vue title="src/pages/about.vue"
+<script setup lang="ts">
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+
+defineOptions({ page: { title: "About", description: "Who writes these docs." } });
+</script>
+
+<template>
+  <HomeLayout>
+    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
+      <h1 class="text-2xl font-semibold">About</h1>
+      <p class="text-fd-muted-foreground">We write docs.</p>
+    </main>
+  </HomeLayout>
+</template>
+```
+
+`page` of `defineOptions` sets the title and description of the page. They go to the `<head>` like those of a content page, so the title ends with the name of your site.
+
+A custom page renders on the server and hydrates in the browser, so use browser APIs only in `onMounted()` and event handlers. Its classes need to be in the stylesheet of your site: the compiled one has the classes that the UI uses, like the ones above, and [Tailwind CSS](/theme#tailwind-css) adds the others.
+
+## Paths
+
+- `index.vue` is `/`, and `blog/index.vue` is `/blog`.
+- `about.vue` is `/about`.
+- `blog/[slug].vue` matches one segment, like `/blog/hello`.
+- `[...path].vue` matches every URL under its folder.
+
+Files and folders starting with `_` aren't pages, so they can hold the components of your pages. To use another folder than `src/pages`, set the `pagesDir` option of the Vite plugin, like `press({ pagesDir: "src/routes" })`.
+
+When a custom page and a content page have the same URL, the more specific one renders. A custom page at a fixed path, like `about.vue`, wins over a content page, and a content page wins over a custom page with params. So `[...path].vue` renders the URLs nothing else has, in place of the not found page.
+
+:::note
+A content page that a custom page replaces stays in the sitemap and the search index, so remove its file.
+:::
+
+Pages without params are generated at build time and listed in the sitemap, while pages with params, like `blog/[slug].vue`, render on demand, so they need a [deployment](/deploy) with a server. Read the params with `useRouter().route.value.params`, like `params.slug`.
+
+## Reading the Site
+
+`@fumapress/vue/client` has composables that read the site, in a custom page or in any component of your site:
+
+- `usePage()`: a ref of the page on screen, a content page or a view, `undefined` on a custom page. `usePage<typeof app>()` types it as one of the pages of your site, which narrow by `type`.
+- `usePageTree()`: the page tree of the current language.
+- `useLayoutProps()`: the [layout props](/config#layout-props) of the site.
+- `useSite()`: the `name` and `description` of the site.
+- `useLoad()`: the value of a [data route](/plugins/routes#data-routes).
+- `useRouter()`: the router. `route` is a ref of the page on screen, with its `path`, `query`, `hash` and `params`. `push()` and `replace()` navigate, and `resolve(path)?.href` is the URL of a page with the [base path](/deploy#base-path).
+- `usePress()`: the state of the app, with the theme.
+
+`Link` links to a page of the site with client-side navigation, and opens other URLs in a new tab. This page links to the pages at the top of the page tree:
+
+```vue title="src/pages/overview.vue"
+<script setup lang="ts">
+import { Link, usePageTree } from "@fumapress/vue/client";
+
+const pages = usePageTree().children.filter((node) => node.type === "page");
+</script>
+
+<template>
+  <nav>
+    <Link v-for="page in pages" :key="page.url" :href="page.url">{{ page.name }}</Link>
+  </nav>
+</template>
+```
+
+A path of the site is written without the base path, and `Link` adds it.
+
+## Vue Plugin Options
+
+The Vite plugin sets up `@vitejs/plugin-vue` for your `.vue` files. Its `vue` option takes the [options of the Vue plugin](https://github.com/vitejs/vite-plugin-vue/tree/main/packages/plugin-vue#options), which are added to the ones Fumapress sets, like the custom elements of your templates:
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import press from "@fumapress/vue/vite";
+
+export default defineConfig({
+  plugins: [
+    press({
+      vue: {
+        template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("x-") } },
+      },
+    }),
+  ],
+});
+```

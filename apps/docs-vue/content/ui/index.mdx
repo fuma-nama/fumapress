@@ -1,21 +1,21 @@
 ---
 title: UI
 description: The layouts and components of your site, from Fumadocs UI ported to Vue.
-icon: Component
+icon: Blocks
 ---
 
 The UI of Fumapress for Vue is [Fumadocs UI](https://fumadocs.dev/docs/ui) ported to Vue, with Reka UI in place of Base UI. The default theme uses it, and your theme and custom pages can import any part of it from `@fumapress/vue/ui/<path>`:
 
 ```ts
-import { DocsLayout } from "@fumapress/vue/ui/layouts/docs";
 import { Callout } from "@fumapress/vue/ui/components/callout";
+import { DocsLayout } from "@fumapress/vue/ui/layouts/docs";
 ```
 
 The modules follow the files of Fumadocs UI: a component has the same name, DOM, class names and props. A prop taking a node or a render function in React is a slot of the same name in Vue, and a hook is a composable of the same name. The [components](/ui/components) page lists the modules.
 
 ## Layouts
 
-A layout renders a content page with the navigation of your site. Each one is a component of `@fumapress/vue/theme/layouts`, built on the module of the same name under `@fumapress/vue/ui/layouts`:
+A layout renders a content page with the navigation of your site. Each one is a view component of `@fumapress/vue/theme/layouts/<name>`, built on the module of the same name under `@fumapress/vue/ui/layouts`:
 
 - `docs`: the default. A sidebar on the left with the title, search and page tree, the page in the middle and its table of contents on the right.
 - `notebook`: a navbar across the top of the page, with the sidebar under it. `tabMode: "navbar"` shows the tabs of root folders in the navbar.
@@ -23,25 +23,11 @@ A layout renders a content page with the navigation of your site. Each one is a 
 - `spacious`: the page on a panel inside a frame of the card color, with a header above the page.
 - `flux`: no navbar. A floating panel at the bottom of the screen holds the title, the tabs and the tools, and the sidebar opens from it.
 
-The `home` layout has the navbar of your site and no sidebar. It wraps landing pages, [views](/plugins/views) and [custom pages](/theme#custom-pages), and renders its default slot:
-
-```vue title="src/pages/index.vue"
-<script setup lang="ts">
-import HomeLayout from "@fumapress/vue/theme/layouts/home";
-</script>
-
-<template>
-  <HomeLayout>
-    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
-      <h1 class="text-3xl font-semibold">Acme Docs</h1>
-    </main>
-  </HomeLayout>
-</template>
-```
+The `home` layout has the navbar of your site and no sidebar, for [landing pages](#landing-pages).
 
 ## Choosing a Layout
 
-The default theme renders content pages with the docs layout. To use another layout, extend the base theme and set the layout as `views.default`:
+The default theme renders content pages with the docs layout. To use another layout, extend the base theme and set the layout as `views.default` of your [theme](/theme#page-types):
 
 ```ts title="src/theme.ts"
 import { baseTheme, defineTheme } from "@fumapress/vue/theme";
@@ -56,15 +42,54 @@ export default defineTheme<typeof app>({
 
 The base theme is the default theme without a layout for content pages. Extend it rather than the default theme, since a theme extending the default theme keeps the code of the docs layout in your site, even with another `views.default`.
 
-Your site loads the code of the layouts your theme imports, so the code of the other layouts is in no page. To render the pages of one source with another layout, set the layout under the key of that source instead of `default`.
+A layout under the key of a source renders the pages of that source only. With [multiple sources](/content/sources#multiple-sources), this theme renders the guides in the notebook layout and the API reference in the docs layout:
+
+```ts title="src/theme.ts"
+import { baseTheme, defineTheme } from "@fumapress/vue/theme";
+import DocsLayout from "@fumapress/vue/theme/layouts/docs";
+import NotebookLayout from "@fumapress/vue/theme/layouts/notebook";
+import type app from "../press.config";
+
+export default defineTheme<typeof app>({
+  extends: baseTheme,
+  views: { default: NotebookLayout, api: DocsLayout },
+});
+```
+
+Your site loads the code of the layouts your theme imports, so the code of the other layouts is in no page.
 
 :::note
 The `flux` layout animates with `motion-v`, which isn't installed with Fumapress. Install it in a site that imports the flux layout: `npm install motion-v`.
 :::
 
-### Layout and Page Props
+## Landing Pages
 
-A layout takes `layoutProps`, the props of its layout, and `pageProps`, the props of its page. They are typed by the layout, so a prop of another layout is a type error, and they can hold components and functions. To set them, render the layout in a component of `views`. This one renders the content pages in the `notebook` layout, with a logo as the title of its navbar:
+The home layout renders its default slot under the navbar of your site. Wrap a [custom page](/pages) in it for a landing page, and do the same in the components of [views](/plugins/views) and of page types that don't use a docs layout:
+
+```vue title="src/pages/index.vue"
+<script setup lang="ts">
+import HomeLayout from "@fumapress/vue/theme/layouts/home";
+import { Card, Cards } from "@fumapress/vue/ui/components/card";
+</script>
+
+<template>
+  <HomeLayout>
+    <main class="mx-auto w-full max-w-(--fd-layout-width) px-4 py-12">
+      <h1 class="mb-6 text-2xl font-semibold">Acme Docs</h1>
+      <Cards>
+        <Card title="Quick Start" href="/docs/quick-start">Create your first site.</Card>
+        <Card title="Theme" href="/docs/theme">Change the UI of your site.</Card>
+      </Cards>
+    </main>
+  </HomeLayout>
+</template>
+```
+
+`src/pages/index.vue` is at `/`, where it wins over `content/index.mdx`. Put the docs under a prefix with `toFumadocsSource({ baseDir: "docs" })`, so they start at `/docs`.
+
+## Layout and Page Props
+
+A layout takes `layoutProps`, the props of its layout, and `pageProps`, the props of its page. They are typed by the layout, so a prop of another layout is a type error, and they can hold components and functions. To set them, render the layout in a view component of your own. This one renders the content pages in the `notebook` layout, with a logo as the title of its navbar:
 
 ```vue title="src/DocsPage.vue"
 <script setup lang="ts">
@@ -94,6 +119,6 @@ export default defineTheme({
 });
 ```
 
-`layoutProps` win over the [layout props](/config#layout-props) of the config, which set what every layout shares, like the links of the navbar. `pageProps` win over the data of the page, like the `full` of its frontmatter. The home layout takes `layoutProps` too.
+`ContentPage` is a content page of any source. `layoutProps` win over the [layout props](/config#layout-props) of the config, which set what every layout shares, like the links of the navbar. `pageProps` win over the data of the page, like the `full` of its frontmatter. The home layout takes `layoutProps` too.
 
-`ContentPage` is a content page of any source. For a change the props of a layout don't cover, copy the layout into your project with the [CLI](/cli) and edit it.
+For a change the props of a layout don't cover, copy the layout into your project with the [CLI](/cli) and edit it.

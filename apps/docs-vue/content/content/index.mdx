@@ -1,6 +1,6 @@
 ---
 title: Content
-description: Organize pages into URLs and a sidebar.
+description: Organize pages into collections, URLs and a sidebar.
 icon: Blocks
 ---
 
@@ -10,12 +10,9 @@ Each Markdown or MDX file under `content/` is a page, and the sidebar lists them
 
 The URL of a page comes from its file path:
 
-| File                          | URL                |
-| ----------------------------- | ------------------ |
-| `content/index.mdx`           | `/`                |
-| `content/getting-started.mdx` | `/getting-started` |
-| `content/guide/index.mdx`     | `/guide`           |
-| `content/guide/install.md`    | `/guide/install`   |
+- `content/index.mdx` is `/`, and `content/guide/index.mdx` is `/guide`.
+- `content/getting-started.mdx` is `/getting-started`.
+- `content/guide/install.md` is `/guide/install`.
 
 Files and folders starting with `_` aren't pages, so they can hold [partials](/markdown#partials) next to your pages.
 
@@ -34,9 +31,9 @@ const docs = defineDocs({ dir: "content" });
 export default createPress(docs.toFumadocsSource());
 ```
 
-`dir` is the folder from the root of the project, `content/docs` by default. For a second folder, like a blog, see [Multiple Sources](/content/sources#multiple-sources).
+`dir` is the folder from the root of the project. It defaults to `content/docs`, as in Fumadocs, so a site with its pages in `content` sets it. For a second folder, see [Multiple Sources](/content/sources#multiple-sources), and for a blog, [Blog](/content/blog).
 
-`defineDocs()` and `defineCollections()` are macros, like those of [Fumadocs MDX](https://fumadocs.dev/docs/mdx/macro). The Vite plugin reads their calls without running `press.config.ts`, and compiles each call to imports of the files of its folder. So a call follows two rules:
+`defineDocs()` and `defineCollections()` are macros, like those of [Fumadocs MDX](https://fumadocs.dev/docs/mdx/macro). The Vite plugin reads their calls in `press.config.ts` without running the file, and compiles each call to imports of the files of its folder. So a call follows two rules:
 
 - It is the value of a top-level `const`, like `const docs = defineDocs({ ... })`.
 - `dir`, `files`, `type` and `lastModified` are literals, not variables or expressions.
@@ -78,9 +75,23 @@ const docs = defineDocs({
 export default createPress(docs.toFumadocsSource());
 ```
 
-`page.data.author` is a `string` in plugins and views, without a type annotation. `meta.schema` validates the `meta.json` files the same way.
+`page.data.author` is a `string` in plugins and view components, without a type annotation. `meta.schema` validates the `meta.json` files the same way.
 
 The server validates every page and `meta.json` when it starts. A file that doesn't match its schema fails the build, and the dev server shows the error, with the file and each of its issues.
+
+### Dates From Git
+
+`lastModified: true` gives each page of a collection the date of the last commit that changed its file, as `page.data.lastModified`. The docs layout shows it below the page, and the sitemap lists it. A file that git doesn't track has no date.
+
+```ts title="press.config.ts"
+const docs = defineDocs({ dir: "content", docs: { lastModified: true } });
+```
+
+In `defineCollections()`, `lastModified` is an option of the call, next to `dir`.
+
+:::warning
+A shallow clone, which CI services often make, has only the latest commits, so a page last changed before them gets a wrong date. Clone the full history, like with `fetch-depth: 0` of `actions/checkout`.
+:::
 
 ## Sidebar
 
@@ -101,15 +112,13 @@ The sidebar lists the pages and folders of the content. Add a `meta.json` to a f
 }
 ```
 
-| Field         | Use                                            |
-| ------------- | ---------------------------------------------- |
-| `title`       | The name of the folder in the sidebar          |
-| `icon`        | The icon of the folder, see [Icons](#icons)    |
-| `defaultOpen` | Open the folder in the sidebar by default      |
-| `pages`       | The pages and folders of the folder, in order  |
-| `root`        | Make the folder a [root folder](#root-folders) |
+- `title`: the name of the folder in the sidebar.
+- `icon`: the [icon](#icons) of the folder.
+- `defaultOpen`: the folder is open in the sidebar by default.
+- `pages`: the pages and folders of the folder, in order.
+- `root`: the folder is a [root folder](#root-folders).
 
-Items of `pages` are file names without the extension, or folder names. `"..."` adds the pages that aren't listed, and `"---Guides---"` adds a separator with the text "Guides". `"!name"` leaves a page out of `"..."`, so the sidebar doesn't list it, while the page still exists at its URL:
+Items of `pages` are file names without the extension, or folder names. `"..."` adds the pages that aren't listed, and `"---Guides---"` adds a separator with the text "Guides". `"!name"` leaves a page or a folder out of `"..."`, so the sidebar doesn't list it, while the page still exists at its URL:
 
 ```json title="content/meta.json"
 {
@@ -132,7 +141,7 @@ A folder with `"root": true` is a tab of the sidebar, for separate parts of the 
 
 ## Icons
 
-The `icon` of a page or a folder is a name. Map the names to components in the `icons` of the [theme](/theme):
+The `icon` of a page or a folder is a name. Map the names to Vue components in the `icons` of the [theme](/theme):
 
 ```ts title="src/theme.ts"
 import { BookOpen, Rocket } from "@lucide/vue";
@@ -145,7 +154,7 @@ export default defineTheme({
 });
 ```
 
-`src/theme.ts` is found by default, and `@lucide/vue` is a package to install. A name without a component is shown as text, so an emoji works as an icon too:
+`@lucide/vue` is a package to install, and any Vue component works as an icon. A name without a component is shown as text, so an emoji works as an icon too:
 
 ```mdx title="content/index.mdx"
 ---

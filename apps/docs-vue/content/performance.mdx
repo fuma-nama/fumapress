@@ -10,17 +10,17 @@ These numbers come from one site of 1,001 Markdown pages, built with `@fumapress
 
 | Measure                    | Fumapress Vue      | VitePress           |
 | -------------------------- | ------------------ | ------------------- |
-| Build time                 | 10.5 to 11.9 s     | 20.7 to 22.1 s      |
+| Build time                 | 9.5 to 10.5 s      | 20.7 to 22.1 s      |
 | HTML of a page, gzip       | 9.6 kB             | 11.9 kB             |
-| JavaScript of a page, gzip | 98.5 kB            | 77.0 kB             |
+| JavaScript of a page, gzip | 99.2 kB            | 77.0 kB             |
 | CSS of a page, gzip        | 19.2 kB            | 17.6 kB             |
-| Navigation to another page | 26 to 30 ms        | 90 to 128 ms        |
+| Navigation to another page | 26 to 35 ms        | 90 to 128 ms        |
 | Size of the output         | 178 MB             | 408 MB              |
 | Installed size             | 69 MB, 56 packages | 95 MB, 105 packages |
 
-The build takes half the time, and the output and the install are smaller. A navigation, measured from the click to the next page on screen, is faster because the sidebar only renders the folders that are open: the page has 830 elements, against 6,660 with VitePress.
+The build takes half the time, and the output and the install are smaller. A navigation, measured from the click to the next page on screen, is faster because the sidebar only renders the folders that are open: the page has 810 elements, against 6,660 with VitePress.
 
-The JavaScript of a page is 21 kB larger. The UI is a port of Fumadocs UI, with its sidebar, table of contents, popovers and class merging, on top of Vue. Neither site has a task longer than 50 ms while a page loads.
+The JavaScript of a page is 22 kB larger. The UI is a port of Fumadocs UI, with its sidebar, table of contents, popovers and class merging, on top of Vue. Neither site has a task longer than 50 ms while a page loads.
 
 ## What a Page Loads
 
@@ -39,7 +39,7 @@ The search index is loaded on the first search. It holds the text of every page 
 
 ## Development
 
-`vite dev` answers its first page 1.4 seconds after it is started on the measured site, most of it reading the 1,001 files. A page opened after that renders on the server in 0.1 s.
+`vite dev` answers its first page 1.7 seconds after it is started on the measured site, most of it reading the 1,001 files. A page opened after that renders on the server in 0.1 s.
 
 The two frameworks differ here. VitePress answers the first request in 0.4 s after its start, with an empty document that the browser renders once it has loaded the app. Fumapress sends the rendered page, as it does in production, so what you see while writing is what a reader gets.
 

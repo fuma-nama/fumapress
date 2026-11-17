@@ -17,7 +17,7 @@ The CLI copies from the `@fumapress/vue` package installed in your project.
 <Steps>
 <Step>
 
-### Copy the theme
+### Copy the Theme
 
 ```npm
 npx @fumapress/vue-cli add theme
@@ -28,7 +28,7 @@ The default theme lands in `src/theme`, where Fumapress picks up `src/theme/inde
 </Step>
 <Step>
 
-### Copy the layout
+### Copy the Layout
 
 ```npm
 npx @fumapress/vue-cli add layouts/docs
@@ -45,7 +45,7 @@ The layout lands in `src/ui/layouts/docs`, and `src/theme/layouts/Docs.vue` now 
 </Step>
 <Step>
 
-### Edit the copy
+### Edit the Copy
 
 Change the files under `src/ui/layouts/docs`. The pages of your site render with them.
 
@@ -96,6 +96,17 @@ Your copies import packages your project doesn't depend on yet. Add them:
   npm install class-variance-authority@^0.7.1
 ```
 
+### Copies Nothing Imports
+
+Your site uses a copy only when a file of your project imports it. The theme and the other modules of the package import the modules of the package, so a copy nothing imports changes nothing. The CLI then lists the modules of the package that import it:
+
+```
+Nothing in your project imports your copy of components/card yet, so your site doesn't use it. Copy a module that imports it, or import it from a file of your project:
+  fumapress-vue add mdx
+```
+
+Copy one of them. After `add mdx`, your copy of `mdx` imports your copy of the card, and your copy of the theme imports your copy of `mdx`. The CLI doesn't copy them for you, since a module like `components/ui/button` is imported by most of the UI.
+
 ### Primitives
 
 The UI is built on [Reka UI](https://reka-ui.com), and the package includes the primitives it uses, so there is nothing to install. A copy imports them by family, with every part of the family available:
@@ -109,12 +120,3 @@ The families are `accordion`, `collapsible`, `config-provider`, `dialog`, `dropd
 :::warning
 For another primitive, like a tooltip, install `reka-ui`. Don't mix the two inside one family: a `DialogClose` of `reka-ui` doesn't find a `DialogRoot` of `@fumapress/vue/reka/dialog`.
 :::
-
-Your site uses a copy only when a file of your project imports it. The theme and the other modules of the package import the modules of the package, so a copy nothing imports changes nothing. The CLI then lists the modules of the package that import it:
-
-```
-Nothing in your project imports your copy of components/card yet, so your site doesn't use it. Copy a module that imports it, or import it from a file of your project:
-  fumapress-vue add mdx
-```
-
-Copy one of them. After `add mdx`, your copy of `mdx` imports your copy of the card, and your copy of the theme imports your copy of `mdx`. The CLI doesn't copy them for you, since a module like `components/ui/button` is imported by most of the UI.

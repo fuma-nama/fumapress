@@ -44,22 +44,31 @@ Each plugin needs a unique `name`. A site with two plugins of the same name fail
 
 ## Hooks
 
-| Hook                    | What it does                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------ |
-| `routes`                | Adds [API routes](/plugins/routes) and [pages](/plugins/views).                                  |
-| `middleware`            | Handles every request before the routes and pages. See [Middleware](/plugins/routes#middleware). |
-| `head`                  | Adds tags to the `<head>` of a page.                                                             |
-| `layoutProps`           | Adds navbar links and other props of the layouts, per language.                                  |
-| `transformPage`         | Adds to the data of a page that the browser receives, like its title.                            |
-| `getPageBody`           | Renders the pages of a [content source](/plugins/content).                                       |
-| `getPageToc`            | Gives the table of contents of a page.                                                           |
-| `getPageText`           | Gives the Markdown of a page, for `llms-full.txt`.                                               |
-| `getPageStructuredData` | Gives the headings and text of a page, for search.                                               |
-| `getPageLastModified`   | Gives the date a page last changed, for the sitemap and the page.                                |
-| `init`                  | Runs when the site starts, before the content loads.                                             |
-| `configureLoader`       | Adds options to the Fumadocs content loader.                                                     |
-| `configure`             | Runs when the site starts, after the content loads.                                              |
-| `build`                 | Runs once when the site is built. See [Build](/plugins/build).                                   |
+Routes and requests:
+
+- `routes` adds [API routes](/plugins/routes) and [views](/plugins/views).
+- `middleware` handles every request before the routes and pages, see [Middleware](/plugins/routes#middleware).
+- `build` runs once when the site is built, see [Build Hook](/plugins/build).
+
+Pages and layouts:
+
+- `head` adds tags to the `<head>` of a page.
+- `layoutProps` adds navbar links and other props of the layouts, per language.
+- `transformPage` adds to the data of a page that the browser receives, like its title.
+
+[Content hooks](/plugins/content), which render the pages of a content source:
+
+- `getPageBody` gives the content of a page.
+- `getPageToc` gives its table of contents.
+- `getPageText` gives its Markdown, for `llms-full.txt`.
+- `getPageStructuredData` gives its headings and text, for search.
+- `getPageLastModified` gives the date it last changed, for the sitemap and the page.
+
+[Startup hooks](/plugins/content#startup-hooks):
+
+- `init` runs when the site starts, before the content loads.
+- `configureLoader` adds options to the Fumadocs content loader.
+- `configure` runs when the site starts, after the content loads.
 
 `head` and `layoutProps` take the same values as the `head` and `ui.layoutProps` options of your [config](/config):
 
@@ -107,34 +116,14 @@ createPress(docs.toFumadocsSource()).plugins(process.env.ANALYTICS === "1" && an
 
 ## Default Plugins
 
-The default preset is `recommendedPreset()`. Each plugin of it has a key in its options:
+The default plugins come from `recommendedPreset()`, in the `preset` option of `.config()`. Each has a key in its options:
 
-| Key       | Plugin         | Adds                                                 |
-| --------- | -------------- | ---------------------------------------------------- |
-| `sitemap` | `core:sitemap` | `/sitemap.xml`                                       |
-| `robots`  | `core:robots`  | `/robots.txt`, with a link to the sitemap            |
-| `llms`    | `core:llms`    | `/llms.txt` and `/llms-full.txt`, in each language   |
-| `search`  | `core:search`  | A search index per language, searched in the browser |
+- `sitemap`, the `core:sitemap` plugin, adds `/sitemap.xml`.
+- `robots`, the `core:robots` plugin, adds `/robots.txt`, with a link to the sitemap.
+- `llms`, the `core:llms` plugin, adds `/llms.txt` and `/llms-full.txt`, in each language.
+- `search`, the `core:search` plugin, adds a search index per language, searched in the browser.
 
-### Configuring a Default Plugin
-
-Pass the options of a default plugin to `recommendedPreset()`, in the `preset` option of `.config()`:
-
-```ts title="press.config.ts"
-import { createPress, recommendedPreset } from "@fumapress/vue/config";
-import { defineDocs } from "@fumapress/vue/content";
-
-const docs = defineDocs({ dir: "content" });
-
-export default createPress(docs.toFumadocsSource()).config({
-  preset: recommendedPreset({
-    sitemap: { path: "/sitemap-docs.xml" },
-    llms: { full: false },
-  }),
-});
-```
-
-The link in `robots.txt` follows the `path` of the sitemap.
+[Default Plugins](/config#default-plugins) of the config lists their options, and how to remove them.
 
 ### Replacing a Default Plugin
 
@@ -154,27 +143,11 @@ export default createPress(docs.toFumadocsSource())
 
 The default plugins are exported too, as `sitemapPlugin`, `robotsPlugin`, `llmsPlugin` and `searchPlugin`. To list one yourself, like to run it before another plugin, set it to `false` in the preset first. Otherwise the site has the same plugin twice and fails to start.
 
-### Removing Default Plugins
-
-Set a default plugin to `false` to remove it, or pass an empty list to remove them all:
-
-```ts tab="One plugin" title="press.config.ts"
-createPress(docs.toFumadocsSource()).config({
-  preset: recommendedPreset({ llms: false }),
-});
-```
-
-```ts tab="All plugins" title="press.config.ts"
-createPress(docs.toFumadocsSource()).config({
-  preset: [],
-});
-```
-
-## Plugins From Fumapress for React
+## Plugins from Fumapress for React
 
 The hooks have the names and signatures of `@fumapress/core`, which Fumapress on Waku and Astro use. A plugin that uses only server-side hooks, like routes, middleware, content hooks and `build`, works on both.
 
-The UI is different: the pages of a plugin render with [Vue components of your theme](/plugins/views), and every value sent to the browser is serializable.
+The UI is different: the views of a plugin render with [components of the theme](/plugins/views#views-of-plugins), and every value sent to the browser is serializable.
 
 ## Testing Plugins
 

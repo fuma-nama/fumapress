@@ -53,14 +53,14 @@ For a hosted search service, give the search provider a dialog of your own. The 
 <Steps>
 <Step>
 
-### Turn off the built-in search
+### Turn Off the Built-in Search
 
 Set `search: false` in `recommendedPreset()`, as above, so your site no longer builds its own index.
 
 </Step>
 <Step>
 
-### Wrap the dialog
+### Wrap the Dialog
 
 Install the client of your service, then write a component that renders its dialog with your client. A search dialog receives the `open` prop and emits `update:open`.
 
@@ -129,7 +129,7 @@ Both dialogs take `tags` and `defaultTag` to filter results by tag.
 </Step>
 <Step>
 
-### Give it to the root of the theme
+### Pass the Dialog to the Root
 
 Write a `Root` for your [theme](/theme) that wraps the default one and passes your dialog:
 

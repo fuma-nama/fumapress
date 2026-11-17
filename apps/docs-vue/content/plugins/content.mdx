@@ -56,7 +56,7 @@ With sources by key, `page.type` is the key of the source of a page. A plugin ch
 `getPageBody` is the only hook a page needs. It returns one of:
 
 - `{ html }`: HTML rendered as it is, as the content of the page.
-- `{ view: { type, props } }`: the page has `props` in place of its content. `type` is the key of the source of the page, and the component of [`views`](/theme#page-components) for that key renders it with its own layout, like the component of a [view](/plugins/views).
+- `{ view: { type, props } }`: the page has `props` in place of its content. `type` is the key of the source of the page, and the component of [`views`](/theme#page-types) for that key renders it with its own layout, like the component of a [view](/plugins/views).
 - `{ module, load }`: the URL of a module that the browser imports, whose default export is the content component, and `load()` to import the same module on the server. This is what `core:markdown` returns for a compiled Markdown file.
 
 ```ts
@@ -73,12 +73,10 @@ A page that no plugin renders fails with an error that names its file.
 
 Each of these is optional. A page without a result has none of what the hook gives:
 
-| Hook                    | Returns                                                  | Used by                                            |
-| ----------------------- | -------------------------------------------------------- | -------------------------------------------------- |
-| `getPageToc`            | The table of contents, a list of `{ title, url, depth }` | The docs layout                                    |
-| `getPageText`           | The page as Markdown                                     | `llms-full.txt`                                    |
-| `getPageStructuredData` | The headings of the page and the text under each         | The search index                                   |
-| `getPageLastModified`   | A `Date`                                                 | The sitemap, and the last update shown on the page |
+- `getPageToc` returns the table of contents, a list of `{ title, url, depth }`, for the docs layout.
+- `getPageText` returns the page as Markdown, for `llms-full.txt`.
+- `getPageStructuredData` returns the headings of the page and the text under each, for the search index.
+- `getPageLastModified` returns a `Date`, for the sitemap and the last update shown on the page.
 
 `getPageStructuredData` returns `headings`, a list of `{ id, content }`, and `contents`, a list of `{ heading, content }` where `heading` is the `id` of the heading a text is under:
 
