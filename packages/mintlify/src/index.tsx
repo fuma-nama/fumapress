@@ -1,4 +1,10 @@
-import { stripBase, type AppShape, type Plugin, type SlotItem } from "@fumapress/core";
+import {
+  stripBase,
+  type AppShape,
+  type Context,
+  type Plugin,
+  type SlotItem,
+} from "@fumapress/core";
 import type { LoaderPlugin } from "fumadocs-core/source";
 import type { ReactNode } from "react";
 import { MintlifyBannerBar } from "./features/banner";
@@ -7,7 +13,7 @@ import { buildRootHead } from "./features/head";
 import { buildNavbarLinks, buildNavTitle } from "./features/navbar";
 import { notFoundView, type MintlifyViews } from "./features/not-found";
 import { createRedirectMatcher } from "./features/redirects";
-import { getMintlifyLanguages, mintlifyLanguageOf, type MintlifyI18nOptions } from "./i18n";
+import { getMintlifyLanguages, mintlifyLanguageOf } from "./i18n";
 import { loadMintlifyIcons } from "./icons";
 import {
   buildPageTreeFromNavigation,
@@ -16,7 +22,7 @@ import {
   normalizeMintPath,
 } from "./navigation";
 import { readMintlifyDocs, type ReadMintlifyDocsOptions } from "./read-config";
-import type { MintlifyDocsJson, MintlifyFooter } from "./schema";
+import type { MintlifyDocsJson, MintlifyFooter, MintlifyLanguageNav } from "./schema";
 
 /**
  * Feature toggles, everything is enabled by default. Disable a feature to
@@ -45,7 +51,7 @@ export interface MintlifyFeatures {
   metadata?: boolean;
 }
 
-export interface MintlifyPluginOptions extends ReadMintlifyDocsOptions, MintlifyI18nOptions {
+export interface MintlifyPluginOptions extends ReadMintlifyDocsOptions {
   /**
    * Docs collection folder name inside `content/`.
    * @default "docs"
@@ -72,6 +78,12 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
   /** for `seo.indexing: "navigable"` */
   let navigable: Set<string> | undefined;
   let redirect: ReturnType<typeof createRedirectMatcher> | undefined;
+
+  /** the navigation of the Mintlify language of a locale, for its `banner`, `footer` and `navbar` */
+  function languageNav(ctx: Context<C>, lang: string | undefined): MintlifyLanguageNav | undefined {
+    const language = mintlifyLanguageOf(ctx.i18nConfig, lang);
+    if (language) return getMintlifyLanguages(docs).find((entry) => entry.language === language);
+  }
 
   function isNavigable(page: C["page"]): boolean {
     if (!navigable || page.slugs.length === 0) return true;
@@ -103,16 +115,17 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
       if (enabled("redirects") && docs.redirects?.length)
         redirect = createRedirectMatcher(docs.redirects);
     },
-    async layoutProps() {
-      if (!enabled("navbar")) return;
+    async layoutProps({ lang }) {
+      const strict = enabled("appearance") && docs.appearance?.strict;
+      if (!enabled("navbar")) return strict ? { themeSwitch: { enabled: false } } : undefined;
+
       const { title, url } = buildNavTitle(docs);
-      const links = await buildNavbarLinks(docs);
+      const links = await buildNavbarLinks(languageNav(this, lang)?.navbar ?? docs.navbar);
 
       return {
         links,
         nav: { title, url },
-        themeSwitch:
-          enabled("appearance") && docs.appearance?.strict ? { enabled: false } : undefined,
+        themeSwitch: strict ? { enabled: false } : undefined,
       };
     },
     providerProps() {
@@ -174,12 +187,9 @@ export function mintlifyPlugin<C extends AppShape = AppShape>(
     },
     slots({ lang, page }) {
       if (page) return;
-      const language = mintlifyLanguageOf(this.i18nConfig, lang);
-      const banner = enabled("banner")
-        ? (getMintlifyLanguages(docs).find((entry) => entry.language === language)?.banner ??
-          docs.banner)
-        : undefined;
-      const footer = enabled("footer") ? docs.footer : undefined;
+      const nav = languageNav(this, lang);
+      const banner = enabled("banner") ? (nav?.banner ?? docs.banner) : undefined;
+      const footer = enabled("footer") ? (nav?.footer ?? docs.footer) : undefined;
       const items: SlotItem<MintlifyTypes>[] = [];
       if (banner)
         items.push({

@@ -1,0 +1,26 @@
+{
+  "theme": "mint",
+  "name": "I18n Docs",
+  "colors": { "primary": "#000000" },
+  "banner": { "content": "Banner" },
+  "footer": {
+    "links": [{ "header": "Footer", "items": [{ "label": "Blog", "href": "/blog" }] }]
+  },
+  "navbar": { "links": [{ "label": "Home", "href": "/" }] },
+  "navigation": {
+    "languages": [
+      { "language": "en", "default": true, "pages": ["index"] },
+      {
+        "language": "fr",
+        "banner": { "content": "Bannière" },
+        "footer": {
+          "links": [
+            { "header": "Pied de page", "items": [{ "label": "Blog", "href": "/fr/blog" }] }
+          ]
+        },
+        "navbar": { "links": [{ "label": "Accueil", "href": "/fr" }] },
+        "pages": ["fr/index"]
+      }
+    ]
+  }
+}

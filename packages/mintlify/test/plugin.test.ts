@@ -5,7 +5,12 @@ import type { Root } from "fumadocs-core/page-tree";
 import type { LoaderPlugin } from "fumadocs-core/source";
 import { MintlifyBannerBar } from "@/features/banner";
 import { notFoundView } from "@/features/not-found";
-import { mintlifyPlugin, type MintlifyPluginOptions } from "@/index";
+import {
+  defineMintlifyI18n,
+  mintlifyPlugin,
+  readMintlifyDocs,
+  type MintlifyPluginOptions,
+} from "@/index";
 import { page } from "./fixtures/page-tree";
 
 const fixturesRoot = path.join(import.meta.dirname, "fixtures");
@@ -80,6 +85,8 @@ describe("mintlifyPlugin", () => {
 
     expect(tree?.name).toBe("Full Docs");
     expect(tree?.children).toMatchObject([
+      // `navigation.global`
+      { type: "page", name: "Community", url: "https://discord.gg/example", external: true },
       {
         type: "folder",
         name: "Docs",
@@ -100,6 +107,45 @@ describe("mintlifyPlugin", () => {
     const provider = await plugin.providerProps?.call(ctx, { lang: undefined });
     expect(provider?.theme).toEqual({ defaultTheme: "dark", forcedTheme: "dark" });
     expect(provider?.i18n?.translations?.["Search(search trigger)"]).toBe("Search the docs...");
+  });
+
+  it("hides the theme switch of strict appearance without the navbar", async () => {
+    const { ctx, plugin } = await setup({ features: { navbar: false } });
+
+    expect(await plugin.layoutProps?.call(ctx, { lang: undefined })).toEqual({
+      themeSwitch: { enabled: false },
+    });
+  });
+
+  it("uses the banner, footer and navbar of the language", async () => {
+    const docs = readMintlifyDocs({ path: "i18n.json", root: fixturesRoot });
+    const i18nCtx = { ...ctx, i18nConfig: defineMintlifyI18n(docs) } as unknown as Context;
+    const plugin = mintlifyPlugin({ path: "i18n.json", root: fixturesRoot });
+    await plugin.init?.call(i18nCtx);
+
+    const slots = async (lang: string) =>
+      Object.fromEntries(
+        ((await plugin.slots?.call(i18nCtx, { lang })) ?? []).map((item) => [
+          item.name,
+          item.props,
+        ]),
+      );
+    const links = async (lang: string) =>
+      (await plugin.layoutProps?.call(i18nCtx, { lang }))?.links?.map((link) =>
+        "text" in link ? link.text : undefined,
+      );
+
+    expect(await slots("fr")).toMatchObject({
+      "mintlify:banner": { banner: { content: "Bannière" } },
+      "mintlify:footer": { footer: { links: [{ header: "Pied de page" }] } },
+    });
+    expect(await links("fr")).toEqual(["Accueil"]);
+
+    expect(await slots("en")).toMatchObject({
+      "mintlify:banner": { banner: { content: "Banner" } },
+      "mintlify:footer": { footer: { links: [{ header: "Footer" }] } },
+    });
+    expect(await links("en")).toEqual(["Home"]);
   });
 
   it("adds the banner above the layout and the footer below it, site-wide", async () => {

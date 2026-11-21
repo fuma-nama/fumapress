@@ -1,3 +1,13 @@
+## @fumapress/mintlify@2.0.1
+
+### Fixed `docs.json` options
+
+- `appearance.strict` hides the theme switch also with `features.navbar: false`.
+- The `tabs`, `anchors`, `dropdowns` and `products` of `navigation.global` show in the sidebar of every language and version.
+- Languages defined only in `navigation.global` select the sidebar of the language.
+- The `footer` and `navbar` of a language in `navigation.languages` replace the site's on its pages, like its `banner`.
+- Removed `localeMap` and `defaultLanguage` from the options of `mintlifyPlugin()`, which never read them. Pass them to `defineMintlifyI18n()`.
+
 ## @fumapress/mintlify@2.0.0
 
 ### Mintlify migration on Waku and Astro

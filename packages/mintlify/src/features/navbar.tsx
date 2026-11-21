@@ -1,7 +1,7 @@
 import type { LinkItemType } from "fumadocs-ui/layouts/shared";
 import type { ReactNode } from "react";
 import { loadMintlifyIcons, renderMintlifyIcon } from "../icons";
-import type { MintlifyDocsJson, MintlifyNavbarLink } from "../schema";
+import type { MintlifyDocsJson, MintlifyNavbar, MintlifyNavbarLink } from "../schema";
 import { renderSocialIcon } from "./socials";
 
 function navbarLinkLabel(link: MintlifyNavbarLink): string {
@@ -17,11 +17,13 @@ function navbarLinkIcon(link: MintlifyNavbarLink): ReactNode {
 }
 
 /** map `navbar` links & primary CTA in docs.json to Fumadocs link items */
-export async function buildNavbarLinks(docs: MintlifyDocsJson): Promise<LinkItemType[]> {
+export async function buildNavbarLinks(
+  navbar: MintlifyNavbar | undefined,
+): Promise<LinkItemType[]> {
   const links: LinkItemType[] = [];
 
-  await loadMintlifyIcons(docs.navbar?.links);
-  for (const link of docs.navbar?.links ?? []) {
+  await loadMintlifyIcons(navbar?.links);
+  for (const link of navbar?.links ?? []) {
     const icon = navbarLinkIcon(link);
     const label = navbarLinkLabel(link);
 
@@ -43,7 +45,7 @@ export async function buildNavbarLinks(docs: MintlifyDocsJson): Promise<LinkItem
     });
   }
 
-  const primary = docs.navbar?.primary;
+  const primary = navbar?.primary;
   if (primary) {
     if (primary.type === "button") {
       links.push({

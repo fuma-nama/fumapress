@@ -47,7 +47,7 @@ A navbar without a sidebar, for landing and [custom pages](./custom-pages.mdx#la
 
 ### Switching the Layout
 
-Pass a Fumadocs layout to `renderDefault()`. This example renders the `docs` source with the Notebook Layout:
+Pass the name of a docs layout to `renderDefault()`. This example renders the `docs` source with the Notebook Layout:
 
 ```tsx title="press.config.tsx"
 export default app.config({
@@ -60,7 +60,7 @@ export default app.config({
 });
 ```
 
-`layout` is one of `"docs"`, `"notebook"`, `"glass"`, `"spacious"` and `"flux"`. Plugin pages, like the blog, keep the Home Layout.
+Plugin pages, like the blog, keep the Home Layout.
 
 Glass and Spacious also need their styles, imported before the theme. Use `spacious.css` for Spacious:
 
@@ -108,7 +108,12 @@ props.renderDefault({
 
 ## Rendering Pages
 
-Every page goes through `ui.renderPage`. <show when={props.framework === "astro"}>To give a page your own layout, return an `.astro` component from it. </show>`props.type` tells you the kind of page: a source key like `"docs"`, or the name of a plugin page like `"blog.index"`.
+Every page goes through `ui.renderPage`. <show when={props.framework === "astro"}>To give a page your own layout, return an `.astro` component from it. </show>`props.type` tells you the kind of page:
+
+| Page           | `props.type`                  |
+| -------------- | ----------------------------- |
+| A content page | Its source key, like `"docs"` |
+| A plugin page  | Its name, like `"blog.index"` |
 
 <show when={props.framework === "waku"}>
 
@@ -147,15 +152,9 @@ export function renderPage(props: RenderPageProps<typeof app>) {
 }
 ```
 
-The second type argument of `RenderPageProps` narrows the props to one page type. The layout reads these props:
+The second type argument of `RenderPageProps` narrows the props to one page type. `pageData` has the fields a layout shows, like the title, while your frontmatter is on `page.data`.
 
-- `layoutProps`: [`ui.layoutProps`](./configuration.mdx#navbar-and-links) with the props from plugins, and the page tree as `tree`.
-- `pageData`: the title, description and other fields a layout shows. Your frontmatter is on `page.data`.
-- `toc`: the table of contents.
-- `body`: the content.
-- `slots`: the UI of plugins and the page buttons, see [Slots](#slots).
-
-The [AI chat](./plugins/ai.mdx#custom-layout) reaches a custom layout through `useLayoutProps()` in a client component.
+A custom layout places the UI of plugins itself: see [Slots](#slots), and [Custom Layout](./plugins/ai.mdx#custom-layout) for the AI chat.
 
 </show>
 
@@ -281,7 +280,7 @@ Nested paths like `"docs/guides"` work too. To hide pages from the sidebar, see 
 
 ### Slots
 
-`props.slots` has the UI of plugins by name, like `feedback:page`, the form of [Feedback](./plugins/feedback.mdx). The page buttons are `core:markdown` and `core:view-options`. Each item has an `element` and the `region` it belongs to, like `actions` or `footer`. Banners of plugins aren't in it, since Fumapress renders them above every page.
+`props.slots` has the UI of plugins by name, like the form of [Feedback](./plugins/feedback.mdx), and the page buttons of Fumapress. Banners of plugins aren't in it, since Fumapress renders them above every page.
 
 A custom layout renders only the items it places. Place an item by its name, or collect the items of a region:
 
@@ -453,12 +452,14 @@ export const DocsIsland = createIsland(
 
 ### The Island
 
-`IslandProps` types the props from the site: `layoutProps` with the page tree as `tree`, `pageData`, `toc` and `slots`. The [AI chat](./plugins/ai.mdx#custom-layout) comes from `useLayoutProps()`. Other props come from your `.astro` layout:
+`IslandProps` types the props from the site. Other props come from your `.astro` layout:
 
 - Named slots become props, and `children` is the default slot. `.astro` parts in slots are static.
 - Other values must be serializable. Many plugin page props aren't, like the pages in `posts` of `blog.index`.
 
 React context isn't shared between islands, so everything that uses the Fumadocs layout context must be in the same island. To wrap the page content with a provider, give the [MDX components](./content.mdx#components) a `wrapper`.
+
+To show the AI chat in your island, see [Custom Layout](./plugins/ai.mdx#custom-layout).
 
 ### Returning JSX
 

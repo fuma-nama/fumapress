@@ -24,11 +24,12 @@ const framework: Framework = {
       [router],
     );
   },
-  Image: ({ priority, src, ...props }) => (
+  // the props of `next/image`: lazy without a preload, unless the image has `priority`
+  Image: ({ priority = false, src, ...props }) => (
     <Image
       fetchPriority={priority ? "high" : undefined}
-      loading={priority ? "eager" : undefined}
-      preload={props.loading !== "lazy"}
+      loading={priority ? "eager" : "lazy"}
+      preload={priority}
       // like the default of Fumadocs, `StaticImport` is a type of Next.js
       src={src as string}
       {...props}

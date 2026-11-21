@@ -120,7 +120,7 @@ export function getConfig() {
 }
 ```
 
-A plugin passes the same `data` to `createPage()` in `waku.createPages`, or to `createView()`.
+A plugin sets the same `data` on the pages it creates.
 
 </show>
 
@@ -219,7 +219,7 @@ createPress(content).plugins({
 
 Each content page gets an image with its title, description and site name, rendered by [Takumi](https://takumi.kane.tw).
 
-`ogImage` in the page data of any page sets its image: `title` and `description` for the default design, or a `node`. Plugin pages get it from `createView({ data })`, and every page from `transformPage`:
+To change the image of a page, set `ogImage` in its page data. This plugin changes the title on the default design, from `transformPage`:
 
 ```tsx title="press.config.tsx"
 createPress(content).plugins({
@@ -283,7 +283,7 @@ recommendedPreset({
 
 ### Custom Pages
 
-To give a custom page an image, set `ogImage` in the `data` of `getConfig()`. It uses the default design unless you pass `node`. For a page with params, use a function:
+To give a custom page an image, set `ogImage` in the `data` of `getConfig()`. For a page with params, use a function:
 
 ```tsx tab="src/pages/pricing.tsx"
 import type { WakuRouteConfig } from "fumapress";

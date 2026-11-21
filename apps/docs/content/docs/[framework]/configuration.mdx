@@ -56,7 +56,7 @@ export default app.config({
 - `i18n`: your [languages](./internationalization.mdx).
 - `mode`: when your content renders, see [Render Mode](./deployment.mdx#render-mode).
 - `alwaysRevalidate`: read [dynamic content](./content-sources/custom.mdx#refreshing-content) again on every request.
-- `loaderPlugins`, `url`, `pageTree` and the other [Fumadocs loader options](https://fumadocs.dev/docs/headless/source-api).
+- The [Fumadocs loader options](https://fumadocs.dev/docs/headless/source-api), like `pageTree`. Loader plugins go in `loaderPlugins`.
 
 `.plugins()` adds [plugins](./plugins/index.mdx). Call it once.
 
@@ -153,7 +153,7 @@ createPress(content).config({
 
 `attrs` take HTML attribute names, like `crossorigin` and `http-equiv`, not the React props.
 
-These tags have a key: `title`, a `meta` tag by its `name`, `property` or `http-equiv`, the canonical link, and an alternate link by its `hreflang`. Your tags replace plugin tags with the same key. Other tags are kept, except exact duplicates.
+A tag of yours replaces the matching tag from a plugin, like the `title` or a `meta` tag with the same `name`. Other tags are added to the tags from plugins.
 
 ### Tags per Page
 
@@ -565,13 +565,13 @@ type Props = LayoutProps<typeof app, "docs">;
 
 </show>
 
-| Helper              | For                                                            |
+| Helper              | Types                                                          |
 | ------------------- | -------------------------------------------------------------- |
-| `RenderPageProps`   | props of `ui.renderPage`, narrowed to a source or plugin page  |
-| `UIOptions`         | an option of `ui`, like `UIOptions<typeof app>["layoutProps"]` |
-| `PressContext`      | `this` in callbacks, the result of `getPressContext()`         |
-| `SharedLayoutProps` | the props of every docs layout                                 |
-| `ProviderProps`     | the root provider props                                        |
+| `RenderPageProps`   | The props of `ui.renderPage`, for one source or plugin page    |
+| `UIOptions`         | An option of `ui`, like `UIOptions<typeof app>["layoutProps"]` |
+| `PressContext`      | `this` in callbacks, and the result of `getPressContext()`     |
+| `SharedLayoutProps` | The props of every docs layout                                 |
+| `ProviderProps`     | The props of the root provider                                 |
 
 <show when={props.framework === "waku"}>
 

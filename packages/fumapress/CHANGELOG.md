@@ -1,3 +1,19 @@
+## fumapress@2.0.3
+
+### Updated Fumadocs to 16.19.3
+
+- Needs Fumadocs 16.19.3 or later.
+- The `get_page` tool of `mcpPlugin()` accepts URLs with a hash or query, like the URLs of search results.
+- Components without a Markdown form keep their MDX tag name in the Markdown of pages, also in production builds.
+
+### Updated Waku to 1.0.0-rc.5
+
+- Fumapress runs on Waku `1.0.0-rc.5`.
+
+### Markdown images load lazily
+
+- Markdown images load lazily without a preload, like `next/image`. Images with `priority` load eagerly and are preloaded.
+
 ## fumapress@2.0.2
 
 ### Support sharp 0.35

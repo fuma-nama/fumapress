@@ -1,3 +1,4 @@
+import type { VirtualFile } from "fumadocs-core/source";
 import { describe, expect, it, vi } from "vitest";
 import type { ApiRoute, PageRouteInput } from "@/routes";
 import { i18n, page, pressContext, type TestSite } from "./harness";
@@ -16,13 +17,19 @@ const files = [
 const content: TestSite["content"] = { files };
 const dynamic: Partial<TestSite> = { content: { files: () => files } };
 
-function createSite(config: Partial<TestSite> = {}, options?: LLMsOptions, base = "/") {
+function createSite(
+  config: Partial<TestSite> = {},
+  options?: LLMsOptions,
+  base = "/",
+  plugins: TestSite["plugins"] = [],
+) {
   return pressContext(
     {
       content,
       site: { baseUrl: "https://example.com" },
       ...config,
       plugins: [
+        ...plugins,
         {
           getPageText: (page) =>
             page.path === "docs/empty.mdx" ? undefined : `Text of ${page.path}`,
@@ -79,13 +86,14 @@ describe("llmsPlugin", () => {
     await expect(readRoute(routes, "/en/docs/empty.md")).resolves.toBe("");
   });
 
-  it("lists pages in llms.txt and renders them in llms-full.txt without fallback pages", async () => {
+  it("links pages to their Markdown in llms.txt and renders them in llms-full.txt without fallback pages", async () => {
     const routes = await (await createSite({ i18n })).getApiRoutes();
     const index = await readRoute(routes, "/llms.txt");
     const full = await readRoute(routes, "/llms-full.txt");
 
-    expect(index).toContain("[Title of docs/basics.mdx](https://example.com/en/docs/basics)");
-    expect(index).toContain("[Title of docs/basics.cn.mdx](https://example.com/cn/docs/basics)");
+    expect(index).toContain("[Title of index.mdx](https://example.com/en.md)");
+    expect(index).toContain("[Title of docs/basics.mdx](https://example.com/en/docs/basics.md)");
+    expect(index).toContain("[Title of docs/basics.cn.mdx](https://example.com/cn/docs/basics.md)");
     expect(full.split("\n\n# ")).toHaveLength(4);
     expect(full).toContain("Text of docs/basics.cn.mdx");
     expect(full).not.toContain("/cn/docs/only-en)");
@@ -98,9 +106,9 @@ describe("llmsPlugin", () => {
   ])("links pages under the base path with %s", async (_, site, prefix) => {
     const routes = await (await createSite({ site }, {}, "/repo/")).getApiRoutes();
 
-    await expect(readRoute(routes, "/llms.txt")).resolves.toContain(
-      `[Title of docs/basics.mdx](${prefix}/docs/basics)`,
-    );
+    const index = await readRoute(routes, "/llms.txt");
+    expect(index).toContain(`[Title of docs/basics.mdx](${prefix}/docs/basics.md)`);
+    expect(index).toContain(`[Title of index.mdx](${prefix}/index.md)`);
     await expect(readRoute(routes, "/llms-full.txt")).resolves.toContain(
       `# Title of docs/basics.mdx (${prefix}/docs/basics)`,
     );
@@ -212,6 +220,12 @@ describe("llmsPlugin", () => {
       markdownUrl: "/docs/basics.md",
     });
     await expect(data("/")).resolves.toMatchObject({ markdownUrl: "/index.md" });
+
+    const page = loader.getPageByUrl("/docs/basics")!;
+    await expect(ctx.getHead({ lang: page.locale, page })).resolves.toContainEqual({
+      tag: "link",
+      attrs: { rel: "alternate", type: "text/markdown", href: "/repo/docs/basics.md" },
+    });
   });
 
   it("links the Markdown of content pages only, other pages have none", async () => {
@@ -237,6 +251,106 @@ describe("llmsPlugin", () => {
 
     await expect(readRoute(routes, "/docs/empty.md")).resolves.toBe("custom /docs/empty");
     await expect(readRoute(routes, "/index.md")).resolves.toBe("");
+  });
+});
+
+describe("sections", () => {
+  /** `docs` is a root folder, `guides` is not; `docs/empty` has no text and `docs/hidden` is `noindex` */
+  const sectioned: VirtualFile[] = [
+    titled("index.mdx"),
+    { type: "meta", path: "docs/meta.json", data: { title: "Docs", root: true } },
+    titled("docs/index.mdx"),
+    titled("docs/basics.mdx"),
+    titled("docs/empty.mdx"),
+    titled("docs/hidden.mdx"),
+    titled("guides/intro.mdx"),
+  ];
+  const hidden: Partial<TestSite> = {
+    plugins: [
+      {
+        transformPage: (_, { page }) => (page?.path === "docs/hidden.mdx" ? { noindex: true } : {}),
+      },
+    ],
+  };
+  const sectionSite = (config: Partial<TestSite> = {}, options?: LLMsOptions, base?: string) =>
+    createSite(
+      { content: { files: sectioned }, ...config, plugins: undefined },
+      options,
+      base,
+      config.plugins,
+    );
+
+  it("gives root folders their own llms-full.txt, linked from llms.txt", async () => {
+    const routes = await (await sectionSite(hidden)).getApiRoutes();
+
+    expect(routes.map((route) => [route.path, route.render]).slice(0, 3)).toEqual([
+      ["/llms.txt", "static"],
+      ["/llms-full.txt", "static"],
+      ["/docs/llms-full.txt", "static"],
+    ]);
+    expect(routes.some((route) => route.path === "/guides/llms-full.txt")).toBe(false);
+
+    const index = await readRoute(routes, "/llms.txt");
+    expect(index).toContain("- [Docs](https://example.com/docs/llms-full.txt)");
+    expect(index).toContain("  - [Title of docs/basics.mdx](https://example.com/docs/basics.md)");
+
+    const response = await fetchRoute(routes, "/docs/llms-full.txt");
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    // pages without text or with `noindex` are left out, like in the root file
+    await expect(response.text()).resolves.toBe(
+      [
+        "# Title of docs/index.mdx (https://example.com/docs)\n\nText of docs/index.mdx",
+        "# Title of docs/basics.mdx (https://example.com/docs/basics)\n\nText of docs/basics.mdx",
+      ].join("\n\n"),
+    );
+    const full = await readRoute(routes, "/llms-full.txt");
+    expect(full).toContain("Text of guides/intro.mdx");
+    expect(full).not.toContain("docs/hidden.mdx");
+    expect(full).not.toContain("\n\n\n");
+  });
+
+  it("passes `filter` and `section` to Fumadocs", async () => {
+    const ctx = await sectionSite(
+      {},
+      {
+        filter: (page) => page.path !== "docs/basics.mdx",
+        section: (folder) => (folder.root ? { collapse: true } : false),
+      },
+    );
+    const routes = await ctx.getApiRoutes();
+    const paths = routes.map((route) => route.path);
+
+    expect(paths).toContain("/docs/llms.txt");
+    expect(paths).not.toContain("/docs/basics.md");
+    await expect(readRoute(routes, "/llms.txt")).resolves.toContain(
+      "- [Docs](https://example.com/docs/llms.txt)",
+    );
+    // a page left out links to itself, and has no Markdown to link
+    await expect(readRoute(routes, "/docs/llms.txt")).resolves.toContain(
+      "[Title of docs/basics.mdx](https://example.com/docs/basics)",
+    );
+    const page = (await ctx.getLoader()).getPageByUrl("/docs/basics")!;
+    await expect(ctx.getPageData(page)).resolves.not.toHaveProperty("markdownUrl");
+  });
+
+  it("serves the files of sections from the middleware on a dynamic source", async () => {
+    const ctx = await sectionSite({ content: { files: () => sectioned } }, {}, "/repo/");
+    const routes = await ctx.getApiRoutes();
+    expect(routes.map((route) => [route.path, route.render])).toEqual([
+      ["/llms.txt", "dynamic"],
+      ["/llms-full.txt", "dynamic"],
+    ]);
+
+    html.mockClear();
+    const response = await ctx.handleRequest(request("/repo/docs/llms-full.txt"), html);
+    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    await expect(response.text()).resolves.toContain("Text of docs/basics.mdx");
+    expect(html).not.toHaveBeenCalled();
+
+    // not a section, and the root files have their routes
+    for (const path of ["/guides/llms-full.txt", "/docs/llms.txt", "/llms.txt"])
+      await ctx.handleRequest(request(`/repo${path}`), html);
+    expect(html).toHaveBeenCalledTimes(3);
   });
 });
 

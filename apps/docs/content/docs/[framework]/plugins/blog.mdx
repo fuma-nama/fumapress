@@ -200,7 +200,7 @@ blogPlugin({
 
 ### Custom UI
 
-In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`. The other pages are `blog.index`, `blog.tags` and `blog.tag`. This example replaces the index, and renders the built-in post in another layout:
+In [`renderPage`](../layouts.mdx#plugin-pages), a post has the type of its source key, like `blog`, and the other pages have types like `blog.index`. This example replaces the index, and renders the built-in post in another layout:
 
 ```tsx title="press.config.tsx"
 import { BlogPostView } from "@fumapress/blog";
@@ -236,7 +236,7 @@ renderPage(props) {
 },
 ```
 
-`@fumapress/blog` also exports `BlogIndexView`, `BlogTagsView` and `BlogTagView`.
+Each page of the blog has a built-in view like `BlogPostView`.
 
 <show when={props.framework === "waku"}>
 

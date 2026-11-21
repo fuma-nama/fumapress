@@ -35,6 +35,27 @@ describe("resolveNavigationContainer", () => {
 
     expect(container.pages).toEqual(["getting-started"]);
   });
+
+  it("selects languages defined under global", () => {
+    const container = resolveNavigationContainer(
+      { global: { languages: multilingualDocs.navigation.languages } },
+      { language: "zh-Hans" },
+    );
+
+    expect(container.pages).toEqual(["getting-started-cn"]);
+  });
+
+  it("keeps the navigation when the language has only an href", () => {
+    const container = resolveNavigationContainer(
+      {
+        global: { languages: [{ language: "fr", href: "https://fr.example.com" }] },
+        pages: ["getting-started"],
+      },
+      { language: "fr" },
+    );
+
+    expect(container.pages).toEqual(["getting-started"]);
+  });
 });
 
 describe("buildPageTreeFromNavigation", () => {
@@ -122,6 +143,32 @@ describe("buildPageTreeFromNavigation", () => {
       root: true,
       defaultOpen: true,
     });
+  });
+
+  it("adds the sections of global to every language and version", () => {
+    const pageIndex = createPageIndex({
+      ...sampleRoot,
+      children: [...sampleRoot.children, page("v2/docs/overview", "Overview v2")],
+    });
+    const global = {
+      anchors: [{ anchor: "Community", href: "https://example.com/community" }],
+    };
+
+    expect(
+      buildPageTreeFromNavigation({ global, pages: ["getting-started"] }, pageIndex),
+    ).toMatchObject([
+      { type: "page", name: "Community", url: "https://example.com/community", external: true },
+      { type: "page", name: "Getting Started" },
+    ]);
+
+    const [version] = buildPageTreeFromNavigation(
+      { global, versions: [{ version: "v2", pages: ["overview"] }] },
+      pageIndex,
+    );
+    expect(version?.type === "folder" && version.children).toMatchObject([
+      { type: "page", name: "Community" },
+      { type: "page", name: "Overview v2" },
+    ]);
   });
 });
 

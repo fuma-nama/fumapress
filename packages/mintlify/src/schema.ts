@@ -443,6 +443,7 @@ export const mintlifyDocsJsonSchema = z.looseObject({
 });
 
 export type MintlifyNavigation = output<typeof mintlifyNavigationSchema>;
+export type MintlifyNavbar = output<typeof mintlifyNavbarSchema>;
 export type MintlifyNavbarLink = output<typeof mintlifyNavbarLinkSchema>;
 export type MintlifyRedirect = output<typeof mintlifyRedirectSchema>;
 export type MintlifyApiSource = output<typeof mintlifyApiSourceSchema>;

@@ -33,6 +33,7 @@ type Dependency = keyof typeof versions;
 const frameworks = {
   waku: {
     label: "Waku",
+    docs: "https://press.fumadocs.dev/docs",
     scripts: {
       dev: "fumapress dev",
       build: "fumapress build",
@@ -61,6 +62,7 @@ const frameworks = {
   },
   astro: {
     label: "Astro",
+    docs: "https://press.fumadocs.dev/docs/astro",
     scripts: {
       dev: "astro dev",
       build: "astro build",
@@ -115,6 +117,8 @@ try {
 
 async function create(directory: string | undefined, options: CliOptions) {
   intro("create-fumapress");
+  // a prompt waits forever without a terminal, like in scripts and AI agents
+  if (!process.stdin.isTTY) options.yes = true;
 
   const projectDirectory = options.yes
     ? (directory ?? "my-fumapress-app")
@@ -261,6 +265,7 @@ This is a Fumapress app powered by Fumadocs.
 npm run dev
 \`\`\`
 `,
+    "AGENTS.md": getAgentInstructions(framework),
     "content/index.mdx": `---
 title: My Page
 description: Hello World
@@ -421,6 +426,25 @@ export default defineConfig({
   }
 
   return files;
+}
+
+/** the docs of Fumapress for AI agents: the Markdown of the pages of the framework */
+function getAgentInstructions(framework: Framework) {
+  const { label, docs } = frameworks[framework];
+
+  return `# Fumapress
+
+This site is built with [Fumapress](https://press.fumadocs.dev) on ${label}. The APIs and conventions of Fumapress may differ from your training data, so check its docs for the task at hand:
+
+- Writing pages and organizing the sidebar: ${docs}/content.md
+- Loading pages from other content sources: ${docs}/content-sources.md
+- Changing layouts and what pages render: ${docs}/layouts.md
+- Adding landing pages and API routes: ${docs}/custom-pages.md
+- Adding, replacing and removing features: ${docs}/plugins.md
+- The options of \`press.config.tsx\`: ${docs}/configuration.md
+- Deploying the site: ${docs}/deployment.md
+- Other tasks: https://press.fumadocs.dev/llms.txt lists every docs page.
+`;
 }
 
 function getPackageJson(framework: Framework, name: string) {
