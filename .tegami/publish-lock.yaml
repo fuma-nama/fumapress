@@ -1,46 +1,85 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Support sharp 0.35\n\n- The optional `sharp` peer dependency accepts 0.35.\n"
-    filename: 2026-11-09-sharp-0-35.md
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n  npm:@fumapress/astro:\n    type: patch\n  npm:@fumapress/ai:\n    type: patch\n  npm:@fumapress/blog:\n    type: patch\n---\n\n### Updated Fumadocs to 16.19.3\n\n- Needs Fumadocs 16.19.3 or later.\n- The `get_page` tool of `mcpPlugin()` accepts URLs with a hash or query, like the URLs of search results.\n- Components without a Markdown form keep their MDX tag name in the Markdown of pages, also in production builds.\n"
+    filename: 2026-11-17-fumadocs-16-19-3.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/blog:\n    type: patch\n---\n\n### Hid the empty table of contents\n\n- Posts without headings no longer show the \"Table of Contents\" button of the panel.\n"
+    filename: 2026-11-21-blog-toc.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:create-fumapress:\n    type: patch\n---\n\n### Setup for AI agents\n\n- New projects include an `AGENTS.md` that links the Fumapress docs for AI agents.\n- Without a terminal, prompts take their defaults like `--yes`, instead of waiting.\n"
+    filename: 2026-11-17-create-agents.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/core:\n    type: minor\n---\n\n### Files for agents in `llmsPlugin()`\n\n- `/llms.txt` links pages to their Markdown, like `/docs/install.md`.\n- Root folders get their own `llms-full.txt`, like `/docs/llms-full.txt`, linked from their line in `/llms.txt`, so large docs can be read section by section.\n- Added the `section` option, which chooses the sections, and can collapse a section into one link to its own `llms.txt`.\n- Added the `filter` option, which leaves pages out of the files.\n- Pages link their Markdown in `<head>` with `<link rel=\"alternate\" type=\"text/markdown\">`.\n- Needs Fumadocs 16.19.3 or later.\n"
+    filename: 2026-11-17-llms-sections.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Updated Waku to 1.0.0-rc.5\n\n- Fumapress runs on Waku `1.0.0-rc.5`.\n"
+    filename: 2026-11-17-waku-rc-5.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:fumapress:\n    type: patch\n---\n\n### Markdown images load lazily\n\n- Markdown images load lazily without a preload, like `next/image`. Images with `priority` load eagerly and are preloaded.\n"
+    filename: 2026-11-21-markdown-images.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/mintlify:\n    type: patch\n---\n\n### Fixed `docs.json` options\n\n- `appearance.strict` hides the theme switch also with `features.navbar: false`.\n- The `tabs`, `anchors`, `dropdowns` and `products` of `navigation.global` show in the sidebar of every language and version.\n- Languages defined only in `navigation.global` select the sidebar of the language.\n- The `footer` and `navbar` of a language in `navigation.languages` replace the site's on its pages, like its `banner`.\n- Removed `localeMap` and `defaultLanguage` from the options of `mintlifyPlugin()`, which never read them. Pass them to `defineMintlifyI18n()`.\n"
+    filename: 2026-11-21-mintlify.md
+    v: 0.0.0
+  - content: "---\npackages:\n  npm:@fumapress/tegami:\n    type: patch\n---\n\n### Fixed the first release into a new folder\n\n- `fumapressPlugin()` creates the `dir` folder before it writes the changelog files, so the first release into a new folder no longer fails.\n"
+    filename: 2026-11-21-tegami-new-folder.md
     v: 0.0.0
 core:packages:
-  - id: npm:@fumapress/ai
-    updated: false
-  - id: npm:@fumapress/astro
-    updated: false
-  - id: npm:@fumapress/core
-    updated: false
-  - id: npm:@fumapress/blog
-    updated: false
+  - changelogIds:
+      - 2026-11-17-fumadocs-16-19-3.md
+    id: npm:@fumapress/ai
+    updated: true
+  - changelogIds:
+      - 2026-11-17-fumadocs-16-19-3.md
+    id: npm:@fumapress/astro
+    updated: true
+  - changelogIds:
+      - 2026-11-17-fumadocs-16-19-3.md
+      - 2026-11-21-blog-toc.md
+    id: npm:@fumapress/blog
+    updated: true
+  - changelogIds:
+      - 2026-11-17-create-agents.md
+    id: npm:create-fumapress
+    updated: true
+  - changelogIds:
+      - 2026-11-17-llms-sections.md
+    id: npm:@fumapress/core
+    updated: true
   - id: npm:create-fumapress-versions
     updated: true
-  - id: npm:create-fumapress
-    updated: true
   - id: npm:@fumapress/feedback
-    updated: false
+    updated: true
   - changelogIds:
-      - 2026-11-09-sharp-0-35.md
+      - 2026-11-17-fumadocs-16-19-3.md
+      - 2026-11-17-waku-rc-5.md
+      - 2026-11-21-markdown-images.md
     id: npm:fumapress
     updated: true
-  - id: npm:@fumapress/mintlify
-    updated: false
-  - id: npm:@fumapress/tegami
-    updated: false
   - id: npm:@fumapress/language
     updated: false
+  - changelogIds:
+      - 2026-11-21-mintlify.md
+    id: npm:@fumapress/mintlify
+    updated: true
+  - changelogIds:
+      - 2026-11-21-tegami-new-folder.md
+    id: npm:@fumapress/tegami
+    updated: true
 npm:packages:
   - id: npm:@fumapress/ai
   - id: npm:@fumapress/astro
-  - id: npm:@fumapress/core
   - id: npm:@fumapress/blog
-  - id: npm:create-fumapress-versions
   - id: npm:create-fumapress
+  - id: npm:@fumapress/core
+  - id: npm:create-fumapress-versions
   - id: npm:@fumapress/feedback
   - id: npm:fumapress
+  - id: npm:@fumapress/language
   - id: npm:@fumapress/mintlify
   - id: npm:@fumapress/tegami
-  - id: npm:@fumapress/language
   - id: npm:docs
   - id: npm:example-sanity
   - id: npm:example-notion
   - id: npm:example-obsidian
   - id: npm:example-openapi
+  - id: npm:example-astro
