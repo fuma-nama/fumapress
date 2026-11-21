@@ -18,19 +18,20 @@ export function fumapressPlugin(options: FumapressPluginOptions): TegamiPlugin {
     async applyDraft(draft) {
       const outDir = path.resolve(this.cwd, dir);
       const date = new Date();
-      const writes: Promise<void>[] = [];
+      const files: [filename: string, content: string][] = [];
 
       for (const entry of draft.getChangelogs()) {
         const content = renderEntryMdx(this.graph.getByName.bind(this.graph), entry, date);
         if (!content) continue;
 
-        const filename = entry.filename.replace(/\.md$/i, ".mdx");
-        writes.push(writeFile(path.join(outDir, filename), content));
+        files.push([entry.filename.replace(/\.md$/i, ".mdx"), content]);
       }
 
-      if (writes.length === 0) return;
+      if (files.length === 0) return;
       await mkdir(outDir, { recursive: true });
-      await Promise.all(writes);
+      await Promise.all(
+        files.map(([filename, content]) => writeFile(path.join(outDir, filename), content)),
+      );
     },
   };
 }

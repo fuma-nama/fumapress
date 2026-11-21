@@ -355,7 +355,7 @@ function buildNavigationChildren(
 function pickLanguage(
   languages: MintlifyNavigation["languages"],
   language?: string,
-): NavigationSection | undefined {
+): MintlifyLanguageNav | undefined {
   if (!languages?.length) return undefined;
 
   return (
@@ -369,15 +369,24 @@ export function resolveNavigationContainer(
   navigation: MintlifyNavigation,
   options: ResolveNavigationOptions = {},
 ): NavContainer {
-  let container: NavContainer = navigation;
+  const languages = navigation.languages ?? navigation.global?.languages;
+  const language = pickLanguage(languages, options.language);
+  // a language with `href` links to another site
+  return language && !language.href ? language : navigation;
+}
 
-  const language = pickLanguage(container.languages, options.language);
-  if (language) container = language;
-
-  return container;
+/** the `tabs`, `anchors`, `dropdowns` and `products` of `global`, in every language and version */
+function buildGlobalChildren(
+  navigation: MintlifyNavigation,
+  pageIndex: Map<string, Item>,
+  options: PageMatchOptions,
+): Node[] {
+  const { tabs, anchors, dropdowns, products } = navigation.global ?? {};
+  return buildNavigationChildren({ tabs, anchors, dropdowns, products }, pageIndex, options);
 }
 
 function buildVersionRootFolder(
+  navigation: MintlifyNavigation,
   version: MintlifyVersionNav,
   pageIndex: Map<string, Item>,
   options: ResolveNavigationOptions,
@@ -391,6 +400,7 @@ function buildVersionRootFolder(
 
   const children = buildNavigationChildren(version, pageIndex, matchOptions);
   if (children.length === 0) return undefined;
+  children.unshift(...buildGlobalChildren(navigation, pageIndex, matchOptions));
 
   return {
     $id: nextId("version"),
@@ -415,13 +425,16 @@ export function buildPageTreeFromNavigation(
   if (container.versions?.length) {
     const folders: Folder[] = [];
     for (const version of container.versions) {
-      const node = buildVersionRootFolder(version, pageIndex, options);
+      const node = buildVersionRootFolder(navigation, version, pageIndex, options);
       if (node) folders.push(node);
     }
     return folders;
   }
 
-  return buildNavigationChildren(container, pageIndex, matchOptions);
+  return [
+    ...buildGlobalChildren(navigation, pageIndex, matchOptions),
+    ...buildNavigationChildren(container, pageIndex, matchOptions),
+  ];
 }
 
 /**

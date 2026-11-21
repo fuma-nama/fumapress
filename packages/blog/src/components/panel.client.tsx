@@ -43,17 +43,19 @@ export function BlogPanel() {
         </TOCScrollArea>
       </CollapsibleContent>
       <div className="flex flex-row gap-2">
-        <CollapsibleTrigger className={cn(panelButton, "min-w-0")}>
-          <span className="truncate">
-            <T text="Table of Contents" note="blog panel" />
-          </span>
-          <ChevronDown
-            className={cn(
-              "size-3.5 shrink-0 text-fd-muted-foreground transition-transform",
-              open && "rotate-180",
-            )}
-          />
-        </CollapsibleTrigger>
+        {items.length > 0 && (
+          <CollapsibleTrigger className={cn(panelButton, "min-w-0")}>
+            <span className="truncate">
+              <T text="Table of Contents" note="blog panel" />
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-3.5 shrink-0 text-fd-muted-foreground transition-transform",
+                open && "rotate-180",
+              )}
+            />
+          </CollapsibleTrigger>
+        )}
         <button className={cn(panelButton, "ms-auto text-fd-muted-foreground")} onClick={onCopy}>
           <ShareIcon className="size-3.5 shrink-0" />
           {isSuccessful ? (

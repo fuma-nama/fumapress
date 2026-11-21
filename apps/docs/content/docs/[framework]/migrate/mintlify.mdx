@@ -138,7 +138,9 @@ Unsupported properties are accepted and ignored, so they never stop the migratio
 - `colors.primary` / `colors.light`: `--color-fd-primary` in light and dark mode, with a computed foreground color.
 - `logo`: Single or light/dark image, optional `href`.
 - `favicon`: Single or light/dark icon.
-- `navigation`: `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions`, `languages` and `global`, in the sidebar. Also per-item `icon`, `tag`, `hidden`, `root`, `expanded` and external `href`s.
+- `navigation`: `pages`, `groups`, `tabs`, `anchors`, `dropdowns`, `products`, `menu`, `versions` and `languages`, in the sidebar. Also per-item `icon`, `tag`, `hidden`, `root`, `expanded` and external `href`s.
+- `navigation.global`: `tabs`, `anchors`, `dropdowns` and `products` show in the sidebar of every language and version. Its `languages` work like `navigation.languages`.
+- `navigation.languages`: The `banner`, `footer` and `navbar` of a language replace the site's on its pages.
 - `navbar`: Links with labels or icons, GitHub and Discord icons, and the `primary` button. They come after the links of `ui.layoutProps`.
 - `appearance`: `default` color scheme. `strict` hides the theme toggle, and forces the default scheme when it is explicit.
 - `background.color` / `background.image`: Applied with CSS, with light and dark variants.
